@@ -26,6 +26,7 @@ const ROOT_PC = { C: 0, 'C#': 1, Db: 1, D: 2, Eb: 3, E: 4, F: 5, 'F#': 6, Gb: 6,
                   G: 7, Ab: 8, A: 9, Bb: 10, B: 11, Cb: 11 };
 
 let instruments = [];
+let instrumentsSf = '';   // which SoundFont /api/instruments enumerated
 let filter = '';
 let scaleOn = false;
 
@@ -61,7 +62,10 @@ export default {
         h('div', { style: { display: 'flex', gap: '8px', marginBottom: '10px' } },
           h('input', {
             type: 'text', placeholder: 'filter -- rhodes, organ, kit...',
-            style: { flex: '1' },
+            // Seeded from the module-scoped filter so the box and the list can never
+            // disagree: leaving Play and coming back used to show an empty-looking
+            // input that was still filtering.
+            value: filter, style: { flex: '1' },
             oninput: (e) => { filter = e.target.value.toLowerCase(); renderList(ctx); },
           }),
           h('button.btn', { onclick: () => audition(ctx) }, 'Audition')),
@@ -109,7 +113,10 @@ export default {
               ctx.kb.setLabels(next);
               e.target.textContent = 'Labels: ' + next;
             },
-          }, 'Labels: c-only')),
+          // Rendered from the variable, not hardcoded. Label mode is a property of the
+          // always-docked keyboard -- like sustain, it should survive navigation -- so
+          // the fix is an honest label, not resetting the mode.
+          }, 'Labels: ' + labelMode)),
         h('div.note', { style: { marginTop: '12px' } },
           'Highlighted keys are the scale. They do not change what sounds -- ',
           'this is a reading aid, not a lock.'))),
@@ -121,6 +128,10 @@ export default {
     try {
       const res = await api.get('/api/instruments');
       instruments = res.instruments || [];
+      // Carry the SoundFont these bank/program numbers came from. Without it, loading
+      // an instrument into a zone pointing at a different SF2 silently falls back to
+      // Grand Piano, because that bank/program need not exist over there.
+      instrumentsSf = res.soundfont || '';
       renderList(ctx);
     } catch (err) {
       $('#inst-list').replaceChildren(h('div.empty', null, 'could not load: ' + err.message));
@@ -189,11 +200,28 @@ function renderList(ctx) {
 }
 
 async function applyInstrument(inst, ctx) {
-  const zones = (ctx.state.engine?.zones || []).map((z) => ({ ...z }));
-  if (!zones.length) return;
+  const eng = ctx.state.engine || {};
+  // The old code returned silently here, which is what made this panel look broken:
+  // zones is empty whenever the audio engine failed to start, so every click did
+  // nothing at all with no toast, no console error and no explanation.
+  if (!eng.started) {
+    toast('The audio engine is not running, so there is nothing to load a sound into. '
+        + 'Check Settings -> Audio output.', 'bad', 9000);
+    return;
+  }
+  let zones = (eng.zones || []).map((z) => ({ ...z }));
+  if (!zones.length) {
+    zones = [{
+      id: 'main', name: inst.name, lo: 21, hi: 108, channel: 0,
+      soundfont: instrumentsSf, bank: inst.bank, program: inst.program, transpose: 0,
+      gain: 1, pan: 0.5, reverb: 0.3, chorus: 0, curve: 'linear',
+      fixed_velocity: 100, enabled: true,
+    }];
+  }
   zones[0].bank = inst.bank;
   zones[0].program = inst.program;
   zones[0].name = inst.name;
+  if (instrumentsSf) zones[0].soundfont = instrumentsSf;
   try {
     const res = await api.post('/api/zones', { zones, name: inst.name });
     ctx.state.engine = res.engine;
