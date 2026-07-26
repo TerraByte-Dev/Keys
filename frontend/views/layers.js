@@ -34,7 +34,8 @@ export default {
           h('button.btn', { onclick: () => apply(ctx) }, 'Apply'),
           h('button.btn', { onclick: () => saveAs(ctx) }, 'Save as preset...'),
           h('button.btn', { onclick: () => { zones = [blank(0)]; render(ctx); } }, 'Reset')))),
-      h('div.col-12', null, mod('Zones', null, h('div', { id: 'zone-list' }))),
+      h('div.col-12', null, mod('Zone editor', 'the long way',
+        h('div', { id: 'zone-list' }))),
     ));
 
     try {

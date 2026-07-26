@@ -42,7 +42,7 @@ export default {
           (st.presets || []).map((p) => chip(p, eng.preset_id, ctx))),
         h('div.note', { style: { marginTop: '12px' } },
           'Overlap is the layering mechanism. A preset with two zones over the same keys ',
-          'sounds both -- see ', h('strong', null, 'Zones'), ' to build your own.'))),
+          'sounds both -- see ', h('strong', null, 'Layers'), ' to build your own.'))),
 
       h('div.col-5', null, mod('Sound', null,
         h('div.stats', { id: 'play-stats' },
@@ -331,7 +331,7 @@ function paintTouch() {
     note.className = 'note';
     note.replaceChildren(
       h('strong', null, `Touch response is working — ${spread} points of range.`),
-      document.createTextNode(' Velocity curves in Zones will do something now.'));
+      document.createTextNode(' Velocity curves in Layers will do something now.'));
   }
 }
 
