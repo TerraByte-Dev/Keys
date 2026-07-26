@@ -1,7 +1,7 @@
 """Metronome driven by FluidSynth's sequencer -- never by a Python sleep.
 
 Why this shape (all of it verified on this machine, see the probe results in
-docs/FEASIBILITY.md):
+docs/HARDWARE.md):
 
 * ``Sequencer(use_system_timer=False)`` + ``register_fluidsynth`` makes the **audio
   render thread** advance the sequencer clock. The clicks therefore ride the same

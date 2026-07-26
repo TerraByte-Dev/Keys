@@ -24,7 +24,7 @@ That is the right trade here: a fsync on the practice log must never be able to 
 a thread that is about to make a sound.
 
 Nothing in here may be called from the MIDI callback. Notes arrive in batches from the
-flush thread -- see CLAUDE.md.
+flush thread -- see docs/ARCHITECTURE.md.
 """
 
 from __future__ import annotations

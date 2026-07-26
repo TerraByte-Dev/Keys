@@ -1,6 +1,6 @@
 """FluidSynth: the only thing in this app that makes sound.
 
-Design rules that are not negotiable (see CLAUDE.md):
+Design rules that are not negotiable (see docs/ARCHITECTURE.md):
 
 * ``note_on`` / ``note_off`` / ``control`` / ``bend`` are the **hot path**. They are
   called from rtmidi's callback thread. No I/O, no logging, no locks, no dict
@@ -13,7 +13,7 @@ Design rules that are not negotiable (see CLAUDE.md):
   zones while a key is down still releases the right voices.
 
 Audio settings live in ``config.HARDWARE`` and every one of them was measured.
-The obvious-looking alternatives are silently wrong -- read docs/FEASIBILITY.md
+The obvious-looking alternatives are silently wrong -- read docs/HARDWARE.md
 before "fixing" any of them.
 """
 

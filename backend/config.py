@@ -1,6 +1,6 @@
 """Paths, measured hardware constants, and persisted user settings.
 
-Every number in HARDWARE was measured on this machine (see docs/FEASIBILITY.md).
+Every number in HARDWARE was measured on this machine (see docs/HARDWARE.md).
 They are defaults, not guesses -- but they are also editable at runtime, because the
 whole point of `audio_check.py` is that hardware answers change.
 
@@ -104,7 +104,7 @@ def list_assets(name: str, pattern: str) -> list[Path]:
 LOW_KEY = 21
 HIGH_KEY = 108
 
-# --- Audio (measured; see FEASIBILITY.md section 3) --------------------------
+# --- Audio (measured; see docs/HARDWARE.md section 3) --------------------------
 HARDWARE: dict[str, Any] = {
     # float, NOT int. Synth.setting() dispatches on Python type; an int routes to
     # fluid_settings_setint and fails silently.

@@ -35,7 +35,7 @@ class Hub:
         # Callback-entry -> synth-call-returned, in seconds. This is NOT end-to-end
         # latency and must never be presented as such: it excludes USB, the driver,
         # the 3 ms audio buffer, DMA, the DAC and the air. Nothing in software can
-        # measure the real number (see FEASIBILITY.md section 3).
+        # measure the real number (see docs/HARDWARE.md section 3).
         self.service: deque[float] = deque(maxlen=SERVICE_SAMPLES)
         self.total = 0
         self.dropped_estimate = 0

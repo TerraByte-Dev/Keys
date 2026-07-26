@@ -6,7 +6,7 @@ Python guarantees a package's ``__init__`` executes before any of its submodules
 so there is no import order a caller can pick that skips them.
 
 Both are load-bearing and both were measured on this machine, not guessed.
-See ``docs/FEASIBILITY.md`` and the project ``CLAUDE.md``.
+See ``docs/HARDWARE.md`` and ``docs/ARCHITECTURE.md``.
 """
 
 from __future__ import annotations

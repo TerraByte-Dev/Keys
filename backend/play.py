@@ -4,7 +4,7 @@
 
 While it runs:  1-8 switch instrument   SPACE panic (all notes off)   q quit
 
-Every setting in here was measured on this machine, not guessed. See docs/FEASIBILITY.md
+Every setting in here was measured on this machine, not guessed. See docs/HARDWARE.md
 before changing any of them -- most of the obvious-looking alternatives are silently wrong.
 """
 
