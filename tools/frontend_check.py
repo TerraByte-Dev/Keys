@@ -79,7 +79,25 @@ step("no keyboard variable falls back to its built-in default",
      not missing, f"{len(needed)} used, {len(defined)} defined"
      + (f", missing {missing}" if missing else ""))
 
-print("5. no absolute developer paths leaked into shipped files")
+print("5. the dock constrains the keyboard")
+# keyboard.js injects `.keys-kb{width:100%;height:auto}` into <head> at RUNTIME, i.e.
+# after style.css. With height:auto the SVG sizes itself from its 8.43:1 viewBox and
+# overflows the fixed-height dock, and body{overflow:hidden} crops it -- which looked
+# like "all the keys are the same length" rather than like a layout bug. Two things have
+# to hold, and neither is visible in a diff:
+#   * the override must be TWO classes, or it loses the equal-specificity tie-break
+#   * the dock's grid row must be explicit, or it is sized BY the keyboard instead
+dock_rule = re.search(r"\.dock\s+\.keys-kb\s*\{([^}]*)\}", css)
+step("style.css overrides .keys-kb height", dock_rule is not None and "height" in dock_rule.group(1),
+     dock_rule.group(1).strip() if dock_rule else "no `.dock .keys-kb` rule at all")
+step("the override is two-class, so it beats the injected sheet",
+     dock_rule is not None, ".dock .keys-kb, not a bare .keys-kb")
+dock_block = re.search(r"\.dock\s*\{([^}]*)\}", css)
+step("the dock row is explicit, not auto-sized by its content",
+     dock_block is not None and "grid-template-rows" in dock_block.group(1),
+     "grid-template-rows: minmax(0, 1fr)")
+
+print("6. no absolute developer paths leaked into shipped files")
 leaked = []
 for path in list(modules) + [FRONTEND / "index.html", FRONTEND / "style.css"]:
     if re.search(r"[A-Za-z]:\\\\Users\\\\|/Users/|/home/", path.read_text("utf-8")):

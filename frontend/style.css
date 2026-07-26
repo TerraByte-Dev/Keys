@@ -39,9 +39,13 @@
   --font-mono: "Cascadia Mono", "Consolas", "SF Mono", ui-monospace, monospace;
 
   --rail-h: 34px;
-  --nav-w: 92px;
+  --nav-w: 112px;
   --readout-h: 62px;
-  --dock-h: clamp(96px, 15vh, 148px);
+  /* 52 white keys x 24 units by 148 tall is 8.43:1, so for the drawn keyboard to reach
+     the full width of the dock, the dock's content box has to be width/8.43 tall. On a
+     16:9 display that works out at 20vh -- this number is geometry, not taste. Capped,
+     because a real 88-key board is 1225 mm and does not grow with your monitor. */
+  --dock-h: clamp(104px, 20vh, 216px);
 
   --ease: cubic-bezier(.2, 0, 0, 1);
   --radius: 3px;
@@ -288,11 +292,27 @@ body::after {
 .dock {
   grid-area: dock;
   position: relative;
+  display: grid;
+  /* One row, explicitly the height of the content box. An implicit `auto` row would be
+     sized BY the keyboard's intrinsic height instead of constraining it -- which is
+     circular, and resolves in the SVG's favour, so it still overflowed. minmax(0,1fr)
+     also removes the min-content floor that would otherwise re-expand the row. */
+  grid-template-rows: minmax(0, 1fr);
   padding: 8px 10px 10px;
   background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel-0) 100%);
   border-top: 1px solid var(--hairline-hi);
   box-shadow: inset 0 14px 26px -18px #000;
 }
+
+/* keyboard.js ships `.keys-kb{width:100%;height:auto}`, which makes the SVG derive its
+   own height from the 8.43:1 viewBox and overflow this fixed-height dock -- clipped by
+   body{overflow:hidden}, which is why every key appeared to end at the same length.
+   Giving it a definite height is what finally lets its own preserveAspectRatio="xMidYMid
+   meet" letterbox instead.
+   The two-class selector is load-bearing: the component injects its stylesheet into
+   <head> at runtime, i.e. AFTER this file, so a bare `.keys-kb` here would lose the
+   equal-specificity tie-break and silently do nothing. */
+.dock .keys-kb { width: 100%; height: 100%; }
 
 /* ── controls ───────────────────────────────────────────────────────────── */
 .btn {
