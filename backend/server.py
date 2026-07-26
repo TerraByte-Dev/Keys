@@ -26,6 +26,7 @@ from fastapi import Body, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
 from . import config, engine as engine_mod, music, timing
+from .backing import Backing
 from .engine import Engine, Preset, Zone
 from .exercises import GenContext, clean_params, load_all
 from .exercises.metrics import grade
@@ -58,6 +59,7 @@ class App:
         self.midi = MidiInput(self.engine, self.hub)
         self.metro = Metronome(self.engine, self.settings)
         self.loop = LoopStation(self.engine, self.metro, self.settings)
+        self.backing = Backing(self.settings)
         self.store = Store(config.DB_PATH)
         self.practice = PracticeClock(self.store, self.settings)
         self.sight = SightReader(self.store, self.settings)
@@ -556,6 +558,42 @@ def loop_layer(layer_id: str, body: dict[str, Any] = Body(...)) -> dict[str, Any
 def loop_layer_delete(layer_id: str) -> dict[str, Any]:
     app_state.loop.delete_layer(layer_id)
     return _loop_reply()
+
+
+# ------------------------------------------------------------- backing tracks
+def _backing_reply(error: str = "") -> dict[str, Any]:
+    # exclusive is the whole reason this endpoint reports engine state: in exclusive
+    # mode Keys owns the output device and the browser gets silence, so a backing track
+    # looks broken rather than blocked. The UI says so instead.
+    audio = app_state.settings.get("audio", default=config.HARDWARE) or config.HARDWARE
+    return {
+        "ok": not error, "error": error,
+        "tracks": app_state.backing.all(),
+        "exclusive": bool(audio.get("exclusive", True)),
+    }
+
+
+@api.get("/api/backing")
+def backing_list() -> dict[str, Any]:
+    return _backing_reply()
+
+
+@api.post("/api/backing")
+def backing_add(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    _tracks, error = app_state.backing.add(str(body.get("url", "")), str(body.get("title", "")))
+    return _backing_reply(error)
+
+
+@api.post("/api/backing/{track_id}")
+def backing_update(track_id: str, body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    _tracks, error = app_state.backing.update(track_id, body)
+    return _backing_reply(error)
+
+
+@api.delete("/api/backing/{track_id}")
+def backing_delete(track_id: str) -> dict[str, Any]:
+    app_state.backing.remove(track_id)
+    return _backing_reply()
 
 
 # Declared last so the fixed paths above win -- FastAPI matches in declaration order,

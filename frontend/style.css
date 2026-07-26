@@ -799,6 +799,39 @@ select:focus, input:focus { outline: none; border-color: var(--amber-deep); }
 .layerrow__ctl { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
 .layerrow__ctl .field { margin-bottom: 0; }
 
+/* ── backing tracks ─────────────────────────────────────────────────────── */
+.yt { display: grid; grid-template-columns: minmax(280px, 1.4fr) 1fr; gap: 14px; margin-bottom: 14px; }
+.yt__frame {
+  position: relative; aspect-ratio: 16 / 9;
+  background: #000; border: 1px solid var(--hairline); border-radius: var(--radius);
+  overflow: hidden;
+}
+.yt__frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.yt__side { display: flex; flex-direction: column; gap: 10px; }
+.yt__title { font-size: 13px; color: var(--ink); letter-spacing: .04em; }
+.yt__loop {
+  font-family: var(--font-mono); font-size: 11px; color: var(--ink-dim);
+  padding: 6px 8px; background: var(--panel-0);
+  border: 1px solid var(--hairline); border-radius: 2px;
+}
+.yt__loop strong { color: var(--amber); font-weight: 500; }
+
+.track {
+  border: 1px solid var(--hairline); border-radius: var(--radius);
+  padding: 8px 10px; margin-bottom: 6px; background: #ffffff04;
+}
+.track.is-on { border-color: var(--amber-deep); background: #ffa62b0c; }
+.track__head { display: flex; align-items: center; gap: 8px; }
+.track__title, .track__meta, .track__notes {
+  background: transparent; border: 1px solid transparent; color: var(--ink);
+  font-family: var(--font-panel); font-size: 12.5px; padding: 3px 5px;
+}
+.track__title { flex: 1; min-width: 120px; }
+.track__meta { width: 62px; font-family: var(--font-mono); font-size: 11px; color: var(--cyan); }
+.track__notes { width: 100%; margin-top: 4px; font-size: 11.5px; color: var(--ink-dim); }
+.track input:hover { border-color: var(--hairline); }
+.track input:focus { border-color: var(--amber-deep); outline: none; background: var(--panel-0); }
+
 /* ── responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 720px) {
   body { grid-template-columns: 1fr; grid-template-areas: "rail" "stage" "readout" "dock"; }

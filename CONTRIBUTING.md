@@ -30,19 +30,21 @@ SoundFont at `soundfonts/GeneralUser-GS.sf2`. Node is optional and only used by 
 
 ## Before you open a PR
 
-Run the suite locally. It is seven scripts, needs no test runner, and takes about a minute:
+Run the suite locally. It is nine scripts, needs no test runner, and takes about two minutes:
 
 ```bash
 .venv\Scripts\python tools\music_check.py       # theory: spelling, intervals, chords, scales
 .venv\Scripts\python tools\store_check.py       # SQLite: sessions, streaks, local-day boundaries
 .venv\Scripts\python tools\timing_check.py      # onset analysis against synthetic signals
 .venv\Scripts\python tools\exercise_check.py    # fingering table, generators, grader, metrics
+.venv\Scripts\python toolsacking_check.py     # YouTube URL parsing and the track shelf
 .venv\Scripts\python tools\engine_check.py      # zones, presets, drum banks, metronome timing
 .venv\Scripts\python tools\pipeline_check.py    # end-to-end above the MIDI port
+.venv\Scripts\python tools\looper_check.py      # loop transport, takes, the pedal, the seam
 .venv\Scripts\python tools\frontend_check.py    # ES module syntax + asset wiring
 ```
 
-`engine_check` and `pipeline_check` open the audio device **and make noise on purpose**, so they refuse to run
+`engine_check`, `pipeline_check` and `looper_check` open the audio device **and make noise on purpose**, so they refuse to run
 while Keys is up rather than playing a metronome into whatever you were doing — close the app first (`--force`
 overrides). In shared mode a second engine opens happily and its clicks come out of your speakers mixed into
 your playing, which reads as the app glitching rather than as a test script.

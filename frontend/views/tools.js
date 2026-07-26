@@ -1,23 +1,26 @@
 /* Tools -- things you run while you play.
  *
- * The metronome is the first and currently the only one; a tuner, chord finder, scale
- * reference and transposer belong here too. It lives in its own tab rather than as a
- * peer of Play and Practice because one tool does not deserve a top-level slot, and
- * because there was nowhere for the second one to go.
+ * The metronome and the backing-track shelf; a tuner, chord finder, scale reference and
+ * transposer belong here too. Tools lives in its own tab rather than as a peer of Play
+ * and Practice because one tool does not deserve a top-level slot, and because there
+ * was nowhere for the second one to go.
  *
  * The clicks are scheduled on FluidSynth's sequencer, driven by the audio render
  * thread. Nothing here times anything -- this view sends configuration and draws the
  * beat lamps from the status feed. `m` toggles it from any tab. */
 
+import { createBacking } from '../backing.js';
 import { $, api, h, mod, slider, stat, toast } from '../ui.js';
 
 let cfg = {};
 let lastBeat = -1;
+let backing = null;
 
 export default {
   async mount(root, ctx) {
     const m = ctx.state.metronome || {};
     cfg = { ...(m.config || {}) };
+    backing = createBacking();
 
     root.append(h('div.grid', null,
       h('div.col-5', null, mod('Tempo', null,
@@ -88,14 +91,18 @@ export default {
         h('div.note', { style: { marginTop: '10px' } },
           'The click runs on channel 15 with an explicit bank-128 program select, so it ',
           'never collides with a drum zone you put on channel 9.'))),
+
+      h('div.col-12', null, backing.el),
     ));
 
     renderBeats(cfg.beats_per_bar ?? 4);
     $('#bpm-display').parentElement.nextElementSibling.id = 'bpm-slider';
     loadKits();
+    await backing.init();
   },
 
   status(s) {
+    backing?.status(s);
     const m = s.metronome;
     if (!m) return;
     cfg = { ...m.config };
@@ -127,7 +134,11 @@ export default {
     }
   },
 
-  unmount() { lastBeat = -1; },
+  unmount() {
+    lastBeat = -1;
+    backing?.destroy();
+    backing = null;
+  },
 };
 
 function renderBeats(n) {

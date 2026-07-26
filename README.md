@@ -35,9 +35,10 @@
 Keys is a **workspace** for a USB piano — a room you open and play in, at your own pace, with nothing to enrol
 in and nobody grading you. MIDI comes in, **FluidSynth** renders it through WASAPI in exclusive mode at a
 measured **3.00 ms**, and a browser UI hangs off the side showing what you played — never in the path of what
-you hear. It's **local-first**: no account, no telemetry, no CDN, fonts already on your machine, and a practice
-history that lives in a SQLite file you own. The frontend has **no build step and no dependencies** — vanilla ES
-modules served straight off disk. There is no `package.json`.
+you hear. It's **local-first**: no account, no telemetry, fonts already on your machine, and a practice history
+that lives in a SQLite file you own. Nothing leaves the machine and nothing is fetched — with exactly one
+exception, opened only when you ask for it: a backing track loads YouTube's player. The frontend has **no build
+step and no dependencies** — vanilla ES modules served straight off disk. There is no `package.json`.
 
 It isn't a tutor and it isn't Synthesia. There's no curriculum, no unlock sequence, no streak-shaming. What
 there is: hundreds of instruments a click away, splits and layers you can build in seconds, a metronome that
@@ -77,6 +78,8 @@ plugging it back in needs no restart. `1`–`6` switch views, `M` toggles the me
 
 - **Three milliseconds, measured** — WASAPI exclusive mode at a 144-sample buffer, verified on real hardware rather than estimated. Audio is rendered in FluidSynth's own C thread and **never passes through Python**. The MIDI callback does one thing and stops; everything else runs off a bounded queue that drops frames instead of blocking a note.
 - **Layers: splits and layers on one keybed** — a *split* puts bass in your left hand and piano in your right; a *layer* puts piano and strings on the same keys. Both are one idea: a zone is a range of keys pointed at a sound, and **overlapping two zones *is* the layer**. One click each, with a full editor underneath for transpose, gain, pan, sends and velocity curves.
+- **A loop station — be your own band** — record a few bars, they start looping, then play over the top and record that too. Bass, chords, melody, up to five layers, each keeping the instrument you played it with. Takes are locked to the bar and end themselves on the bar line, so a loop never drifts the way a hand-stopped one does; the pedal is captured as note length, so a sustained part sustains.
+- **Backing tracks** — paste a YouTube link, set loop points, and grind eight bars of a solo without hunting the scrubber. Slow it down to learn it, and keep the key and tempo written next to it. (It tells you when exclusive mode has the speakers, instead of playing silently and looking broken.)
 - **18 presets, 287 instruments** — presets are plain JSON you can edit by hand. The instrument browser enumerates every preset the SoundFont actually contains — including all 13 drum kits — rather than trusting the GM chart.
 - **Exercises you can pick up** — scales in any key and mode, one hand or both, parallel or contrary; arpeggios with inversions; sight reading. Hands-together steps carry both notes, so the spread between your hands is measured directly — the thing most people plateau on and nobody else surfaces.
 - **A practice clock that doesn't flatter you** — time is credited *between consecutive notes*, capped at a grace window, so "34 minutes" means minutes with your hands on the keys and not minutes with the app open. Streaks, a 90-day calendar, and a per-key heatmap of what you actually use.
@@ -178,7 +181,7 @@ Keys is up — close it first, or pass `--force` if you know what you're doing.
 .venv\Scripts\python tools\frontend_check.py    # every ES module parses; needs Node for the syntax pass
 ```
 
-The full suite is seven checks and 560 assertions; see [`CONTRIBUTING.md`](CONTRIBUTING.md). There is no
+The full suite is nine checks and 678 assertions; see [`CONTRIBUTING.md`](CONTRIBUTING.md). There is no
 bundler, no transpiler and no `node_modules` — editing `frontend/` and reloading the page is the whole loop.
 
 ## License
