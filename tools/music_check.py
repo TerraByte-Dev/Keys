@@ -279,9 +279,17 @@ step("a sharp-weighted histogram is not C major", sharp_top["name"] != "C major"
      f"{sharp_top['name']} score={sharp_top['score']}")
 step("it reads as a sharp key", sharp_top["key"] == "F#" and sharp_top["mode"] == "major",
      str([r["name"] for r in infer_key(sharp, 3)]))
-full = [r["name"] for r in infer_key(sharp, top=24)]
+full24 = infer_key(sharp, top=24)
+full = [r["name"] for r in full24]
 step("C major is dead last of the 24", full[-1] == "C major",
      f"rank {full.index('C major') + 1} of {len(full)}")
+# A minor key is named from its own tonic, not from the major key that happens to sit
+# on the same pitch class: pc 8 is G# minor (five sharps), never Ab minor (seven), and
+# pc 10 is Bb minor, never A# minor. Only the minor half can get this wrong.
+step("minor keys are named from their own tonic",
+     {r["key"] for r in full24 if r["mode"] == "minor"}
+     == {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "Bb", "B"},
+     " ".join(sorted({r["key"] for r in full24 if r["mode"] == "minor"})))
 
 step("all zeros returns []", infer_key([0] * 12) == [], str(infer_key([0] * 12)))
 step("an empty histogram returns []", infer_key([]) == [])
@@ -292,7 +300,12 @@ scores = [r["score"] for r in ranked]
 shares = [r["share"] for r in ranked]
 step("default top is 5", len(ranked) == 5, str([r["name"] for r in ranked]))
 step("sorted by score, descending", scores == sorted(scores, reverse=True), str(scores))
-step("scores are clamped to 0..1", all(0.0 <= s <= 1.0 for s in scores))
+# The bottom of the 24 correlate *negatively* -- "nothing like C major" is real
+# information, but it is not a score. Checking only the top five would pass with the
+# clamp deleted, so this checks the whole ranking and that the worst entry floors at 0.
+step("scores are clamped to 0..1", all(0.0 <= r["score"] <= 1.0 for r in full24)
+     and full24[-1]["score"] == 0.0,
+     f"worst of 24 is {full24[-1]['name']} at {full24[-1]['score']}")
 step("shares sum to ~1.0", abs(sum(shares) - 1.0) < 0.01, f"sum={sum(shares):.3f}")
 three = infer_key(c_major, top=3)
 step("top=3 returns 3 and re-splits the shares", len(three) == 3

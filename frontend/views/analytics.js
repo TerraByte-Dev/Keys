@@ -20,7 +20,10 @@ export default {
       h('div.col-12', null, h('div.empty', null, 'reading a year of practice...'))));
 
     try {
-      data = await api.get('/api/analytics?days=365');
+      // 53 weeks, not 365 days: the calendar below draws WEEKS * 7 cells back to a
+      // Monday, so a 365-day window leaves its first column with no rows behind it
+      // and those days render as "nothing" whether or not they were played.
+      data = await api.get(`/api/analytics?days=${WEEKS * 7}`);
     } catch (err) {
       $('#an-grid').replaceChildren(h('div.col-12', null,
         h('div.empty', null, 'could not load analytics: ' + err.message)));
@@ -403,7 +406,8 @@ function hours(rows) {
   if (!v || !v.some((n) => n > 0)) return nothing('no sessions yet');
   return barChart(v, v.map((_, i) => String(i)), {
     every: 3,
-    title: (i, n) => `${String(i).padStart(2, '0')}:00 -- ${count(n)} notes`,
+    // Active seconds, not notes -- store.hour_histogram weights by the practice clock.
+    title: (i, n) => `${String(i).padStart(2, '0')}:00 -- ${humanMinutes(n)}`,
   });
 }
 
@@ -412,7 +416,10 @@ const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 function weekdays(rows) {
   const v = Array.isArray(rows) && rows.length === 7 ? rows.map(Number) : null;
   if (!v || !v.some((n) => n > 0)) return nothing('no sessions yet');
-  return barChart(v, DAY_NAMES, { cyan: true });
+  // Same unit as hours(): active seconds, so the bare bar height needs a unit on it.
+  return barChart(v, DAY_NAMES, {
+    cyan: true, title: (i, n) => `${DAY_NAMES[i]} -- ${humanMinutes(n)}`,
+  });
 }
 
 /* ── trends ───────────────────────────────────────────────────────────────── */
