@@ -141,6 +141,20 @@ export default {
           ' and pick them per zone. Salamander Grand will not work here -- it is SFZ, ',
           'and FluidSynth cannot load SFZ.'))),
 
+      h('div.col-6', null, mod('About', `version ${st.version || '?'}`,
+        h('div.stats', null,
+          stat(st.version || '?', 'Version', st.frozen ? 'installed build' : 'source checkout'),
+          stat(st.frozen ? 'EXE' : 'PY', 'Running as',
+               st.frozen ? 'from the installer' : 'from keys.py')),
+        h('div.btnrow', { style: { marginTop: '12px' } },
+          h('button.btn.btn--lg', { id: 'upd-check', onclick: checkUpdate },
+            'Check for updates')),
+        h('div', { id: 'upd-result', style: { marginTop: '10px' } }),
+        h('div.note', { style: { marginTop: '10px' } },
+          'Keys checks only when you press that button -- never on launch, never on a ',
+          'timer, never in the background. The request sends nothing but a GET for the ',
+          'public release list.'))),
+
       h('div.col-6', null, mod('First run', null,
         h('div.note', null,
           'The six-card tour that runs the first time you open Keys. It covers the ',
@@ -181,6 +195,35 @@ export default {
     }
   },
 };
+
+async function checkUpdate() {
+  const btn = $('#upd-check');
+  const host = $('#upd-result');
+  btn.disabled = true;
+  btn.textContent = 'Checking...';
+  host.replaceChildren();
+  try {
+    const r = await api.post('/api/update/check', {});
+    if (r.error) {
+      host.append(h('div.note.note--warn', null, r.error));
+    } else if (r.newer) {
+      host.append(h('div.note.note--warn', null,
+        h('strong', null, `${r.latest} is available.`), ` You are on ${r.current}. `,
+        h('a', { href: r.url, target: '_blank', rel: 'noreferrer' }, 'Open the release'),
+        r.download_name ? ` (${r.download_name}, ${(r.download_size / 1048576).toFixed(0)} MB)` : ''));
+      if (r.notes) host.append(h('div.note', { style: { marginTop: '8px' } }, r.notes));
+    } else {
+      host.append(h('div.note', null,
+        `Up to date -- ${r.current}`,
+        r.latest && r.latest !== r.current ? ` (latest published: ${r.latest})` : ''));
+    }
+  } catch (err) {
+    host.append(h('div.note.note--warn', null, err.message));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Check for updates';
+  }
+}
 
 async function wireAudio(ctx) {
   try {

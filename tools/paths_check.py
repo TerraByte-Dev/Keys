@@ -163,6 +163,22 @@ step("presets resolve", len(config.list_assets("presets", "*.json")) >= 8,
      f"{len(config.list_assets('presets', '*.json'))} presets")
 step("the frontend resolves", (config.FRONTEND_DIR / "app.js").exists())
 
+print("8. version comparison, which decides whether you are told to update")
+from backend.version import VERSION, is_newer, parse  # noqa: E402
+
+step("the version parses", parse(VERSION) >= (0,), VERSION)
+step("1.2.3 beats 1.2.2", is_newer("1.2.3", "1.2.2"))
+step("a leading v is ignored", is_newer("v1.3.0", "1.2.9"))
+step("10 is not less than 9", is_newer("1.10.0", "1.9.0"),
+     "string comparison gets this wrong; that is why parse() exists")
+step("1.2 and 1.2.0 are the same version", not is_newer("1.2", "1.2.0")
+     and not is_newer("1.2.0", "1.2"))
+step("the same version is not newer", not is_newer(VERSION, VERSION))
+step("an older tag is not an upgrade", not is_newer("0.1.0", "1.0.0"))
+step("an unparseable tag is never an upgrade", not is_newer("nightly", "0.1.0"),
+     "the safe direction -- garbage must not look like a new release")
+step("an empty tag is never an upgrade", not is_newer("", VERSION))
+
 print()
 print("ALL CHECKS PASSED" if ok else "FAILURES ABOVE")
 sys.exit(0 if ok else 1)

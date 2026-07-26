@@ -38,6 +38,7 @@ from .midi_in import MidiInput
 from .practice import PracticeClock
 from .sightread import SightReader
 from .store import Store
+from .version import VERSION, check as check_update
 
 FRAME_HZ = 60
 STATUS_HZ = 1
@@ -289,6 +290,8 @@ class App:
             "settings": self.settings.all(),
             "presets": [p.to_dict() for p in self.presets.values()],
             "soundfonts": self.engine.list_soundfonts(),
+            "version": VERSION,
+            "frozen": config.FROZEN,
             "curves": engine_mod.CURVE_NAMES,
             "keys": music.KEYS,
             "range": {"low": config.LOW_KEY, "high": config.HIGH_KEY},
@@ -347,6 +350,7 @@ def health() -> dict[str, Any]:
     return {
         "ok": app_state.engine.started,
         "midi": app_state.midi.connected,
+        "version": VERSION,
         "errors": app_state._boot_errors,  # noqa: SLF001
     }
 
@@ -580,6 +584,15 @@ def _backing_reply(error: str = "") -> dict[str, Any]:
 @api.get("/api/backing")
 def backing_list() -> dict[str, Any]:
     return _backing_reply()
+
+
+# ------------------------------------------------------------------- updates
+# Only ever on request. Keys does not check on launch, on a timer, or in the
+# background -- an app that quietly contacts a server every time you open it is not
+# local-first no matter what its README says.
+@api.post("/api/update/check")
+def update_check() -> dict[str, Any]:
+    return {"ok": True, **check_update()}
 
 
 @api.post("/api/backing")

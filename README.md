@@ -147,7 +147,8 @@ engine's own held-note set puts the display back in sync.
 
 Deeper notes: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (the invariants and why they exist),
 [`docs/HARDWARE.md`](docs/HARDWARE.md) (every measured number, and the settings that fail silently),
-[`docs/ROADMAP.md`](docs/ROADMAP.md) (what's built and what's deliberately skipped).
+[`docs/ROADMAP.md`](docs/ROADMAP.md) (what's built and what's deliberately skipped),
+[`docs/PACKAGING.md`](docs/PACKAGING.md) (building the Windows app, and the three ways PyInstaller lies to you).
 
 ## Troubleshooting
 
@@ -181,7 +182,7 @@ Keys is up — close it first, or pass `--force` if you know what you're doing.
 .venv\Scripts\python tools\frontend_check.py    # every ES module parses; needs Node for the syntax pass
 ```
 
-The full suite is ten checks and 708 assertions; see [`CONTRIBUTING.md`](CONTRIBUTING.md). There is no
+The full suite is ten checks and 717 assertions; see [`CONTRIBUTING.md`](CONTRIBUTING.md). There is no
 bundler, no transpiler and no `node_modules` — editing `frontend/` and reloading the page is the whole loop.
 
 ## License

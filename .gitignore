@@ -24,4 +24,9 @@ __pycache__/
 
 # Node
 node_modules/
+
+# Build output. dist/ was already here for Node's sake; build/ is PyInstaller's
+# scratch directory and Keys.spec's siblings are generated, not authored.
 dist/
+build/
+*.manifest

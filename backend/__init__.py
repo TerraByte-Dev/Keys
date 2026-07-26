@@ -26,7 +26,23 @@ sys.setswitchinterval(0.0008)
 # Windows implementation walks os.environ['PATH'] and nothing else -- it is blind
 # to os.add_dll_directory(). The lookup runs at fluidsynth's module import time,
 # so this cannot be deferred.
-FLUIDSYNTH_BIN = os.environ.get("KEYS_FLUIDSYNTH_BIN", r"C:\tools\fluidsynth\bin")
+#
+# Three candidates, in the order that makes each of them right:
+#   1. KEYS_FLUIDSYNTH_BIN, because someone who sets it means it.
+#   2. The frozen bundle, where the installed build ships FluidSynth's DLLs as loose
+#      files -- which its LGPL licence requires anyway, so --onedir gives it for free.
+#   3. C:\tools\fluidsynth\bin, the documented location for a source checkout.
+def _fluidsynth_bin() -> str:
+    override = os.environ.get("KEYS_FLUIDSYNTH_BIN")
+    if override:
+        return override
+    bundle = getattr(sys, "_MEIPASS", None)
+    if bundle and os.path.isdir(bundle):
+        return bundle
+    return r"C:\tools\fluidsynth\bin"
+
+
+FLUIDSYNTH_BIN = _fluidsynth_bin()
 if FLUIDSYNTH_BIN not in os.environ.get("PATH", ""):
     os.environ["PATH"] = FLUIDSYNTH_BIN + os.pathsep + os.environ.get("PATH", "")
 
