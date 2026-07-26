@@ -141,6 +141,24 @@ export default {
           ' and pick them per zone. Salamander Grand will not work here -- it is SFZ, ',
           'and FluidSynth cannot load SFZ.'))),
 
+      h('div.col-6', null, mod('Startup sound', 'what Keys opens with',
+        h('label.field', null,
+          h('span.field__label', null, h('span', null, 'Preset')),
+          h('select', {
+            onchange: (e) => api.post(`/api/presets/${e.target.value}/startup`)
+              .then(() => toast(`Keys will open with ${e.target.selectedOptions[0].textContent}`,
+                                'good', 2600))
+              .catch((err) => toast(err.message, 'bad')),
+          }, (st.presets || []).map((p) => h('option', {
+            value: p.id, selected: p.id === (s.preset || 'grand-piano'),
+          }, `${p.name}${p.zones?.length > 1 ? `  (${p.zones.length} zones)` : ''}`)))),
+        h('div.note', null,
+          'Loading a preset in ', h('strong', null, 'Play'), ' no longer changes this. ',
+          'Trying a split out of curiosity used to pin it forever, so every launch ',
+          'afterwards came up with the keyboard cut in half and nothing on screen ',
+          'explaining why. The keyboard is one instrument end to end unless you say ',
+          'otherwise here.'))),
+
       h('div.col-6', null, mod('About', `version ${st.version || '?'}`,
         h('div.stats', null,
           stat(st.version || '?', 'Version', st.frozen ? 'installed build' : 'source checkout'),

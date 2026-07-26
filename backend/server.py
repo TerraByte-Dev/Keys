@@ -370,9 +370,21 @@ def load_preset(pid: str) -> dict[str, Any]:
     if preset is None:
         raise HTTPException(404, f"no preset '{pid}'")
     warnings = app_state.engine.set_zones(preset.zones, preset.id, preset.name)
-    app_state.settings.update({"preset": pid})
+    # Deliberately does NOT become the startup sound. Trying a split out of curiosity
+    # used to pin it forever, so every launch afterwards came up with the keyboard cut
+    # in half and nothing on screen explaining why. Startup is set on purpose, in
+    # Settings; loading a preset is just loading a preset.
     app_state.practice.preset = pid
     return {"ok": True, "warnings": warnings, "engine": app_state.engine.status()}
+
+
+@api.post("/api/presets/{pid}/startup")
+def set_startup_preset(pid: str) -> dict[str, Any]:
+    """Pin a preset as what Keys opens with."""
+    if pid not in app_state.presets:
+        raise HTTPException(404, f"no preset '{pid}'")
+    app_state.settings.update({"preset": pid})
+    return {"ok": True, "preset": pid}
 
 
 @api.post("/api/presets/save")

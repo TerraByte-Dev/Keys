@@ -824,3 +824,1475 @@ INFO:     127.0.0.1:64307 - "GET /api/analytics?days=371 HTTP/1.1" 200 OK
   [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
   [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
   [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:51479 - "GET /api/backing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50424 - "GET /api/instruments HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:62641 - "GET /api/analytics?days=371 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62641 - "GET /api/analytics?days=371 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62641 - "GET /api/analytics?days=371 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62641 - "GET /api/analytics?days=371 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62641 - "GET /api/analytics?days=371 HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:57276 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57276 - "GET /style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54397 - "GET /app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54397 - "GET /keyboard.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57276 - "GET /ui.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65053 - "GET /tour.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54301 - "GET /views/play.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64943 - "GET /views/practice.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65245 - "GET /views/layers.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54397 - "GET /views/tools.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57276 - "GET /views/stats.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65053 - "GET /views/settings.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54301 - "GET /views/read.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54397 - "GET /exercise-run.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65245 - "GET /loopstation.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64943 - "GET /backing.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64943 - "GET /staff.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64943 - "GET /api/state HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64943 - "GET /api/analytics?days=371 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65095 - "WebSocket /ws" [accepted]
+INFO:     connection open
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:49948 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49949 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49950 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49951 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49952 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49953 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49954 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49955 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49956 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49957 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49958 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49959 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49960 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49961 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49962 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49963 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49965 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49966 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49967 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49968 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49969 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49970 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63044 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices  21 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63046 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63047 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63048 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63049 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63050 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63051 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63052 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63053 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63054 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63055 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63056 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49960 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49961 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49962 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49963 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49965 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49966 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   3 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] MIDI not connected -- is the piano on?
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:54671 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54671 - "GET /api/loop HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:54671 - "GET /api/analytics?days=371 HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:54671 - "GET /api/audio/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54671 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57599 - "GET /api/backing HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:57599 - "GET /api/audio/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57599 - "GET /api/analytics?days=371 HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:57599 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54671 - "GET /api/backing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54671 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54671 - "GET /api/loop HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54671 - "GET /api/exercises HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54671 - "GET /api/exercises/state HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:54671 - "GET /api/instruments HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:54671 - "POST /api/presets/strings/load HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54671 - "POST /api/presets/organ-bass-split/load HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:54671 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54671 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54671 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54671 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   5 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:54671 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54671 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   2 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:54671 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54671 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54671 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54671 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   4 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:54671 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54671 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54671 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54671 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54671 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54671 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54671 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices  17 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   4 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   6 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   1 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   1 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   1 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   1 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   4 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   2 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   1 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   1 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/panic HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/panic HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   1 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   4 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   4 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   4 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   3 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   1 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   3 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   1 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   2 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   3 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   1 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   5 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   3 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   1 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   2 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   1 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   3 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   2 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   2 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   1 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   1 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   3 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   2 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   3 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   1 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   2 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63247 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   3 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:63247 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49846 - "GET /api/backing HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:49846 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49846 - "GET /api/loop HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49846 - "GET /api/exercises HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49846 - "GET /api/exercises/state HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49846 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49846 - "GET /api/loop HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+INFO:     127.0.0.1:59094 - "GET /api/state HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
