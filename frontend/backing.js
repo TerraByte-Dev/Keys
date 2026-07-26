@@ -54,12 +54,20 @@ export function createBacking() {
       'bars of a solo without hunting the scrubber, slow it down to learn it, and write ',
       'the key and tempo next to it so you do not work them out twice.'),
 
+    // Shown only if the automatic hand-off in open() failed. Normally you never see it.
     h('div.note.note--warn', { id: 'yt-excl', style: { display: 'none' } },
-      h('strong', null, 'Keys owns the speakers right now.'),
-      ' Exclusive mode is where the 3 ms comes from, and it means the browser gets ',
-      'silence -- a backing track will play with no sound. ',
+      h('strong', null, 'Keys still owns the speakers.'),
+      ' Exclusive mode is where the 3 ms comes from, and while it holds the output ',
+      'device nothing else can make a sound -- including this video. ',
       h('button.btn', { id: 'yt-share', style: { marginLeft: '8px' } }, 'Switch to shared'),
       ' Latency goes to roughly 10 ms, which is still very playable.'),
+
+    // The state you are actually in while using this panel.
+    h('div.note', { id: 'yt-shared', style: { display: 'none' } },
+      h('strong', null, 'Shared output'), ' -- the video and your piano are both audible. ',
+      'Latency is roughly 10 ms instead of 3. ',
+      h('button.btn', { id: 'yt-restore', style: { marginLeft: '8px' } },
+        'Give the device back to Keys (3 ms)')),
 
     h('div.btnrow', { style: { margin: '12px 0' } },
       h('input', {
@@ -73,11 +81,15 @@ export function createBacking() {
       h('div.yt__frame', null, h('div', { id: 'yt-player' })),
       h('div.yt__side', null,
         h('div.yt__title', { id: 'yt-title' }, ''),
+        h('div.note', null,
+          'The player has YouTube\'s own controls -- play, pause, scrub, volume, ',
+          'quality, fullscreen. The buttons here are the ones it does not have.'),
         h('div.btnrow', null,
           h('button.btn', { id: 'yt-play' }, 'Play'),
           h('button.btn', { id: 'yt-a' }, 'Set A'),
           h('button.btn', { id: 'yt-b' }, 'Set B'),
-          h('button.btn', { id: 'yt-clear' }, 'Clear loop')),
+          h('button.btn', { id: 'yt-clear' }, 'Clear loop'),
+          h('button.btn', { id: 'yt-close' }, 'Close')),
         h('div.yt__loop', { id: 'yt-loop' }, 'no loop set'),
         h('label.field', null,
           h('span.field__label', null, h('span', null, 'Speed'),
@@ -122,7 +134,15 @@ export function createBacking() {
   }
 
   function paint() {
-    $('#yt-excl').style.display = exclusive ? '' : 'none';
+    const open_ = !!currentId;
+    // Null-guarded throughout: reclaimDevice() can resolve after the view has been
+    // unmounted and every one of these nodes has been thrown away.
+    const excl = $('#yt-excl');
+    if (!excl) return;
+    // The warning is for the case the hand-off failed; the shared notice is for the
+    // normal one. Neither is worth showing until there is a track open to hear.
+    excl.style.display = exclusive && open_ ? '' : 'none';
+    $('#yt-shared').style.display = !exclusive && open_ ? '' : 'none';
 
     const sig = tracks.map((t) => `${t.id}:${t.title}:${t.key}:${t.bpm}:${t.loop_a}:${t.loop_b}`).join('|');
     if (sig === listSig) return;
@@ -163,6 +183,39 @@ export function createBacking() {
   const looped = (t) => (t.loop_b || 0) - (t.loop_a || 0) > 0.5;
   const track = (id) => tracks.find((t) => t.id === id);
 
+  /* Hand the output device over so the video can actually be heard.
+   *
+   * WASAPI exclusive is first-come and total: while Keys holds the endpoint, nothing
+   * else on that device makes a sound. A backing track that plays in silence is not a
+   * backing track, so opening one trades 3 ms for ~10 ms automatically rather than
+   * making you go and find a setting first. It says so, and hands it straight back
+   * on one click or when you close the track. */
+  async function yieldDevice() {
+    if (!exclusive) return true;
+    try {
+      const res = await api.post('/api/audio', { exclusive: false });
+      exclusive = !!res.engine?.exclusive;
+      if (!exclusive) {
+        toast('Shared output -- the video has sound now, and so does your piano', 'good', 5000);
+      }
+      for (const w of res.warnings || []) toast(w, 'bad', 8000);
+    } catch (err) {
+      toast(`Could not release the audio device: ${err.message}`, 'bad', 8000);
+    }
+    paint();
+    return !exclusive;
+  }
+
+  async function reclaimDevice() {
+    try {
+      const res = await api.post('/api/audio', { exclusive: true, period_size: 144 });
+      exclusive = !!res.engine?.exclusive;
+      toast(exclusive ? 'Exclusive again -- 3.00 ms. Video audio is muted while it holds.'
+                      : 'Could not reacquire the device', exclusive ? 'good' : 'bad', 5000);
+    } catch (err) { toast(err.message, 'bad'); }
+    paint();
+  }
+
   /* ── player ─────────────────────────────────────────────────────────────── */
   async function open(t) {
     $('#yt-stage').style.display = '';
@@ -172,6 +225,11 @@ export function createBacking() {
     paint();
     markRate(t.rate || 1);
     showLoop(t);
+
+    // Before the player exists, so the first frame of audio has somewhere to go.
+    // The engine reopens its stream here, which takes a moment -- doing it mid-playback
+    // would cut the video off a second after it started.
+    await yieldDevice();
 
     let YT;
     try { YT = await loadApi(); }
@@ -227,6 +285,10 @@ export function createBacking() {
     listSig = null;
     if (player?.stopVideo) { try { player.stopVideo(); } catch { /* already gone */ } }
     $('#yt-stage').style.display = 'none';
+    paint();
+    // Closing the track is the clearest possible statement that you are done needing
+    // the video audible, so the low-latency path comes back without being asked.
+    if (!exclusive) reclaimDevice();
   }
 
   /* The A/B loop. A 10 Hz poll on a video scrubber, which is nothing like musical
@@ -286,14 +348,9 @@ export function createBacking() {
       const t = track(currentId);
       if (t) patch(t.id, { loop_a: 0, loop_b: 0 }).then(() => showLoop(track(currentId)));
     };
-    $('#yt-share').onclick = async () => {
-      try {
-        await api.post('/api/audio', { exclusive: false });
-        exclusive = false;
-        paint();
-        toast('Shared mode -- the browser can make sound again', 'good');
-      } catch (err) { toast(err.message, 'bad'); }
-    };
+    $('#yt-share').onclick = yieldDevice;
+    $('#yt-restore').onclick = reclaimDevice;
+    $('#yt-close').onclick = closePlayer;
   }
 
   function mark(which) {
@@ -320,9 +377,16 @@ export function createBacking() {
     },
     destroy() {
       stopWatch();
+      // Leaving Tools throws the iframe away with the rest of the view, so the video
+      // is gone whether or not you meant it to be -- do not leave the audio device in
+      // shared mode paying 7 ms for a player that no longer exists.
+      const wasOpen = !!currentId;
       player = null;
       currentId = null;
       listSig = null;
+      if (wasOpen && !exclusive) {
+        api.post('/api/audio', { exclusive: true, period_size: 144 }).catch(() => {});
+      }
     },
   };
 }
