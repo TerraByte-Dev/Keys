@@ -98,6 +98,30 @@ async def main() -> int:
         print("\nengine did not start -- is the app already running and holding the audio device?")
         return 1
 
+    # The default has to be ONE zone across the whole keyboard. A split at startup is a
+    # keyboard cut in half with nothing on screen saying why, and it is what you get by
+    # accident the moment loading a preset is allowed to pin it.
+    step("startup default is one zone end to end",
+         len([z for z in app.engine.zones if z.enabled]) == 1
+         and app.engine.zones[0].lo == config.LOW_KEY
+         and app.engine.zones[0].hi == config.HIGH_KEY,
+         f"{len(app.engine.zones)} zone(s): {app.engine.preset_name}")
+
+    split = next((p for p in app.presets.values() if len(p.zones) > 1), None)
+    if split is not None:
+        was = app.settings.get("preset")
+        app.engine.set_zones(split.zones, split.id, split.name)
+        app.practice.preset = split.id
+        step("a split can still be loaded", len(app.engine.zones) > 1, split.name)
+        # The regression this exists for: trying a split out of curiosity must not
+        # change what Keys opens with tomorrow.
+        step("loading it does NOT become the startup sound",
+             app.settings.get("preset") == was, f"still {was!r}")
+        app.settings.update({"preset": split.id})
+        step("but choosing it deliberately does",
+             app.settings.get("preset") == split.id)
+        app.settings.update({"preset": was})
+
     sock = FakeSocket()
     app.clients.add(sock)
     task = asyncio.create_task(app.drain_loop())

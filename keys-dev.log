@@ -2296,3 +2296,134 @@ INFO:     127.0.0.1:59094 - "GET /api/state HTTP/1.1" 200 OK
   [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
   [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
   [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.8us p95    71.6us
+
+======================================================================
+Keys 0.3.0 starting
+
+  Keys 0.3.0
+  3.00 ms buffer, WASAPI exclusive, 48000 Hz
+  1 ms timer: yes
+  http://127.0.0.1:8770
+
+  The 'Device "__none__" does not exists' error below is intentional --
+  it is what stops FluidSynth grabbing the piano and doubling every note.
+
+  --- dev ------------------------------------------------------------
+  data dir    C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys
+  bundle      C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys
+  fluidsynth  C:\tools\fluidsynth\bin
+  soundfont   C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys\soundfonts\GeneralUser-GS.sf2
+  database    C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys\keys.db
+  settings    C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys\config.local.json
+  switch int. 0.80 ms  (0.80 is the tuned value)
+
+  Frontend edits need no restart -- the modules are served straight off
+  disk, so save and refresh the browser. Backend edits do need one:
+  auto-reload would drop and re-acquire the exclusive-mode audio device
+  on every save, which is a second of silence and a race for the port.
+  --------------------------------------------------------------------
+
+INFO:     Started server process [69584]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8770 (Press CTRL+C to quit)
+[pywebview] Using WinForms / Chromium
+INFO:     127.0.0.1:51503 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63772 - "GET /style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56706 - "GET /app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56706 - "GET /keyboard.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63772 - "GET /ui.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49669 - "GET /tour.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56027 - "GET /views/play.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51093 - "GET /views/practice.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /views/layers.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56706 - "GET /views/tools.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63772 - "GET /views/stats.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49669 - "GET /views/settings.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56027 - "GET /views/read.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63772 - "GET /exercise-run.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56706 - "GET /backing.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /loopstation.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56249 - "GET /staff.js HTTP/1.1" 200 OK
+[pywebview] before_load event fired. injecting pywebview object
+[pywebview] Loading JS files from C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys\.venv\Lib\site-packages\webview\js
+INFO:     127.0.0.1:56249 - "GET /api/state HTTP/1.1" 200 OK
+  [dev] MIDI not connected -- is the piano on?
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+[pywebview] _pywebviewready event fired
+[pywebview] loaded event fired
+INFO:     127.0.0.1:56249 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63923 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:56249 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:58937 - "GET /api/state HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:51254 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51257 - "GET /api/health HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:58196 - "GET /api/health HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
