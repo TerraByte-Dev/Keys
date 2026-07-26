@@ -1,0 +1,43 @@
+{
+  "id": "organ-bass-split",
+  "name": "Organ / Bass Split",
+  "description": "Bass pedals in the left hand, drawbar organ in the right.",
+  "zones": [
+    {
+      "id": "pedals",
+      "name": "Acoustic Bass",
+      "lo": 21,
+      "hi": 47,
+      "channel": 0,
+      "soundfont": "GeneralUser-GS.sf2",
+      "bank": 0,
+      "program": 32,
+      "transpose": 0,
+      "gain": 0.85,
+      "pan": 0.5,
+      "reverb": 0.3,
+      "chorus": 0.0,
+      "curve": "compress",
+      "fixed_velocity": 100,
+      "enabled": true
+    },
+    {
+      "id": "manual",
+      "name": "Tonewheel Organ",
+      "lo": 48,
+      "hi": 108,
+      "channel": 1,
+      "soundfont": "GeneralUser-GS.sf2",
+      "bank": 0,
+      "program": 16,
+      "transpose": 0,
+      "gain": 1.0,
+      "pan": 0.5,
+      "reverb": 0.3,
+      "chorus": 0.15,
+      "curve": "compress",
+      "fixed_velocity": 100,
+      "enabled": true
+    }
+  ]
+}

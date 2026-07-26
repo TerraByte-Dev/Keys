@@ -1,0 +1,243 @@
+"""Regression test for the music theory layer: spelling, intervals, chords, scales.
+
+Pure arithmetic -- no piano, no FluidSynth, no sound. If this passes, anything the
+UI shows about what you just played is the theory layer's fault or nobody's.
+
+    .venv\\Scripts\\python.exe tools\\music_check.py
+
+The timing section matters as much as the answers: detect_chord runs on every note
+change inside the websocket drain loop, so a slow reading is a broken one.
+"""
+
+from __future__ import annotations
+
+import sys
+import time
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from backend import music  # noqa: E402
+from backend.music import (  # noqa: E402
+    KEYS, MODES, detect_chord, in_scale, interval_name, key_signature,
+    note_name, note_parts, pitch_class_name, scale_degree, scale_pitch_classes,
+)
+
+ok = True
+
+
+def step(label: str, passed: bool, detail: str = "") -> None:
+    global ok
+    ok = ok and passed
+    print(f"  [{'PASS' if passed else 'FAIL'}] {label}" + (f" -- {detail}" if detail else ""))
+
+
+def sym(notes: list[int], key: str = "C") -> str:
+    got = detect_chord(notes, key)
+    return got["symbol"] if got else "None"
+
+
+print("1. scientific pitch notation")
+step("middle C is C4", note_name(60) == "C4", note_name(60))
+step("bottom key is A0", note_name(21) == "A0", note_name(21))
+step("top key is C8", note_name(108) == "C8", note_name(108))
+step("note_parts shape", note_parts(61) == {"midi": 61, "letter": "C", "accidental": "#",
+                                            "octave": 4, "name": "C#4", "pc": 1},
+     str(note_parts(61)))
+
+print("2. enharmonic spelling follows the key")
+step("midi 63 in Eb is Eb4", note_name(63, "Eb") == "Eb4", note_name(63, "Eb"))
+step("midi 63 in E is D#4", note_name(63, "E") == "D#4", note_name(63, "E"))
+step("midi 66 in Gb is Gb4", note_name(66, "Gb") == "Gb4", note_name(66, "Gb"))
+step("midi 66 in D is F#4", note_name(66, "D") == "F#4", note_name(66, "D"))
+# The octave has to come from the spelling, not from midi // 12: B# and Cb sit on
+# the far side of the octave boundary from the key they sound like.
+step("leading tone of C# is B#3", note_name(60, "C#") == "B#3", note_name(60, "C#"))
+step("tonic of Cb is Cb4", note_name(59, "Cb") == "Cb4", note_name(59, "Cb"))
+step("pitch_class_name drops the octave", pitch_class_name(1, "Db") == "Db",
+     pitch_class_name(1, "Db"))
+step("every key spells all 12 pitch classes", all(
+    len({pitch_class_name(pc, k) for pc in range(12)}) == 12 for k in KEYS))
+# A key's own scale must be spelled with seven different letters -- one D# and one
+# Eb in the same scale is the classic wrong-table bug.
+step("no key repeats a letter in its own scale", all(
+    len({pitch_class_name(pc, k)[0] for pc in scale_pitch_classes(k, "major")}) == 7
+    for k in KEYS))
+
+print("3. key signatures")
+step("F# major has 6 sharps", key_signature("F#")["sharps"] == 6,
+     str(key_signature("F#")["accidentals"]))
+step("Cb major has 7 flats", key_signature("Cb")["flats"] == 7,
+     str(key_signature("Cb")["accidentals"]))
+step("C major has none", key_signature("C")["sharps"] == 0
+     and key_signature("C")["flats"] == 0 and not key_signature("C")["uses_flats"])
+step("sharps appear in staff order", key_signature("D")["accidentals"] == ["F#", "C#"],
+     str(key_signature("D")["accidentals"]))
+step("flats appear in staff order", key_signature("Eb")["accidentals"] == ["Bb", "Eb", "Ab"],
+     str(key_signature("Eb")["accidentals"]))
+step("uses_flats tracks the flat side", [key_signature(k)["uses_flats"] for k in KEYS]
+     == [True] * 7 + [False] * 8)
+step("signature count matches the circle", all(
+    key_signature(k)["sharps"] + key_signature(k)["flats"] == abs(i - 7)
+    for i, k in enumerate(KEYS)))
+
+print("4. intervals")
+step("P5", interval_name(60, 67)["short"] == "P5", interval_name(60, 67)["name"])
+step("M9 is compound", interval_name(60, 74)["short"] == "M9"
+     and interval_name(60, 74)["compound"], str(interval_name(60, 74)))
+step("unison is P1", interval_name(60, 60)["short"] == "P1", interval_name(60, 60)["name"])
+step("octave is P8, not compound", interval_name(60, 72)["short"] == "P8"
+     and not interval_name(60, 72)["compound"], interval_name(60, 72)["name"])
+step("m3 / M3", interval_name(60, 63)["short"] == "m3"
+     and interval_name(60, 64)["short"] == "M3")
+step("m7 / M7", interval_name(60, 70)["short"] == "m7"
+     and interval_name(60, 71)["short"] == "M7")
+step("tritone", interval_name(60, 66)["short"] == "TT", interval_name(60, 66)["name"])
+step("direction does not matter", interval_name(72, 60) == interval_name(60, 72))
+step("two octaves is P15", interval_name(60, 84)["short"] == "P15",
+     interval_name(60, 84)["name"])
+step("semitones is the raw distance", all(
+     interval_name(60, 60 + n)["semitones"] == n for n in range(0, 48)))
+
+print("5. chords -- triads")
+step("C", sym([60, 64, 67]) == "C", sym([60, 64, 67]))
+step("first inversion is C/E", sym([64, 67, 72]) == "C/E", sym([64, 67, 72]))
+step("second inversion is C/G", sym([67, 72, 76]) == "C/G", sym([67, 72, 76]))
+step("doubled octave is still C", sym([48, 52, 55, 60]) == "C", sym([48, 52, 55, 60]))
+step("Cm", sym([60, 63, 67]) == "Cm", sym([60, 63, 67]))
+step("Cdim", sym([60, 63, 66]) == "Cdim", sym([60, 63, 66]))
+step("Caug", sym([60, 64, 68]) == "Caug", sym([60, 64, 68]))
+step("Csus2", sym([60, 62, 67]) == "Csus2", sym([60, 62, 67]))
+step("Csus4", sym([60, 65, 67]) == "Csus4", sym([60, 65, 67]))
+step("two pitch classes is not a chord", detect_chord([60, 64]) is None)
+step("an octave of one note is not a chord", detect_chord([48, 60, 72]) is None)
+
+print("6. chords -- sevenths and sixths")
+step("Cmaj7", sym([60, 64, 67, 71]) == "Cmaj7", sym([60, 64, 67, 71]))
+step("C7", sym([60, 64, 67, 70]) == "C7", sym([60, 64, 67, 70]))
+step("Cm7", sym([60, 63, 67, 70]) == "Cm7", sym([60, 63, 67, 70]))
+step("Cm(maj7)", sym([60, 63, 67, 71]) == "Cm(maj7)", sym([60, 63, 67, 71]))
+dim7 = detect_chord([60, 63, 66, 69])
+step("dim7 recognised", dim7["quality"] == "dim7", f"{dim7['symbol']} conf={dim7['confidence']}")
+half = detect_chord([60, 63, 66, 70])
+step("half-diminished recognised", half["quality"] == "m7b5",
+     f"{half['symbol']} -- {half['name']}")
+step("C7sus4", sym([60, 65, 67, 70]) == "C7sus4", sym([60, 65, 67, 70]))
+step("C6", sym([60, 64, 67, 69]) == "C6", sym([60, 64, 67, 69]))
+step("Cm6", sym([60, 63, 67, 69]) == "Cm6", sym([60, 63, 67, 69]))
+# C6 and Am7 are the same four pitch classes. The bass decides, and nothing else can.
+step("same notes, A on the bottom, is Am7", sym([57, 60, 64, 67]) == "Am7",
+     sym([57, 60, 64, 67]))
+step("Cmaj7 over E", sym([64, 67, 71, 72]) == "Cmaj7/E", sym([64, 67, 71, 72]))
+step("G7 over B", sym([59, 62, 65, 67]) == "G7/B", sym([59, 62, 65, 67]))
+inv = detect_chord([64, 67, 71, 72])
+step("inversion counted from the stack", inv["inversion"] == 1 and inv["bass_pc"] == 4
+     and inv["root_pc"] == 0, str({k: inv[k] for k in ("inversion", "root_pc", "bass_pc")}))
+step("Cmaj7/E confidence is docked for the inversion", inv["confidence"] == 0.92,
+     str(inv["confidence"]))
+
+print("7. chords -- extensions do not crash and keep a sane root")
+for label, notes, want_root in (
+    ("Cadd9", [60, 62, 64, 67], 0),
+    ("C9", [60, 64, 67, 70, 62], 0),
+    ("Cmaj9", [60, 64, 67, 71, 62], 0),
+    ("Cm9", [60, 63, 67, 70, 62], 0),
+    ("C11", [60, 64, 67, 70, 62, 65], 0),
+    ("C13", [60, 64, 67, 70, 62, 65, 69], 0),
+    ("C69", [60, 64, 67, 69, 62], 0),
+    # C E Bb D A -- a 13 voicing with no 5th and no 11th. No template covers it
+    # without assuming two notes, so the honest read is C9 with the 13th left over.
+    ("13 voicing, no 5th or 11th", [36, 64, 70, 74, 81], 0),
+    ("chromatic cluster", [60, 61, 62], None),
+):
+    got = detect_chord(notes)
+    if want_root is None:
+        step(f"{label} -> no chord", got is None, str(got))
+    else:
+        step(f"{label} -> root {want_root}", got is not None and got["root_pc"] == want_root,
+             f"{got['symbol']} conf={got['confidence']} extra={got['extra']}" if got else "None")
+
+print("8. chords -- spelling follows the key")
+step("Eb major triad in Eb", sym([63, 67, 70], "Eb") == "Eb", sym([63, 67, 70], "Eb"))
+step("the same triad in E is D#", sym([63, 67, 70], "E") == "D#", sym([63, 67, 70], "E"))
+step("slash bass is spelled too", sym([70, 75, 79], "Eb") == "Eb/Bb", sym([70, 75, 79], "Eb"))
+step("extra lists what the quality cannot explain",
+     detect_chord([60, 64, 67, 61])["extra"] == [1],
+     str(detect_chord([60, 64, 67, 61])))
+step("a clean triad is fully confident", detect_chord([60, 64, 67])["confidence"] == 1.0)
+step("leftovers lower confidence",
+     detect_chord([60, 64, 67, 61])["confidence"] < detect_chord([60, 64, 67])["confidence"])
+step("a symmetric chord is less confident than an unambiguous one",
+     dim7["confidence"] < detect_chord([60, 64, 67, 71])["confidence"],
+     f"dim7={dim7['confidence']} maj7={detect_chord([60, 64, 67, 71])['confidence']}")
+
+print("9. scales")
+step("C major", scale_pitch_classes("C") == [0, 2, 4, 5, 7, 9, 11], str(scale_pitch_classes("C")))
+step("A natural minor", scale_pitch_classes("A", "natural_minor") == [9, 11, 0, 2, 4, 5, 7],
+     str(scale_pitch_classes("A", "natural_minor")))
+step("C harmonic minor raises the 7th",
+     scale_pitch_classes("C", "harmonic_minor") == [0, 2, 3, 5, 7, 8, 11],
+     str(scale_pitch_classes("C", "harmonic_minor")))
+step("C blues", scale_pitch_classes("C", "blues") == [0, 3, 5, 6, 7, 10],
+     str(scale_pitch_classes("C", "blues")))
+step("chromatic has all 12", len(set(scale_pitch_classes("F#", "chromatic"))) == 12)
+step("all 13 modes present", len(MODES) == 13, ", ".join(sorted(MODES)))
+step("F# in C major is out", not in_scale(66, "C") and in_scale(65, "C"))
+step("degree of A in C major is 6", scale_degree(69, "C") == 6, str(scale_degree(69, "C")))
+step("degree of C in A minor is 3", scale_degree(60, "A", "natural_minor") == 3,
+     str(scale_degree(60, "A", "natural_minor")))
+step("out-of-scale notes have no degree", scale_degree(61, "C") is None)
+
+bad = []
+for k in KEYS:
+    for mode in MODES:
+        pcs = scale_pitch_classes(k, mode)
+        for i, pc in enumerate(pcs):
+            midi = pc + 60
+            if scale_degree(midi, k, mode) != i + 1 or not in_scale(midi, k, mode):
+                bad.append(f"{k} {mode} degree {i + 1}")
+        for pc in range(12):
+            if (pc in pcs) != in_scale(pc + 60, k, mode):
+                bad.append(f"{k} {mode} pc {pc}")
+step("degree round trip over 15 keys x 13 modes", not bad,
+     f"{len(KEYS) * len(MODES)} scales checked" if not bad else "; ".join(bad[:4]))
+
+print("10. bad input is rejected loudly, not silently")
+for call, label in ((lambda: note_name(60, "H"), "unknown key"),
+                    (lambda: scale_pitch_classes("C", "bebop"), "unknown mode")):
+    try:
+        call()
+        step(f"{label} raises", False, "no exception")
+    except ValueError as exc:
+        step(f"{label} raises", True, str(exc)[:60])
+step("case is forgiven", note_name(63, "eb") == "Eb4", note_name(63, "eb"))
+
+print("11. timing -- this runs on every note change at ~60 Hz")
+voicing = [48, 52, 59, 62, 67]  # C E B D G, a real five-note Cmaj9 voicing
+step("five-note voicing reads as Cmaj9", sym(voicing) == "Cmaj9", sym(voicing))
+t0 = time.perf_counter()
+for _ in range(2000):
+    detect_chord(voicing)
+elapsed = time.perf_counter() - t0
+step("2000 detect_chord calls under 0.4 s", elapsed < 0.4,
+     f"{elapsed:.3f} s total, {elapsed / 2000 * 1e6:.1f} us per call")
+
+ten = [36, 48, 55, 60, 64, 67, 70, 74, 77, 81]  # both hands down, ten keys
+t0 = time.perf_counter()
+for _ in range(2000):
+    detect_chord(ten)
+wide = time.perf_counter() - t0
+step("ten notes stays under the 200 us budget", wide / 2000 < 200e-6,
+     f"{wide / 2000 * 1e6:.1f} us per call -> {sym(ten)}")
+
+t0 = time.perf_counter()
+for _ in range(2000):
+    note_name(60, "Eb")
+spell = time.perf_counter() - t0
+step("note_name is a table lookup", spell < 0.05, f"{spell / 2000 * 1e6:.2f} us per call")
+step("no per-call table building", len(music._SPELLING) == 15  # noqa: SLF001
+     and len(music._BY_ROOT) == 12, "spelling + chord tables built at import")  # noqa: SLF001
+
+print()
+print("ALL CHECKS PASSED" if ok else "SOMETHING FAILED")
+sys.exit(0 if ok else 1)

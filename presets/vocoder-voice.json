@@ -1,0 +1,43 @@
+{
+  "id": "vocoder-voice",
+  "name": "Vocoder Voice",
+  "description": "Solo Vox over Synth Voice. The robot-choir sound -- lean on the sustain pedal and play block chords.",
+  "zones": [
+    {
+      "id": "vox",
+      "name": "Solo Vox",
+      "lo": 21,
+      "hi": 108,
+      "channel": 0,
+      "soundfont": "GeneralUser-GS.sf2",
+      "bank": 0,
+      "program": 85,
+      "transpose": 0,
+      "gain": 1.0,
+      "pan": 0.5,
+      "reverb": 0.42,
+      "chorus": 0.35,
+      "curve": "soft",
+      "fixed_velocity": 100,
+      "enabled": true
+    },
+    {
+      "id": "under",
+      "name": "Synth Voice",
+      "lo": 21,
+      "hi": 108,
+      "channel": 1,
+      "soundfont": "GeneralUser-GS.sf2",
+      "bank": 0,
+      "program": 54,
+      "transpose": 0,
+      "gain": 0.55,
+      "pan": 0.5,
+      "reverb": 0.5,
+      "chorus": 0.45,
+      "curve": "soft",
+      "fixed_velocity": 100,
+      "enabled": true
+    }
+  ]
+}

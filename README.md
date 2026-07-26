@@ -1,55 +1,188 @@
-# Keys
+<!-- Hero: CRT "KEYS" wordmark — see docs/assets/README.md for the image-gen prompt. -->
+<p align="center">
+  <img src="docs/assets/keys-wordmark.png" alt="Keys" width="680" />
+</p>
 
-A MIDI piano practice app for a Yamaha P-71B on Windows 11. Plug in, run one command, play.
+<p align="center">
+  <strong>A MIDI piano that answers in three milliseconds.</strong><br/>
+  Local-first practice software with a studio-hardware soul — plug in, run one command, play.
+</p>
 
-**3.00 ms** MIDI-to-sound latency (WASAPI exclusive, 48 kHz/16-bit) — measured, not estimated.
+<p align="center">
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-FFA62B.svg"></a>
+  <a href="https://github.com/TerraByte-Dev/Keys/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/TerraByte-Dev/Keys?color=FFA62B&label=release"></a>
+  <img alt="3.00 ms latency" src="https://img.shields.io/badge/latency-3.00%20ms-FFA62B">
+  <img alt="100% offline" src="https://img.shields.io/badge/100%25-offline-FFA62B">
+  <img alt="Python 3.11 · FluidSynth · zero-build frontend" src="https://img.shields.io/badge/Python%203.11-FluidSynth%20%C2%B7%20zero--build%20frontend-FFA62B">
+</p>
 
-## Play right now
+<p align="center">
+  <a href="#get-started">Get started</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#screenshots">Screenshots</a> ·
+  <a href="#architecture">Architecture</a> ·
+  <a href="#troubleshooting">Troubleshooting</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a> ·
+  <a href="LICENSE">License</a>
+</p>
 
-```powershell
-.venv\Scripts\python.exe backend\play.py
+<p align="center">
+  <sub>brought to you by</sub><br/>
+  <a href="https://github.com/TerraByte-Dev"><img src="docs/assets/terrabyte-logo.png" alt="TerraByte Solutions LLC" width="84" /></a>
+</p>
+
+---
+
+Keys turns a USB piano into a practice instrument. MIDI comes in, **FluidSynth** renders it through WASAPI in
+exclusive mode at a measured **3.00 ms**, and a browser UI hangs off the side showing what you played — never in
+the path of what you hear. It's **genuinely offline**: no account, no telemetry, no CDN, fonts already on your
+machine, and a practice history that lives in a local SQLite file. The frontend has **no build step and no
+dependencies** — vanilla ES modules served straight off disk. There is no `package.json`.
+
+It is not trying to be Synthesia. Falling-note trainers are a solved, $29 problem. Keys does the two things a
+song library can't: it makes the instrument **fun enough to sit at daily**, and it **measures what actually
+happened** when you did.
+
+## Get started
+
+**Prerequisites**
+
+- **Python 3.11 or 3.12** — `python-rtmidi` publishes no wheel for 3.13+.
+- **[FluidSynth 2.x](https://github.com/FluidSynth/fluidsynth/releases)** — download the `-cpp11` zip, extract it,
+  and put its `bin/` on `PATH`. *(It is not in winget, and `pip install fluidsynth` is an abandoned 2012 package —
+  the binding you want is `pyfluidsynth`, which bundles no native library.)*
+- **A SoundFont** — [GeneralUser GS 2.0.3](https://github.com/mrbumpy409/GeneralUser-GS) saved to
+  `soundfonts/GeneralUser-GS.sf2`.
+- A class-compliant USB MIDI keyboard. Developed and measured against a **Yamaha P-71B**; the 88-key display
+  assumes the standard MIDI range 21–108.
+
+**Run**
+
+```bash
+git clone https://github.com/TerraByte-Dev/Keys.git
+cd Keys
+python -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+.venv\Scripts\python keys.py        # opens http://127.0.0.1:8770
 ```
 
-`1`–`8` switch instrument · `SPACE` panic (all notes off) · `q` quit
+That's the whole setup. The browser opens on its own, the MIDI port binds itself, and unplugging the piano and
+plugging it back in needs no restart. `1`–`6` switch views, `M` toggles the metronome, `Esc` is panic.
 
-## If something is wrong
+> **FluidSynth somewhere else?** Set `KEYS_FLUIDSYNTH_BIN` to its `bin` directory. Everything else you'd want to
+> change lives in **Setup**, and persists to a gitignored `config.local.json`.
 
-```powershell
-python tools\midi_probe.py        # zero dependencies. Is the piano reaching Windows at all?
-.venv\Scripts\python.exe tools\audio_check.py    # is the audio path still good?
+## Features
+
+- **Three milliseconds, measured** — WASAPI exclusive mode at a 144-sample buffer, verified on real hardware rather than estimated. Audio is rendered in FluidSynth's own C thread and **never passes through Python**. The MIDI callback does one thing and stops; everything else runs off a bounded queue that drops frames instead of blocking a note.
+- **Zones: splits, layers and drum pads** — a zone is a key range pointed at a channel, and **overlapping two zones *is* the layer**. There's no separate "layer mode" because there doesn't need to be one. Per-zone transpose, gain, pan, reverb/chorus sends and velocity curves, edited live against a visual range bar.
+- **18 presets, 287 instruments** — presets are plain JSON you can edit by hand. The instrument browser enumerates every preset the SoundFont actually contains — including all 13 drum kits — rather than trusting the GM chart.
+- **A practice clock that doesn't flatter you** — time is credited *between consecutive notes*, capped at a grace window, so "34 minutes" means minutes with your hands on the keys and not minutes with the app open. Streaks, a 90-day calendar, and a per-key heatmap of what you actually use.
+- **A metronome on the audio clock** — clicks are scheduled on FluidSynth's sequencer, driven by the render thread, so they cannot drift against the sound. Tempo ramp with a one-key setback when you miss. It measures **drift**, not just per-beat error — players hold even spacing while the whole tempo slides, and that's the failure mode worth seeing.
+- **Sight reading that adapts** — a hand-rolled SVG grand staff (no notation engine), enharmonically spelled by key signature, weighting each new measure toward *your* worst notes from your own attempt history.
+- **Chords, named properly** — inversions, slash chords and extensions, spelled to the key you're in: in E♭ major it reads `Eb`, not `D#`. Detection runs in ~19 µs, sixty times a second.
+- **Honest instrumentation** — the latency panel reports the one number software can actually see and says plainly what it excludes. Nothing in software can measure MIDI-to-ear latency, and this app doesn't pretend otherwise.
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/assets/screenshots/play.png" alt="The Play view — presets, instrument browser and the 88-key dock" width="100%" />
+</p>
+<p align="center">
+  <sub><b>The keyboard never leaves.</b> It's docked to the bottom edge in every view and lights amber under your fingers, scaled by velocity.</sub>
+</p>
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/assets/screenshots/practice.png" alt="Practice view with the calendar, key heatmap and timing analysis" /><br/>
+      <sub><b>Practice</b> — idle-gapped clock, streaks, a 90-day calendar and which keys you actually use.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/assets/screenshots/read.png" alt="Sight reading on a hand-rolled SVG grand staff" /><br/>
+      <sub><b>Read</b> — a real grand staff with correct ledger lines, weighted toward your weakest notes.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/assets/screenshots/zones.png" alt="The zone editor with its visual key-range bar" /><br/>
+      <sub><b>Zones</b> — splits and layers on one keybed. Overlap is the layer.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/assets/screenshots/metronome.png" alt="The metronome view with tempo ramp controls" /><br/>
+      <sub><b>Metro</b> — scheduled on the audio clock, with a tempo ramp and drift measurement.</sub>
+    </td>
+  </tr>
+</table>
+
+## Architecture
+
+One process, four threads, and a strict rule about which of them may be slow.
+
+```
+  piano ──USB──> rtmidi callback thread ──> FluidSynth (C render thread) ──> WASAPI ──> speakers
+                          │                                     ▲
+                          │ bounded deque                       │ sequencer (metronome)
+                          ▼                                     │
+                  asyncio drain @60Hz ──> websocket ──> browser UI
 ```
 
-`midi_probe.py` needs no venv and no packages — stock Python + ctypes. It's the first thing to
-run when nothing works, and it prints a velocity histogram so you can see whether the piano's
-touch response is on.
+The MIDI callback routes a note and appends a tuple. It never logs, locks, allocates a dict, or touches a socket.
+Zone changes build a whole new routing table and swap it in one atomic assignment, which is why there is no lock
+anywhere near the hot path. If the UI stalls, the queue sheds its oldest events and a 1 Hz heartbeat carrying the
+engine's own held-note set puts the display back in sync.
 
-## Setup (already done on this machine)
+- `keys.py` — the launcher.
+- `backend/__init__.py` — load-bearing: sets the GIL switch interval and `PATH` before anything can import FluidSynth.
+- `backend/engine.py` — the Synth, the zone routing table, the hot path. `backend/midi_in.py` — rtmidi + hotplug.
+- `backend/hub.py` — the bounded queue between the callback thread and everything else.
+- `backend/metronome.py` — sequencer scheduling. `backend/music.py` — spelling, intervals, chord detection.
+- `backend/store.py` / `practice.py` — SQLite practice log and the idle-aware clock.
+- `frontend/` — `app.js` shell + websocket, `keyboard.js` the 88-key component, `views/*.js`, `style.css`.
 
-| | |
-|---|---|
-| FluidSynth 2.5.7 | `C:\tools\fluidsynth\bin` — [GitHub release](https://github.com/FluidSynth/fluidsynth/releases), `-cpp11` zip. **Not in winget.** |
-| Python deps | `python -m venv .venv` then `pip install -r requirements.txt` |
-| SoundFont | [GeneralUser GS 2.0.3](https://github.com/mrbumpy409/GeneralUser-GS) → `soundfonts/GeneralUser-GS.sf2` |
+Deeper notes: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (the invariants and why they exist),
+[`docs/HARDWARE.md`](docs/HARDWARE.md) (every measured number, and the settings that fail silently),
+[`docs/ROADMAP.md`](docs/ROADMAP.md) (what's built and what's deliberately skipped).
 
-Python **3.11 or 3.12 only** — `python-rtmidi` has no wheel for 3.13+.
+## Troubleshooting
 
-## Layout
+Run these in order — each is more specific than the last, and the first needs no virtualenv at all.
 
+```bash
+python tools\midi_probe.py                        # zero dependencies. Is the piano reaching Windows?
+.venv\Scripts\python tools\audio_check.py         # is the audio path good?
+.venv\Scripts\python tools\engine_check.py        # zones, presets, drum kits, metronome timing
+.venv\Scripts\python tools\pipeline_check.py      # the whole app, no piano required
+.venv\Scripts\python tools\frontend_check.py      # ES module syntax + asset wiring
 ```
-CLAUDE.md            project canon — read this first
-docs/FEASIBILITY.md  every verified fact + where the original plan was wrong
-docs/ROADMAP.md      M0-M10, what's built, what to skip
-backend/play.py      M1 — the thing that works
-tools/               midi_probe.py (diagnostic) · audio_check.py (regression test)
-soundfonts/ midi/    gitignored, big files
+
+**"Everything else went silent."** Exclusive mode gives Keys sole ownership of the output device, which is
+exactly where the 3 ms comes from — while it runs, nothing else can play through that device. **Setup → Audio
+output** switches to shared mode (Windows picks the buffer, ~10 ms) or pins Keys to a different output so you
+keep both. Closing Keys always hands the device straight back.
+
+**Every note has the same velocity.** That's the instrument, not the app: most digital pianos ship with a Touch
+Sensitivity setting that transmits a constant velocity regardless of how hard you play. The **Play → Touch
+response** meter tells you live, and on a Yamaha P-45/P-71 the fix is to hold `[GRAND PIANO/FUNCTION]` and press
+the white key immediately left of middle C.
+
+`engine_check` and `pipeline_check` open the audio device, so stop the app before running them.
+
+## Development
+
+```bash
+.venv\Scripts\python tools\pipeline_check.py    # end-to-end: engine, hub, websocket, practice, sight reading
+.venv\Scripts\python tools\frontend_check.py    # every ES module parses; needs Node for the syntax pass
 ```
 
-## Three things that will bite you
+The full suite is six checks and about 250 assertions; see [`CONTRIBUTING.md`](CONTRIBUTING.md). There is no
+bundler, no transpiler and no `node_modules` — editing `frontend/` and reloading the page is the whole loop.
 
-1. **Set `PATH` before `import fluidsynth`.** `os.add_dll_directory()` does not work — pyfluidsynth
-   uses `ctypes.util.find_library()`, which reads `PATH` and nothing else.
-2. **`sys.setswitchinterval(0.0008)`.** Not 0.001 — that changes nothing. Below 1000 µs the
-   MIDI callback's median delay drops from 14.5 ms to 0.53 ms.
-3. **Neutralize FluidSynth's own MIDI driver** or every note plays twice.
+## License
 
-All three are explained in `CLAUDE.md`.
+[MIT](LICENSE) © TerraByte Solutions LLC.
+
+<p align="center">
+  <a href="https://github.com/TerraByte-Dev"><img src="docs/assets/terrabyte-logo.png" alt="TerraByte Solutions LLC" width="64" /></a><br/>
+  <sub>An open-source project by <strong>TerraByte Solutions LLC</strong></sub>
+</p>

@@ -1,0 +1,43 @@
+{
+  "id": "drum-pads",
+  "name": "Piano + Drum Pads",
+  "description": "Grand piano up to B5, drum kit on the top two octaves. Drums need an explicit bank-128 program_select -- sending bank 128 as CC0 over the wire does nothing.",
+  "zones": [
+    {
+      "id": "keys",
+      "name": "Grand Piano",
+      "lo": 21,
+      "hi": 83,
+      "channel": 0,
+      "soundfont": "GeneralUser-GS.sf2",
+      "bank": 0,
+      "program": 0,
+      "transpose": 0,
+      "gain": 1.0,
+      "pan": 0.5,
+      "reverb": 0.3,
+      "chorus": 0.0,
+      "curve": "linear",
+      "fixed_velocity": 100,
+      "enabled": true
+    },
+    {
+      "id": "pads",
+      "name": "Standard 1",
+      "lo": 84,
+      "hi": 108,
+      "channel": 9,
+      "soundfont": "GeneralUser-GS.sf2",
+      "bank": 128,
+      "program": 0,
+      "transpose": 0,
+      "gain": 0.95,
+      "pan": 0.5,
+      "reverb": 0.2,
+      "chorus": 0.0,
+      "curve": "linear",
+      "fixed_velocity": 100,
+      "enabled": true
+    }
+  ]
+}

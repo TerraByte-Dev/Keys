@@ -1,0 +1,43 @@
+{
+  "id": "piano-strings",
+  "name": "Piano + Strings",
+  "description": "Two zones over the same keys. Overlap is the layer.",
+  "zones": [
+    {
+      "id": "piano",
+      "name": "Grand Piano",
+      "lo": 21,
+      "hi": 108,
+      "channel": 0,
+      "soundfont": "GeneralUser-GS.sf2",
+      "bank": 0,
+      "program": 0,
+      "transpose": 0,
+      "gain": 1.0,
+      "pan": 0.5,
+      "reverb": 0.25,
+      "chorus": 0.0,
+      "curve": "linear",
+      "fixed_velocity": 100,
+      "enabled": true
+    },
+    {
+      "id": "pad",
+      "name": "Fast Strings",
+      "lo": 21,
+      "hi": 108,
+      "channel": 1,
+      "soundfont": "GeneralUser-GS.sf2",
+      "bank": 0,
+      "program": 48,
+      "transpose": 0,
+      "gain": 0.42,
+      "pan": 0.5,
+      "reverb": 0.55,
+      "chorus": 0.0,
+      "curve": "soft",
+      "fixed_velocity": 100,
+      "enabled": true
+    }
+  ]
+}

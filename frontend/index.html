@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en" data-view="play">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Keys</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='5' fill='%230a0b0c'/><rect x='6' y='7' width='4' height='18' fill='%23e6e0d2'/><rect x='14' y='7' width='4' height='18' fill='%23e6e0d2'/><rect x='22' y='7' width='4' height='18' fill='%23e6e0d2'/><rect x='10.5' y='7' width='3' height='11' fill='%23ffa62b'/><rect x='18.5' y='7' width='3' height='11' fill='%230a0b0c'/></svg>">
+</head>
+<body>
+
+<!-- ── top rail: the hardware status strip ───────────────────────────────── -->
+<header class="rail">
+  <div class="rail__brand">
+    <span class="rail__mark" aria-hidden="true"></span>
+    <span class="rail__name">Keys</span>
+  </div>
+
+  <div class="rail__lamps" id="lamps">
+    <div class="lamp" id="lamp-midi" title="MIDI input">
+      <i class="lamp__led"></i><span class="lamp__label">MIDI</span>
+      <span class="lamp__value" id="lamp-midi-value">--</span>
+    </div>
+    <div class="lamp" id="lamp-audio" title="Audio buffer">
+      <i class="lamp__led"></i><span class="lamp__label">BUF</span>
+      <span class="lamp__value" id="lamp-audio-value">--</span>
+    </div>
+    <div class="lamp" id="lamp-voices" title="Active voices">
+      <i class="lamp__led"></i><span class="lamp__label">VOICE</span>
+      <span class="lamp__value" id="lamp-voices-value">0</span>
+    </div>
+    <div class="lamp" id="lamp-link" title="Connection to the app">
+      <i class="lamp__led"></i><span class="lamp__label">LINK</span>
+      <span class="lamp__value" id="lamp-link-value">--</span>
+    </div>
+  </div>
+
+  <div class="rail__right">
+    <div class="clock" title="Time actually spent playing today, not time with the app open">
+      <span class="clock__label">TODAY</span>
+      <span class="clock__value" id="today-clock">0:00</span>
+      <i class="clock__dot" id="playing-dot" title="lit while you are playing"></i>
+    </div>
+    <button class="btn btn--panic" id="panic" title="All notes off (Esc)">PANIC</button>
+  </div>
+</header>
+
+<!-- ── left nav: view selector ───────────────────────────────────────────── -->
+<nav class="nav" id="nav">
+  <a class="nav__item is-active" href="#play"      data-view="play"><span class="nav__key">1</span>Play</a>
+  <a class="nav__item"           href="#practice"  data-view="practice"><span class="nav__key">2</span>Practice</a>
+  <a class="nav__item"           href="#metronome" data-view="metronome"><span class="nav__key">3</span>Metro</a>
+  <a class="nav__item"           href="#zones"     data-view="zones"><span class="nav__key">4</span>Zones</a>
+  <a class="nav__item"           href="#read"      data-view="read"><span class="nav__key">5</span>Read</a>
+  <a class="nav__item"           href="#settings"  data-view="settings"><span class="nav__key">6</span>Setup</a>
+</nav>
+
+<!-- ── the view ──────────────────────────────────────────────────────────── -->
+<main class="stage" id="stage" tabindex="-1"></main>
+
+<!-- ── readout strip above the keys ──────────────────────────────────────── -->
+<section class="readout">
+  <div class="readout__chord">
+    <span class="readout__label">CHORD</span>
+    <output class="readout__value" id="chord-symbol">—</output>
+    <span class="readout__sub" id="chord-name"></span>
+  </div>
+  <div class="readout__notes">
+    <span class="readout__label">NOTES</span>
+    <output class="readout__list" id="note-list"></output>
+  </div>
+  <div class="readout__meta">
+    <span class="pedal" id="pedal" title="Sustain pedal (CC64)">
+      <i class="pedal__led"></i>SUSTAIN
+    </span>
+    <span class="readout__label">VEL</span>
+    <output class="readout__vel" id="last-vel">—</output>
+  </div>
+</section>
+
+<!-- ── the instrument. always here, whatever view you are in. ────────────── -->
+<section class="dock" id="dock" aria-label="88-key keyboard"></section>
+
+<!-- ── transient notices ─────────────────────────────────────────────────── -->
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>

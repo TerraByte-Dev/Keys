@@ -1,0 +1,25 @@
+{
+  "id": "church-organ",
+  "name": "Church Organ",
+  "description": "Long reverb, flat dynamics.",
+  "zones": [
+    {
+      "id": "main",
+      "name": "Pipe Organ",
+      "lo": 21,
+      "hi": 108,
+      "channel": 0,
+      "soundfont": "GeneralUser-GS.sf2",
+      "bank": 0,
+      "program": 19,
+      "transpose": 0,
+      "gain": 1.0,
+      "pan": 0.5,
+      "reverb": 0.65,
+      "chorus": 0.0,
+      "curve": "compress",
+      "fixed_velocity": 100,
+      "enabled": true
+    }
+  ]
+}

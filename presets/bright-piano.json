@@ -1,0 +1,25 @@
+{
+  "id": "bright-piano",
+  "name": "Bright Grand",
+  "description": "Brighter top end; cuts through a metronome.",
+  "zones": [
+    {
+      "id": "main",
+      "name": "Bright Grand Piano",
+      "lo": 21,
+      "hi": 108,
+      "channel": 0,
+      "soundfont": "GeneralUser-GS.sf2",
+      "bank": 0,
+      "program": 1,
+      "transpose": 0,
+      "gain": 1.0,
+      "pan": 0.5,
+      "reverb": 0.25,
+      "chorus": 0.0,
+      "curve": "linear",
+      "fixed_velocity": 100,
+      "enabled": true
+    }
+  ]
+}

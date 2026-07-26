@@ -1,0 +1,43 @@
+{
+  "id": "saw-stack",
+  "name": "Fat Saw Lead",
+  "description": "Saw Lead doubled by the 5th Saw Wave. Detuned-stack lead for single-note melodies; too thick for chords.",
+  "zones": [
+    {
+      "id": "lead",
+      "name": "Saw Lead",
+      "lo": 21,
+      "hi": 108,
+      "channel": 0,
+      "soundfont": "GeneralUser-GS.sf2",
+      "bank": 0,
+      "program": 81,
+      "transpose": 0,
+      "gain": 0.92,
+      "pan": 0.5,
+      "reverb": 0.28,
+      "chorus": 0.3,
+      "curve": "linear",
+      "fixed_velocity": 100,
+      "enabled": true
+    },
+    {
+      "id": "fifths",
+      "name": "5th Saw Wave",
+      "lo": 21,
+      "hi": 108,
+      "channel": 1,
+      "soundfont": "GeneralUser-GS.sf2",
+      "bank": 0,
+      "program": 86,
+      "transpose": 0,
+      "gain": 0.4,
+      "pan": 0.5,
+      "reverb": 0.3,
+      "chorus": 0.4,
+      "curve": "soft",
+      "fixed_velocity": 100,
+      "enabled": true
+    }
+  ]
+}

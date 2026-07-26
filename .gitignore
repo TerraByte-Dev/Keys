@@ -11,6 +11,9 @@ recordings/
 # Local state
 keys.db
 *.db-journal
+# WAL mode leaves these two beside the database; they are as local as it is.
+*.db-wal
+*.db-shm
 config.local.json
 
 # Python
