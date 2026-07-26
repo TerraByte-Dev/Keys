@@ -144,6 +144,20 @@ metro._ramp_steps = 5  # noqa: SLF001
 metro.ramp_setback()
 step("setback drops one step", metro._ramp_steps == 4, f"steps={metro._ramp_steps}")  # noqa: SLF001
 
+print("10. override() lets an exercise borrow the tempo without stealing it")
+metro.configure({"bpm": 96, "ramp_enabled": False})
+saved = SCRATCH.get("metronome", default={}) or {}
+step("the saved tempo is 96", saved.get("bpm") == 96, f"config says {saved.get('bpm')}")
+metro.override({"bpm": 60})
+step("cfg() reports the override", metro.cfg()["bpm"] == 60, f"cfg says {metro.cfg()['bpm']}")
+still = SCRATCH.get("metronome", default={}) or {}
+step("but nothing was written to disk", still.get("bpm") == 96,
+     f"config still says {still.get('bpm')} -- an exercise must not rewrite your tempo")
+metro.release()
+step("release falls back to what you saved", metro.cfg()["bpm"] == 96,
+     f"cfg says {metro.cfg()['bpm']}")
+step("release on a clean metronome is a no-op", metro.release()["bpm"] == 96)
+
 # Regression: a leftover ramp ceiling must never drag the chosen tempo down.
 # This silently held the metronome at 100 bpm no matter what tempo was asked for.
 metro._ramp_steps = 0  # noqa: SLF001

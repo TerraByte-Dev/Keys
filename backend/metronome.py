@@ -67,6 +67,10 @@ class Metronome:
         self._client: int | None = None
         self._lock = threading.Lock()
 
+        # Transient config an exercise owns for the length of a run. Never persisted --
+        # see override().
+        self._overlay: dict[str, Any] = {}
+
         self._cursor = 0.0          # tick (ms) of the next click not yet scheduled
         self._click_index = 0       # global click counter since start
         self._beats_fired = 0       # incremented by the audio thread, one per beat
@@ -82,10 +86,34 @@ class Metronome:
     def cfg(self) -> dict[str, Any]:
         base = dict(config.DEFAULTS["metronome"])
         base.update(self.settings.get("metronome", default={}) or {})
+        base.update(self._overlay)
         return base
 
     def configure(self, patch: dict[str, Any]) -> dict[str, Any]:
         self.settings.update({"metronome": patch})
+        if self._running:
+            self._reschedule()
+        return self.cfg()
+
+    def override(self, patch: dict[str, Any]) -> dict[str, Any]:
+        """Apply a transient config on top of the saved one, WITHOUT persisting it.
+
+        An exercise owns the tempo for the length of a run; you own it the rest of the
+        time. Routing an exercise's bpm through configure() would write it to
+        config.local.json and quietly replace the tempo set in Tools -- which is the
+        same class of bug as the stale ramp ceiling that once pinned this metronome at
+        100 bpm no matter what you asked for.
+        """
+        self._overlay.update(patch)
+        if self._running:
+            self._reschedule()
+        return self.cfg()
+
+    def release(self) -> dict[str, Any]:
+        """Drop the transient config and fall back to what the user actually saved."""
+        if not self._overlay:
+            return self.cfg()
+        self._overlay.clear()
         if self._running:
             self._reschedule()
         return self.cfg()

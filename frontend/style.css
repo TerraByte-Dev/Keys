@@ -509,6 +509,8 @@ select:focus, input:focus { outline: none; border-color: var(--amber-deep); }
 .staff .notehead.is-target { fill: var(--amber); }
 .staff .notehead.is-done { fill: var(--ink-faint); }
 .staff .notehead.is-wrong { fill: var(--red); }
+.staff .finger { fill: var(--cyan); font-family: var(--font-mono); }
+.staff .steplabel { fill: var(--ink-dim); font-family: var(--font-panel); letter-spacing: .08em; }
 .staff .stem { stroke: var(--ink); stroke-width: 1.4; }
 .staff .clef, .staff .accidental { fill: var(--ink); }
 
