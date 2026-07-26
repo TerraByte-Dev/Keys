@@ -196,6 +196,57 @@ def smoke() -> None:
         step("wrote its data to KEYS_DATA_DIR, not into the build",
              (data / "keys.db").exists() and not list(DIST.rglob("keys.db")),
              str(data))
+
+        # pywebview selects its backend by platform string at runtime, so a missing
+        # hidden import does not fail the build -- it produces an app that quietly
+        # falls back to a browser tab and looks like the window was never built.
+        probe = subprocess.run(
+            [str(exe), "--print-window-backend"], cwd=str(DIST), env=env,
+            capture_output=True, text=True, timeout=60)
+        backend = (probe.stdout or "").strip().splitlines()[-1:] or [""]
+        step("the desktop window backend is bundled", backend[0].startswith("window:"),
+             backend[0] or "no answer -- it would fall back to a browser tab")
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:  # pragma: no cover
+            proc.kill()
+        shutil.rmtree(data, ignore_errors=True)
+
+    # --dev is a separate startup path with its own banner, and it shipped broken once:
+    # an `import ... as backend` inside main() shadowed the module-level import and the
+    # banner raised UnboundLocalError before the window ever appeared. In a windowed
+    # build that is a traceback dialog and nothing else. It is a distinct path, so it
+    # gets its own launch.
+    print("6. --dev starts too")
+    data = Path(tempfile.mkdtemp(prefix="keys-smoke-dev-"))
+    env = {**os.environ, "KEYS_DATA_DIR": str(data)}
+    proc = subprocess.Popen(
+        [str(exe), "--dev", "--no-browser", "--port", str(SMOKE_PORT + 1)],
+        cwd=str(DIST), env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    try:
+        up = False
+        deadline = time.time() + 90
+        while time.time() < deadline and proc.poll() is None:
+            try:
+                get(SMOKE_PORT + 1, "/api/health")
+                up = True
+                break
+            except (urllib.error.URLError, socket.timeout, ConnectionError):
+                time.sleep(0.5)
+        step("--dev reaches a running server", up, f"exit={proc.poll()}")
+
+        log = data / "keys-dev.log"
+        time.sleep(3.0)     # let the 2 s monitor tick at least once
+        text = log.read_text(encoding="utf-8", errors="replace") if log.exists() else ""
+        step("--dev writes a log where there is no console", bool(text), str(log))
+        step("no traceback in it", "Traceback" not in text,
+             text[text.find("Traceback"):][:120] if "Traceback" in text else "clean")
+        step("the resolved-paths banner is complete", "switch int." in text,
+             "the line after the one that used to crash")
+        step("the status monitor is running", "[dev]" in text,
+             next((ln.strip() for ln in text.splitlines() if "[dev]" in ln), ""))
     finally:
         proc.terminate()
         try:

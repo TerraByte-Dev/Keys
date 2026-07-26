@@ -41,6 +41,12 @@ a = Analysis(
     hiddenimports=[
         "fluidsynth",
         "rtmidi",
+        # pywebview picks its backend at runtime by platform string, so the import
+        # graph never reaches winforms. Without this the frozen app falls back to the
+        # browser and looks like the window feature was never built.
+        "webview",
+        "webview.platforms.winforms",
+        "clr",
         "uvicorn.logging",
         "uvicorn.loops.auto",
         "uvicorn.loops.asyncio",
@@ -78,7 +84,12 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,           # UPX-packed DLLs trip antivirus heuristics for no real gain
-    console=True,        # the startup banner explains the intentional FluidSynth error
+    # Windowed. Keys opens its own window now, and a console flashing up beside it is
+    # the difference between an application and a script someone wrapped. The cost is
+    # that sys.stdout is None in this build, which would kill the startup banner before
+    # the window appeared -- keys.py's attach_output() is what makes print() safe, and
+    # what gives --dev a log file in the data directory instead of a terminal.
+    console=False,
     disable_windowed_traceback=False,
     icon=None,
 )

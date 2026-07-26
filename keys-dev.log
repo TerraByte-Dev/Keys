@@ -1,0 +1,39 @@
+
+======================================================================
+Keys 0.3.0 starting
+
+  Keys 0.3.0
+  3.00 ms buffer, WASAPI exclusive, 48000 Hz
+  1 ms timer: yes
+  http://127.0.0.1:8785
+
+  The 'Device "__none__" does not exists' error below is intentional --
+  it is what stops FluidSynth grabbing the piano and doubling every note.
+
+  --- dev ------------------------------------------------------------
+  data dir    C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys
+  bundle      C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys
+  fluidsynth  C:\tools\fluidsynth\bin
+  soundfont   C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys\soundfonts\GeneralUser-GS.sf2
+  database    C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys\keys.db
+  settings    C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys\config.local.json
+  switch int. 0.80 ms  (0.80 is the tuned value)
+
+  Frontend edits need no restart -- the modules are served straight off
+  disk, so save and refresh the browser. Backend edits do need one:
+  auto-reload would drop and re-acquire the exclusive-mode audio device
+  on every save, which is a second of silence and a race for the port.
+  --------------------------------------------------------------------
+
+  [dev] MIDI not connected -- is the piano on?
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0

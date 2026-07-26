@@ -61,15 +61,122 @@ def free_port(host: str, port: int) -> int:
     return port
 
 
-def open_when_ready(url: str, host: str, port: int) -> None:
-    deadline = time.monotonic() + 20
+class _Null:
+    """Stand-in for a stream that is not there. Swallows everything."""
+
+    def write(self, _s: str) -> int:
+        return 0
+
+    def flush(self) -> None:
+        pass
+
+    def isatty(self) -> bool:
+        return False
+
+
+def attach_output(dev: bool) -> None:
+    """Make print() safe, and give a windowed build somewhere to log.
+
+    A GUI build has no console: PyInstaller leaves ``sys.stdout`` as None, and the
+    first ``print`` in the startup banner would take the whole app down with an
+    AttributeError before the window ever appeared. So: a null sink by default, and
+    under --dev a real file, because a packaged app still has to be debuggable and
+    "run it from a terminal" is not available when there is no terminal.
+    """
+    if sys.stdout is not None and sys.stderr is not None and not dev:
+        return
+    sink = None
+    if dev:
+        try:
+            config.DATA_DIR.mkdir(parents=True, exist_ok=True)
+            sink = open(config.DATA_DIR / "keys-dev.log", "a", encoding="utf-8",
+                        buffering=1)
+            sink.write(f"\n{'=' * 70}\nKeys {version.VERSION} starting\n")
+        except OSError:
+            sink = None
+    for name in ("stdout", "stderr"):
+        if getattr(sys, name) is None:
+            setattr(sys, name, sink or _Null())
+    if sink is not None and sys.stdout is not sink:
+        # There IS a console (source checkout) and --dev was asked for: mirror to the
+        # file as well, so the two launch modes produce the same artefact.
+        class _Tee:
+            def __init__(self, *streams):
+                self._streams = streams
+
+            def write(self, s: str) -> int:
+                for st in self._streams:
+                    try:
+                        st.write(s)
+                    except Exception:  # noqa: BLE001, PERF203
+                        pass
+                return len(s)
+
+            def flush(self) -> None:
+                for st in self._streams:
+                    try:
+                        st.flush()
+                    except Exception:  # noqa: BLE001, PERF203
+                        pass
+
+            def isatty(self) -> bool:
+                return False
+
+        sys.stdout = _Tee(sys.stdout, sink)
+
+
+def wait_for_port(host: str, port: int, timeout: float = 30.0) -> bool:
+    """Block until the server answers. Returns False if it never does."""
+    deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         with socket.socket() as s:
             s.settimeout(0.25)
             if s.connect_ex((host, port)) == 0:
-                webbrowser.open(url)
-                return
-        time.sleep(0.15)
+                return True
+        time.sleep(0.1)
+    return False
+
+
+def open_when_ready(url: str, host: str, port: int) -> None:
+    if wait_for_port(host, port, 20.0):
+        webbrowser.open(url)
+
+
+def run_window(url: str, dev: bool) -> bool:
+    """Open Keys in a native window. Returns False if a window was not possible.
+
+    **Order is the whole point.** The server -- and therefore FluidSynth, and therefore
+    the exclusive-mode WASAPI device -- is already up before this is called. A browser
+    engine that initialises first can take the audio endpoint, and exclusive mode is
+    first-come: Keys would come up in shared mode and quietly cost you 7 ms.
+
+    This runs on the main thread because WebView2's message loop has to, which is why
+    uvicorn is the one on a background thread rather than the other way round.
+    """
+    try:
+        import webview
+    except ImportError:
+        print("  pywebview is not installed -- falling back to your browser.")
+        print("  .venv\\Scripts\\pip install pywebview")
+        return False
+
+    try:
+        webview.create_window(
+            "Keys", url,
+            width=1500, height=1000, min_size=(1024, 680),
+            background_color="#08090a",   # --panel-0, so there is no white flash
+            # text_select stays default. Turning it off suits an instrument panel right
+            # up until you try to rename a layer or edit a track's notes.
+        )
+        # debug=True gives WebView2's devtools on F12, which is the browser half of
+        # --dev: console, network, and the element inspector for the keyboard SVG.
+        webview.start(debug=dev)
+        return True
+    except Exception as exc:  # noqa: BLE001 -- a missing runtime must not be fatal
+        print(f"  Could not open the app window ({exc}).")
+        print("  Falling back to your browser. Install the WebView2 runtime to fix:")
+        print("  https://developer.microsoft.com/microsoft-edge/webview2/")
+        return False
 
 
 def dev_monitor(interval: float = 2.0) -> None:
@@ -135,10 +242,35 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Keys -- MIDI piano practice app")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--no-browser", action="store_true")
+    parser.add_argument("--browser", action="store_true",
+                        help="open in your default browser instead of the app window")
+    parser.add_argument("--no-browser", "--headless", dest="no_browser",
+                        action="store_true",
+                        help="server only -- open no window and no browser")
     parser.add_argument("--dev", action="store_true",
-                        help="verbose logging, resolved paths, and a live 2 s status line")
+                        help="verbose logging, resolved paths, a live 2 s status line, "
+                             "and devtools on F12 in the app window")
+    # Not for humans. tools/build_exe.py asks the frozen app whether its window backend
+    # actually got bundled, because pywebview picks the backend by platform string at
+    # runtime and a missing one degrades to a browser tab instead of failing.
+    parser.add_argument("--print-window-backend", action="store_true",
+                        help=argparse.SUPPRESS)
     args = parser.parse_args()
+
+    # Before the first print. A windowed build has no stdout, and the banner below
+    # would be the last thing this process ever did.
+    attach_output(args.dev)
+
+    if args.print_window_backend:
+        try:
+            # NOT `as backend`: that binds a local of that name for the whole function
+            # and shadows the module-level `import backend`, so the --dev banner's
+            # backend.FLUIDSYNTH_BIN becomes an UnboundLocalError several branches away.
+            import webview.platforms.winforms as winforms
+            print(f"window: winforms/{getattr(winforms, 'renderer', 'unknown')}")
+        except Exception as exc:  # noqa: BLE001
+            print(f"unavailable: {exc}")
+        return 0
 
     if config.find_asset("soundfonts", config.DEFAULT_SOUNDFONT) is None:
         print(f"Missing soundfont: {config.DEFAULT_SOUNDFONT}")
@@ -199,18 +331,41 @@ def main() -> int:
         print()
         threading.Thread(target=dev_monitor, daemon=True).start()
 
-    if not args.no_browser:
-        threading.Thread(
-            target=open_when_ready, args=(url, args.host, port), daemon=True,
-        ).start()
+    server = uvicorn.Server(uvicorn.Config(
+        api, host=args.host, port=port,
+        log_level="info" if args.dev else "warning", access_log=args.dev,
+    ))
+    # uvicorn installs SIGINT/SIGTERM handlers, which only the main thread may do --
+    # and the main thread belongs to the window. Ctrl+C in the console still works:
+    # it lands on the main thread and the finally below asks the server to stop.
+    server.install_signal_handlers = lambda: None
+    thread = threading.Thread(target=server.run, name="uvicorn", daemon=True)
+    thread.start()
 
     try:
-        uvicorn.run(api, host=args.host, port=port,
-                    log_level="info" if args.dev else "warning",
-                    access_log=args.dev)
+        if args.no_browser:
+            # Headless: nothing to open, so just wait on the server.
+            while thread.is_alive():
+                thread.join(0.5)
+        elif args.browser:
+            open_when_ready(url, args.host, port)
+            while thread.is_alive():
+                thread.join(0.5)
+        else:
+            # Wait for the audio device to be ours BEFORE the browser engine starts.
+            # See run_window().
+            if not wait_for_port(args.host, port):
+                print("  The server did not come up. Nothing to show.")
+                return 1
+            if not run_window(url, args.dev):
+                webbrowser.open(url)
+                while thread.is_alive():
+                    thread.join(0.5)
     except KeyboardInterrupt:
         pass
     finally:
+        server.should_exit = True
+        thread.join(timeout=5)
         drop_timer_resolution()
     print("\nbye")
     return 0
