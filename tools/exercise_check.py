@@ -335,7 +335,8 @@ step("and no arpeggio quality borrows a scale's fingering by name", not _arp_fin
      f"{len(QUALITIES)} qualities x 4 inversions, no fingers and no crossings")
 
 print("9. the fingering table, every row")
-FINGER_TONICS = ["C", "C#", "Db", "D", "Eb", "E", "F", "F#", "Gb", "G", "Ab", "A", "Bb", "B"]
+FINGER_TONICS = ["C", "C#", "Db", "D", "Eb", "E", "F", "F#", "Gb", "G", "Ab", "A", "Bb",
+                 "B", "Cb"]
 FINGER_FORMS = ["major", "natural_minor", "harmonic_minor", "melodic_minor"]
 NATURAL_TONICS = ["C", "D", "E", "F", "G", "A", "B"]
 BLACK_PCS = frozenset({1, 3, 6, 8, 10})
@@ -365,6 +366,12 @@ def thumb_gaps(indices: list[int]) -> list[int]:
 step("every tonic x form present",
      sorted(SCALE_FINGERING) == sorted((t, f) for t in FINGER_TONICS for f in FINGER_FORMS),
      f"{len(SCALE_FINGERING)} rows, expected {len(FINGER_TONICS) * len(FINGER_FORMS)}")
+# Tied to music.KEYS rather than to the list above, because the failure this catches is a
+# key the Scales form offers and the table has never heard of: the run still plays, the
+# finger row is just silently empty for that one option. Cb was exactly that.
+_no_row = sorted({k for k in KEYS for f in FINGER_FORMS if (k, f) not in SCALE_FINGERING})
+step("every key the Scales form offers has all four standard forms", not _no_row,
+     f"no fingering for {_no_row}" if _no_row else f"{len(KEYS)} keys x 4 forms")
 
 f_shape: list[str] = []
 f_thumb: list[str] = []
@@ -433,9 +440,9 @@ step("naturals group 3 then 4, except F which groups 4 then 3",
 step("C major is the reference row",
      SCALE_FINGERING[("C", "major")] == ((1, 2, 3, 1, 2, 3, 4, 5), (5, 4, 3, 2, 1, 3, 2, 1)),
      str(SCALE_FINGERING[("C", "major")]))
-step("the two spellings of a black-key tonic agree",
+step("the two spellings of a tonic agree",
      all(SCALE_FINGERING[(a, f)] == SCALE_FINGERING[(b, f)]
-         for a, b in (("C#", "Db"), ("F#", "Gb")) for f in FINGER_FORMS))
+         for a, b in (("C#", "Db"), ("F#", "Gb"), ("Cb", "B")) for f in FINGER_FORMS))
 
 # The rows that had to be researched rather than copied down a column. Each of these is a
 # case where the widespread "a minor scale borrows its relative or parallel major's

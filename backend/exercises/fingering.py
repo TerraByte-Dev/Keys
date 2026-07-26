@@ -211,10 +211,14 @@ _TABLE: dict[str, dict[str, tuple[tuple[int, ...], tuple[int, ...]]]] = {
     },
 }
 
-# Both spellings of the two tonics that are routinely written either way. D#, G# and
-# A# are absent for the same reason backend.music.KEYS omits them: they are not
-# practical key names, and a caller asking for one is asking for a typo back.
-_ENHARMONIC: dict[str, str] = {"Db": "C#", "Gb": "F#"}
+# Both spellings of every tonic backend.music.KEYS offers under two names. Cb is one of
+# those keys -- it is the seven-flat major, the first entry in KEYS, and the Scales form
+# offers it -- and it is the same seven physical keys as B, so it takes B's row. Without
+# this line Cb is the only key in the whole list with no fingering at all, which shows up
+# as an empty finger row under exactly one option in the dropdown. D#, G# and A# are
+# absent for the same reason KEYS omits them: they are not practical key names, and a
+# caller asking for one is asking for a typo back.
+_ENHARMONIC: dict[str, str] = {"Db": "C#", "Gb": "F#", "B": "Cb"}
 
 
 def _expand() -> dict[tuple[str, str], tuple[tuple[int, ...], tuple[int, ...]]]:
