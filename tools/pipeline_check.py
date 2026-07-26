@@ -172,6 +172,51 @@ async def main() -> int:
     step("a very long gap starts a new session", p.session_id != old_session,
          f"{old_session} -> {p.session_id} after a {400:.0f} s silence")
 
+    print("6b. chords are logged once they settle, and only once per press")
+    app.practice._flush()  # noqa: SLF001 -- start from a known committed state
+    before = len(app.store.top_chords(days=1, limit=50))
+    sock.clear()
+    for n in (60, 64, 67):
+        strike(app, n, 92)
+    # Hold past the settle window. A chord logged instantly would be wrong: rolling
+    # into a voicing reads as C, then C5, then Cmaj7 on the way to one chord.
+    await settle(0.30)
+    step("a held chord settles and is logged", app._chord_logged == "C",  # noqa: SLF001
+         f"logged={app._chord_logged!r}")  # noqa: SLF001
+    await settle(0.20)
+    step("holding longer does not log it again", app._chord_logged == "C",  # noqa: SLF001
+         "the same symbol is not re-logged while it is still held")
+
+    for n in (60, 64, 67):
+        release(app, n)
+    await settle()
+    step("release clears the latch", app._chord_logged is None,  # noqa: SLF001
+         "so the same chord counts again next time you play it")
+
+    for n in (60, 64, 67):
+        strike(app, n, 92)
+    await settle(0.30)
+    for n in (60, 64, 67):
+        release(app, n)
+    await settle()
+    app.practice._flush()  # noqa: SLF001
+    rows = {r["symbol"]: r["count"] for r in app.store.top_chords(days=1, limit=50)}
+    step("playing it twice counts twice", rows.get("C") == 2, f"top_chords={rows}")
+    step("chord analytics see it", len(app.store.top_chords(days=1, limit=50)) > before,
+         f"{before} -> {len(app.store.top_chords(days=1, limit=50))} distinct chord(s)")
+
+    # A chord that is only brushed through must not be recorded.
+    strike(app, 62, 90)
+    strike(app, 65, 90)
+    strike(app, 69, 90)
+    await settle(0.05)          # well under CHORD_SETTLE_SECONDS
+    for n in (62, 65, 69):
+        release(app, n)
+    await settle()
+    app.practice._flush()  # noqa: SLF001
+    rows = {r["symbol"]: r["count"] for r in app.store.top_chords(days=1, limit=50)}
+    step("a chord brushed through is not logged", "Dm" not in rows, f"top_chords={rows}")
+
     print("7. sight reading grades and advances")
     app.sight.session_id = app.practice.session_id
     ex = app.sight.new_exercise()
