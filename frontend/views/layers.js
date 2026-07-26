@@ -14,8 +14,14 @@
 
 import { $, $$, api, h, mod, noteName, slider, toast } from '../ui.js';
 
-const ZONE_COLOURS = ['#ffa62b', '#58c4d4', '#74cf86', '#c98bdb', '#ff8f6b', '#8fa5ff'];
 const LOW = 21, HIGH = 108;
+const zoneColour = (i) => `var(--zone-${(i % 6) + 1})`;
+
+/* Defaults lifted from presets/bass-split.json and presets/piano-strings.json rather
+   than invented -- those are tuned recipes, particularly the layer's 0.42 gain and soft
+   curve, which is what stops the pad swallowing the piano. */
+const SPLIT_DEFAULT = { left: 32, right: 0, point: 47 };   // Acoustic Bass | Grand Piano
+const LAYER_DEFAULT = { a: 0, b: 48, balance: 0.42 };      // Grand Piano + String Ensemble
 
 let zones = [];
 let instruments = [];
@@ -26,6 +32,64 @@ export default {
     if (!zones.length) zones = [blank(0)];
 
     root.append(h('div.grid', null,
+      h('div.col-12', null, mod('What this is', null,
+        h('div.note', null,
+          'A ', h('strong', null, 'split'), ' puts one sound in your left hand and another ',
+          'in your right -- bass below the split point, piano above. A ',
+          h('strong', null, 'layer'), ' puts two sounds on the same keys so they sound ',
+          'together -- piano and strings under one finger.'),
+        h('div.note', { style: { marginTop: '8px' } },
+          'Both are the same idea: a ', h('strong', null, 'zone'), ' is a range of keys ',
+          'pointed at a sound, and overlapping two zones ', h('em', null, 'is'), ' the layer. ',
+          'Build one below in a click, or open the editor at the bottom to move the split ',
+          'point and balance the two sounds.'))),
+
+      h('div.col-12', null, mod('Build one', 'a click each',
+        h('div.builds', null,
+          h('div.build', null,
+            h('div.build__title', null, 'Split the keyboard'),
+            h('div.build__why', null,
+              'Left hand plays one sound, right hand another. Walking bass under a piano ',
+              'melody, without a second keyboard.'),
+            instSelect('split-left', SPLIT_DEFAULT.left, 'Left hand'),
+            instSelect('split-right', SPLIT_DEFAULT.right, 'Right hand'),
+            h('label.field', null,
+              h('span.field__label', null, h('span', null, 'Split point'),
+                h('span.field__value', { id: 'split-pt-v' }, noteName(SPLIT_DEFAULT.point))),
+              slider({
+                min: LOW + 6, max: HIGH - 6, step: 1, value: SPLIT_DEFAULT.point,
+                oninput: (v) => { $('#split-pt-v').textContent = noteName(v); },
+              })),
+            h('button.btn.btn--wide', { id: 'do-split', onclick: () => buildSplit(ctx) },
+              'Make a split')),
+
+          h('div.build', null,
+            h('div.build__title', null, 'Layer two sounds'),
+            h('div.build__why', null,
+              'Both sounds on every key at once. The classic is piano with strings ',
+              'underneath, quiet enough that you feel it more than hear it.'),
+            instSelect('layer-a', LAYER_DEFAULT.a, 'Main sound'),
+            instSelect('layer-b', LAYER_DEFAULT.b, 'Underneath'),
+            h('label.field', null,
+              h('span.field__label', null, h('span', null, 'How loud underneath'),
+                h('span.field__value', { id: 'layer-bal-v' },
+                  Math.round(LAYER_DEFAULT.balance * 100) + '%')),
+              slider({
+                min: 0, max: 1, step: 0.01, value: LAYER_DEFAULT.balance,
+                oninput: (v) => { $('#layer-bal-v').textContent = Math.round(v * 100) + '%'; },
+              })),
+            h('button.btn.btn--wide', { id: 'do-layer', onclick: () => buildLayer(ctx) },
+              'Make a layer')),
+
+          h('div.build', null,
+            h('div.build__title', null, 'One sound'),
+            h('div.build__why', null,
+              'The whole keyboard, one instrument, nothing clever. Where to come back to ',
+              'when a split or a layer has stopped being useful.'),
+            instSelect('single-inst', 0, 'Sound'),
+            h('button.btn.btn--wide', { id: 'do-single', onclick: () => buildSingle(ctx) },
+              'Use one sound'))))),
+
       h('div.col-12', null, mod('Layout', 'A0 to C8 -- 88 keys',
         h('div.zonebar', { id: 'zonebar' }),
         h('div.btnrow', null,
@@ -41,6 +105,7 @@ export default {
     try {
       instruments = (await api.get('/api/instruments')).instruments || [];
     } catch { instruments = []; }
+    fillInstSelects();
     render(ctx);
   },
 
@@ -54,6 +119,75 @@ function blank(i) {
     gain: 1, pan: 0.5, reverb: 0.3, chorus: 0, curve: 'linear',
     fixed_velocity: 100, enabled: true,
   };
+}
+
+/* ── the quick builders ───────────────────────────────────────────────────── */
+/* Built empty and filled once /api/instruments lands, so the panel renders instantly
+   instead of waiting on a 287-entry list. */
+function instSelect(id, defaultProgram, label) {
+  return h('label.field', null,
+    h('span.field__label', null, h('span', null, label)),
+    h('select', { id, 'data-default': defaultProgram },
+      h('option', { value: '0' }, 'loading...')));
+}
+
+function fillInstSelects() {
+  // Melodic sounds only. A drum kit in a split is a real thing, but it belongs on
+  // channel 9 with an explicit bank-128 select, which is the editor's job, not a
+  // one-click builder's.
+  const melodic = instruments.filter((i) => !i.drums);
+  for (const el of $$('.build select')) {
+    const want = Number(el.dataset.default || 0);
+    el.replaceChildren(...melodic.map((i) => h('option', {
+      value: `${i.bank}:${i.program}`,
+      selected: i.bank === 0 && i.program === want,
+    }, i.name)));
+  }
+}
+
+function chosen(id) {
+  const el = $('#' + id);
+  const [bank, program] = (el?.value || '0:0').split(':').map(Number);
+  const inst = instruments.find((i) => i.bank === bank && i.program === program);
+  return { bank, program, name: inst ? inst.name : `${bank}:${program}` };
+}
+
+function zoneFrom(inst, over) {
+  return { ...blank(0), ...inst, ...over };
+}
+
+async function buildSplit(ctx) {
+  const point = Number($('#split-pt-v').closest('.field').querySelector('input').value);
+  const left = chosen('split-left');
+  const right = chosen('split-right');
+  zones = [
+    zoneFrom(left, { id: 'left', lo: LOW, hi: point, channel: 0, gain: 0.9, reverb: 0.15 }),
+    zoneFrom(right, { id: 'right', lo: point + 1, hi: HIGH, channel: 1, gain: 1.0 }),
+  ];
+  render(ctx);
+  await apply(ctx, `Split at ${noteName(point)} -- ${left.name} / ${right.name}`);
+}
+
+async function buildLayer(ctx) {
+  const balance = Number($('#layer-bal-v').closest('.field').querySelector('input').value);
+  const a = chosen('layer-a');
+  const b = chosen('layer-b');
+  zones = [
+    zoneFrom(a, { id: 'main', channel: 0, gain: 1.0, reverb: 0.25 }),
+    // The soft curve is why the second sound sits under the first instead of fighting
+    // it: it lifts quiet notes, so the layer is present at every dynamic without
+    // spiking when you dig in.
+    zoneFrom(b, { id: 'under', channel: 1, gain: balance, reverb: 0.55, curve: 'soft' }),
+  ];
+  render(ctx);
+  await apply(ctx, `${a.name} + ${b.name} at ${Math.round(balance * 100)}%`);
+}
+
+async function buildSingle(ctx) {
+  const inst = chosen('single-inst');
+  zones = [zoneFrom(inst, { id: 'main', channel: 0 })];
+  render(ctx);
+  await apply(ctx, inst.name);
 }
 
 /* Channel 9 is the GM drum channel and 15 is reserved for the metronome click, so
@@ -79,7 +213,7 @@ function drawBar() {
     return h('div.zonebar__seg', {
       style: {
         left: left + '%', width: width + '%',
-        background: ZONE_COLOURS[i % ZONE_COLOURS.length],
+        background: zoneColour(i),
         opacity: z.enabled ? (0.55 + 0.45 / zones.length) : 0.18,
         // Stack overlapping zones so a layer reads as a stripe rather than hiding one.
         top: `${(i * 100) / zones.length}%`,
@@ -91,7 +225,7 @@ function drawBar() {
 }
 
 function zoneCard(z, i, ctx) {
-  const colour = ZONE_COLOURS[i % ZONE_COLOURS.length];
+  const colour = zoneColour(i);
   const set = (k, v) => { z[k] = v; drawBar(); };
 
   return h('div.zone', null,
@@ -185,12 +319,28 @@ function instrumentName(z) {
   return found ? found.name : `bank ${z.bank} / ${z.program}`;
 }
 
-async function apply(ctx) {
+async function apply(ctx, label) {
   try {
-    const res = await api.post('/api/zones', { zones });
+    const res = await api.post('/api/zones', { zones, name: label || '' });
     ctx.state.engine = res.engine;
     for (const w of res.warnings || []) toast(w, 'bad', 8000);
-    if (!res.warnings?.length) toast('Zones applied', 'good', 1500);
+    if (!res.warnings?.length) toast(label || 'Applied', 'good', 2200);
+    // Sound it. A split or a layer you have to go and play to hear is a setting; one
+    // that answers immediately is an instrument.
+    //
+    // One call PER ZONE, with an explicit channel: /api/preview sends every note to a
+    // single channel, so previewing a split as one chord would play the right hand's
+    // notes through the left hand's sound. Per zone, a split demonstrates both halves
+    // in their own registers and a layer stacks both sounds on the same notes, which
+    // is exactly the difference you are trying to hear.
+    if (label) {
+      for (const z of zones.filter((zz) => zz.enabled)) {
+        const root = Math.max(z.lo, Math.min(z.hi - 7, Math.round((z.lo + z.hi) / 2)));
+        api.post('/api/preview', {
+          notes: [root, root + 4, root + 7], velocity: 88, ms: 1100, channel: z.channel,
+        }).catch(() => {});
+      }
+    }
   } catch (err) { toast(err.message, 'bad'); }
 }
 

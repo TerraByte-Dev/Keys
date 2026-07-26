@@ -65,6 +65,17 @@
   --key-label: #6d685e;
   --key-label-black: #8a8378;
   --key-font: var(--font-panel);
+
+  /* Zone identity colours. Three of these are just the existing accents under a name;
+     the other three exist because six zones need six distinguishable hues and the
+     palette only has three. Tokens rather than an array of hexes in layers.js, so the
+     "no hardcoded colour in a module" rule holds everywhere. */
+  --zone-1: var(--amber);
+  --zone-2: var(--cyan);
+  --zone-3: var(--green);
+  --zone-4: #c98bdb;
+  --zone-5: #ff8f6b;
+  --zone-6: #8fa5ff;
 }
 
 * { box-sizing: border-box; }
@@ -636,6 +647,22 @@ select:focus, input:focus { outline: none; border-color: var(--amber-deep); }
 .toast--bad { border-left-color: var(--red); }
 .toast--good { border-left-color: var(--green); }
 @keyframes toast-in { from { opacity: 0; transform: translateX(14px); } }
+
+/* ── quick builders (Layers) ────────────────────────────────────────────── */
+.builds { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.build {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 12px 13px 13px;
+  background: #ffffff05;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+}
+.build__title {
+  font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink);
+}
+.build__why { font-size: 11.5px; line-height: 1.5; color: var(--ink-dim); flex: 1; }
+.build .field { margin-bottom: 0; }
+.build .btn { margin-top: 2px; }
 
 /* ── zone editor ────────────────────────────────────────────────────────── */
 .zonebar {
