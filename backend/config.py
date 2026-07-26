@@ -74,7 +74,11 @@ DEFAULTS: dict[str, Any] = {
     },
     "reverb": {"room": 0.3, "damping": 0.4, "width": 6.0, "level": 0.55},
     "chorus": {"nr": 3, "level": 1.2, "speed": 0.4, "depth": 6.0, "type": 0},
-    "ui": {"key_signature": "C", "theme": "dark", "show_note_names": True},
+    # tour_seen lives here rather than in localStorage because localStorage is
+    # per-browser-profile and dies to "clear browsing data", which would resurrect the
+    # first-run tour on a machine that has been played for months.
+    "ui": {"key_signature": "C", "theme": "dark", "show_note_names": True,
+           "tour_seen": False},
     "sightread": {
         "clef": "both",
         "key": "C",

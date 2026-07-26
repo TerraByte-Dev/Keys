@@ -13,6 +13,7 @@
 
 import { createKeyboard } from './keyboard.js';
 import { $, api, hms, toast } from './ui.js';
+import { startTour, tourOpen } from './tour.js';
 
 import playView from './views/play.js';
 import practiceView from './views/practice.js';
@@ -218,6 +219,9 @@ async function refresh() {
 const ORDER = ['play', 'practice', 'layers', 'tools', 'stats', 'settings'];
 
 document.addEventListener('keydown', (e) => {
+  // The tour owns the keyboard while it is up. Without this, Esc fires panic and
+  // the number keys navigate the tab out from behind the card.
+  if (tourOpen()) return;
   const typing = /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName || '');
   if (e.key === 'Escape') {
     api.post('/api/panic').then(() => toast('All notes off', 'good'));
@@ -250,4 +254,5 @@ window.addEventListener('beforeunload', () => { if (ws) { ws.onclose = null; ws.
   for (const problem of ctx.state.errors || []) toast(problem, 'bad', 12000);
   await route();
   connect();
+  if (ctx.state?.settings?.ui && !ctx.state.settings.ui.tour_seen) startTour(ctx);
 })();

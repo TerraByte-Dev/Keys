@@ -637,6 +637,44 @@ select:focus, input:focus { outline: none; border-color: var(--amber-deep); }
 }
 .legend__swatch { width: 9px; height: 9px; border-radius: 2px; }
 
+/* ── first-run tour ─────────────────────────────────────────────────────── */
+/* Above .toasts (200), and seated above the dock rather than centred, so the keyboard
+   stays visible while the tour is talking about it. */
+.tour { position: fixed; inset: 0; z-index: 300; }
+.tour__scrim {
+  position: absolute; inset: 0;
+  background: color-mix(in oklab, var(--panel-0) 82%, transparent);
+}
+.tour__card {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: calc(var(--dock-h) + var(--readout-h) + 24px);
+  width: min(560px, calc(100vw - 48px));
+  padding: 20px 22px 18px;
+  background: linear-gradient(180deg, var(--panel-2), var(--panel-1));
+  border: 1px solid var(--hairline-hi);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 60px #000a;
+  animation: toast-in .2s var(--ease);
+}
+.tour__step {
+  font-size: 9.5px; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--ink-faint); margin-bottom: 8px;
+}
+.tour__title {
+  margin: 0 0 10px; font-size: 19px; font-weight: 600;
+  letter-spacing: .01em; color: var(--amber);
+}
+.tour__body { font-size: 13px; line-height: 1.62; color: var(--ink-dim); }
+.tour__body strong { color: var(--ink); font-weight: 600; }
+.tour__dots { display: flex; gap: 6px; margin: 16px 0 14px; }
+.tour__dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--panel-4);
+  transition: background .18s var(--ease), box-shadow .3s var(--ease);
+}
+.tour__dot.is-on { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+.tour__row { display: flex; align-items: center; gap: 8px; }
+
 /* ── toasts ─────────────────────────────────────────────────────────────── */
 .toasts {
   position: fixed; right: 14px; bottom: calc(var(--dock-h) + var(--readout-h) + 14px);

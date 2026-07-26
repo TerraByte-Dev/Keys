@@ -7,6 +7,7 @@
  * reports the piece it can actually see and labels it. */
 
 import { $, api, h, mod, slider, stat, toast } from '../ui.js';
+import { startTour } from '../tour.js';
 
 export default {
   async mount(root, ctx) {
@@ -139,6 +140,14 @@ export default {
           'Drop more .sf2 / .sf3 files into ', h('strong', null, 'soundfonts/'),
           ' and pick them per zone. Salamander Grand will not work here -- it is SFZ, ',
           'and FluidSynth cannot load SFZ.'))),
+
+      h('div.col-6', null, mod('First run', null,
+        h('div.note', null,
+          'The six-card tour that runs the first time you open Keys. It covers the ',
+          'things that are not guessable -- what a split and a layer are, that the ',
+          'keyboard is always docked, and what Stats keeps.'),
+        h('div.btnrow', { style: { marginTop: '12px' } },
+          h('button.btn', { onclick: () => startTour(ctx) }, 'Show the tour again')))),
 
       h('div.col-12', null, mod('Event pipeline', 'MIDI callback to browser',
         h('div.stats', { id: 'hub-stats' }),
