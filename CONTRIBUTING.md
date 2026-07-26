@@ -30,20 +30,30 @@ SoundFont at `soundfonts/GeneralUser-GS.sf2`. Node is optional and only used by 
 
 ## Before you open a PR
 
-Run the suite locally. It is six scripts and needs no test runner:
+Run the suite locally. It is seven scripts, needs no test runner, and takes about a minute:
 
 ```bash
 .venv\Scripts\python tools\music_check.py       # theory: spelling, intervals, chords, scales
 .venv\Scripts\python tools\store_check.py       # SQLite: sessions, streaks, local-day boundaries
 .venv\Scripts\python tools\timing_check.py      # onset analysis against synthetic signals
+.venv\Scripts\python tools\exercise_check.py    # fingering table, generators, grader, metrics
 .venv\Scripts\python tools\engine_check.py      # zones, presets, drum banks, metronome timing
 .venv\Scripts\python tools\pipeline_check.py    # end-to-end above the MIDI port
 .venv\Scripts\python tools\frontend_check.py    # ES module syntax + asset wiring
 ```
 
-`engine_check` and `pipeline_check` open the audio device in exclusive mode — **stop the app first**. Both use
-temp databases and temp settings; a test that writes to `config.local.json` or `keys.db` is a bug, and has
-caused a real one before (a stale ramp ceiling silently pinned the metronome at 100 bpm).
+`engine_check` and `pipeline_check` open the audio device **and make noise on purpose**, so they refuse to run
+while Keys is up rather than playing a metronome into whatever you were doing — close the app first (`--force`
+overrides). In shared mode a second engine opens happily and its clicks come out of your speakers mixed into
+your playing, which reads as the app glitching rather than as a test script.
+
+Every check uses a temp database and temp settings. A test that writes to `config.local.json` or `keys.db` is a
+bug, and has caused a real one (a stale ramp ceiling silently pinned the metronome at 100 bpm).
+
+**A test whose expected value comes from the thing under test is worthless.** This project has shipped two: an
+`infer_key` clamp assertion that only inspected scores which are always positive, and a fingering-table
+completeness check that compared the table against a hand-written list in the same file. Both passed for weeks
+with the bug sitting next to them.
 
 If you touched anything on the hot path, also play the piano for a minute and watch **Settings → Event pipeline**
 for dropped frames.
