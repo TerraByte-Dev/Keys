@@ -74,8 +74,10 @@ Two things could:
 2. **An embedded browser engine grabbing the audio endpoint** before exclusive mode is
    acquired. This is the argument against bundling a webview in v1.
 
-Verified on the frozen build: 3.00 ms buffer, WASAPI exclusive, SoundFont loaded from
-the bundle, chord sounded.
+Verified on the frozen build: engine up, SoundFont loaded from the bundle, chord
+sounded. Note that a fresh install starts in **shared** mode -- exclusive takes the
+output device from every other application, which is not a thing to do to someone by
+default. `tools/build_exe.py` reports whichever mode the build came up in.
 
 ## What is done, and what is not
 

@@ -3,14 +3,14 @@
 <h1 align="center">K E Y S</h1>
 
 <p align="center">
-  <strong>A MIDI piano that answers in three milliseconds.</strong><br/>
+  <strong>A MIDI piano that answers in three milliseconds — without taking your speakers hostage.</strong><br/>
   A local-first workspace for the instrument you already own — plug in, run one command, play.
 </p>
 
 <p align="center">
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-FFA62B.svg"></a>
   <a href="https://github.com/TerraByte-Dev/Keys/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/TerraByte-Dev/Keys?color=FFA62B&label=release"></a>
-  <img alt="3.00 ms latency" src="https://img.shields.io/badge/latency-3.00%20ms-FFA62B">
+  <img alt="3.00 ms latency, measured" src="https://img.shields.io/badge/latency-3.00%20ms%20measured-FFA62B">
   <img alt="No account, no telemetry" src="https://img.shields.io/badge/no%20account-no%20telemetry-FFA62B">
   <img alt="Python 3.11 · FluidSynth · zero-build frontend" src="https://img.shields.io/badge/Python%203.11-FluidSynth%20%C2%B7%20zero--build%20frontend-FFA62B">
 </p>
@@ -76,7 +76,7 @@ plugging it back in needs no restart. `1`–`6` switch views, `M` toggles the me
 
 ## Features
 
-- **Three milliseconds, measured** — WASAPI exclusive mode at a 144-sample buffer, verified on real hardware rather than estimated. Audio is rendered in FluidSynth's own C thread and **never passes through Python**. The MIDI callback does one thing and stops; everything else runs off a bounded queue that drops frames instead of blocking a note.
+- **Three milliseconds, measured — and off by default** — WASAPI exclusive mode at a 144-sample buffer, verified on real hardware rather than estimated. But exclusive mode takes the output device from *every other application* while Keys runs, so it is one click in Settings rather than the default. Out of the box Keys shares your speakers (~10 ms, inside the range a piano action already spans between a soft and a hard keystroke) and coexists with Spotify, Discord and a browser. Either way, audio is rendered in FluidSynth's own C thread and **never passes through Python**; the MIDI callback does one thing and stops, and everything else runs off a bounded queue that drops frames instead of blocking a note.
 - **Layers: splits and layers on one keybed** — a *split* puts bass in your left hand and piano in your right; a *layer* puts piano and strings on the same keys. Both are one idea: a zone is a range of keys pointed at a sound, and **overlapping two zones *is* the layer**. One click each, with a full editor underneath for transpose, gain, pan, sends and velocity curves.
 - **A loop station — be your own band** — record a few bars, they start looping, then play over the top and record that too. Bass, chords, melody, up to five layers, each keeping the instrument you played it with. Takes are locked to the bar and end themselves on the bar line, so a loop never drifts the way a hand-stopped one does; the pedal is captured as note length, so a sustained part sustains.
 - **Backing tracks** — paste a YouTube link, set loop points, and grind eight bars of a solo without hunting the scrubber. Slow it down to learn it, and keep the key and tempo written next to it. (It tells you when exclusive mode has the speakers, instead of playing silently and looking broken.)
@@ -162,10 +162,11 @@ python tools\midi_probe.py                        # zero dependencies. Is the pi
 .venv\Scripts\python tools\frontend_check.py      # ES module syntax + asset wiring
 ```
 
-**"Everything else went silent."** Exclusive mode gives Keys sole ownership of the output device, which is
-exactly where the 3 ms comes from — while it runs, nothing else can play through that device. **Settings → Audio
-output** switches to shared mode (Windows picks the buffer, ~10 ms) or pins Keys to a different output so you
-keep both. Closing Keys always hands the device straight back.
+**"Everything else went silent."** You are in exclusive mode. It gives Keys sole ownership of the output device,
+which is exactly where the 3 ms comes from — while it runs, nothing else can play through that device, and a
+browser will report an audio rendering error rather than a volume problem. This is not the default; **Settings →
+Audio output → Shared** hands it back. To keep 3 ms *and* your music, pin Keys to an output Windows is not using.
+Closing Keys always releases the device.
 
 **Every note has the same velocity.** That's the instrument, not the app: most digital pianos ship with a Touch
 Sensitivity setting that transmits a constant velocity regardless of how hard you play. The **Play → Touch

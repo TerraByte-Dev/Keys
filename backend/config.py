@@ -111,10 +111,21 @@ HARDWARE: dict[str, Any] = {
     "sample_rate": 48000.0,
     # This machine's exclusive-mode floor. 128 is refused ("minimum period is 144").
     # Raise to 256 if you hear crackling; audio.periods does nothing in exclusive mode.
+    # Only consulted in exclusive mode -- Windows owns the period in shared mode.
     "period_size": 144,
-    # Exclusive mode is what buys the 3 ms. It also takes the output device away from
-    # every other app on the machine for as long as Keys runs. Switchable at runtime.
-    "exclusive": True,
+    # OFF by default, and this is a product decision rather than a technical one.
+    #
+    # Exclusive mode is what buys the 3.00 ms, and it takes the output device away from
+    # every other application on the machine for as long as Keys is open. Not "turns
+    # them down" -- Spotify goes silent, Discord goes silent, a browser reports an
+    # audio rendering error. A practice app you leave open for an hour cannot also be
+    # an application that breaks the computer's sound, and 7 ms is not worth that.
+    #
+    # Shared mode is roughly 10 ms, which is inside the range a piano action already
+    # spans between a soft and a hard keystroke. Exclusive is one click away in
+    # Settings -> Audio for when you want the tightest possible feel, and pinning Keys
+    # to an output Windows is not using gets you 3 ms without taking anything.
+    "exclusive": False,
     # A WASAPI endpoint name, or "default". Pinning Keys to an output Windows is not
     # using for anything else is how you get low latency AND keep Discord.
     "device": "default",

@@ -89,15 +89,23 @@ exclusive-mode. Any "latency self-test" claiming a round-trip number is lying.
 Keys measures the one segment it can actually see — MIDI callback entry to synth call returning — reports it in
 microseconds, and states plainly in the UI what it excludes.
 
-## Exclusive mode is a trade, not a free win
+## Exclusive mode is a trade, not a free win — so it is not the default
 
-Exclusive mode is where the 3 ms comes from, and it takes the output device away from every other application on
-the machine for as long as Keys runs. That is WASAPI working as designed. Three ways to live with it, exposed in
-**Settings → Audio output**:
+Exclusive mode is where the 3.00 ms comes from, and it takes the output device away from every other application
+on the machine for as long as Keys runs. Not "turns them down": Spotify goes silent, Discord goes silent, a
+browser reports an audio rendering error. That is WASAPI working as designed.
 
-1. **Pin Keys to a different output device** than everything else — keeps low latency *and* other audio.
-2. **Shared mode** — everything coexists; Windows chooses the buffer, so expect roughly 10 ms.
-3. **Close Keys** — the device comes straight back.
+**A practice app you leave open for an hour cannot also be the application that breaks the computer's sound.**
+Seven milliseconds does not buy that, so Keys ships in shared mode and exclusive is one click away. Shared is
+roughly 10 ms, which is inside the range a real piano action already spans between a soft and a hard keystroke.
+
+Three positions, exposed in **Settings → Audio output**:
+
+1. **Shared** (default) — everything coexists; Windows chooses the buffer, so expect roughly 10 ms.
+2. **Pin Keys to an output Windows is not using** — an interface, headphones on a second endpoint, an idle HDMI
+   device. Exclusive there costs nothing, because nothing else wants it: 3 ms *and* your music.
+3. **Exclusive on the default device** — the tightest possible feel, and everything else goes quiet until you
+   close Keys or switch back.
 
 Rate, buffer, mode and device are all negotiated when the WASAPI stream opens, so changing any of them requires
 closing and reopening the stream. `Engine.restart()` does that while preserving zones and the loaded preset, and
