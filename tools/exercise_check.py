@@ -11,6 +11,14 @@ of the 15 keys is broken.
 The GenContext wants a Store, so one lives in a throwaway temp directory and the real
 keys.db is fingerprinted before and after. A check that writes to the practice log is a
 bug, and has been one before.
+
+Sections 9 to 12 are a different kind of test. `backend/exercises/fingering.py` is not
+arithmetic -- it is a table transcribed from published charts that disagree with each
+other, and every digit in it is one keystroke away from teaching the wrong thing every
+morning. So every row is checked against pitches computed here from `backend.music`, by
+a completely different path than the one that produced the table, and against the
+structural rules every scale fingering in the literature obeys. A typo in any row has to
+fail, which is worth far more than a clever generator that gets B major's left hand wrong.
 """
 
 from __future__ import annotations
@@ -26,7 +34,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from backend import config  # noqa: E402
 from backend.exercises import REGISTRY, GenContext, Plan  # noqa: E402
 from backend.exercises import scales  # noqa: E402,F401  -- imported to register
-from backend.music import KEYS, MODES  # noqa: E402
+from backend.exercises.fingering import (  # noqa: E402
+    ARPEGGIO_FINGERING, SCALE_FINGERING, crossings, fingers_for)
+from backend.music import KEYS, MODES, scale_pitch_classes  # noqa: E402
 from backend.store import Store  # noqa: E402
 
 TMP = Path(tempfile.mkdtemp(prefix="keys-exercise-check-"))
@@ -309,7 +319,257 @@ step("broken and straight are different exercises",
 step("arpeggios do not claim a fingering they were not given",
      gen("arpeggio", key="C").show_fingers is False)
 
-print("9. the real keys.db was never touched")
+print("9. the fingering table, every row")
+FINGER_TONICS = ["C", "C#", "Db", "D", "Eb", "E", "F", "F#", "Gb", "G", "Ab", "A", "Bb", "B"]
+FINGER_FORMS = ["major", "natural_minor", "harmonic_minor", "melodic_minor"]
+NATURAL_TONICS = ["C", "D", "E", "F", "G", "A", "B"]
+BLACK_PCS = frozenset({1, 3, 6, 8, 10})
+
+
+def row_pcs(tonic: str, form: str) -> list[int]:
+    """The 8 pitch classes of one ascending octave, index-aligned with a row."""
+    tonic_pc = scale_pitch_classes(tonic, "major")[0]
+    return [(tonic_pc + MODES[form][i % 7]) % 12 for i in range(8)]
+
+
+def thumbs_in_cycle(pattern: tuple[int, ...], hand: str) -> list[int]:
+    """Where the thumb falls inside the repeating 7-note cycle.
+
+    Digits 0..6 in the right hand, 1..7 in the left: the other digit at each end is the
+    terminal finger, played once per run rather than once per octave.
+    """
+    return [i for i in (range(0, 7) if hand == "R" else range(1, 8)) if pattern[i] == 1]
+
+
+def thumb_gaps(indices: list[int]) -> list[int]:
+    """Distances between consecutive thumbs around the 7-note cycle."""
+    a, b = indices
+    return sorted([b - a, 7 - (b - a)])
+
+
+step("every tonic x form present",
+     sorted(SCALE_FINGERING) == sorted((t, f) for t in FINGER_TONICS for f in FINGER_FORMS),
+     f"{len(SCALE_FINGERING)} rows, expected {len(FINGER_TONICS) * len(FINGER_FORMS)}")
+
+f_shape: list[str] = []
+f_thumb: list[str] = []
+f_groups: list[str] = []
+f_order: list[str] = []
+f_terminal: list[str] = []
+f_five: list[str] = []
+for (f_tonic, f_form), row in sorted(SCALE_FINGERING.items()):
+    pcs = row_pcs(f_tonic, f_form)
+    for f_hand, pattern in (("R", row[0]), ("L", row[1])):
+        tag = f"{f_tonic} {f_form} {f_hand}H {'-'.join(str(d) for d in pattern)}"
+
+        if len(pattern) != 8 or not all(1 <= d <= 5 for d in pattern):
+            f_shape.append(tag)
+            continue
+
+        on_black = [i for i, d in enumerate(pattern) if d == 1 and pcs[i] in BLACK_PCS]
+        if on_black:
+            f_thumb.append(f"{tag} (thumb on a black key at {on_black})")
+
+        found = thumbs_in_cycle(pattern, f_hand)
+        if len(found) != 2 or thumb_gaps(found) != [3, 4]:
+            f_groups.append(f"{tag} (thumbs at {found})")
+            continue
+
+        # Inside a group the fingers move by exactly one: outward from the thumb in the
+        # right hand, back toward it in the left.
+        cycle = [pattern[i] for i in (range(0, 7) if f_hand == "R" else range(1, 8))]
+        for j, digit in enumerate(cycle):
+            nxt = cycle[(j + 1) % 7]
+            if f_hand == "R" and nxt != 1 and nxt != digit + 1:
+                f_order.append(f"{tag} ({digit} -> {nxt})")
+            if f_hand == "L" and digit != 1 and nxt != digit - 1:
+                f_order.append(f"{tag} ({digit} -> {nxt})")
+
+        # The terminal finger extends the last group by one. This one line is what makes
+        # C major end on 5, F major on 4 and Db major on 2, with no special cases.
+        if f_hand == "R" and pattern[7] != pattern[6] + 1:
+            f_terminal.append(f"{tag} (digit 7 is {pattern[7]}, not {pattern[6] + 1})")
+        if f_hand == "L" and pattern[0] != pattern[1] + 1:
+            f_terminal.append(f"{tag} (digit 0 is {pattern[0]}, not {pattern[1] + 1})")
+
+        if f_hand == "R" and 5 in pattern[:7]:
+            f_five.append(tag)
+
+step("every row is 8 digits of 1..5", not f_shape, "; ".join(f_shape[:4]))
+step("the thumb never lands on a black key", not f_thumb, "; ".join(f_thumb[:4]))
+step("thumbs split the octave into a 3-group and a 4-group", not f_groups,
+     "; ".join(f_groups[:4]))
+step("fingers move by one inside a group", not f_order, "; ".join(f_order[:4]))
+step("the terminal finger extends the last group by one", not f_terminal,
+     "; ".join(f_terminal[:4]))
+step("no 5 appears mid-scale in an RH pattern", not f_five, "; ".join(f_five[:4]))
+
+# The 3-and-4 grouping reads most clearly on the white-key tonics, where the thumb starts
+# on the tonic itself. F is the one that takes its four-group first, which is exactly why
+# its octave note is 4 and not 5.
+natural_rh = {(t, f): SCALE_FINGERING[(t, f)][0] for t in NATURAL_TONICS for f in FINGER_FORMS}
+step("a natural tonic always starts the RH on the thumb",
+     all(p[0] == 1 for p in natural_rh.values()),
+     str({k: p[0] for k, p in natural_rh.items() if p[0] != 1}))
+step("naturals group 3 then 4, except F which groups 4 then 3",
+     all(thumbs_in_cycle(p, "R") == ([0, 4] if t == "F" else [0, 3])
+         for (t, _f), p in natural_rh.items()),
+     str({t: thumbs_in_cycle(SCALE_FINGERING[(t, "major")][0], "R") for t in NATURAL_TONICS}))
+step("C major is the reference row",
+     SCALE_FINGERING[("C", "major")] == ((1, 2, 3, 1, 2, 3, 4, 5), (5, 4, 3, 2, 1, 3, 2, 1)),
+     str(SCALE_FINGERING[("C", "major")]))
+step("the two spellings of a black-key tonic agree",
+     all(SCALE_FINGERING[(a, f)] == SCALE_FINGERING[(b, f)]
+         for a, b in (("C#", "Db"), ("F#", "Gb")) for f in FINGER_FORMS))
+
+# The rows that had to be researched rather than copied down a column. Each of these is a
+# case where the widespread "a minor scale borrows its relative or parallel major's
+# fingering" claim puts a thumb on a black key.
+step("B major's LH is not D major's",
+     SCALE_FINGERING[("B", "major")][1] == (4, 3, 2, 1, 4, 3, 2, 1)
+     != SCALE_FINGERING[("D", "major")][1],
+     "the relative-major claim would put this thumb on F#")
+step("Bb and Eb minor keep their LH off their major's thumbs",
+     SCALE_FINGERING[("Bb", "natural_minor")][1] == (2, 1, 3, 2, 1, 4, 3, 2)
+     != SCALE_FINGERING[("Bb", "major")][1]
+     and SCALE_FINGERING[("Eb", "natural_minor")][1] == (2, 1, 4, 3, 2, 1, 3, 2)
+     != SCALE_FINGERING[("Eb", "major")][1],
+     "Bb major's D and A become Db and Ab; Eb major's G becomes Gb")
+step("Ab minor's LH changes with the form",
+     SCALE_FINGERING[("Ab", "natural_minor")][1] == (3, 2, 1, 3, 2, 1, 4, 3)
+     and SCALE_FINGERING[("Ab", "harmonic_minor")][1] == (3, 2, 1, 4, 3, 2, 1, 3),
+     "raising the 7th turns Gb into G and lets the thumb move onto it")
+step("Ab melodic minor uses the natural LH, not the harmonic one",
+     SCALE_FINGERING[("Ab", "melodic_minor")][1]
+     == SCALE_FINGERING[("Ab", "natural_minor")][1],
+     "melodic descends as natural, where the harmonic thumb would land on Gb")
+step("C# and F# melodic minor get their own RH",
+     SCALE_FINGERING[("C#", "melodic_minor")][0] == (2, 3, 1, 2, 3, 4, 1, 2)
+     != SCALE_FINGERING[("C#", "harmonic_minor")][0]
+     and SCALE_FINGERING[("F#", "melodic_minor")][0] == (2, 3, 1, 2, 3, 4, 1, 2)
+     != SCALE_FINGERING[("F#", "harmonic_minor")][0],
+     "the raised 6th (A# / D#) is black and cannot take a thumb")
+
+print("10. fingers_for() across octaves")
+f_len: list[str] = []
+f_ends: list[str] = []
+f_octave: list[str] = []
+for (f_tonic, f_form), row in sorted(SCALE_FINGERING.items()):
+    for f_hand, pattern in (("R", row[0]), ("L", row[1])):
+        if fingers_for(f_tonic, f_form, f_hand, 8) != pattern:
+            f_octave.append(f"{f_tonic} {f_form} {f_hand}H "
+                            f"{fingers_for(f_tonic, f_form, f_hand, 8)}")
+        for octaves in (2, 3, 4):
+            run = fingers_for(f_tonic, f_form, f_hand, 7 * octaves + 1)
+            if len(run) != 7 * octaves + 1:
+                f_len.append(f"{f_tonic} {f_form} {f_hand}H x{octaves}: {len(run)}")
+                continue
+            if run[0] != pattern[0] or run[-1] != pattern[7]:
+                f_ends.append(f"{f_tonic} {f_form} {f_hand}H x{octaves}: "
+                              f"{run[0]}..{run[-1]} (row {pattern[0]}..{pattern[7]})")
+step("one octave reproduces the row exactly", not f_octave, "; ".join(f_octave[:4]))
+step("2, 3 and 4 octaves are 15, 22 and 29 notes", not f_len, "; ".join(f_len[:4]))
+step("every run starts on digit 0 and ends on digit 7", not f_ends, "; ".join(f_ends[:4]))
+step("a natural tonic's RH ends on 5, and F's on 4",
+     all(fingers_for(t, f, "R", 22)[-1] == (4 if t == "F" else 5)
+         for t in NATURAL_TONICS for f in FINGER_FORMS),
+     str({t: fingers_for(t, "major", "R", 22)[-1] for t in NATURAL_TONICS}))
+step("a natural tonic's LH starts on 5 at the bottom, and B's on 4",
+     all(fingers_for(t, f, "L", 22)[0] == (4 if t == "B" else 5)
+         for t in NATURAL_TONICS for f in FINGER_FORMS),
+     str({t: fingers_for(t, "major", "L", 22)[0] for t in NATURAL_TONICS}))
+step("C major RH, 2 octaves",
+     fingers_for("C", "major", "R", 15) == (1, 2, 3, 1, 2, 3, 4, 1, 2, 3, 1, 2, 3, 4, 5),
+     str(fingers_for("C", "major", "R", 15)))
+step("C major LH, 2 octaves",
+     fingers_for("C", "major", "L", 15) == (5, 4, 3, 2, 1, 3, 2, 1, 4, 3, 2, 1, 3, 2, 1),
+     str(fingers_for("C", "major", "L", 15)))
+step("F major RH, 4 octaves -- the octave note is 1, only the very top is 4",
+     fingers_for("F", "major", "R", 29) == (1, 2, 3, 4, 1, 2, 3) * 4 + (4,),
+     str(fingers_for("F", "major", "R", 29)))
+step("Gb major RH, 2 octaves -- Gb is 2 every time",
+     fingers_for("Gb", "major", "R", 15) == (2, 3, 4, 1, 2, 3, 1, 2, 3, 4, 1, 2, 3, 1, 2),
+     str(fingers_for("Gb", "major", "R", 15)))
+step("B minor LH, 3 octaves -- the bottom 4 never comes back",
+     fingers_for("B", "harmonic_minor", "L", 22)
+     == (4,) + (3, 2, 1, 4, 3, 2, 1) * 3,
+     str(fingers_for("B", "harmonic_minor", "L", 22)))
+step("the enharmonic spelling gives the same run",
+     fingers_for("C#", "melodic_minor", "R", 15) == fingers_for("Db", "melodic_minor", "R", 15))
+step("case is normalised",
+     fingers_for("bB", "major", "r", 8) == SCALE_FINGERING[("Bb", "major")][0])
+step("a part-octave run gets the cycle's finger, not the terminal one",
+     fingers_for("C", "major", "R", 5) == (1, 2, 3, 1, 2), str(fingers_for("C", "major", "R", 5)))
+step("an unknown key or form returns ()",
+     fingers_for("H", "major", "R", 8) == () and fingers_for("C", "lydian", "R", 8) == ())
+step("no notes returns ()",
+     fingers_for("C", "major", "R", 0) == () and fingers_for("C", "major", "R", -3) == ())
+step("hands-together returns () -- a two-hand generator asks once per hand",
+     fingers_for("C", "major", "B", 8) == ())
+step("one note is just the first digit",
+     fingers_for("C", "major", "R", 1) == (1,) and fingers_for("C", "major", "L", 1) == (5,))
+
+print("11. crossings()")
+# Hand-checked. C major RH ascending, two octaves:
+#     1  2  3  1  2  3  4  1  2  3  1  2  3  4  5
+#        ^     ^  ^        ^  ^     ^  ^
+# 3, 7 and 10 are the thumb tucking under; 4, 8 and 11 are the hand leaving it again.
+# Index 1 is the departure from the *starting* thumb, which is not a crossing -- the one
+# false positive this convention accepts, documented in fingering.crossings.
+rh_run = fingers_for("C", "major", "R", 15)
+lh_run = fingers_for("C", "major", "L", 15)
+step("C major RH, 2 octaves",
+     [i for i, c in enumerate(crossings(rh_run)) if c] == [1, 3, 4, 7, 8, 10, 11],
+     str([i for i, c in enumerate(crossings(rh_run)) if c]))
+# LH ascending, two octaves:
+#     5  4  3  2  1  3  2  1  4  3  2  1  3  2  1
+#                    ^  ^     ^  ^        ^  ^  ^
+# 5, 8 and 12 are the hand passing OVER a planted thumb -- the hard moment in this
+# direction, and the whole reason the second clause exists.
+step("C major LH, 2 octaves",
+     [i for i, c in enumerate(crossings(lh_run)) if c] == [4, 5, 7, 8, 11, 12, 14],
+     str([i for i, c in enumerate(crossings(lh_run)) if c]))
+step("Bb major RH, one octave (4-1-2-3-1-2-3-4)",
+     crossings(SCALE_FINGERING[("Bb", "major")][0])
+     == (False, True, True, False, True, True, False, False),
+     str(crossings(SCALE_FINGERING[("Bb", "major")][0])))
+step("index 0 is never a crossing",
+     crossings((1, 2, 3))[0] is False and crossings((5, 4, 3))[0] is False)
+step("empty and single-note inputs", crossings(()) == () and crossings((3,)) == (False,))
+step("a run with no thumb has no crossings",
+     crossings((5, 4, 3, 2)) == (False, False, False, False))
+# metrics.crossing_cost_ms wants at least 2 flagged steps and 3 unflagged ones before it
+# will report a number at all, so one octave has to clear that bar on its own.
+octave_flags = [sum(crossings(fingers_for(t, f, h, 8)))
+                for t in FINGER_TONICS for f in FINGER_FORMS for h in "RL"]
+step("one octave always yields enough crossings for the metric",
+     all(2 <= n <= 5 for n in octave_flags),
+     f"{min(octave_flags)}..{max(octave_flags)} flagged of 8 steps")
+# Against the generated run rather than the row: this is what would catch a wrap that
+# moved a thumb onto a black key at an octave boundary.
+f_cross: list[str] = []
+for (f_tonic, f_form), _row in sorted(SCALE_FINGERING.items()):
+    pcs = row_pcs(f_tonic, f_form)
+    for f_hand in "RL":
+        run = fingers_for(f_tonic, f_form, f_hand, 15)
+        for i, flagged in enumerate(crossings(run)):
+            if flagged and run[i] == 1 and pcs[i % 7] in BLACK_PCS:
+                f_cross.append(f"{f_tonic} {f_form} {f_hand}H at {i}")
+step("every thumb crossing in a 2-octave run lands on a white key", not f_cross,
+     "; ".join(f_cross[:4]))
+
+print("12. arpeggio fingering is deferred, not half-done")
+step("ARPEGGIO_FINGERING ships empty", ARPEGGIO_FINGERING == {},
+     "root-position triads were never cross-checked, so none are published")
+step("an arpeggio form returns ()",
+     fingers_for("C", "major_triad", "R", 4) == ()
+     and fingers_for("F#", "minor_triad", "L", 4) == (),
+     "callers already cope with a missing fingering")
+step("and the arpeggio generator does not claim one",
+     gen("arpeggio", key="C").show_fingers is False
+     and not any(s.fingers for s in gen("arpeggio", key="C").steps))
+
+print("13. the real keys.db was never touched")
 after = (REAL_DB.exists(), REAL_DB.stat().st_mtime_ns if REAL_DB.exists() else 0,
          REAL_DB.stat().st_size if REAL_DB.exists() else 0)
 step("keys.db unchanged", after == REAL_BEFORE,

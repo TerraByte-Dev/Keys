@@ -138,10 +138,9 @@ export function createRunner(ex, ctx, onExit, initial = null) {
     if (stopping) return;
     stopping = true;
     try {
-      const res = await api.post('/api/exercises/stop');
-      // The endpoint returns the graded result; tolerate it arriving wrapped so a
-      // blank panel is never the symptom of a one-key shape difference.
-      result = res && res.result ? res.result : res;
+      // {running, result}. result is null when nothing was running -- Stop pressed
+      // twice, or before Start -- and there is no grade to show for that.
+      result = (await api.post('/api/exercises/stop')).result;
     } catch (err) {
       toast(err.message, 'bad');
       stopping = false;

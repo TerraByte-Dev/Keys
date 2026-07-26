@@ -1,12 +1,17 @@
 /* Practice -- the shelf.
  *
  * This tab used to be the analytics dashboard. It is not any more: the calendar,
- * totals, timing, velocity and key-usage panels all live in Stats, where looking at
- * them is a deliberate act rather than the first thing between you and the piano.
+ * totals, velocity and key-usage panels all live in Stats, where looking at them is a
+ * deliberate act rather than the first thing between you and the piano.
  *
- * What is left is a workspace. Three tiles saying whether you are practising right
- * now, and a shelf of things to work on. Both are cheap: the tiles are painted from
- * the 1 Hz status frame with no fetch at all, and the shelf is one GET on mount.
+ * What is left is a workspace. Tiles saying what is happening right now, and a shelf
+ * of things to work on. Both are cheap: the tiles are painted from the 1 Hz status
+ * frame with no fetch at all, and the shelf is one GET on mount.
+ *
+ * Timing stayed. It reads the last ~96 notes you played, so it is a "now" number and
+ * not a long-view one -- and it is the only place in the app that shows what
+ * backend/timing.py computes every second. Stats is built once from one request and
+ * has nowhere to put a figure that moves while you watch it.
  *
  * The one line that is not obvious is frame(). Exercise feedback rides the 60 Hz
  * websocket frame as `f.ex`, and app.js only calls frame() on the mounted VIEW -- so
@@ -29,6 +34,12 @@ export default {
           h('div.empty', null, 'waiting for the first note')),
         h('div.btnrow', { style: { marginTop: '14px' } },
           h('button.btn', { onclick: () => endSession() }, 'End session')))),
+      h('div.col-12', null, mod('Timing', 'from your last ~96 notes',
+        h('div.stats', { id: 'practice-timing' },
+          h('div.empty', null, 'play something')),
+        h('div.note', { style: { marginTop: '12px' } },
+          'Drift is the number to watch, not per-beat error. Players hold even spacing ',
+          'while the whole tempo slides -- that is the failure mode the research found.'))),
       h('div.grid.col-12', { id: 'ex-host' },
         h('div.col-12', null, h('div.empty', null, 'loading exercises...')))));
 
@@ -39,6 +50,7 @@ export default {
 
   status(s, ctx) {
     paintHud(s.practice || {});
+    paintTiming(s.timing);
     current?.status?.(s, ctx);
   },
 
@@ -65,6 +77,38 @@ function paintHud(p) {
          'stat__value--cyan'));
 }
 
+/* ── the timing readout ───────────────────────────────────────────────────── */
+// Every card is omitted rather than zeroed when its input is missing: "no drift"
+// and "not enough notes to say" are different readings, and only one of them is
+// worth acting on.
+function paintTiming(t) {
+  const host = $('#practice-timing');
+  if (!host) return;
+  if (!t || !t.tempo || t.tempo.bpm == null) {
+    host.replaceChildren(h('div.empty', null, 'not enough notes yet'));
+    return;
+  }
+  const d = t.drift || {};
+  const s = t.steadiness || {};
+  const g = t.grid;
+  const cards = [
+    stat(Math.round(t.tempo.bpm), 'Tempo', 'bpm, median IOI', 'stat__value--amber'),
+    stat(s.rating || '--', 'Steadiness', s.cv != null ? `cv ${s.cv.toFixed(3)}` : ''),
+  ];
+  if (d.bpm_per_min != null) {
+    cards.push(stat(
+      (d.bpm_per_min > 0 ? '+' : '') + d.bpm_per_min.toFixed(1),
+      'Drift', d.steady ? 'holding tempo' : (d.bpm_per_min < 0 ? 'slowing down' : 'speeding up'),
+      d.steady ? 'stat__value--cyan' : 'stat__value--amber'));
+  }
+  if (g && g.n) {
+    cards.push(stat(
+      (g.mean_ms > 0 ? '+' : '') + g.mean_ms.toFixed(0),
+      'Vs click', g.rushing ? 'rushing' : g.dragging ? 'dragging' : 'on the beat'));
+  }
+  host.replaceChildren(...cards);
+}
+
 async function endSession() {
   try {
     const res = await api.post('/api/practice/end');
@@ -76,11 +120,17 @@ async function endSession() {
 }
 
 /* ── the shelf ────────────────────────────────────────────────────────────── */
+// Every paint re-finds the host instead of closing over it, and gives up when it is
+// gone: mount() awaits two requests, and a tab change inside that window has already
+// emptied the stage. Painting into a detached node is harmless; dereferencing null is
+// an unhandled rejection nobody sees.
+const host = () => $('#ex-host');
+
 async function load(ctx) {
   try {
     shelf = await api.get('/api/exercises');
   } catch (err) {
-    $('#ex-host').replaceChildren(h('div.col-12', null,
+    host()?.replaceChildren(h('div.col-12', null,
       mod('Exercises', null, h('div.empty', null, 'could not load exercises: ' + err.message))));
     return;
   }
@@ -102,7 +152,7 @@ function paintShelf(ctx) {
   const list = shelf.exercises || [];
   const recent = shelf.recent || [];
 
-  $('#ex-host').replaceChildren(
+  host()?.replaceChildren(
     recent.length ? h('div.col-12', null, mod('Pick up where you left off', null,
       h('div.list', null, recent.slice(0, 6).map((r) => recentRow(r, ctx))))) : null,
 
@@ -139,7 +189,7 @@ function recentRow(r, ctx) {
 function openRun(ex, ctx, initial = null) {
   current?.destroy?.();
   current = createRunner(ex, ctx, () => back(ctx), initial);
-  $('#ex-host').replaceChildren(current.el);
+  host()?.replaceChildren(current.el);
 }
 
 function back(ctx) {
