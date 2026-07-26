@@ -1,0 +1,24 @@
+# Big binaries — never commit these
+soundfonts/*
+!soundfonts/README.md
+midi/*
+!midi/README.md
+recordings/
+*.sf2
+*.sf3
+*.wav
+
+# Local state
+keys.db
+*.db-journal
+config.local.json
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Node
+node_modules/
+dist/

@@ -1,0 +1,6 @@
+# Python 3.11 or 3.12 only -- python-rtmidi has no cp313+ wheel.
+# Requires FluidSynth 2.x installed separately at C:\tools\fluidsynth (see README).
+
+pyfluidsynth==1.4.0     # pure ctypes binding, bundles NO native library
+python-rtmidi==1.5.8    # WinMM backend only; virtual ports unsupported on Windows
+mido==1.3.3             # MIDI file parsing (swap for symusic if parsing gets hot)
