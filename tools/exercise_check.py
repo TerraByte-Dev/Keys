@@ -318,6 +318,21 @@ step("broken and straight are different exercises",
      != gen("arpeggio", key="C", pattern="straight").variant)
 step("arpeggios do not claim a fingering they were not given",
      gen("arpeggio", key="C").show_fingers is False)
+# ARPEGGIO_FINGERING is empty on purpose, so no arpeggio may carry a finger or a crossing
+# flag -- for ANY quality. "major" and "minor" are also scale-form names, so a generator
+# that passes its quality through as the fingering form silently hands a C major arpeggio
+# the C major SCALE fingering: right for the notes of a scale, wrong for these notes, and
+# invisible because show_fingers is False. The crossing flags reach metrics.crossing_cost_ms
+# and the practice log either way, which is where a fabricated number would live forever.
+_arp_fingered = [
+    (q, inv, [s.fingers for s in p.steps], [s.crossing for s in p.steps])
+    for q in QUALITIES for inv in (0, 1, 2, 3)
+    for p in (gen("arpeggio", key="C", quality=q, inversion=inv, octaves=2, hands="R"),)
+    if any(s.fingers for s in p.steps) or any(s.crossing for s in p.steps)
+]
+step("and no arpeggio quality borrows a scale's fingering by name", not _arp_fingered,
+     str(_arp_fingered[:1]) if _arp_fingered else
+     f"{len(QUALITIES)} qualities x 4 inversions, no fingers and no crossings")
 
 print("9. the fingering table, every row")
 FINGER_TONICS = ["C", "C#", "Db", "D", "Eb", "E", "F", "F#", "Gb", "G", "Ab", "A", "Bb", "B"]

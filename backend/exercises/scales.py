@@ -274,9 +274,18 @@ def _plan(exercise: str, params: dict[str, Any], form: str, offsets: Sequence[in
             break
 
     run = len(_walk(offsets, octaves, pattern))   # ascending length, before the mirror
-    r_fingers, r_cross = _fingering(key, form, "R", run, updown, descending=False)
-    l_fingers, l_cross = _fingering(key, form, "L", run, updown,
-                                    descending=(hands == "B" and motion == "contrary"))
+    # Only ask for a fingering the exercise actually has one for. An arpeggio passes its
+    # chord quality as `form`, and "major" and "minor" are also scale forms -- so without
+    # this guard a C major arpeggio silently collects C major *scale* fingering whenever
+    # the two happen to be the same length, and Step.crossing would then feed
+    # metrics.crossing_cost_ms a thumb that is nowhere near the notes being played.
+    if show_fingers:
+        r_fingers, r_cross = _fingering(key, form, "R", run, updown, descending=False)
+        l_fingers, l_cross = _fingering(key, form, "L", run, updown,
+                                        descending=(hands == "B" and motion == "contrary"))
+    else:
+        r_fingers, r_cross = (), ()
+        l_fingers, l_cross = (), ()
 
     steps = []
     for i in range(len(right or left)):
@@ -387,7 +396,12 @@ def generate_arpeggio(params: dict[str, Any], ctx: GenContext) -> Plan:
             title += ", broken"
         return variant, title
 
-    return _plan("arpeggio", p, quality, _invert(tones, inversion), describe,
+    # No fingering form, deliberately. The quality names share a namespace with the scale
+    # modes, so passing `quality` here hands a C major arpeggio the C major *scale*
+    # fingering -- thumb-unders, crossing flags and all -- for the one quality whose name
+    # collides. ARPEGGIO_FINGERING is empty on purpose (see fingering.py); an empty form
+    # is how that stays true.
+    return _plan("arpeggio", p, "", _invert(tones, inversion), describe,
                  show_fingers=False)
 
 
