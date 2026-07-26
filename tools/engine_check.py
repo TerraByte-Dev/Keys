@@ -17,6 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from _audio_guard import require_quiet  # noqa: E402
 from backend import config, engine as engine_mod  # noqa: E402
 from backend.engine import Engine  # noqa: E402
 from backend.metronome import Metronome  # noqa: E402
@@ -34,6 +35,8 @@ def step(label: str, passed: bool, detail: str = "") -> None:
     ok = ok and passed
     print(f"  [{'PASS' if passed else 'FAIL'}] {label}" + (f" -- {detail}" if detail else ""))
 
+
+require_quiet("engine_check")
 
 print("1. engine starts on the measured settings")
 eng = Engine(SCRATCH)

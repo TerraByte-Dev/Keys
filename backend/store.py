@@ -29,6 +29,7 @@ flush thread -- see CLAUDE.md.
 
 from __future__ import annotations
 
+import json
 import logging
 import sqlite3
 import threading
@@ -99,6 +100,58 @@ CREATE TABLE IF NOT EXISTS sightread_attempt (
 );
 CREATE INDEX IF NOT EXISTS idx_sight_at   ON sightread_attempt(at);
 CREATE INDEX IF NOT EXISTS idx_sight_note ON sightread_attempt(note);
+
+-- One row per exercise run, whatever the exercise was: a scale, a cadence, a
+-- sight-reading page. The columns are the FACTS the grader measured and nothing
+-- else -- there is deliberately no "clean" column even though metrics.grade()
+-- computes one. A verdict written into a row is frozen at the thresholds that
+-- were current the day it was written; computed at query time from correct/steps
+-- and evenness_cv, every past attempt re-reads itself when the bar moves. Same
+-- reasoning that keeps inferred key out of note_event.
+CREATE TABLE IF NOT EXISTS exercise_attempt (
+    id          INTEGER PRIMARY KEY,
+    session_id  INTEGER,
+    at          REAL,
+    exercise    TEXT,
+    variant     TEXT,
+    "key"       TEXT,
+    bpm         REAL,
+    steps       INTEGER,
+    correct     INTEGER,
+    evenness_cv REAL,
+    ioi_mean_ms REAL,
+    grid_abs_ms REAL,
+    grid_mean_ms REAL,
+    vel_sd      REAL,
+    crossing_ms REAL,
+    sync_ms     REAL,
+    duration_ms INTEGER,
+    params      TEXT
+);
+-- Everything that reads this table either asks about one (exercise, variant) --
+-- history and the personal-best tempo -- or sweeps a time window. The compound
+-- index carries `at` as its third column so the per-variant queries get their
+-- ordering out of the index rather than a sort.
+CREATE INDEX IF NOT EXISTS idx_exattempt_variant ON exercise_attempt(exercise, variant, at);
+CREATE INDEX IF NOT EXISTS idx_exattempt_at      ON exercise_attempt(at);
+
+CREATE TABLE IF NOT EXISTS exercise_step (
+    id          INTEGER PRIMARY KEY,
+    attempt_id  INTEGER,
+    idx         INTEGER,
+    note        INTEGER,
+    played      INTEGER,
+    correct     INTEGER,
+    reaction_ms INTEGER,
+    offset_ms   REAL,
+    spread_ms   REAL,
+    finger      INTEGER,
+    crossing    INTEGER
+);
+-- attempt_id for the cascade in discard_session; note for weak_steps, which is
+-- the only query that reaches into these rows without an attempt in hand.
+CREATE INDEX IF NOT EXISTS idx_exstep_attempt ON exercise_step(attempt_id);
+CREATE INDEX IF NOT EXISTS idx_exstep_note    ON exercise_step(note);
 """
 
 
@@ -171,6 +224,46 @@ def _interval_label(semitones: int) -> str:
         return f"P{1 + 7 * octaves}"
     degree, quality = _INTERVAL_STEPS[step]
     return f"{quality}{degree + 7 * octaves}"
+
+
+# --- optional numbers ---------------------------------------------------------
+# Half of what metrics.grade() reports is legitimately None: there is no drift on
+# four notes, no grid on an untimed run, no velocity spread on a fixed-touch piano.
+# NULL is the honest storage for "not measurable", and `float(None)` raises, so the
+# guard happens once here instead of at each of the seventeen call sites.
+def _opt_float(v: Any) -> float | None:
+    return float(v) if v is not None else None
+
+
+def _opt_int(v: Any) -> int | None:
+    return int(round(float(v))) if v is not None else None
+
+
+def _accuracy(correct: Any, steps: Any) -> float:
+    steps = int(steps or 0)
+    return round(int(correct or 0) / steps, 4) if steps else 0.0
+
+
+def _attempt_row(r: sqlite3.Row) -> dict:
+    """One attempt as the shelf wants to read it. Shared so recent_variants and the
+    summary's `recent` cannot drift into two different shapes."""
+    return {
+        "exercise": r["exercise"] or "",
+        "variant": r["variant"] or "",
+        "title": _params_title(r["params"]),
+        "at": r["at"],
+        "accuracy": _accuracy(r["correct"], r["steps"]),
+    }
+
+
+def _params_title(blob: str | None) -> str:
+    """The human title back out of the params blob. A row whose JSON will not parse
+    still deserves to appear on the shelf, just without its title."""
+    try:
+        params = json.loads(blob) if blob else {}
+    except (TypeError, ValueError):
+        return ""
+    return str(params.get("title") or "") if isinstance(params, dict) else ""
 
 
 class Store:
@@ -283,6 +376,15 @@ class Store:
         self._write("DELETE FROM note_event WHERE session_id = ?", (int(sid),))
         self._write("DELETE FROM chord_event WHERE session_id = ?", (int(sid),))
         self._write("DELETE FROM sightread_attempt WHERE session_id = ?", (int(sid),))
+        # Steps before attempts: exercise_step hangs off the attempt, not the session,
+        # so once the attempt rows are gone there is nothing left to find them by and
+        # they orphan silently -- they would still be counted by weak_steps forever.
+        self._write(
+            "DELETE FROM exercise_step WHERE attempt_id IN "
+            "(SELECT id FROM exercise_attempt WHERE session_id = ?)",
+            (int(sid),),
+        )
+        self._write("DELETE FROM exercise_attempt WHERE session_id = ?", (int(sid),))
         self._write("DELETE FROM session WHERE id = ?", (int(sid),))
 
     def log_notes(self, sid: int, rows: list[tuple[int, int, int]]) -> None:
@@ -317,6 +419,56 @@ class Store:
             "VALUES (?, ?, ?, ?, ?, ?, ?)",
             (sid, time.time(), int(note), 1 if correct else 0, int(reaction_ms), key, clef),
         )
+
+    def log_exercise(self, session_id: int | None, summary: dict, steps: list[dict]) -> int:
+        """One graded run: the metrics.grade() summary, then its per-step records.
+
+        Two statements rather than one transaction spanning both, because that is what
+        _write offers and a second connection-level primitive for one caller is not
+        worth it. The failure it allows is an attempt with no steps -- a run whose
+        detail is missing, which every query below already tolerates. The steps do go
+        in as a single executemany: a two-octave scale is 30 rows and 30 commits on a
+        WAL database is 30 chances to stall a thread that is about to make a sound.
+
+        Returns the attempt id, or -1 if the write failed.
+        """
+        params = dict(summary.get("params") or {})
+        # The shelf shows "C major, 2 octaves, hands together"; a variant slug cannot be
+        # un-slugged back into that, and recent_variants has to print it. It rides in
+        # the params blob rather than earning a column: it is display text that nothing
+        # ever filters or groups by.
+        params["title"] = str(summary.get("title") or "")
+
+        attempt_id = self._write(
+            'INSERT INTO exercise_attempt(session_id, at, exercise, variant, "key", bpm, '
+            "steps, correct, evenness_cv, ioi_mean_ms, grid_abs_ms, grid_mean_ms, vel_sd, "
+            "crossing_ms, sync_ms, duration_ms, params) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (session_id, time.time(),
+             str(summary.get("exercise") or ""), str(summary.get("variant") or ""),
+             str(summary.get("key") or ""), _opt_float(summary.get("bpm")),
+             int(summary.get("steps") or 0), int(summary.get("correct") or 0),
+             _opt_float(summary.get("evenness_cv")), _opt_float(summary.get("ioi_mean_ms")),
+             _opt_float(summary.get("grid_abs_ms")), _opt_float(summary.get("grid_mean_ms")),
+             _opt_float(summary.get("vel_sd")), _opt_float(summary.get("crossing_ms")),
+             _opt_float(summary.get("sync_ms")), _opt_int(summary.get("duration_ms")),
+             json.dumps(params, default=str)),
+        )
+        if attempt_id < 0 or not steps:
+            return attempt_id
+
+        self._write(
+            "INSERT INTO exercise_step(attempt_id, idx, note, played, correct, "
+            "reaction_ms, offset_ms, spread_ms, finger, crossing) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [(attempt_id, int(s.get("idx", 0)), int(s.get("note", -1)),
+              int(s.get("played", -1)), 1 if s.get("correct") else 0,
+              _opt_int(s.get("reaction_ms")), _opt_float(s.get("offset_ms")),
+              _opt_float(s.get("spread_ms")), int(s.get("finger") or 0),
+              1 if s.get("crossing") else 0) for s in steps],
+            many=True,
+        )
+        return attempt_id
 
     # -------------------------------------------------------------- practice
     def today(self) -> dict:
@@ -770,6 +922,151 @@ class Store:
             "accuracy": round(correct / attempts, 3) if attempts else 0.0,
             "mean_reaction_ms": int(round(r["reaction"] or 0)) if attempts else 0,
         }
+
+    # ------------------------------------------------------------- exercises
+    # Accuracy is divided here, in every one of these, rather than stored: see the
+    # schema comment on exercise_attempt. correct and steps are what happened; the
+    # ratio is a reading of it, and readings change.
+    def exercise_history(self, exercise: str, variant: str, days: int = 90) -> list[dict]:
+        """Every attempt at one variant in the window, oldest first.
+
+        Oldest first because this is drawn as a line: the point of the chart is the
+        slope, and a chart that reads right to left has to be reversed by the caller.
+        """
+        start, end, _f, _t = _window(days)
+        rows = self._rows(
+            "SELECT at, steps, correct, bpm, evenness_cv, sync_ms, crossing_ms "
+            "FROM exercise_attempt "
+            "WHERE exercise = ? AND variant = ? AND at >= ? AND at < ? ORDER BY at ASC",
+            (exercise, variant, start, end),
+        )
+        return [{
+            "at": r["at"],
+            "accuracy": _accuracy(r["correct"], r["steps"]),
+            "bpm": r["bpm"],
+            "evenness_cv": r["evenness_cv"],
+            "sync_ms": r["sync_ms"],
+            "crossing_ms": r["crossing_ms"],
+        } for r in rows]
+
+    def best_clean_tempo(self, exercise: str, variant: str) -> dict | None:
+        """Fastest tempo this variant was ever played clean at, or None.
+
+        All of time, not a window: a personal best does not expire, and the whole
+        reason to keep one is to see it stand for months and then fall.
+
+        Clean means every step right, evenness under metrics.CLEAN_CV, and at least
+        CLEAN_MIN_STEPS of them so a one-octave rip cannot set a record. Imported
+        from there rather than restated: two copies of a threshold is one threshold
+        and one bug waiting for someone to tune the other.
+        """
+        # Imported inside the method because backend.exercises imports Store at its
+        # own module scope -- at the top of this file it is a cycle, and which half
+        # explodes depends on which module the process happens to import first.
+        from .exercises.metrics import CLEAN_CV, CLEAN_MIN_STEPS
+
+        rows = self._rows(
+            "SELECT bpm, at, evenness_cv FROM exercise_attempt "
+            "WHERE exercise = ? AND variant = ? AND bpm IS NOT NULL "
+            "AND steps >= ? AND correct = steps "
+            "AND evenness_cv IS NOT NULL AND evenness_cv < ? "
+            # Ties on bpm go to the most recent: the same tempo held again today is
+            # the better evidence that it is really yours.
+            "ORDER BY bpm DESC, at DESC LIMIT 1",
+            (exercise, variant, CLEAN_MIN_STEPS, CLEAN_CV),
+        )
+        if not rows:
+            return None
+        r = rows[0]
+        return {"bpm": r["bpm"], "at": r["at"], "evenness_cv": r["evenness_cv"]}
+
+    def exercise_summary(self, days: int = 30) -> dict:
+        """Headline row for the Practice tab: how much, of what, and what was last.
+
+        best_accuracy is MAX over the window rather than a mean. A mean punishes the
+        attempts where you pushed the tempo until it fell apart, which is the useful
+        kind of practice.
+        """
+        start, end, _f, _t = _window(days)
+        total = self._rows(
+            "SELECT COUNT(*) AS n FROM exercise_attempt WHERE at >= ? AND at < ?",
+            (start, end),
+        )
+        per = self._rows(
+            "SELECT exercise, COUNT(*) AS n, "
+            # CASE, not a WHERE: an attempt with no steps still counts as an attempt,
+            # it just cannot contribute an accuracy. MAX ignores the NULLs.
+            "MAX(CASE WHEN steps > 0 THEN CAST(correct AS REAL) / steps END) AS best "
+            "FROM exercise_attempt WHERE at >= ? AND at < ? "
+            "GROUP BY exercise ORDER BY n DESC, exercise ASC",
+            (start, end),
+        )
+        recent = self._rows(
+            "SELECT exercise, variant, params, steps, correct, at FROM exercise_attempt "
+            "WHERE at >= ? AND at < ? ORDER BY at DESC LIMIT 10",
+            (start, end),
+        )
+        return {
+            "attempts": int(total[0]["n"]) if total else 0,
+            "exercises": [{
+                "exercise": r["exercise"] or "",
+                "attempts": int(r["n"]),
+                "best_accuracy": round(r["best"], 4) if r["best"] is not None else 0.0,
+            } for r in per],
+            "recent": [_attempt_row(r) for r in recent],
+        }
+
+    def recent_variants(self, limit: int = 8) -> list[dict]:
+        """The last few things practised, one row per (exercise, variant).
+
+        This is "pick up where you left off", so it carries the human title out of the
+        params blob -- see log_exercise for why the title lives there.
+
+        MAX(at) with bare columns is SQLite's documented single-row rule: every other
+        column comes from the row that actually held the maximum. That is what makes
+        each row here the *latest* attempt at its variant rather than an arbitrary one.
+        """
+        rows = self._rows(
+            "SELECT exercise, variant, params, steps, correct, MAX(at) AS at "
+            "FROM exercise_attempt GROUP BY exercise, variant ORDER BY at DESC LIMIT ?",
+            (int(limit),),
+        )
+        return [_attempt_row(r) for r in rows]
+
+    def weak_steps(self, exercise: str | None = None, limit: int = 12) -> list[dict]:
+        """weak_notes for exercises: worst correct-rate first, three attempts minimum.
+
+        A step is stored by its lowest note, so a chord answers under its bass. That is
+        a real limitation and the right one for now -- "you keep missing the F#" is the
+        sentence this has to be able to say.
+        """
+        # The join only exists to filter, so it is only paid for when there is a filter.
+        src = "exercise_step s"
+        where = ""
+        args: tuple[Any, ...] = ()
+        if exercise is not None:
+            src = "exercise_step s JOIN exercise_attempt a ON a.id = s.attempt_id"
+            where = "WHERE a.exercise = ? "
+            args = (exercise,)
+        rows = self._rows(
+            # Every column qualified: `correct` exists on both tables, and an
+            # unqualified one in the joined form is an ambiguous-column error that
+            # _rows would swallow into an empty list.
+            "SELECT s.note AS note, COUNT(*) AS attempts, SUM(s.correct) AS correct, "
+            f"AVG(s.reaction_ms) AS reaction FROM {src} {where}"
+            "GROUP BY s.note HAVING COUNT(*) >= 3 "
+            "ORDER BY (CAST(SUM(s.correct) AS REAL) / COUNT(*)) ASC, COUNT(*) DESC LIMIT ?",
+            args + (int(limit),),
+        )
+        return [{
+            "note": int(r["note"]),
+            "attempts": int(r["attempts"]),
+            "correct": int(r["correct"] or 0),
+            "accuracy": round(int(r["correct"] or 0) / int(r["attempts"]), 2),
+            # Averaged over the attempts that have one: a skipped step has no reaction
+            # time, and AVG passing over those NULLs is the behaviour wanted.
+            "mean_reaction_ms": int(round(r["reaction"] or 0)),
+        } for r in rows]
 
     # --------------------------------------------------------------- listing
     def recent_sessions(self, limit: int = 20) -> list[dict]:

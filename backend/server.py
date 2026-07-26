@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import random
 import time
 from collections import deque
 from contextlib import asynccontextmanager
@@ -26,6 +27,9 @@ from fastapi.staticfiles import StaticFiles
 
 from . import config, engine as engine_mod, music, timing
 from .engine import Engine, Preset, Zone
+from .exercises import GenContext, clean_params, load_all
+from .exercises.metrics import grade
+from .exercises.run import Run
 from .hub import BEND, CONTROL, NOTE_OFF, NOTE_ON, Hub
 from .metronome import Metronome
 from .midi_in import MidiInput
@@ -55,6 +59,13 @@ class App:
         self.store = Store(config.DB_PATH)
         self.practice = PracticeClock(self.store, self.settings)
         self.sight = SightReader(self.store, self.settings)
+        # The exercise engine. Rebound in one atomic assignment when a run starts, so
+        # the drain loop sees the old run or the new one and never a half-built one --
+        # the same argument the zone routing table relies on, and the reason there is
+        # no lock here despite FastAPI running plain `def` endpoints in a threadpool.
+        self.run: Run | None = None
+        self.last_exercise_fb: dict[str, Any] | None = None
+        self.rng = random.Random()
         self.presets: dict[str, Preset] = {}
 
         self.clients: set[WebSocket] = set()
@@ -144,12 +155,20 @@ class App:
                         on.append([a, b])
                         held_changed = True
                         self.practice.on_note(t, a, b)
-                        fb = self.sight.on_note(a, b, t)
-                        if fb is not None:
-                            self.last_feedback = fb
+                        # Computed once and passed down. click_offset_ms() runs a least
+                        # squares fit over 400 observations and scans up to 4096 queued
+                        # clicks; calling it again inside the grader would double that
+                        # for every note.
                         offset = self.metro.click_offset_ms(t)
                         if offset is not None:
                             self.click_offsets.append(offset)
+                        if self.run is not None and not self.run.done:
+                            fb = self.run.on_note(a, b, t, offset)
+                            if fb is not None:
+                                self.last_exercise_fb = fb
+                        fb = self.sight.on_note(a, b, t)
+                        if fb is not None:
+                            self.last_feedback = fb
                     elif kind == NOTE_OFF:
                         self.held.discard(a)
                         off.append(a)
@@ -181,6 +200,9 @@ class App:
                     if self.last_feedback is not None:
                         frame["sight"] = self.last_feedback
                         self.last_feedback = None
+                    if self.last_exercise_fb is not None:
+                        frame["ex"] = self.last_exercise_fb
+                        self.last_exercise_fb = None
                     await self.broadcast(frame)
 
                 self.practice.tick(now)
@@ -228,6 +250,12 @@ class App:
             "metronome": self.metro.status(),
             "practice": self.practice.status(now),
             "sightread": {"active": self.sight.active, "index": self.sight.index},
+            "exercise": (
+                {"running": True, "exercise": self.run.plan.exercise,
+                 "variant": self.run.plan.variant, "index": self.run.index,
+                 "steps": len(self.run.plan.steps)}
+                if self.run is not None and not self.run.done else {"running": False}
+            ),
             "hub": self.hub.stats(),
             "timing": self.timing_snapshot(),
             "errors": self._boot_errors,
@@ -542,6 +570,91 @@ def analytics(days: int = 365) -> dict[str, Any]:
 def end_practice() -> dict[str, Any]:
     app_state.practice.end_session()
     return {"ok": True, "practice": app_state.practice.status()}
+
+
+# ------------------------------------------------------------------ exercises
+def _namer(app: App):
+    """How a step's notes get spelled for the staff -- by the reading key, so an
+    E flat exercise says Eb and not D#."""
+    key = app.reading_key()
+    return lambda n: {"midi": n, "name": music.note_name(n, key),
+                      "staff": "treble" if n >= 60 else "bass"}
+
+
+@api.get("/api/exercises")
+def list_exercises() -> dict[str, Any]:
+    types = load_all()
+    return {
+        "exercises": [t.to_dict() for t in types.values()],
+        "recent": app_state.store.recent_variants(limit=8),
+        "running": app_state.run is not None and not app_state.run.done,
+    }
+
+
+@api.get("/api/exercises/state")
+def exercise_state() -> dict[str, Any]:
+    if app_state.run is None:
+        return {"running": False}
+    return app_state.run.state(_namer(app_state))
+
+
+@api.post("/api/exercises/{exercise_id}/start")
+def exercise_start(exercise_id: str, body: dict[str, Any] = Body(default=None)) -> dict[str, Any]:
+    types = load_all()
+    ex = types.get(exercise_id)
+    if ex is None:
+        raise HTTPException(404, f"no exercise '{exercise_id}'")
+
+    # Whatever was running is abandoned rather than graded: you chose to leave it.
+    _release_metronome()
+    params = clean_params(ex, body)
+    ctx = GenContext(store=app_state.store, rng=app_state.rng,
+                     display_key=app_state.reading_key())
+    plan = ex.generate(params, ctx)
+
+    if plan.timed:
+        # override(), not configure(): the exercise borrows the tempo for the length of
+        # the run and must not rewrite the one saved in Tools.
+        app_state.metro.override({"bpm": plan.bpm, "beats_per_bar": plan.beats_per_bar})
+        app_state.metro.start()
+
+    run = Run(plan, session_id=app_state.practice.session_id)
+    app_state.last_exercise_fb = None
+    app_state.run = run                       # <- the atomic rebind
+    return run.state(_namer(app_state))
+
+
+@api.post("/api/exercises/stop")
+def exercise_stop() -> dict[str, Any]:
+    run = app_state.run
+    if run is None:
+        return {"running": False, "result": None}
+    run.stop()
+    _release_metronome()
+    result = grade(run.plan, run.records)
+    result["params"] = dict(run.plan.params)
+    result["title"] = run.plan.title
+    result["duration_ms"] = int((time.perf_counter() - run.started_at) * 1000)
+    # Read the session id at the END, not the start: practice sessions open on the first
+    # note, so a run begun before you played anything would otherwise log against 0.
+    app_state.store.log_exercise(app_state.practice.session_id, result, run.records)
+    app_state.run = None
+    return {"running": False, "result": result}
+
+
+def _release_metronome() -> None:
+    """Hand the tempo back and stop the click, but only if an exercise took it."""
+    if app_state.run is not None and app_state.run.plan.timed:
+        app_state.metro.stop()
+        app_state.metro.release()
+
+
+@api.get("/api/exercises/{exercise_id}/history")
+def exercise_history(exercise_id: str, variant: str = "", days: int = 90) -> dict[str, Any]:
+    return {
+        "history": app_state.store.exercise_history(exercise_id, variant, days),
+        "best_clean": app_state.store.best_clean_tempo(exercise_id, variant),
+    }
 
 
 # ------------------------------------------------------------------ sightread

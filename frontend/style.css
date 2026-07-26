@@ -358,6 +358,12 @@ body::after {
   display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
 }
 .field__value { font-family: var(--font-mono); font-size: 11px; color: var(--cyan); }
+.field__help { font-size: 10.5px; line-height: 1.45; color: var(--ink-faint); }
+
+/* Exercise setup. The controls are generated from the server's parameter schema, so
+   the column count has to survive anything from one toggle to eight fields. */
+.params { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0 12px; }
+.params .toggle { margin-bottom: 11px; }
 
 input[type=range] {
   -webkit-appearance: none; appearance: none;

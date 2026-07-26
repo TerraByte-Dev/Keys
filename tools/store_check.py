@@ -14,6 +14,7 @@ local-day maths is checked against a different stdlib path than the one under te
 
 from __future__ import annotations
 
+import json
 import logging
 import shutil
 import sys
@@ -26,6 +27,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from backend import config  # noqa: E402
+from backend.exercises.metrics import CLEAN_CV, CLEAN_MIN_STEPS  # noqa: E402
 from backend.store import Store  # noqa: E402
 
 TMP = Path(tempfile.mkdtemp(prefix="keys-store-check-"))
@@ -81,6 +83,40 @@ def count(store: Store, table: str) -> int:
     return int(rows[0]["n"]) if rows else -1
 
 
+# One graded run, shaped exactly like metrics.grade()'s return value -- an untimed-grid
+# scale at 92 bpm, played perfectly. Every exercise test starts from a copy of this and
+# changes only the field it is about, so a failure names its own cause.
+SUMMARY: dict = {
+    "exercise": "scales", "variant": "c-major-2oct", "title": "C major, 2 octaves",
+    "key": "C", "bpm": 92.0, "steps": 32, "played": 32, "correct": 32, "skipped": 0,
+    "accuracy": 1.0, "evenness_cv": 0.041, "evenness": "even", "ioi_mean_ms": 163.0,
+    "tempo_bpm": 92.1, "drift_bpm_per_min": 0.4,
+    "grid_abs_ms": None, "grid_mean_ms": None, "rushing": None, "dragging": None,
+    "vel_sd": 8.5, "mean_reaction_ms": 220.0, "sync_ms": 12.4, "crossing_ms": 31.0,
+    "duration_ms": 21_000, "clean": True,
+    "params": {"octaves": 2, "hands": "both"},
+}
+
+
+def records(n: int, wrong: set[int] = frozenset(), note0: int = 60) -> list[dict]:
+    """`n` Run.records dicts, one per step. Deterministic on purpose: finger and
+    crossing are functions of the index so an assertion can name an exact row."""
+    return [{
+        "idx": i, "note": note0 + i, "played": note0 + i, "correct": i not in wrong,
+        "skipped": False, "onset": 100.0 + i * 0.5, "reaction_ms": 220.0 + i,
+        "offset_ms": -3.5, "spread_ms": 0.0, "hand": "R", "crossing": i % 8 == 3,
+        "finger": 1 + (i % 5), "velocities": [64],
+    } for i in range(n)]
+
+
+def stamp(store: Store, attempt_id: int, at: float) -> None:
+    """Move a logged attempt to a known instant. log_exercise stamps time.time() as it
+    should; the windowed queries need attempts that are days old, and faking the clock
+    would fake the thing under test."""
+    store._write(  # noqa: SLF001
+        "UPDATE exercise_attempt SET at = ? WHERE id = ?", (at, int(attempt_id)))
+
+
 print("1. schema")
 db = TMP / "schema.db"
 s = Store(db)
@@ -92,8 +128,9 @@ indexes = [r["name"] for r in s._rows(  # noqa: SLF001
 mode = s._rows("PRAGMA journal_mode")[0][0]  # noqa: SLF001
 sync = s._rows("PRAGMA synchronous")[0][0]  # noqa: SLF001
 step("tables created",
-     tables == ["chord_event", "note_event", "session", "sightread_attempt"], str(tables))
-step("indexes created", len(indexes) == 7, ", ".join(indexes))
+     tables == ["chord_event", "exercise_attempt", "exercise_step", "note_event",
+                "session", "sightread_attempt"], str(tables))
+step("indexes created", len(indexes) == 11, ", ".join(indexes))
 step("WAL enabled", mode == "wal", f"journal_mode={mode}")
 step("synchronous=NORMAL", sync == 1, f"synchronous={sync}")
 s.close()
@@ -554,7 +591,232 @@ step("totals is zero-shaped",
      broken.totals() == {"active_seconds": 0, "note_count": 0, "sessions": 0, "chords": 0,
                          "days_practiced": 0, "first_at": None}, str(broken.totals()))
 
-print("17. the real keys.db was never touched")
+print("17. log_exercise round-trips an attempt and its steps")
+ex = fresh("exercise")
+exsid = ex.start_session("grand-piano")
+aid = ex.log_exercise(exsid, SUMMARY, records(32))
+step("attempt id assigned", aid > 0, f"id={aid}")
+step("one attempt row", count(ex, "exercise_attempt") == 1)
+step("every step landed", count(ex, "exercise_step") == 32,
+     f"{count(ex, 'exercise_step')} of 32")
+row = ex._rows("SELECT * FROM exercise_attempt")[0]  # noqa: SLF001
+step("the facts survive the round trip",
+     (row["exercise"], row["variant"], row["key"], row["bpm"], row["steps"],
+      row["correct"], row["session_id"]) == ("scales", "c-major-2oct", "C", 92.0, 32, 32, exsid),
+     str(dict(row)))
+step("the measurements survive too",
+     (row["evenness_cv"], row["ioi_mean_ms"], row["vel_sd"], row["sync_ms"],
+      row["crossing_ms"], row["duration_ms"]) == (0.041, 163.0, 8.5, 12.4, 31.0, 21000),
+     str((row["evenness_cv"], row["sync_ms"], row["crossing_ms"])))
+step("an unmeasurable number is NULL, not 0",
+     row["grid_abs_ms"] is None and row["grid_mean_ms"] is None,
+     "an untimed plan has no grid to be early against")
+step("there is no clean column", "clean" not in row.keys(),
+     "computed at query time from correct/steps and evenness_cv")
+stored = json.loads(row["params"])
+step("params serialised", stored["octaves"] == 2 and stored["hands"] == "both", str(stored))
+step("the human title rides in params", stored["title"] == "C major, 2 octaves", str(stored))
+srow = ex._rows("SELECT * FROM exercise_step ORDER BY idx")[3]  # noqa: SLF001
+step("step facts survive",
+     (srow["attempt_id"], srow["idx"], srow["note"], srow["played"], srow["correct"],
+      srow["finger"], srow["crossing"]) == (aid, 3, 63, 63, 1, 4, 1), str(dict(srow)))
+step("reaction rounds to an int, offsets stay real",
+     srow["reaction_ms"] == 223 and srow["offset_ms"] == -3.5, str(dict(srow)))
+miss = ex.log_exercise(exsid, dict(SUMMARY, correct=30, steps=32), records(32, wrong={4, 9}))
+wrong_rows = ex._rows(  # noqa: SLF001
+    "SELECT COUNT(*) AS n FROM exercise_step WHERE attempt_id = ? AND correct = 0", (miss,))
+step("a wrong step stores as correct=0", int(wrong_rows[0]["n"]) == 2, str(miss))
+bare = ex.log_exercise(None, SUMMARY, [])
+step("an attempt with no steps still logs", bare > 0 and count(ex, "exercise_step") == 64,
+     f"id={bare}")
+step("a sessionless attempt is allowed",
+     ex._rows("SELECT session_id FROM exercise_attempt WHERE id = ?",  # noqa: SLF001
+              (bare,))[0]["session_id"] is None, "logged outside a practice session")
+
+print("18. discard_session takes the exercise rows with it")
+dis = fresh("exercise-discard")
+tossed = dis.start_session("grand-piano")
+kept = dis.start_session("grand-piano")
+dis.log_exercise(tossed, SUMMARY, records(32))
+dis.log_exercise(tossed, SUMMARY, records(20))
+keep_id = dis.log_exercise(kept, SUMMARY, records(16))
+step("three attempts, 68 steps to start",
+     count(dis, "exercise_attempt") == 3 and count(dis, "exercise_step") == 68,
+     f"{count(dis, 'exercise_attempt')} attempts, {count(dis, 'exercise_step')} steps")
+dis.discard_session(tossed)
+step("the discarded session's attempts are gone", count(dis, "exercise_attempt") == 1,
+     str([dict(r) for r in dis._rows(  # noqa: SLF001
+         "SELECT id, session_id FROM exercise_attempt")]))
+step("and its steps went with them -- no orphans", count(dis, "exercise_step") == 16,
+     f"{count(dis, 'exercise_step')} steps left, all from the kept attempt")
+step("the surviving steps all point at the kept attempt",
+     dis._rows("SELECT COUNT(*) AS n FROM exercise_step WHERE attempt_id = ?",  # noqa: SLF001
+               (keep_id,))[0]["n"] == 16)
+step("weak_steps no longer sees the discarded notes",
+     sum(w["attempts"] for w in dis.weak_steps(limit=99)) == 0,
+     "16 steps over 16 distinct notes is under the 3-attempt floor")
+
+print("19. exercise_history and best_clean_tempo")
+hx = fresh("exercise-history")
+for days_ago, bpm, cv, correct in ((200, 60.0, 0.09, 32), (30, 72.0, 0.07, 31),
+                                   (10, 80.0, 0.05, 32), (2, 88.0, 0.04, 32)):
+    stamp(hx, hx.log_exercise(None, dict(SUMMARY, bpm=bpm, evenness_cv=cv, correct=correct),
+                              records(32, wrong=set(range(32 - correct)))),
+          noon(days_ago))
+hx.log_exercise(None, dict(SUMMARY, variant="g-major-2oct"), records(32))
+hist = hx.exercise_history("scales", "c-major-2oct", 90)
+step("ascending by time", [h["at"] for h in hist] == sorted(h["at"] for h in hist),
+     str([round(h["bpm"]) for h in hist]))
+step("windowed -- the 200-day-old attempt is out", len(hist) == 3,
+     f"{len(hist)} of 4 attempts inside 90 days")
+step("the window opens where it should", hist[0]["at"] == noon(30), str(hist[0]))
+step("only this variant", all(h["bpm"] != 92.0 for h in hist),
+     "g-major-2oct was logged at the default 92 bpm and must not appear")
+step("accuracy is computed, not stored",
+     [h["accuracy"] for h in hist] == [round(31 / 32, 4), 1.0, 1.0],
+     str([h["accuracy"] for h in hist]))
+step("the shape is what the chart asks for",
+     set(hist[0]) == {"at", "accuracy", "bpm", "evenness_cv", "sync_ms", "crossing_ms"},
+     str(sorted(hist[0])))
+step("a variant nobody played is an empty list",
+     hx.exercise_history("scales", "never-played") == [])
+
+print("20. best_clean_tempo: the fastest CLEAN one, not the fastest one")
+step("thresholds come from metrics.py, not from here",
+     (CLEAN_CV, CLEAN_MIN_STEPS) == (0.06, 16), f"cv<{CLEAN_CV}, steps>={CLEAN_MIN_STEPS}")
+pb = fresh("best-tempo")
+for bpm, cv in ((80.0, 0.038), (92.0, 0.041), (104.0, 0.082)):
+    stamp(pb, pb.log_exercise(None, dict(SUMMARY, bpm=bpm, evenness_cv=cv), records(32)),
+          noon(3))
+best = pb.best_clean_tempo("scales", "c-major-2oct")
+step("104 was faster but ragged -- 92 is the record",
+     best is not None and best["bpm"] == 92.0, str(best))
+step("it reports when and how even", best == {"bpm": 92.0, "at": noon(3),
+                                              "evenness_cv": 0.041}, str(best))
+step("a variant with no attempts is None", pb.best_clean_tempo("scales", "nope") is None)
+dirty = fresh("best-tempo-dirty")
+dirty.log_exercise(None, dict(SUMMARY, bpm=120.0, evenness_cv=0.02, correct=31),
+                   records(32, wrong={7}))
+dirty.log_exercise(None, dict(SUMMARY, bpm=110.0, evenness_cv=0.09), records(32))
+step("one wrong note disqualifies an otherwise perfect run",
+     dirty.best_clean_tempo("scales", "c-major-2oct") is None,
+     "120 bpm at 31/32, 110 bpm at cv 0.09")
+short_run = fresh("best-tempo-short")
+short_run.log_exercise(None, dict(SUMMARY, bpm=132.0, evenness_cv=0.01, steps=12, correct=12),
+                       records(12))
+step("a 12-step rip cannot set a record",
+     short_run.best_clean_tempo("scales", "c-major-2oct") is None,
+     f"12 steps is under CLEAN_MIN_STEPS={CLEAN_MIN_STEPS}")
+short_run.log_exercise(None, dict(SUMMARY, bpm=100.0, evenness_cv=0.01, steps=16, correct=16),
+                       records(16))
+step("16 steps does", (short_run.best_clean_tempo("scales", "c-major-2oct") or {}).get("bpm")
+     == 100.0, str(short_run.best_clean_tempo("scales", "c-major-2oct")))
+step("an untimed attempt has no tempo to record",
+     fresh("best-tempo-untimed").best_clean_tempo("scales", "c-major-2oct") is None)
+untimed = fresh("best-tempo-none")
+untimed.log_exercise(None, dict(SUMMARY, bpm=None, evenness_cv=0.01), records(32))
+step("and NULL bpm never wins", untimed.best_clean_tempo("scales", "c-major-2oct") is None,
+     "bpm IS NULL means the run was untimed")
+
+print("21. recent_variants and exercise_summary")
+rv = fresh("recent-variants")
+stamp(rv, rv.log_exercise(None, dict(SUMMARY, title="C major, 2 octaves"), records(32)),
+      noon(9))
+stamp(rv, rv.log_exercise(None, dict(SUMMARY, variant="g-major-2oct",
+                                     title="G major, 2 octaves"), records(32)), noon(6))
+stamp(rv, rv.log_exercise(None, dict(SUMMARY, exercise="reading", variant="treble-c4",
+                                     title="Treble, around middle C"), records(32)), noon(4))
+# The same variant again, and worse: the row must be THIS one, not the older 32/32.
+stamp(rv, rv.log_exercise(None, dict(SUMMARY, title="C major, 2 octaves", correct=24),
+                          records(32, wrong=set(range(8)))), noon(1))
+rec = rv.recent_variants()
+step("deduped by (exercise, variant)", len(rec) == 3,
+     f"4 attempts collapse to {len(rec)} variants")
+step("most recent first",
+     [(r["exercise"], r["variant"]) for r in rec]
+     == [("scales", "c-major-2oct"), ("reading", "treble-c4"), ("scales", "g-major-2oct")],
+     str([r["variant"] for r in rec]))
+step("the row is the latest attempt, not an arbitrary one",
+     rec[0]["at"] == noon(1) and rec[0]["accuracy"] == 0.75,
+     f"{rec[0]['accuracy']} -- the 24/32 from yesterday, not the 32/32 nine days ago")
+step("the human title came back out of params",
+     [r["title"] for r in rec] == ["C major, 2 octaves", "Treble, around middle C",
+                                   "G major, 2 octaves"], str([r["title"] for r in rec]))
+step("the shape is what the shelf asks for",
+     set(rec[0]) == {"exercise", "variant", "title", "at", "accuracy"}, str(sorted(rec[0])))
+step("limit honoured", len(rv.recent_variants(limit=2)) == 2)
+summ = rv.exercise_summary(30)
+step("attempts counts every run, not every variant", summ["attempts"] == 4, str(summ["attempts"]))
+step("grouped by exercise, busiest first",
+     [(e["exercise"], e["attempts"]) for e in summ["exercises"]] == [("scales", 3),
+                                                                    ("reading", 1)],
+     str(summ["exercises"]))
+step("best_accuracy is the best, not the mean",
+     summ["exercises"][0]["best_accuracy"] == 1.0,
+     "scales: 32/32, 32/32 and 24/32 -- the mean would be 0.917")
+step("recent carries the last few attempts, newest first",
+     [r["at"] for r in summ["recent"]] == [noon(1), noon(4), noon(6), noon(9)],
+     str(len(summ["recent"])))
+step("summary is windowed", rv.exercise_summary(5)["attempts"] == 2,
+     str(rv.exercise_summary(5)))
+
+print("22. weak_steps")
+ws = fresh("weak-steps")
+wsid = ws.start_session("grand-piano")
+
+
+def note_steps(note: int, n_correct: int, n_wrong: int, reaction: int) -> list[dict]:
+    """Steps that all target one note, so the correct-rate per note is exactly known."""
+    return [{"idx": i, "note": note, "played": note, "correct": i < n_correct,
+             "reaction_ms": float(reaction), "offset_ms": None, "spread_ms": 0.0,
+             "finger": 1, "crossing": False}
+            for i in range(n_correct + n_wrong)]
+
+
+ws.log_exercise(wsid, SUMMARY,
+                note_steps(65, 4, 5, 890) + note_steps(60, 5, 1, 400)
+                + note_steps(72, 1, 3, 1200) + note_steps(50, 0, 2, 700))
+ws.log_exercise(wsid, dict(SUMMARY, exercise="reading", variant="treble-c4"),
+                note_steps(77, 0, 4, 950))
+weak = ws.weak_steps()
+step("worst correct-rate first", [w["note"] for w in weak] == [77, 72, 65, 60],
+     str([(w["note"], w["accuracy"]) for w in weak]))
+step("minimum 3 attempts enforced", all(w["note"] != 50 for w in weak),
+     "note 50 had 2 attempts")
+step("counts, accuracy and reaction",
+     weak[2] == {"note": 65, "attempts": 9, "correct": 4, "accuracy": 0.44,
+                 "mean_reaction_ms": 890}, str(weak[2]))
+step("limit honoured", len(ws.weak_steps(limit=2)) == 2)
+step("filtering by exercise excludes the others",
+     [w["note"] for w in ws.weak_steps("scales")] == [72, 65, 60],
+     "77 belongs to reading")
+step("and the filter is not silently ambiguous SQL",
+     ws.weak_steps("reading") == [{"note": 77, "attempts": 4, "correct": 0,
+                                   "accuracy": 0.0, "mean_reaction_ms": 950}],
+     str(ws.weak_steps("reading")))
+step("an exercise nobody played is empty", ws.weak_steps("nope") == [])
+
+print("23. exercises on a broken database")
+nodb = fresh("dead-exercises")
+nodb.close()
+try:
+    logged = nodb.log_exercise(1, SUMMARY, records(32))
+    log_survived = True
+except Exception as exc:  # noqa: BLE001
+    logged, log_survived = None, False
+    print(f"    log_exercise raised: {exc!r}")
+step("log_exercise on a dead store is a silent -1", log_survived and logged == -1, str(logged))
+step("history and variants are empty lists",
+     nodb.exercise_history("scales", "c-major-2oct") == []
+     and nodb.recent_variants() == [] and nodb.weak_steps() == []
+     and nodb.weak_steps("scales") == [])
+step("best_clean_tempo is None, not a zero-bpm record",
+     nodb.best_clean_tempo("scales", "c-major-2oct") is None)
+step("exercise_summary keeps its shape",
+     nodb.exercise_summary() == {"attempts": 0, "exercises": [], "recent": []},
+     str(nodb.exercise_summary()))
+
+print("24. the real keys.db was never touched")
 after = (REAL_DB.exists(), REAL_DB.stat().st_mtime_ns if REAL_DB.exists() else 0,
          REAL_DB.stat().st_size if REAL_DB.exists() else 0)
 step("keys.db unchanged", after == REAL_BEFORE,

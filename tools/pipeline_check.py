@@ -25,6 +25,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from _audio_guard import require_quiet  # noqa: E402
 from backend import config  # noqa: E402
 
 # Redirect persistence BEFORE importing the server, because it builds its App at
@@ -87,6 +88,7 @@ async def settle(seconds: float = 0.12) -> None:
 
 
 async def main() -> int:
+    require_quiet("pipeline_check")
     print("1. app starts")
     app = App()
     app.startup()
