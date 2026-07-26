@@ -19,8 +19,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from backend import music  # noqa: E402
 from backend.music import (  # noqa: E402
-    KEYS, MODES, detect_chord, in_scale, interval_name, key_signature,
-    note_name, note_parts, pitch_class_name, scale_degree, scale_pitch_classes,
+    KEYS, KRUMHANSL_MAJOR, KRUMHANSL_MINOR, MODES, detect_chord, in_scale,
+    infer_key, interval_name, key_signature, note_name, note_parts,
+    pitch_class_name, scale_degree, scale_fit, scale_pitch_classes,
 )
 
 ok = True
@@ -237,6 +238,112 @@ spell = time.perf_counter() - t0
 step("note_name is a table lookup", spell < 0.05, f"{spell / 2000 * 1e6:.2f} us per call")
 step("no per-call table building", len(music._SPELLING) == 15  # noqa: SLF001
      and len(music._BY_ROOT) == 12, "spelling + chord tables built at import")  # noqa: SLF001
+
+print("12. key inference -- what did I actually play in?")
+
+
+def hist(weights: dict[int, float]) -> list[float]:
+    """A 12-entry pitch-class histogram from {pc: count}, index 0 = C."""
+    return [weights.get(pc, 0) for pc in range(12)]
+
+
+def scale_hist(key: str, mode: str = "major") -> list[float]:
+    return hist({pc: 1 for pc in scale_pitch_classes(key, mode)})
+
+
+step("published Krumhansl-Kessler profiles", len(KRUMHANSL_MAJOR) == 12
+     and len(KRUMHANSL_MINOR) == 12 and KRUMHANSL_MAJOR[0] == 6.35
+     and KRUMHANSL_MINOR[3] == 5.38,
+     f"major tonic {KRUMHANSL_MAJOR[0]}, minor third {KRUMHANSL_MINOR[3]}")
+
+c_major = scale_hist("C")
+ranked = infer_key(c_major)
+step("the C major scale infers C major first", ranked[0]["name"] == "C major",
+     f"{ranked[0]['name']} score={ranked[0]['score']} share={ranked[0]['share']}")
+
+# A natural minor is the same seven pitch classes as C major, so this is byte for
+# byte the same histogram as the line above. Nothing in a pitch-class count can
+# separate a key from its relative -- only the profile weighting leans, and it
+# leans the other way here. Asserting first place would be a claim about data this
+# function never sees, so the honest assertion is membership in the top two.
+a_minor = scale_hist("A", "natural_minor")
+step("relative pair is literally the same input", a_minor == c_major, str(a_minor))
+top2 = [r["name"] for r in infer_key(a_minor)[:2]]
+step("A natural minor lands in the top 2", "A minor" in top2, " / ".join(top2))
+
+# Weighted the way a real session in F# would be: tonic heaviest, then dominant
+# and supertonic, the rest of the scale trailing off.
+sharp = hist({6: 40, 1: 30, 8: 25, 11: 14, 3: 12, 10: 10, 5: 8})
+sharp_top = infer_key(sharp)[0]
+step("a sharp-weighted histogram is not C major", sharp_top["name"] != "C major",
+     f"{sharp_top['name']} score={sharp_top['score']}")
+step("it reads as a sharp key", sharp_top["key"] == "F#" and sharp_top["mode"] == "major",
+     str([r["name"] for r in infer_key(sharp, 3)]))
+full = [r["name"] for r in infer_key(sharp, top=24)]
+step("C major is dead last of the 24", full[-1] == "C major",
+     f"rank {full.index('C major') + 1} of {len(full)}")
+
+step("all zeros returns []", infer_key([0] * 12) == [], str(infer_key([0] * 12)))
+step("an empty histogram returns []", infer_key([]) == [])
+step("a flat histogram has no key either", infer_key([7] * 12) == [],
+     "correlation against a constant is undefined, not zero")
+
+scores = [r["score"] for r in ranked]
+shares = [r["share"] for r in ranked]
+step("default top is 5", len(ranked) == 5, str([r["name"] for r in ranked]))
+step("sorted by score, descending", scores == sorted(scores, reverse=True), str(scores))
+step("scores are clamped to 0..1", all(0.0 <= s <= 1.0 for s in scores))
+step("shares sum to ~1.0", abs(sum(shares) - 1.0) < 0.01, f"sum={sum(shares):.3f}")
+three = infer_key(c_major, top=3)
+step("top=3 returns 3 and re-splits the shares", len(three) == 3
+     and abs(sum(r["share"] for r in three) - 1.0) < 0.01,
+     f"sum={sum(r['share'] for r in three):.3f}")
+step("top cannot exceed the 24 keys", len(infer_key(c_major, top=99)) == 24)
+step("result shape", set(ranked[0]) == {"key", "mode", "name", "score", "share"}
+     and ranked[0]["name"] == f"{ranked[0]['key']} {ranked[0]['mode']}", str(ranked[0]))
+
+print("13. scale_fit -- how much of it stayed inside the scale")
+pure = scale_fit(hist({0: 200, 2: 150, 4: 140, 5: 90, 7: 130, 9: 60, 11: 40}), "C")
+step("pure C major input is a perfect fit",
+     pure["fraction"] == 1.0 and pure["out_of_scale"] == 0, str(pure))
+step("strongest degree is the tonic", pure["strongest_degree"] == 1)
+step("nothing missing", pure["missing_degrees"] == [])
+
+gapped = scale_fit(hist({0: 300, 1: 40, 2: 150, 4: 140, 5: 90,
+                         6: 30, 7: 90, 8: 26, 11: 42}), "C")
+step("in/out split and fraction", gapped == {"in_scale": 812, "out_of_scale": 96,
+                                             "fraction": 0.894, "missing_degrees": [6],
+                                             "strongest_degree": 1}, str(gapped))
+step("it names the degree you never play", gapped["missing_degrees"] == [6],
+     f"degree 6 of C major is {pitch_class_name(9, 'C')}")
+
+minor_fit = scale_fit(hist({9: 10, 11: 5, 0: 8, 2: 6, 4: 7, 5: 3, 7: 4, 6: 2}),
+                      "A", "natural_minor")
+step("modes other than major work", minor_fit["in_scale"] == 43
+     and minor_fit["out_of_scale"] == 2 and minor_fit["fraction"] == 0.956, str(minor_fit))
+
+empty_fit = scale_fit([], "C")
+step("an empty histogram does not divide by zero", empty_fit["fraction"] == 0.0
+     and empty_fit["strongest_degree"] is None
+     and empty_fit["missing_degrees"] == [1, 2, 3, 4, 5, 6, 7], str(empty_fit))
+try:
+    scale_fit(c_major, "H")
+    step("scale_fit rejects an unknown key", False, "no exception")
+except ValueError as exc:
+    step("scale_fit rejects an unknown key", True, str(exc)[:40])
+
+# infer_key runs once when a stats page is built, not per note, so it has three
+# orders of magnitude more headroom than detect_chord. 5 ms is still the bar.
+session = hist({0: 320, 2: 180, 4: 210, 5: 120, 7: 240, 9: 130, 11: 90, 10: 25, 6: 12})
+t0 = time.perf_counter()
+for _ in range(200):
+    infer_key(session)
+per_call = (time.perf_counter() - t0) / 200
+step("infer_key is comfortably under 5 ms", per_call < 5e-3,
+     f"{per_call * 1e3:.3f} ms per call -- runs on page load, not per note")
+step("a weighted session picks its tonic cleanly",
+     infer_key(session)[0]["name"] == "C major",
+     f"{infer_key(session)[0]['name']} score={infer_key(session)[0]['score']}")
 
 print()
 print("ALL CHECKS PASSED" if ok else "SOMETHING FAILED")

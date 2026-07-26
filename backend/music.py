@@ -22,6 +22,9 @@ Octaves are scientific pitch notation throughout: middle C is C4, midi 60.
 
 from __future__ import annotations
 
+import math
+from typing import Sequence
+
 # --- the line of fifths ------------------------------------------------------
 # Index 0 is C, +1 per fifth up (G, D, A ...), -1 per fifth down (F, Bb, Eb ...).
 # Fb..B# is exactly the span the 15 practical keys need; anything outside it is a
@@ -362,3 +365,128 @@ def scale_degree(midi: int, key: str, mode: str = "major") -> int | None:
     pcs = _scale(key, mode)
     pc = midi % 12
     return pcs.index(pc) + 1 if pc in pcs else None
+
+
+# --- key inference -----------------------------------------------------------
+# Krumhansl & Kessler (1982), "Tracing the dynamic changes in perceived tonal
+# organization in a spatial representation of musical keys", Psychological Review
+# 89(4):334-368. These are averaged probe-tone ratings -- how well listeners judged
+# each of the 12 pitch classes to fit an already-established key. Index 0 is the
+# tonic, so the profile for any other key is a rotation of these twelve numbers.
+KRUMHANSL_MAJOR: tuple[float, ...] = (
+    6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88,
+)
+KRUMHANSL_MINOR: tuple[float, ...] = (
+    6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17,
+)
+
+
+def _plainest_key(pc: int) -> str:
+    """The KEYS entry on `pc` with the smallest signature; ties go to the sharp."""
+    return min((name for name in KEYS if _TONIC_PC[name] == pc),
+               key=lambda name: (abs(_KEY_INDEX[name]), -_KEY_INDEX[name]))
+
+
+# Major tonics come straight off KEYS, which covers all 12 pitch classes. Minor
+# tonics are spelled inside their *relative major* -- three semitones up, the key
+# signature they share -- which is what makes pc 8 read as G# minor rather than the
+# major-key name Ab, and pc 10 as Bb minor rather than A#. The one genuine coin flip
+# is pc 6: F# and Gb major are six accidentals each, the tie-break above takes the
+# sharp, and D# minor follows from it (Eb minor is equally correct and equally rare).
+_MAJOR_TONIC: tuple[str, ...] = tuple(_plainest_key(pc) for pc in range(12))
+_MINOR_TONIC: tuple[str, ...] = tuple(
+    pitch_class_name(pc, _MAJOR_TONIC[(pc + 3) % 12]) for pc in range(12))
+
+_PROFILES: tuple[tuple[str, tuple[float, ...], tuple[str, ...]], ...] = (
+    ("major", KRUMHANSL_MAJOR, _MAJOR_TONIC),
+    ("minor", KRUMHANSL_MINOR, _MINOR_TONIC),
+)
+
+
+def _hist12(counts: Sequence[float]) -> list[float]:
+    """Pad or truncate whatever the caller had to 12 entries, index 0 = C.
+
+    Values are passed through rather than coerced, so an integer note count stays
+    an integer all the way out to the caller.
+    """
+    return [counts[pc] if pc < len(counts) else 0 for pc in range(12)]
+
+
+def _pearson(xs: Sequence[float], ys: Sequence[float]) -> float:
+    mx = sum(xs) / len(xs)
+    my = sum(ys) / len(ys)
+    dx = [x - mx for x in xs]
+    dy = [y - my for y in ys]
+    den = math.sqrt(sum(a * a for a in dx) * sum(b * b for b in dy))
+    return sum(a * b for a, b in zip(dx, dy)) / den if den else 0.0
+
+
+def infer_key(counts: Sequence[float], top: int = 5) -> list[dict]:
+    """Rank the 24 keys against a pitch-class histogram. Index 0 is C.
+
+    This is Krumhansl-Schmuckler: correlate the histogram against all 24 rotations
+    of the two profiles above and rank by the correlation. **Pearson, not a dot
+    product**, and that choice is the whole reason this is usable here -- a
+    correlation is invariant to both the scale and the offset of the histogram,
+    and raw note counts swing by an order of magnitude between a five-minute
+    noodle and an hour of scales. A dot product would rank the longest session
+    first and call it a key.
+
+    What it cannot do: a pitch-class histogram carries no information about which
+    note is the *tonic*. A key and its relative (C major / A minor) are the same
+    seven pitch classes, so an evenly played scale gives both readings a
+    byte-identical input. The profiles separate them only by how often each degree
+    is struck, which is a real but weak signal and is routinely wrong. Read the
+    top two as one answer, not as a winner and a runner-up.
+
+    Returns [] for an empty, all-zero or perfectly flat histogram: correlation
+    against a constant is undefined, and an even chromatic spread has no key.
+    """
+    hist = _hist12(counts)
+    if len(set(hist)) < 2:
+        return []
+
+    scored = [(_pearson(hist, [profile[(pc - tonic) % 12] for pc in range(12)]),
+               mode, tonic, names[tonic])
+              for mode, profile, names in _PROFILES
+              for tonic in range(12)]
+    # Ties break on mode then tonic so the same histogram always ranks the same way.
+    scored.sort(key=lambda row: (-row[0], row[1], row[2]))
+    picked = scored[:max(0, top)]
+
+    # Negative correlations are real information ("nothing like F# major") but not
+    # a share of anything, so they floor at zero before the split is worked out.
+    shown = [max(0.0, min(1.0, row[0])) for row in picked]
+    denom = sum(shown)
+    return [
+        {
+            "key": name,
+            "mode": mode,
+            "name": f"{name} {mode}",
+            "score": round(score, 3),
+            "share": round(score / denom, 3) if denom else 0.0,
+        }
+        for (_r, mode, _tonic, name), score in zip(picked, shown)
+    ]
+
+
+def scale_fit(counts: Sequence[float], key: str, mode: str = "major") -> dict:
+    """How much of a pitch-class histogram lands inside one named scale.
+
+    ``missing_degrees`` is the half of this worth showing: it is the "you never
+    play the 6th" report, and it is 1-based because degrees are spoken that way.
+    ``strongest_degree`` is None when no note of the scale was played at all,
+    rather than a made-up 1.
+    """
+    pcs = _scale(key, mode)
+    hist = _hist12(counts)
+    inside = [hist[pc] for pc in pcs]
+    played = sum(inside)
+    total = sum(hist)
+    return {
+        "in_scale": played,
+        "out_of_scale": total - played,
+        "fraction": round(played / total, 3) if total else 0.0,
+        "missing_degrees": [i + 1 for i, n in enumerate(inside) if not n],
+        "strongest_degree": inside.index(max(inside)) + 1 if played else None,
+    }

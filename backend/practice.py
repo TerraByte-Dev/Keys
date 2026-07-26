@@ -44,6 +44,7 @@ class PracticeClock:
         self._t0_perf = 0.0            # perf_counter at session start
         self._last_note: float | None = None   # perf_counter of the most recent note-on
         self._pending: list[tuple[int, int, int]] = []
+        self._pending_chords: list[tuple[int, str, int, str, int, int]] = []
         self._last_flush = 0.0
         self._onsets: list[float] = []  # perf_counter note-ons, for the timing analyser
         # What the open session's row already claims. today() counts it, so the live
@@ -67,6 +68,7 @@ class PracticeClock:
         self._t0_perf = now
         self._last_note = None
         self._pending.clear()
+        self._pending_chords.clear()
         self._onsets.clear()
         self._last_flush = now
         self._committed_ms = 0
@@ -105,6 +107,24 @@ class PracticeClock:
         if len(self._onsets) > 4096:
             del self._onsets[:2048]
 
+    def on_chord(self, t: float, chord: dict[str, Any], note_count: int) -> None:
+        """Record one settled chord. Called from the drain loop, never the callback.
+
+        Only chords that survived the settle window upstream get here -- rolling a chord
+        one note at a time would otherwise log C, then C5, then Cmaj7 on the way to a
+        single voicing, and the analytics would be mostly noise.
+        """
+        if self.session_id is None:
+            return
+        self._pending_chords.append((
+            int((t - self._t0_perf) * 1000),
+            str(chord.get("symbol", "")),
+            int(chord.get("root_pc", -1)),
+            str(chord.get("quality", "")),
+            int(chord.get("bass_pc", -1)),
+            int(note_count),
+        ))
+
     def tick(self, now: float | None = None) -> None:
         """Called a few times a second by the drain loop. Flushes and closes sessions."""
         now = time.perf_counter() if now is None else now
@@ -120,9 +140,13 @@ class PracticeClock:
             self.end_session()
 
     def _flush(self) -> None:
-        if self.session_id is not None and self._pending:
-            self.store.log_notes(self.session_id, self._pending)
+        if self.session_id is not None:
+            if self._pending:
+                self.store.log_notes(self.session_id, self._pending)
+            if self._pending_chords:
+                self.store.log_chords(self.session_id, self._pending_chords)
         self._pending.clear()
+        self._pending_chords.clear()
 
     # ---------------------------------------------------------------- output
     def live_active_ms(self, now: float | None = None) -> int:

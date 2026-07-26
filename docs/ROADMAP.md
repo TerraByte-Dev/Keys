@@ -2,6 +2,9 @@
 
 What's built, what's next, and what is deliberately not being built.
 
+**The product is a workspace, not a tutor.** Every item below is judged against that: does it give someone
+more to do at their own pace, or does it try to teach them? The first kind gets built.
+
 ## Status
 
 | | Milestone | State |
@@ -24,9 +27,16 @@ engine, hub, drain loop and websocket — so the suite runs without a piano atta
 
 ## Next
 
+**M11 — A practice shelf.** Scales, arpeggios, cadences, chord voicings and intervals as things you can *pick
+up*, in any key, at any tempo, in any order. Not a course — a shelf. The app already knows every note you play,
+so it can score any of them without you telling it what you're attempting.
+
+**M12 — More instruments, browsable.** 287 presets already ship; the gap is navigation, not quantity.
+Categorised preset chips (keys / organs / strings / brass / synths / mallets / world), favourites, and support
+for dropping extra SoundFonts into `soundfonts/` and picking them per zone.
+
 **M8 — Recording.** A rolling MIDI buffer ("save the last two minutes") plus `.mid` and `.wav` export through
-FluidSynth's file renderer. Cheap to build, and the obvious missing piece: the app already knows every note you
-played, it just throws them away.
+FluidSynth's file renderer. The app already knows every note you played — it just throws them away.
 
 **M9 — Miss heatmap.** The sight-reading log already records per-note accuracy and reaction time. Rendering it
 onto the 88-key display would close the loop between "what I'm bad at" and "what I'm shown next".

@@ -130,8 +130,13 @@ an evening session under tomorrow — precisely when practice happens.
 
 ## The honest framing
 
-This app will not teach you piano; a method book and daily practice will. Its real job is the two things a book
-can't do: **make the instrument fun enough to sit at daily**, and **measure what actually happened**.
+**Keys is a workspace, not a tutor.** It does not sequence a curriculum, gate content behind progress, or tell
+you what to play next. It opens, it sounds good immediately, and it gets out of the way. A method book and
+daily practice are what make you a pianist; this is the room you do that in.
+
+That framing decides features. A workspace owes you: instruments within reach, splits and layers you can build
+in seconds, a metronome that cannot drift, material to work on when you want it, and a record of what you did.
+It does not owe you a lesson plan, and it must never nag.
 
 Synthesia and PianoBooster already do falling notes better than this ever will, so Keys deliberately doesn't
 build them. The failure mode to watch for is three weeks in with a gorgeous zone editor and no calluses.

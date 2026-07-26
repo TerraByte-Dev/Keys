@@ -5,7 +5,7 @@
 
 <p align="center">
   <strong>A MIDI piano that answers in three milliseconds.</strong><br/>
-  Local-first practice software with a studio-hardware soul — plug in, run one command, play.
+  A local-first workspace for the instrument you already own — plug in, run one command, play.
 </p>
 
 <p align="center">
@@ -33,15 +33,17 @@
 
 ---
 
-Keys turns a USB piano into a practice instrument. MIDI comes in, **FluidSynth** renders it through WASAPI in
-exclusive mode at a measured **3.00 ms**, and a browser UI hangs off the side showing what you played — never in
-the path of what you hear. It's **genuinely offline**: no account, no telemetry, no CDN, fonts already on your
-machine, and a practice history that lives in a local SQLite file. The frontend has **no build step and no
-dependencies** — vanilla ES modules served straight off disk. There is no `package.json`.
+Keys is a **workspace** for a USB piano — a room you open and play in, at your own pace, with nothing to enrol
+in and nobody grading you. MIDI comes in, **FluidSynth** renders it through WASAPI in exclusive mode at a
+measured **3.00 ms**, and a browser UI hangs off the side showing what you played — never in the path of what
+you hear. It's **genuinely offline**: no account, no telemetry, no CDN, fonts already on your machine, and a
+history that lives in a local SQLite file. The frontend has **no build step and no dependencies** — vanilla ES
+modules served straight off disk. There is no `package.json`.
 
-It is not trying to be Synthesia. Falling-note trainers are a solved, $29 problem. Keys does the two things a
-song library can't: it makes the instrument **fun enough to sit at daily**, and it **measures what actually
-happened** when you did.
+It isn't a tutor and it isn't Synthesia. There's no curriculum, no unlock sequence, no streak-shaming. What
+there is: hundreds of instruments a click away, splits and layers you can build in seconds, a metronome that
+can't drift, sight-reading when you want it — and, underneath all of it, an **analytics layer that quietly
+records everything** so you can look back and see which keys, chords and scales you actually reach for.
 
 ## Get started
 

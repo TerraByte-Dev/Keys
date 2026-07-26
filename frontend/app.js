@@ -20,6 +20,7 @@ import metronomeView from './views/metronome.js';
 import zonesView from './views/zones.js';
 import readView from './views/read.js';
 import settingsView from './views/settings.js';
+import analyticsView from './views/analytics.js';
 
 const VIEWS = {
   play: playView,
@@ -28,6 +29,7 @@ const VIEWS = {
   zones: zonesView,
   read: readView,
   settings: settingsView,
+  analytics: analyticsView,
 };
 
 /* ── shared context handed to every view ──────────────────────────────────── */
@@ -202,7 +204,7 @@ async function refresh() {
 }
 
 /* ── keyboard shortcuts ───────────────────────────────────────────────────── */
-const ORDER = ['play', 'practice', 'metronome', 'zones', 'read', 'settings'];
+const ORDER = ['play', 'practice', 'metronome', 'zones', 'read', 'settings', 'analytics'];
 
 document.addEventListener('keydown', (e) => {
   const typing = /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName || '');
@@ -211,7 +213,7 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   if (typing || e.ctrlKey || e.altKey || e.metaKey) return;
-  if (e.key >= '1' && e.key <= '6') {
+  if (e.key >= '1' && e.key <= '7') {
     location.hash = ORDER[Number(e.key) - 1];
   } else if (e.key.toLowerCase() === 'm') {
     api.post('/api/metronome/toggle').catch(() => {});

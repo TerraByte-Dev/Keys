@@ -515,6 +515,89 @@ select:focus, input:focus { outline: none; border-color: var(--amber-deep); }
 .keymap { display: flex; align-items: flex-end; gap: 1px; height: 46px; }
 .keymap__k { flex: 1; min-width: 1px; background: var(--panel-4); border-radius: 1px 1px 0 0; }
 
+/* ── the year grid (analytics) ──────────────────────────────────────────────
+   53 columns of 11px + 3px gaps is 739px, which fits a full-width panel on this
+   machine and scrolls rather than squashes on anything narrower. The month row and
+   the weekday gutter are separate grids aligned by hand: 26px of labels + the 6px
+   .calx__rows gap is the 32px the months are pushed over by. */
+.calx { display: flex; flex-direction: column; gap: 7px; }
+.calx__scroll { overflow-x: auto; padding-bottom: 4px; }
+.calx__months {
+  display: grid; gap: 3px; height: 12px; margin-left: 32px;
+  font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-faint);
+}
+.calx__month { white-space: nowrap; overflow: visible; }
+.calx__rows { display: flex; gap: 6px; }
+.calx__wd {
+  display: grid; grid-template-rows: repeat(7, 11px); gap: 3px; width: 26px;
+  font-size: 9px; letter-spacing: .1em; color: var(--ink-faint);
+}
+.calx__wd span { line-height: 11px; }
+/* Days after today. Drawn, so the grid stays rectangular, but not coloured -- an
+   unplayed future is not the same reading as an unplayed past. */
+.cal__day--void { background: transparent; }
+.cal__legend {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-faint);
+}
+
+/* ── column chart with a tick row ───────────────────────────────────────────
+   Bars and labels are separate flex rows so a bar's height is a clean percentage
+   of the plot and never has to leave room for its own tick. */
+.chart { display: flex; flex-direction: column; gap: 5px; }
+.chart__bars { display: flex; align-items: flex-end; gap: 3px; height: 104px; }
+.chart__bar {
+  flex: 1; min-width: 2px; border-radius: 1px 1px 0 0;
+  background: linear-gradient(180deg, var(--amber), var(--amber-deep));
+}
+.chart__bar--cyan {
+  background: linear-gradient(180deg, var(--cyan), color-mix(in oklab, var(--cyan) 45%, var(--panel-0)));
+}
+.chart__bar--off { background: var(--panel-4); }
+.chart__ticks { display: flex; gap: 3px; }
+.chart__tick {
+  flex: 1; min-width: 0; text-align: center; overflow: hidden; white-space: nowrap;
+  font-size: 9px; letter-spacing: .06em; color: var(--ink-faint);
+}
+
+/* ── the 88-key map ─────────────────────────────────────────────────────────
+   Static twin of the dock keyboard: same geometry, no pointer handling. Fills are
+   set per key from the play count, so only the edge lives here. */
+.pianomap { display: block; width: 100%; height: auto; }
+.pianomap .pkey { stroke: var(--panel-0); stroke-width: .7; stroke-linejoin: round; }
+
+/* ── chromatic circle ───────────────────────────────────────────────────────── */
+.wheel { display: block; width: 100%; max-width: 250px; height: auto; margin: 0 auto; }
+.wheel__ring { fill: none; stroke: var(--hairline); stroke-width: 1; }
+.wheel__spoke { stroke: var(--amber); stroke-width: 13; stroke-linecap: round; }
+.wheel__spoke.is-off { stroke: var(--panel-4); }
+.wheel__label {
+  fill: var(--ink-faint); font-size: 9px; letter-spacing: .06em;
+  text-anchor: middle; dominant-baseline: middle;
+}
+
+/* ── trend sparklines ───────────────────────────────────────────────────────
+   These stretch to the panel width with preserveAspectRatio="none", so every
+   stroke is non-scaling or the line weight smears with the aspect ratio. */
+.trend { display: block; width: 100%; height: 92px; }
+.trend__band { fill: var(--amber); fill-opacity: .14; }
+.trend__area { fill: var(--cyan); fill-opacity: .12; }
+.trend__line {
+  fill: none; stroke: var(--amber); stroke-width: 1.6;
+  stroke-linejoin: round; vector-effect: non-scaling-stroke;
+}
+.trend__line--cyan { stroke: var(--cyan); }
+
+/* ── stacked proportion bar ─────────────────────────────────────────────────── */
+.stack { display: flex; height: 14px; border-radius: 2px; overflow: hidden; background: var(--panel-4); }
+.stack__seg { min-width: 2px; }
+.legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+.legend__item {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim);
+}
+.legend__swatch { width: 9px; height: 9px; border-radius: 2px; }
+
 /* ── toasts ─────────────────────────────────────────────────────────────── */
 .toasts {
   position: fixed; right: 14px; bottom: calc(var(--dock-h) + var(--readout-h) + 14px);

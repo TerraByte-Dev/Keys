@@ -56,14 +56,24 @@ def noon(days_ago: int) -> float:
     return datetime(d.year, d.month, d.day, 12, 0, 0).timestamp()
 
 
-def seed(store: Store, days_ago: int, active_ms: int, notes: int = 0,
-         preset: str = "grand-piano") -> int:
-    start = noon(days_ago)
+def local_epoch(days_ago: int, hour: int, minute: int = 0) -> float:
+    """A known local wall-clock instant, for the hour-of-day and weekday histograms."""
+    d = TODAY - timedelta(days=days_ago)
+    return datetime(d.year, d.month, d.day, hour, minute, 0).timestamp()
+
+
+def seed_at(store: Store, start: float, active_ms: int, notes: int = 0,
+            preset: str = "grand-piano") -> int:
     return store._write(  # noqa: SLF001 -- explicit past timestamps, no public API for that
         "INSERT INTO session(started_at, ended_at, active_ms, note_count, preset) "
         "VALUES (?, ?, ?, ?, ?)",
         (start, start + active_ms / 1000.0, active_ms, notes, preset),
     )
+
+
+def seed(store: Store, days_ago: int, active_ms: int, notes: int = 0,
+         preset: str = "grand-piano") -> int:
+    return seed_at(store, noon(days_ago), active_ms, notes, preset)
 
 
 def count(store: Store, table: str) -> int:
@@ -81,8 +91,9 @@ indexes = [r["name"] for r in s._rows(  # noqa: SLF001
     "SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%' ORDER BY name")]
 mode = s._rows("PRAGMA journal_mode")[0][0]  # noqa: SLF001
 sync = s._rows("PRAGMA synchronous")[0][0]  # noqa: SLF001
-step("tables created", tables == ["note_event", "session", "sightread_attempt"], str(tables))
-step("indexes created", len(indexes) == 5, ", ".join(indexes))
+step("tables created",
+     tables == ["chord_event", "note_event", "session", "sightread_attempt"], str(tables))
+step("indexes created", len(indexes) == 7, ", ".join(indexes))
 step("WAL enabled", mode == "wal", f"journal_mode={mode}")
 step("synchronous=NORMAL", sync == 1, f"synchronous={sync}")
 s.close()
@@ -164,6 +175,10 @@ st = run.streak()
 step("current streak counts back from today", st["current"] == 5, str(st))
 step("longest streak found in the gap-separated run", st["longest"] == 12, str(st))
 step("practiced_today", st["practiced_today"] is True)
+step("total_days counts every qualifying day, streak or not", st["total_days"] == 17,
+     f"total_days={st['total_days']} (12 + 5)")
+step("total_active_seconds is all time", st["total_active_seconds"] == 17 * 300,
+     f"total_active_seconds={st['total_active_seconds']}")
 
 pend = fresh("streak-pending")
 for d in range(1, 4):            # yesterday and the two before it; today untouched
@@ -176,8 +191,11 @@ short = fresh("streak-short")
 seed(short, days_ago=0, active_ms=45_000)   # 45 s: under the one-minute bar
 seed(short, days_ago=1, active_ms=30_000)
 st = short.streak()
-step("under 60 s does not count as a day", st == {"current": 0, "longest": 0,
-                                                  "practiced_today": False}, str(st))
+step("under 60 s does not count as a day",
+     st == {"current": 0, "longest": 0, "practiced_today": False, "total_days": 0,
+            "total_active_seconds": 75}, str(st))
+step("but the time itself is still counted", st["total_active_seconds"] == 75,
+     "45 s + 30 s of playing that earned no streak day")
 
 print("5. note_heatmap() clamps to the 88 keys")
 heat = fresh("heat")
@@ -336,11 +354,207 @@ step("today() returns an empty shape", dead.today() ==
      {"active_seconds": 0, "note_count": 0, "sessions": 0, "first_at": None, "last_at": None})
 step("history() still fills its days", len(dead.history(7)) == 7)
 step("stats return empty, not None", dead.streak() == {"current": 0, "longest": 0,
-                                                       "practiced_today": False}
+                                                       "practiced_today": False,
+                                                       "total_days": 0,
+                                                       "total_active_seconds": 0}
      and dead.note_heatmap() == {} and dead.weak_notes() == []
      and dead.velocity_histogram(1, 8) == [0] * 8 and dead.recent_sessions() == [])
 
-print("10. the real keys.db was never touched")
+print("10. chords: log_chords, top_chords, chord_qualities")
+ch = fresh("chords")
+chid = ch.start_session("grand-piano")
+ch.log_chords(chid, [(i * 1000, "Cmaj7", 0, "maj7", 0, 4) for i in range(5)]
+              + [(20_000 + i * 1000, "Am", 9, "m", 9, 3) for i in range(3)]
+              + [(40_000 + i * 1000, "C", 0, "", 0, 3) for i in range(2)]
+              + [(60_000, "Dm7/A", 2, "m7", 9, 4)])
+step("11 chord events landed", count(ch, "chord_event") == 11)
+step("log_chords([]) is a no-op", (ch.log_chords(chid, []),
+                                   count(ch, "chord_event"))[-1] == 11)
+top = ch.top_chords(1)
+step("top_chords ordered by count",
+     [(c["symbol"], c["count"]) for c in top]
+     == [("Cmaj7", 5), ("Am", 3), ("C", 2), ("Dm7/A", 1)], str(top))
+step("top_chords carries root and quality",
+     top[0]["root_pc"] == 0 and top[0]["quality"] == "maj7" and top[1]["root_pc"] == 9,
+     str(top[0]))
+step("limit honoured", len(ch.top_chords(1, limit=2)) == 2)
+quals = ch.chord_qualities(1)
+step("qualities are human-readable labels",
+     quals == [{"quality": "major 7th", "count": 5}, {"quality": "minor", "count": 3},
+               {"quality": "major", "count": 2}, {"quality": "minor 7th", "count": 1}],
+     str(quals))
+step('an empty quality reads as "major"', quals[2] == {"quality": "major", "count": 2},
+     'detect_chord stores a plain triad as ""')
+tossed = ch.start_session("grand-piano")
+ch.log_chords(tossed, [(0, "G7", 7, "7", 7, 4)])
+ch.discard_session(tossed)
+step("discard_session takes the chord rows with it", count(ch, "chord_event") == 11)
+
+print("11. what was played: pitch classes, octaves, range")
+what = fresh("what")
+wid = what.start_session("grand-piano")
+PLAYED = [(0, 60, 64), (100, 60, 64), (200, 60, 64),   # C4 x3
+          (300, 72, 64), (400, 72, 64),                # C5 x2
+          (500, 61, 64),                               # C#4
+          (600, 71, 64),                               # B4
+          (700, 36, 64), (800, 96, 64)]                # the two range endpoints, both C
+what.log_notes(wid, PLAYED)
+pcs = what.pitch_class_histogram(1)
+step("12 bins", len(pcs) == 12)
+step("sums to every note logged", sum(pcs) == len(PLAYED), f"{sum(pcs)} of {len(PLAYED)}")
+step("lands in the right bins", pcs[0] == 7 and pcs[1] == 1 and pcs[11] == 1,
+     f"C={pcs[0]} C#={pcs[1]} B={pcs[11]}")
+step("octaves are scientific -- 60 is C4",
+     what.octave_histogram(1) == {2: 1, 4: 5, 5: 2, 7: 1}, str(what.octave_histogram(1)))
+rng = what.range_used(1)
+step("range endpoints and their names", rng["low"] == 36 and rng["high"] == 96
+     and rng["low_name"] == "C2" and rng["high_name"] == "C7", str(rng))
+step("span and coverage arithmetic",
+     rng["span"] == 60 and rng["coverage"] == round(60 / 87, 3),
+     f"coverage={rng['coverage']} = 60/87 of the 88 keys")
+blank = fresh("range-empty")
+step("no notes means Nones, not a crash",
+     blank.range_used(1) == {"low": None, "high": None, "span": 0, "coverage": 0.0,
+                             "low_name": None, "high_name": None}, str(blank.range_used(1)))
+
+print("12. interval_histogram: a melody, then chords that must not count")
+mel = fresh("intervals")
+mid = mel.start_session("grand-piano")
+# C4 D4 E4 C4, half a second apart: up M2, up M2, down M3.
+mel.log_notes(mid, [(0, 60, 64), (500, 62, 64), (1000, 64, 64), (1500, 60, 64)])
+iv = mel.interval_histogram(1)
+step("the melody's exact intervals",
+     [(i["semitones"], i["count"], i["name"]) for i in iv] == [(2, 2, "M2"), (4, 1, "M3")],
+     str(iv))
+# A C major triad struck as one gesture 1.5 s later. Its own pairs are 4 and 3
+# semitones; neither may appear, and the M3 count must stay at 1.
+mel.log_notes(mid, [(3000, 60, 64), (3010, 64, 64), (3020, 67, 64)])
+iv = mel.interval_histogram(1)
+step("a 10 ms-apart chord contributed nothing",
+     [(i["semitones"], i["count"]) for i in iv] == [(2, 2), (4, 1)], str(iv))
+step("no minor third appeared", all(i["semitones"] != 3 for i in iv),
+     "64 -> 67 happened inside the chord window")
+# Again with three identical t_ms values -- what the flush thread writes when a whole
+# voicing lands inside one drain tick. G4 B4 D5: pairs of 4 and 3 semitones again.
+mel.log_notes(mid, [(6000, 67, 64), (6000, 71, 64), (6000, 74, 64)])
+iv = mel.interval_histogram(1)
+step("identical timestamps are a chord too",
+     [(i["semitones"], i["count"]) for i in iv] == [(2, 2), (4, 1)], str(iv))
+mid2 = mel.start_session("grand-piano")
+# t_ms deliberately *ahead* of the previous session's last note, so the pair across the
+# boundary (74 -> 72, a whole tone) is only suppressed by the session check and not by
+# the chord window. Then 72 -> 21 is 51 semitones: a hand moving, not a melodic leap.
+mel.log_notes(mid2, [(10_000, 72, 64), (10_500, 21, 64)])
+iv = mel.interval_histogram(1)
+step("no interval crosses a session, and >24 semitones is dropped",
+     [(i["semitones"], i["count"]) for i in iv] == [(2, 2), (4, 1)], str(iv))
+step("limit honoured", len(mel.interval_histogram(1, limit=1)) == 1)
+
+print("13. when it happened: hour and weekday")
+when = fresh("when")
+seed_at(when, local_epoch(0, 9, 0), 120_000)
+seed_at(when, local_epoch(0, 9, 30), 60_000)
+seed_at(when, local_epoch(0, 22, 0), 300_000)
+hours = when.hour_histogram(1)
+step("24 buckets", len(hours) == 24)
+step("both 09:xx sessions land in hour 9", hours[9] == 180, f"hours[9]={hours[9]} s")
+step("the 22:00 session lands in hour 22", hours[22] == 300, f"hours[22]={hours[22]} s")
+step("and nowhere else", sum(hours) == 480 and sum(1 for h in hours if h) == 2, str(hours))
+
+wk = fresh("weekday")
+seed(wk, days_ago=0, active_ms=120_000)
+seed(wk, days_ago=1, active_ms=60_000)
+wdays = wk.weekday_histogram(7)
+step("7 buckets", len(wdays) == 7)
+step("index 0 is Monday", wdays[TODAY.weekday()] == 120,
+     f"today is {TODAY.strftime('%A')} -> index {TODAY.weekday()}")
+step("yesterday landed on yesterday's weekday",
+     wdays[(TODAY - timedelta(days=1)).weekday()] == 60, str(wdays))
+step("and nowhere else", sum(wdays) == 180, str(wdays))
+
+print("14. dynamics and density per day")
+dyn = fresh("dynamics")
+old = seed(dyn, days_ago=3, active_ms=600_000, notes=900)
+dyn.log_notes(old, [(i * 10, 60, 64) for i in range(10)])   # Fixed touch: every note 64
+new = seed(dyn, days_ago=0, active_ms=300_000, notes=300)
+dyn.log_notes(new, [(0, 60, 40), (10, 62, 60), (20, 64, 80), (30, 65, 100)])
+also = seed(dyn, days_ago=0, active_ms=300_000, notes=900)   # same day, second session
+dyn.log_notes(also, [(0, 67, 120)])
+THEN = (TODAY - timedelta(days=3)).isoformat()
+vel = dyn.velocity_by_day(7)
+step("one row per day with notes, oldest first",
+     [v["date"] for v in vel] == [THEN, TODAY.isoformat()], str([v["date"] for v in vel]))
+step("the fixed-touch day",
+     vel[0] == {"date": THEN, "mean": 64.0, "min": 64, "max": 64, "distinct": 1}, str(vel[0]))
+step("today merges both sessions before averaging",
+     vel[1] == {"date": TODAY.isoformat(), "mean": 80.0, "min": 40, "max": 120, "distinct": 5},
+     str(vel[1]))
+npm = dyn.notes_per_minute(7)
+step("npm rows ascend by date", [n["date"] for n in npm] == [THEN, TODAY.isoformat()],
+     str([n["date"] for n in npm]))
+step("900 notes in 600 active seconds is 90 npm",
+     npm[0] == {"date": THEN, "npm": 90.0, "notes": 900, "active_seconds": 600}, str(npm[0]))
+step("same-day sessions merge before dividing",
+     npm[1] == {"date": TODAY.isoformat(), "npm": 120.0, "notes": 1200, "active_seconds": 600},
+     str(npm[1]))
+zero = fresh("npm-zero")
+seed(zero, days_ago=0, active_ms=0, notes=5)
+step("a zero-second day does not divide by zero",
+     zero.notes_per_minute(1) == [{"date": TODAY.isoformat(), "npm": 0.0, "notes": 5,
+                                   "active_seconds": 0}], str(zero.notes_per_minute(1)))
+
+print("15. session shape: lengths, presets, totals")
+shape = fresh("shape")
+seed(shape, days_ago=0, active_ms=12 * 60_000, notes=100)                    # 12:00 -> bucket 10
+seed(shape, days_ago=0, active_ms=14 * 60_000 + 59_000, notes=200)           # 14:59 -> bucket 10
+seed(shape, days_ago=1, active_ms=15 * 60_000, notes=300, preset="rhodes")   # 15:00 -> bucket 15
+seed(shape, days_ago=8, active_ms=90_000, notes=40, preset="rhodes")         # 1:30 -> bucket 0
+step("5-minute buckets on the low edge, ascending",
+     shape.session_lengths(30) == [{"minutes": 0, "count": 1}, {"minutes": 10, "count": 2},
+                                   {"minutes": 15, "count": 1}], str(shape.session_lengths(30)))
+step("preset usage by seconds, most-played first",
+     shape.preset_usage(30) == [{"preset": "grand-piano", "seconds": 1619, "sessions": 2},
+                                {"preset": "rhodes", "seconds": 990, "sessions": 2}],
+     str(shape.preset_usage(30)))
+live_sid = shape.start_session("grand-piano")
+shape.log_chords(live_sid, [(0, "C", 0, "", 0, 3), (100, "G7", 7, "7", 7, 4)])
+tot = shape.totals(30)
+step("totals count sessions, notes and calendar days",
+     tot["sessions"] == 5 and tot["note_count"] == 640 and tot["days_practiced"] == 3, str(tot))
+step("totals count chord events", tot["chords"] == 2, str(tot))
+step("active_seconds is the window's sum", tot["active_seconds"] == 1619 + 990, str(tot))
+step("first_at is the oldest session in the window", tot["first_at"] == noon(8),
+     str(tot["first_at"]))
+step("the window really is a window", shape.totals(2)["sessions"] == 4,
+     str(shape.totals(2)))
+
+print("16. analytics on a broken database")
+broken = fresh("dead-analytics")
+broken.close()
+try:
+    broken.log_chords(1, [(0, "C", 0, "", 0, 3)])
+    chord_write_survived = True
+except Exception as exc:  # noqa: BLE001
+    chord_write_survived = False
+    print(f"    log_chords raised: {exc!r}")
+step("log_chords on a dead store is a no-op", chord_write_survived)
+step("chord stats are empty lists",
+     broken.top_chords() == [] and broken.chord_qualities() == [])
+step("note shapes keep their shape", broken.pitch_class_histogram() == [0] * 12
+     and broken.octave_histogram() == {} and broken.interval_histogram() == [])
+step("time histograms keep their length",
+     broken.hour_histogram() == [0] * 24 and broken.weekday_histogram() == [0] * 7)
+step("per-day series are empty",
+     broken.velocity_by_day() == [] and broken.notes_per_minute() == []
+     and broken.session_lengths() == [] and broken.preset_usage() == [])
+step("range_used is None-shaped",
+     broken.range_used() == {"low": None, "high": None, "span": 0, "coverage": 0.0,
+                             "low_name": None, "high_name": None}, str(broken.range_used()))
+step("totals is zero-shaped",
+     broken.totals() == {"active_seconds": 0, "note_count": 0, "sessions": 0, "chords": 0,
+                         "days_practiced": 0, "first_at": None}, str(broken.totals()))
+
+print("17. the real keys.db was never touched")
 after = (REAL_DB.exists(), REAL_DB.stat().st_mtime_ns if REAL_DB.exists() else 0,
          REAL_DB.stat().st_size if REAL_DB.exists() else 0)
 step("keys.db unchanged", after == REAL_BEFORE,

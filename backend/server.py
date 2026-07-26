@@ -37,6 +37,11 @@ FRAME_HZ = 60
 STATUS_HZ = 1
 SUSTAIN_CC = 64
 
+# How long a chord has to hold still before it counts as played. Rolling into a voicing
+# one finger at a time momentarily reads as C, then C5, then Cmaj7 -- logging each of
+# those would make the chord analytics mostly noise about how fast you place fingers.
+CHORD_SETTLE_SECONDS = 0.14
+
 
 class App:
     """Everything with a lifetime. One instance, created at startup."""
@@ -60,6 +65,10 @@ class App:
         self.last_feedback: dict[str, Any] | None = None
         self._task: asyncio.Task | None = None
         self._boot_errors: list[str] = []
+        # Chord settle tracking -- see CHORD_SETTLE_SECONDS.
+        self._chord_candidate: str | None = None
+        self._chord_since = 0.0
+        self._chord_logged: str | None = None
 
     # ------------------------------------------------------------- lifecycle
     def startup(self) -> None:
@@ -155,6 +164,7 @@ class App:
                 if held_changed:
                     notes = sorted(self.held)
                     self.chord = music.detect_chord(notes, key) if len(notes) >= 3 else None
+                self._settle_chord(now)
 
                 if on or off or ccs:
                     frame: dict[str, Any] = {"t": "f", "held": sorted(self.held)}
@@ -184,6 +194,23 @@ class App:
             except Exception as exc:  # noqa: BLE001 -- the loop must never die
                 await self.broadcast({"t": "err", "where": "drain", "message": str(exc)})
                 await asyncio.sleep(0.25)
+
+    def _settle_chord(self, now: float) -> None:
+        """Log a chord once it has held still, and only once per press.
+
+        Resetting on release is what lets the same chord count again next time you play
+        it -- without that, a two-chord vamp would log two chords for a whole session.
+        """
+        symbol = self.chord["symbol"] if self.chord else None
+        if symbol != self._chord_candidate:
+            self._chord_candidate = symbol
+            self._chord_since = now
+        if symbol is None:
+            self._chord_logged = None
+            return
+        if symbol != self._chord_logged and (now - self._chord_since) >= CHORD_SETTLE_SECONDS:
+            self._chord_logged = symbol
+            self.practice.on_chord(now, self.chord, len(self.held))
 
     def status_frame(self, now: float | None = None) -> dict[str, Any]:
         now = time.perf_counter() if now is None else now
@@ -471,6 +498,41 @@ def stats(days: int = 30) -> dict[str, Any]:
 @api.get("/api/timing")
 def get_timing() -> dict[str, Any]:
     return app_state.timing_snapshot()
+
+
+@api.get("/api/analytics")
+def analytics(days: int = 365) -> dict[str, Any]:
+    """Everything the Analytics view draws, in one request.
+
+    Assembled server-side rather than as a dozen endpoints: it is read on a page load,
+    not in a loop, and one round trip keeps the view's empty-data handling in one place.
+    """
+    days = max(1, min(1825, days))
+    store = app_state.store
+    pcs = store.pitch_class_histogram(days)
+    return {
+        "range_days": days,
+        "calendar": store.history(days),
+        "streak": store.streak(),
+        "totals": store.totals(days),
+        "note_heatmap": store.note_heatmap(days),
+        "octaves": store.octave_histogram(days),
+        "range": store.range_used(days),
+        "top_chords": store.top_chords(days, limit=20),
+        "chord_qualities": store.chord_qualities(days),
+        "pitch_classes": pcs,
+        # Inferred from the pitch classes rather than stored -- what key you played in is a
+        # property of the notes, so deriving it means old sessions get it retroactively.
+        "keys": music.infer_key(pcs, top=5),
+        "intervals": store.interval_histogram(days),
+        "hours": store.hour_histogram(days),
+        "weekdays": store.weekday_histogram(days),
+        "velocity_by_day": store.velocity_by_day(min(days, 180)),
+        "notes_per_minute": store.notes_per_minute(min(days, 180)),
+        "session_lengths": store.session_lengths(days),
+        "presets": store.preset_usage(days),
+        "sightread": store.sightread_summary(days),
+    }
 
 
 @api.post("/api/practice/end")
