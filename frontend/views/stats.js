@@ -1,11 +1,21 @@
 /* Stats -- the long view, and the only home for analytics.
  *
  * Practice is for doing; every number that describes your playing over time lives
- * here. This answers "what have I actually been
- * playing", over a year: which keys, which chords, which hours of the day, and
- * whether the dynamics are opening up. It is a read-only mirror of the log, built
- * once in mount() from a single request. Nothing here ticks, polls or animates,
- * because none of these numbers change while you are looking at them.
+ * here. This answers "what have I actually been playing", over a year: which keys,
+ * which chords, which hours of the day, and whether the dynamics are opening up.
+ *
+ * **It keeps up with you while you read it.** Sitting on this page and playing used
+ * to show a frozen snapshot until you navigated away and back. Now the page refreshes
+ * itself -- but only when notes have actually been played, never on a blind timer.
+ * `practice.today_notes` on the 1 Hz status frame is the change signal, so an idle
+ * Stats page costs exactly nothing and a busy one costs one 18 ms query every few
+ * seconds.
+ *
+ * Two things a rebuild would otherwise ruin, and how they are handled: the year
+ * calendar's horizontal scroll is saved and restored across the swap, and a refresh
+ * is deferred while the pointer is inside the grid, because every chart here reads
+ * through a native `title` tooltip and rebuilding the node under the cursor makes it
+ * vanish mid-read.
  *
  * Every panel draws its own empty state on purpose. A log with nothing in it should
  * look like an instrument that has not been played yet, not like a broken page --
@@ -15,10 +25,34 @@ import { $, api, h, hms, humanMinutes, mod, noteName, stat } from '../ui.js';
 
 let data = null;
 
+/* Live-refresh state. */
+const REFRESH_MS = 5000;      // floor between queries while you are playing
+let lastNotes = null;         // practice.today_notes at the last refresh
+let lastFetch = 0;
+let inFlight = false;
+let hovering = false;         // pointer inside the grid -- a tooltip may be open
+let stale = false;            // notes arrived while hovering; refresh on the way out
+let live = false;
+
 export default {
   async mount(root) {
-    root.append(h('div.grid', { id: 'an-grid' },
-      h('div.col-12', null, h('div.empty', null, 'reading a year of practice...'))));
+    const grid = h('div.grid', { id: 'an-grid' },
+      h('div.col-12', null, h('div.empty', null, 'reading a year of practice...')));
+    // Defer a rebuild while the pointer is in here. Every chart is read through a
+    // native title tooltip, and replacing the node under the cursor closes it.
+    grid.addEventListener('mouseenter', () => { hovering = true; });
+    grid.addEventListener('mouseleave', () => {
+      hovering = false;
+      if (stale) refresh();
+    });
+    root.append(grid);
+
+    lastNotes = null;
+    lastFetch = 0;
+    inFlight = false;
+    hovering = false;
+    stale = false;
+    live = false;
 
     try {
       // 53 weeks, not 365 days: the calendar below draws WEEKS * 7 cells back to a
@@ -30,25 +64,90 @@ export default {
         h('div.empty', null, 'could not load analytics: ' + err.message)));
       return;
     }
+    lastFetch = performance.now();
     render(data);
   },
 
-  /* The only thing on this page that can go stale while you read it is today.
-     One text node, mutated in place -- no panel is rebuilt. */
+  /* Two jobs, once a second. Today's line is mutated in place because it changes
+     every second and re-querying for it would be absurd; everything else is driven
+     off the note counter, which is the only honest signal that any of these numbers
+     could have moved. */
   status(s) {
-    const el = $('#an-today');
-    if (!el || !s.practice) return;
     const p = s.practice;
-    el.textContent = p.today_seconds
-      ? `Today so far: ${hms(p.today_seconds)} over ${p.today_sessions || 1} session(s).`
-      : 'Nothing logged today yet.';
+    if (!p) return;
+    live = !!p.session_active && !p.idle;
+
+    const el = $('#an-today');
+    if (el) {
+      el.textContent = (p.today_seconds
+        ? `Today so far: ${hms(p.today_seconds)} over ${p.today_sessions || 1} session(s).`
+        : 'Nothing logged today yet.')
+        + (live ? '  Updating as you play.' : '');
+    }
+
+    const notes = p.today_notes;
+    if (notes == null) return;
+    if (lastNotes === null) { lastNotes = notes; return; }
+    // Not a timer. No notes, no query -- a Stats page left open overnight is free.
+    if (notes === lastNotes) return;
+    if (hovering) { stale = true; return; }
+    if (performance.now() - lastFetch < REFRESH_MS) return;
+    // Claimed here, not in refresh(): the counter we are acting on is this frame's,
+    // and /api/analytics has no equivalent field to read it back from.
+    lastNotes = notes;
+    refresh();
   },
 
-  unmount() { data = null; },
+  unmount() {
+    data = null;
+    lastNotes = null;
+    inFlight = false;
+    stale = false;
+  },
 };
+
+async function refresh() {
+  const grid = $('#an-grid');
+  if (inFlight || !grid) return;
+  // Nothing in Stats takes focus today, but a range picker is the obvious next
+  // addition here and replacing a focused control moves focus to <body> -- which also
+  // un-gates the number hotkeys in app.js and starts navigating tabs out from under
+  // whatever you were typing. Cheap insurance, one line.
+  if (grid.contains(document.activeElement)) { stale = true; return; }
+  inFlight = true;
+  lastFetch = performance.now();
+  stale = false;
+  try {
+    const fresh = await api.get(`/api/analytics?days=${WEEKS * 7}`);
+    if (!$('#an-grid')) return;      // navigated away mid-flight
+    data = fresh;
+    render(fresh);
+  } catch {
+    // A failed refresh leaves the last good numbers on screen, which is strictly
+    // better than replacing a year of history with an error because one poll lost.
+  } finally {
+    inFlight = false;
+  }
+}
 
 /* ── layout ───────────────────────────────────────────────────────────────── */
 function render(d) {
+  // Two scroll positions have to survive the swap, and the first one is the whole
+  // difference between a live page and an unusable one.
+  //
+  // #stage is the page's vertical scroller (.stage { overflow-y: auto }) and Stats is
+  // sixteen panels tall. replaceChildren() empties #an-grid before it refills it, so
+  // scrollHeight collapses mid-call and the browser clamps scrollTop to 0 -- anyone
+  // reading the velocity chart at the bottom gets thrown back to "All time" on every
+  // refresh. Captured and restored in the same task, before paint.
+  //
+  // The second is the year calendar's own horizontal scroll: 53 columns of 11px is
+  // wider than the panel, and a fresh node starts at scrollLeft 0, which is 52 weeks
+  // ago. Losing it makes this month unreachable.
+  const stage = $('#stage');
+  const stageTop = stage ? stage.scrollTop : 0;
+  const calLeft = $('.calx__scroll')?.scrollLeft ?? 0;
+
   const streak = d.streak || {};
   const totals = d.totals || {};
   const seconds = totals.active_seconds ?? streak.total_active_seconds ?? 0;
@@ -117,6 +216,12 @@ function render(d) {
     h('div.col-4', null, mod('Sight reading', 'all attempts',
       sightread(d.sightread))),
   );
+
+  if (calLeft) {
+    const el = $('.calx__scroll');
+    if (el) el.scrollLeft = calLeft;
+  }
+  if (stage && stageTop) stage.scrollTop = stageTop;
 }
 
 /* ── small shared bits ────────────────────────────────────────────────────── */
