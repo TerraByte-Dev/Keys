@@ -74,7 +74,15 @@ export default {
           h('div.touch__marks', { id: 'touch-marks' })),
         h('div.stats', { id: 'touch-stats', style: { marginTop: '12px' } }),
         h('div.btnrow', { style: { marginTop: '10px' } },
-          h('button.btn', { onclick: () => { resetTouch(); paintTouch(); } }, 'Reset')),
+          h('button.btn', { onclick: () => { resetTouch(); paintTouch(); } }, 'Reset'),
+          h('button.btn', {
+            id: 'touch-show',
+            onclick: (e) => {
+              showTouchKeys = !showTouchKeys;
+              e.target.classList.toggle('is-on', showTouchKeys);
+              paintTouchKeys(ctx);
+            },
+          }, 'Show me the setting keys')),
         h('div.note', { id: 'touch-note', style: { marginTop: '10px' } }))),
 
       h('div.col-5', null, mod('Scale highlighter', null,
@@ -134,7 +142,7 @@ export default {
     }
   },
 
-  unmount() { scaleOn = false; },
+  unmount() { scaleOn = false; showTouchKeys = false; },
 };
 
 let labelMode = 'c-only';
@@ -200,6 +208,39 @@ function audition() {
     .catch(() => {});
 }
 
+/* The four keys that set Touch Sensitivity on a Yamaha P-45 / P-71.
+ *
+ * Yamaha's manual calls them A2/A#2/B2/C3, but its octave numbering runs one below
+ * scientific -- the manual labels the lowest key of the 88 "A-1", which is MIDI 21.
+ * So Yamaha's C3 is scientific C4, middle C, MIDI 60. Getting that wrong by an octave
+ * is the single easiest way to press the wrong key and conclude the piano is broken,
+ * which is exactly why this highlights them on the real keyboard instead of describing
+ * them in words. */
+const TOUCH_KEYS = [
+  [57, 'FIXED'],
+  [58, 'SOFT'],
+  [59, 'MEDIUM'],
+  [60, 'HARD'],
+];
+let showTouchKeys = false;
+
+function paintTouchKeys(ctx) {
+  if (!showTouchKeys) {
+    ctx.kb.setHighlight([]);
+    ctx.kb.clearLabels();
+    ctx.kb.setLabels(labelMode);
+    paintScale(ctx);
+    return;
+  }
+  // Highlight, not ghost: the ghost layer is a muted grey that reads as "dimmed" more
+  // than "look here", and the printed label sits at the bottom edge of a white key
+  // where a short dock can clip it. The key itself has to carry the signal.
+  scaleOn = false;
+  $('#scale-toggle')?.classList.remove('is-on');
+  ctx.kb.setHighlight(TOUCH_KEYS.map(([n]) => n));
+  for (const [note, label] of TOUCH_KEYS) ctx.kb.setKeyLabel(note, label);
+}
+
 /* The whole point of this panel: make "is Touch Sensitivity still on Fixed?" answerable
    at a glance, while you are sitting at the piano, without running a CLI tool. A single
    spike means Fixed. A spread means the hammers are being reported. */
@@ -237,9 +278,13 @@ function paintTouch() {
       h('strong', null, `Touch Sensitivity is on Fixed — every note is ${t.last}.`),
       document.createTextNode(
         ' The keys are still hammer-weighted; the piano just is not reporting how hard '
-        + 'you hit. Hold [GRAND PIANO/FUNCTION] and press the white key immediately left '
-        + 'of middle C (labelled B3 here, B2 in Yamaha\'s manual) for Medium, then play '
-        + 'again. Velocity curves and dynamics do nothing until this changes.'));
+        + 'you hit, and no velocity curve can invent dynamics from a constant. Press '),
+      h('strong', null, 'Show me the setting keys'),
+      document.createTextNode(
+        ' and four keys light up on the keyboard below. Hold [GRAND PIANO/FUNCTION] on '
+        + 'the piano, press the one marked MEDIUM, release both, then play loud and soft. '
+        + 'Yamaha\'s manual calls that key B2; its octave numbering is one below the '
+        + 'standard, so it is the white key immediately left of middle C.'));
   } else if (spread < 40) {
     note.className = 'note';
     note.replaceChildren(
