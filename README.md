@@ -72,13 +72,14 @@ That's the whole setup. The browser opens on its own, the MIDI port binds itself
 plugging it back in needs no restart. `1`–`6` switch views, `M` toggles the metronome, `Esc` is panic.
 
 > **FluidSynth somewhere else?** Set `KEYS_FLUIDSYNTH_BIN` to its `bin` directory. Everything else you'd want to
-> change lives in **Setup**, and persists to a gitignored `config.local.json`.
+> change lives in **Settings**, and persists to a gitignored `config.local.json`.
 
 ## Features
 
 - **Three milliseconds, measured** — WASAPI exclusive mode at a 144-sample buffer, verified on real hardware rather than estimated. Audio is rendered in FluidSynth's own C thread and **never passes through Python**. The MIDI callback does one thing and stops; everything else runs off a bounded queue that drops frames instead of blocking a note.
-- **Zones: splits, layers and drum pads** — a zone is a key range pointed at a channel, and **overlapping two zones *is* the layer**. There's no separate "layer mode" because there doesn't need to be one. Per-zone transpose, gain, pan, reverb/chorus sends and velocity curves, edited live against a visual range bar.
+- **Layers: splits and layers on one keybed** — a *split* puts bass in your left hand and piano in your right; a *layer* puts piano and strings on the same keys. Both are one idea: a zone is a range of keys pointed at a sound, and **overlapping two zones *is* the layer**. One click each, with a full editor underneath for transpose, gain, pan, sends and velocity curves.
 - **18 presets, 287 instruments** — presets are plain JSON you can edit by hand. The instrument browser enumerates every preset the SoundFont actually contains — including all 13 drum kits — rather than trusting the GM chart.
+- **Exercises you can pick up** — scales in any key and mode, one hand or both, parallel or contrary; arpeggios with inversions; sight reading. Hands-together steps carry both notes, so the spread between your hands is measured directly — the thing most people plateau on and nobody else surfaces.
 - **A practice clock that doesn't flatter you** — time is credited *between consecutive notes*, capped at a grace window, so "34 minutes" means minutes with your hands on the keys and not minutes with the app open. Streaks, a 90-day calendar, and a per-key heatmap of what you actually use.
 - **A metronome on the audio clock** — clicks are scheduled on FluidSynth's sequencer, driven by the render thread, so they cannot drift against the sound. Tempo ramp with a one-key setback when you miss. It measures **drift**, not just per-beat error — players hold even spacing while the whole tempo slides, and that's the failure mode worth seeing.
 - **Sight reading that adapts** — a hand-rolled SVG grand staff (no notation engine), enharmonically spelled by key signature, weighting each new measure toward *your* worst notes from your own attempt history.
@@ -97,22 +98,22 @@ plugging it back in needs no restart. `1`–`6` switch views, `M` toggles the me
 <table>
   <tr>
     <td width="50%" valign="top">
-      <img src="docs/assets/screenshots/practice.png" alt="Practice view with the calendar, key heatmap and timing analysis" /><br/>
-      <sub><b>Practice</b> — idle-gapped clock, streaks, a 90-day calendar and which keys you actually use.</sub>
+      <img src="docs/assets/screenshots/practice.png" alt="The Practice tab: a session clock and a shelf of exercises" /><br/>
+      <sub><b>Practice</b> — a session clock and a shelf: scales, arpeggios and sight reading.</sub>
     </td>
     <td width="50%" valign="top">
       <img src="docs/assets/screenshots/read.png" alt="Sight reading on a hand-rolled SVG grand staff" /><br/>
-      <sub><b>Read</b> — a real grand staff with correct ledger lines, weighted toward your weakest notes.</sub>
+      <sub><b>Sight reading</b> — a real grand staff with key signatures and correct ledger lines, weighted toward your weakest notes.</sub>
     </td>
   </tr>
   <tr>
     <td width="50%" valign="top">
-      <img src="docs/assets/screenshots/zones.png" alt="The zone editor with its visual key-range bar" /><br/>
-      <sub><b>Zones</b> — splits and layers on one keybed. Overlap is the layer.</sub>
+      <img src="docs/assets/screenshots/layers.png" alt="The Layers tab: one-click split and layer builders" /><br/>
+      <sub><b>Layers</b> — a split or a layer in one click, with the full editor underneath.</sub>
     </td>
     <td width="50%" valign="top">
-      <img src="docs/assets/screenshots/metronome.png" alt="The metronome view with tempo ramp controls" /><br/>
-      <sub><b>Metro</b> — scheduled on the audio clock, with a tempo ramp and drift measurement.</sub>
+      <img src="docs/assets/screenshots/stats.png" alt="The Stats tab: activity calendar and key heatmap" /><br/>
+      <sub><b>Stats</b> — a year of activity, an 88-key heatmap, and the keys you actually play in.</sub>
     </td>
   </tr>
 </table>
@@ -159,7 +160,7 @@ python tools\midi_probe.py                        # zero dependencies. Is the pi
 ```
 
 **"Everything else went silent."** Exclusive mode gives Keys sole ownership of the output device, which is
-exactly where the 3 ms comes from — while it runs, nothing else can play through that device. **Setup → Audio
+exactly where the 3 ms comes from — while it runs, nothing else can play through that device. **Settings → Audio
 output** switches to shared mode (Windows picks the buffer, ~10 ms) or pins Keys to a different output so you
 keep both. Closing Keys always hands the device straight back.
 

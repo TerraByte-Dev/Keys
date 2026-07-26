@@ -45,7 +45,7 @@ Run the suite locally. It is six scripts and needs no test runner:
 temp databases and temp settings; a test that writes to `config.local.json` or `keys.db` is a bug, and has
 caused a real one before (a stale ramp ceiling silently pinned the metronome at 100 bpm).
 
-If you touched anything on the hot path, also play the piano for a minute and watch **Setup → Event pipeline**
+If you touched anything on the hot path, also play the piano for a minute and watch **Settings → Event pipeline**
 for dropped frames.
 
 ## Workflow

@@ -93,7 +93,7 @@ microseconds, and states plainly in the UI what it excludes.
 
 Exclusive mode is where the 3 ms comes from, and it takes the output device away from every other application on
 the machine for as long as Keys runs. That is WASAPI working as designed. Three ways to live with it, exposed in
-**Setup → Audio output**:
+**Settings → Audio output**:
 
 1. **Pin Keys to a different output device** than everything else — keeps low latency *and* other audio.
 2. **Shared mode** — everything coexists; Windows chooses the buffer, so expect roughly 10 ms.
