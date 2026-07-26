@@ -79,8 +79,11 @@ def main() -> int:
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
 
-    if not (config.SOUNDFONT_DIR / config.DEFAULT_SOUNDFONT).exists():
-        print(f"Missing soundfont: {config.SOUNDFONT_DIR / config.DEFAULT_SOUNDFONT}")
+    if config.find_asset("soundfonts", config.DEFAULT_SOUNDFONT) is None:
+        print(f"Missing soundfont: {config.DEFAULT_SOUNDFONT}")
+        print("  Looked in: " + ", ".join(str(d) for d in
+                                          (config.DATA_DIR / "soundfonts",
+                                           config.BUNDLE / "soundfonts")))
         print("See soundfonts/README.md -- GeneralUser GS 2.0.3.")
         return 1
 

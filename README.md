@@ -181,7 +181,7 @@ Keys is up — close it first, or pass `--force` if you know what you're doing.
 .venv\Scripts\python tools\frontend_check.py    # every ES module parses; needs Node for the syntax pass
 ```
 
-The full suite is nine checks and 678 assertions; see [`CONTRIBUTING.md`](CONTRIBUTING.md). There is no
+The full suite is ten checks and 708 assertions; see [`CONTRIBUTING.md`](CONTRIBUTING.md). There is no
 bundler, no transpiler and no `node_modules` — editing `frontend/` and reloading the page is the whole loop.
 
 ## License

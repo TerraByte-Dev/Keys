@@ -320,12 +320,12 @@ class Engine:
 
     # ------------------------------------------------------------- soundfonts
     def load_soundfont(self, name: str) -> int:
-        """Load (once) and return the sfid for a file in soundfonts/."""
+        """Load (once) and return the sfid for a SoundFont on the search path."""
         with self._lock:
             if name in self._sfids:
                 return self._sfids[name]
-            path = config.SOUNDFONT_DIR / name
-            if not path.exists() or self.fs is None:
+            path = config.find_asset("soundfonts", name)
+            if path is None or self.fs is None:
                 return -1
             sfid = self.fs.sfload(str(path))
             if sfid != -1:
@@ -334,7 +334,7 @@ class Engine:
 
     def list_soundfonts(self) -> list[dict[str, Any]]:
         out = []
-        for p in sorted(config.SOUNDFONT_DIR.glob("*")):
+        for p in config.list_assets("soundfonts", "*"):
             if p.suffix.lower() in (".sf2", ".sf3") and p.is_file():
                 out.append({
                     "file": p.name,
@@ -555,10 +555,9 @@ def load_preset_file(path: Path) -> Preset:
 
 
 def load_presets() -> dict[str, Preset]:
+    """Presets from the search path: yours shadow the shipped ones by file name."""
     out: dict[str, Preset] = {}
-    if not config.PRESET_DIR.exists():
-        return out
-    for p in sorted(config.PRESET_DIR.glob("*.json")):
+    for p in config.list_assets("presets", "*.json"):
         try:
             preset = load_preset_file(p)
             out[preset.id] = preset
@@ -568,6 +567,8 @@ def load_presets() -> dict[str, Preset]:
 
 
 def save_preset(preset: Preset) -> Path:
+    # Always to the data directory, never into the bundle. A preset written next to
+    # the executable is a preset the next update deletes.
     config.PRESET_DIR.mkdir(parents=True, exist_ok=True)
     path = config.PRESET_DIR / f"{preset.id}.json"
     path.write_text(json.dumps(preset.to_dict(), indent=2), "utf-8")

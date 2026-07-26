@@ -389,8 +389,12 @@ def save_preset(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
 
 @api.delete("/api/presets/{pid}")
 def delete_preset(pid: str) -> dict[str, Any]:
+    # Only ever deletes your copy. A shipped preset lives inside the application
+    # bundle, is reinstated by the next update anyway, and is not ours to remove.
     path = config.PRESET_DIR / f"{pid}.json"
     if not path.exists():
+        if config.find_asset("presets", f"{pid}.json") is not None:
+            raise HTTPException(400, f"'{pid}' ships with Keys and cannot be deleted")
         raise HTTPException(404, f"no preset '{pid}'")
     path.unlink()
     app_state.presets = engine_mod.load_presets()
