@@ -362,7 +362,10 @@ def set_zones(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
     zones = [Zone.from_dict(z) for z in body.get("zones", [])]
     if not zones:
         raise HTTPException(400, "at least one zone is required")
-    warnings = app_state.engine.set_zones(zones, body.get("id", ""), body.get("name", ""))
+    # Empty id on purpose: hand-edited zones are not a saved preset, and the UI renders
+    # that state rather than pretending one of the chips is still active.
+    warnings = app_state.engine.set_zones(
+        zones, body.get("id", ""), body.get("name", "") or "Custom")
     return {"ok": True, "warnings": warnings, "engine": app_state.engine.status()}
 
 

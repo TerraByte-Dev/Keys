@@ -443,8 +443,12 @@ class Engine:
             table.append(tuple(entries))
 
         self.zones = zones
-        self.preset_id = preset_id or self.preset_id
-        self.preset_name = preset_name or self.preset_name
+        # No sticky fallback. An empty preset_id is the honest answer to "which saved
+        # preset is loaded?" after you edit zones or pick an instrument by hand -- none
+        # is. Keeping the old id made the UI re-light the wrong chip every second while
+        # preset_name said something else entirely.
+        self.preset_id = preset_id
+        self.preset_name = preset_name
         self.active_channels = tuple(sorted(seen_channels)) or (0,)
         self.routes = tuple(table)  # <-- the atomic swap the hot path relies on
         self.warnings = warnings

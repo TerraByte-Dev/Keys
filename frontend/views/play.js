@@ -36,7 +36,8 @@ export default {
     const eng = st.engine || {};
 
     root.append(h('div.grid', null,
-      h('div.col-7', null, mod('Presets', `${(st.presets || []).length} on file`,
+      h('div.col-7', null, mod('Presets',
+        h('span', { id: 'preset-state' }, `${(st.presets || []).length} on file`),
         h('div.chips', { id: 'preset-chips' },
           (st.presets || []).map((p) => chip(p, eng.preset_id, ctx))),
         h('div.note', { style: { marginTop: '12px' } },
@@ -145,11 +146,19 @@ export default {
     if (!host || !s.engine) return;
     host.children[0].firstChild.textContent = s.engine.voices ?? 0;
     // Keep the preset chips honest if the preset changed from another tab or the API.
+    // An empty preset_id means no saved preset is loaded, so every chip goes dark and
+    // the aside says what you are actually hearing.
     const chips = $('#preset-chips');
     if (chips) {
       for (const c of chips.children) {
         c.classList.toggle('is-active', c.dataset.id === s.engine.preset_id);
       }
+    }
+    const aside = $('#preset-state');
+    if (aside) {
+      aside.textContent = s.engine.preset_id
+        ? `${(ctx.state.presets || []).length} on file`
+        : `unsaved -- ${s.engine.preset_name || 'custom'}`;
     }
   },
 
