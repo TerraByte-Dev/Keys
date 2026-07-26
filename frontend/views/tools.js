@@ -1,8 +1,13 @@
-/* Metronome.
+/* Tools -- things you run while you play.
+ *
+ * The metronome is the first and currently the only one; a tuner, chord finder, scale
+ * reference and transposer belong here too. It lives in its own tab rather than as a
+ * peer of Play and Practice because one tool does not deserve a top-level slot, and
+ * because there was nowhere for the second one to go.
  *
  * The clicks are scheduled on FluidSynth's sequencer, driven by the audio render
  * thread. Nothing here times anything -- this view sends configuration and draws the
- * beat lamps from the status feed. */
+ * beat lamps from the status feed. `m` toggles it from any tab. */
 
 import { $, api, h, mod, slider, stat, toast } from '../ui.js';
 

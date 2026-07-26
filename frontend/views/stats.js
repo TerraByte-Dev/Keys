@@ -1,6 +1,7 @@
-/* Analytics -- the long view.
+/* Stats -- the long view, and the only home for analytics.
  *
- * Practice answers "did I show up today". This answers "what have I actually been
+ * Practice is for doing; every number that describes your playing over time lives
+ * here. This answers "what have I actually been
  * playing", over a year: which keys, which chords, which hours of the day, and
  * whether the dynamics are opening up. It is a read-only mirror of the log, built
  * once in mount() from a single request. Nothing here ticks, polls or animates,

@@ -1,8 +1,12 @@
-/* Zones -- split, layer and drum pads.
+/* Layers -- splits, layers and drum pads.
  *
- * The model is deliberately one idea: a zone is a key range pointed at a channel, and
- * overlapping two zones IS the layer. There is no separate "layer mode" because there
- * does not need to be one.
+ * A SPLIT puts one sound in your left hand and another in your right. A LAYER puts two
+ * sounds on the same keys so they sound together. Both are one idea: a zone is a key
+ * range pointed at a channel, and overlapping two zones IS the layer. There is no
+ * separate "layer mode" because there does not need to be one.
+ *
+ * The tab was called "Zones" and nobody knew what that meant, including its author.
+ * The concept is genuinely useful; the word was jargon.
  *
  * Each zone owns its own channel. Gain, pan and the reverb/chorus sends are per-channel
  * MIDI controllers, so two zones sharing a channel would fight over them -- the server

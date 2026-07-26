@@ -16,21 +16,28 @@ import { $, api, hms, toast } from './ui.js';
 
 import playView from './views/play.js';
 import practiceView from './views/practice.js';
-import metronomeView from './views/metronome.js';
-import zonesView from './views/zones.js';
-import readView from './views/read.js';
+import layersView from './views/layers.js';
+import toolsView from './views/tools.js';
+import statsView from './views/stats.js';
 import settingsView from './views/settings.js';
-import analyticsView from './views/analytics.js';
+import readView from './views/read.js';
 
 const VIEWS = {
   play: playView,
   practice: practiceView,
-  metronome: metronomeView,
-  zones: zonesView,
-  read: readView,
+  layers: layersView,
+  tools: toolsView,
+  stats: statsView,
   settings: settingsView,
-  analytics: analyticsView,
+  // Routable but not in the nav: sight reading is on its way into Practice as one
+  // exercise among several. Keeping it reachable means it is never orphaned mid-move.
+  read: readView,
 };
+
+/* Old hashes, so a bookmark or a stale tab lands somewhere sensible instead of
+   silently falling through to Play with no nav item lit. Deletable once nobody has
+   an old URL. */
+const ALIASES = { zones: 'layers', metronome: 'tools', analytics: 'stats' };
 
 /* ── shared context handed to every view ──────────────────────────────────── */
 export const ctx = {
@@ -178,6 +185,7 @@ const stage = $('#stage');
 
 async function route() {
   const id = (location.hash.replace('#', '') || 'play');
+  if (ALIASES[id]) { location.hash = ALIASES[id]; return; }   // re-enters via hashchange
   const view = VIEWS[id] || VIEWS.play;
   if (currentId === id) return;
 
@@ -204,7 +212,10 @@ async function refresh() {
 }
 
 /* ── keyboard shortcuts ───────────────────────────────────────────────────── */
-const ORDER = ['play', 'practice', 'metronome', 'zones', 'read', 'settings', 'analytics'];
+// The nav order, and the only definition of it -- the number hotkeys are derived from
+// this array's length below, so adding or removing a tab is a one-line change here plus
+// the matching anchor in index.html.
+const ORDER = ['play', 'practice', 'layers', 'tools', 'stats', 'settings'];
 
 document.addEventListener('keydown', (e) => {
   const typing = /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName || '');
@@ -213,8 +224,9 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   if (typing || e.ctrlKey || e.altKey || e.metaKey) return;
-  if (e.key >= '1' && e.key <= '7') {
-    location.hash = ORDER[Number(e.key) - 1];
+  const n = Number(e.key);
+  if (n >= 1 && n <= ORDER.length) {
+    location.hash = ORDER[n - 1];
   } else if (e.key.toLowerCase() === 'm') {
     api.post('/api/metronome/toggle').catch(() => {});
   }
