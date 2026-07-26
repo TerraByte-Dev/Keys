@@ -119,7 +119,8 @@ class Layer:
             "notes": len(self.notes),
             # Enough for the UI to draw the layer without shipping every note twice a
             # second; the full note list only travels on save/load.
-            "marks": [[round(n.pos, 1), n.key, n.vel] for n in self.notes[:512]],
+            "marks": [[round(n.pos, 1), n.key, n.vel, round(n.dur, 1)]
+                      for n in self.notes[:512]],
         }
 
 

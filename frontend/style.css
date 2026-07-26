@@ -730,6 +730,75 @@ select:focus, input:focus { outline: none; border-color: var(--amber-deep); }
 .zone__name { font-size: 12px; letter-spacing: .06em; color: var(--ink); flex: 1; }
 .zone__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
 
+/* ── loop station ───────────────────────────────────────────────────────── */
+.loop { margin: 14px 0 4px; }
+.loop__transport {
+  display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap;
+  padding: 12px 13px; margin-bottom: 10px;
+  background: #ffffff05; border: 1px solid var(--hairline); border-radius: var(--radius);
+}
+.loop__rec { gap: 8px; }
+.loop__dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #4a3a2a; box-shadow: 0 0 0 1px #0006 inset;
+}
+/* Armed is not recording. The blink is the difference between "it heard you" and
+   "it is capturing", and confusing the two costs a take. */
+.loop__rec.is-armed { color: var(--amber); border-color: var(--amber-deep); }
+.loop__rec.is-armed .loop__dot { background: var(--amber); animation: loop-arm 1s steps(2) infinite; }
+.loop__rec.is-recording { color: #ffd8d2; border-color: #6d2c25; background: linear-gradient(180deg, #4a1f1a, #2a110e); }
+.loop__rec.is-recording .loop__dot { background: var(--red); box-shadow: 0 0 8px var(--red); }
+@keyframes loop-arm { 50% { opacity: .15; } }
+.loop__state { min-width: 150px; }
+.loop__state-main {
+  font-size: 13px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink);
+}
+.loop__state-sub { font-size: 11px; color: var(--ink-dim); margin-top: 3px; }
+.loop__setup { display: flex; gap: 12px; align-items: flex-end; margin-left: auto; }
+.loop__setup .field { margin-bottom: 0; min-width: 92px; }
+.loop__track {
+  position: relative; height: 30px; overflow: hidden;
+  background: var(--panel-0); border: 1px solid var(--hairline); border-radius: 2px;
+}
+.loop__grid { position: absolute; inset: 0; }
+.loop__tick { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--hairline); }
+.loop__tick--bar { background: var(--hairline-hi); }
+.loop__head {
+  position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px;
+  background: var(--amber); box-shadow: 0 0 10px var(--amber-deep);
+  opacity: 0; transition: opacity .2s var(--ease);
+}
+
+.layerrow {
+  border: 1px solid var(--hairline); border-radius: var(--radius);
+  padding: 9px 11px 11px; margin-bottom: 8px; background: #ffffff04;
+}
+.layerrow.is-muted { opacity: .48; }
+.layerrow__head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.layerrow__n {
+  width: 18px; height: 18px; flex: none; border-radius: 2px;
+  display: grid; place-items: center;
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--amber); border: 1px solid var(--amber-deep);
+}
+.layerrow__name {
+  width: 150px; background: transparent; border: 1px solid transparent;
+  color: var(--ink); font-family: var(--font-panel); font-size: 12.5px; padding: 3px 5px;
+}
+.layerrow__name:hover { border-color: var(--hairline); }
+.layerrow__name:focus { border-color: var(--amber-deep); outline: none; background: var(--panel-0); }
+.layerrow__roll {
+  position: relative; height: 58px; margin-bottom: 9px;
+  background: var(--panel-0); border: 1px solid var(--hairline); border-radius: 2px;
+  overflow: hidden;
+}
+.layerrow__note {
+  position: absolute; height: 2px; border-radius: 2px;
+  background: var(--amber); box-shadow: 0 0 4px #ffa62b40;
+}
+.layerrow__ctl { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.layerrow__ctl .field { margin-bottom: 0; }
+
 /* ── responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 720px) {
   body { grid-template-columns: 1fr; grid-template-areas: "rail" "stage" "readout" "dock"; }

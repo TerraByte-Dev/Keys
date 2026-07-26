@@ -1,9 +1,14 @@
-/* Layers -- splits, layers and drum pads.
+/* Layers -- splits, layers, and the loop station.
  *
  * A SPLIT puts one sound in your left hand and another in your right. A LAYER puts two
  * sounds on the same keys so they sound together. Both are one idea: a zone is a key
  * range pointed at a channel, and overlapping two zones IS the layer. There is no
  * separate "layer mode" because there does not need to be one.
+ *
+ * The loop station is that idea moved along one more axis. A split stacks sounds across
+ * the keys, a layer stacks them on the same key, and a recorded loop stacks them in
+ * time -- so it lives here rather than in a tab of its own. Its code is in
+ * ../loopstation.js; this file only mounts it.
  *
  * The tab was called "Zones" and nobody knew what that meant, including its author.
  * The concept is genuinely useful; the word was jargon.
@@ -12,6 +17,7 @@
  * MIDI controllers, so two zones sharing a channel would fight over them -- the server
  * warns when that happens and this editor auto-assigns to avoid it. */
 
+import { createLoopStation } from '../loopstation.js';
 import { $, $$, api, h, mod, noteName, slider, toast } from '../ui.js';
 
 const LOW = 21, HIGH = 108;
@@ -25,11 +31,13 @@ const LAYER_DEFAULT = { a: 0, b: 48, balance: 0.42 };      // Grand Piano + Stri
 
 let zones = [];
 let instruments = [];
+let station = null;
 
 export default {
   async mount(root, ctx) {
     zones = (ctx.state.engine?.zones || []).map((z) => ({ ...z }));
     if (!zones.length) zones = [blank(0)];
+    station = createLoopStation(ctx, () => instruments);
 
     root.append(h('div.grid', null,
       h('div.col-12', null, mod('What this is', null,
@@ -98,6 +106,8 @@ export default {
           h('button.btn', { onclick: () => apply(ctx) }, 'Apply'),
           h('button.btn', { onclick: () => saveAs(ctx) }, 'Save as preset...'),
           h('button.btn', { onclick: () => { zones = [blank(0)]; render(ctx); } }, 'Reset')))),
+      h('div.col-12', null, station.el),
+
       h('div.col-12', null, mod('Zone editor', 'the long way',
         h('div', { id: 'zone-list' }))),
     ));
@@ -107,9 +117,15 @@ export default {
     } catch { instruments = []; }
     fillInstSelects();
     render(ctx);
+    await station.init();
   },
 
-  unmount(ctx) { },
+  status(s, ctx) { station?.status(s, ctx); },
+
+  unmount() {
+    station?.destroy();
+    station = null;
+  },
 };
 
 function blank(i) {
