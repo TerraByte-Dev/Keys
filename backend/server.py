@@ -31,6 +31,7 @@ from .exercises import GenContext, clean_params, load_all
 from .exercises.metrics import grade
 from .exercises.run import Run
 from .hub import BEND, CONTROL, NOTE_OFF, NOTE_ON, Hub
+from .looper import LoopStation
 from .metronome import Metronome
 from .midi_in import MidiInput
 from .practice import PracticeClock
@@ -56,6 +57,7 @@ class App:
         self.hub = Hub()
         self.midi = MidiInput(self.engine, self.hub)
         self.metro = Metronome(self.engine, self.settings)
+        self.loop = LoopStation(self.engine, self.metro, self.settings)
         self.store = Store(config.DB_PATH)
         self.practice = PracticeClock(self.store, self.settings)
         self.sight = SightReader(self.store, self.settings)
@@ -108,6 +110,7 @@ class App:
         # arrives mid-teardown calls into a freed Synth from the callback thread.
         self.midi.stop_watcher()
         self.midi.close()
+        self.loop.shutdown()
         self.metro.shutdown()
         self.practice.end_session()
         self.engine.stop()
@@ -150,6 +153,11 @@ class App:
                 held_changed = False
 
                 for t, kind, a, b, _service in events:
+                    # The loop station records from here rather than from the MIDI
+                    # callback: `t` was stamped at callback entry, so a take is timed
+                    # exactly as well as it would have been in the hot path, and the
+                    # hot path pays nothing for it. Returns instantly when stopped.
+                    self.loop.on_event(t, kind, a, b)
                     if kind == NOTE_ON:
                         self.held.add(a)
                         on.append([a, b])
@@ -248,6 +256,7 @@ class App:
             "engine": self.engine.status(),
             "midi": self.midi.status(),
             "metronome": self.metro.status(),
+            "loop": self.loop.status(),
             "practice": self.practice.status(now),
             "sightread": {"active": self.sight.active, "index": self.sight.index},
             "exercise": (
@@ -271,6 +280,8 @@ class App:
             "engine": self.engine.status(),
             "midi": self.midi.status(),
             "metronome": self.metro.status(),
+            "loop": self.loop.status(),
+            "saved_loops": self.loop.saved(),
             "practice": self.practice.status(),
             "sightread": self.sight.state(),
             "settings": self.settings.all(),
@@ -505,6 +516,63 @@ def metronome_action(action: str) -> dict[str, Any]:
         raise HTTPException(404, f"unknown action '{action}'")
     app_state.click_offsets.clear()
     return {"ok": True, "metronome": app_state.metro.status()}
+
+
+# ---------------------------------------------------------------- loop station
+def _loop_reply() -> dict[str, Any]:
+    return {"ok": True, "loop": app_state.loop.status(), "saved": app_state.loop.saved()}
+
+
+@api.get("/api/loop")
+def loop_state() -> dict[str, Any]:
+    return _loop_reply()
+
+
+@api.post("/api/loop/config")
+def loop_config(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    app_state.loop.configure(body)
+    return _loop_reply()
+
+
+@api.post("/api/loop/save")
+def loop_save(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    app_state.loop.save(str(body.get("name", "")))
+    return _loop_reply()
+
+
+@api.post("/api/loop/load")
+def loop_load(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    app_state.loop.load(str(body.get("name", "")))
+    return _loop_reply()
+
+
+@api.post("/api/loop/layer/{layer_id}")
+def loop_layer(layer_id: str, body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    app_state.loop.update_layer(layer_id, body)
+    return _loop_reply()
+
+
+@api.delete("/api/loop/layer/{layer_id}")
+def loop_layer_delete(layer_id: str) -> dict[str, Any]:
+    app_state.loop.delete_layer(layer_id)
+    return _loop_reply()
+
+
+# Declared last so the fixed paths above win -- FastAPI matches in declaration order,
+# and "/api/loop/{action}" would otherwise eat "/api/loop/config".
+@api.post("/api/loop/{action}")
+def loop_action(action: str) -> dict[str, Any]:
+    fn = {
+        "start": app_state.loop.start,
+        "stop": app_state.loop.stop,
+        "record": app_state.loop.arm,
+        "cancel": app_state.loop.cancel,
+        "clear": app_state.loop.clear,
+    }.get(action)
+    if fn is None:
+        raise HTTPException(404, f"unknown action '{action}'")
+    fn()
+    return _loop_reply()
 
 
 # ------------------------------------------------------------------- practice

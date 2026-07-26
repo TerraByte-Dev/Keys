@@ -46,6 +46,12 @@ LEAD_IN_MS = 120.0
 
 # pyfluidsynth does not wrap this one, but the DLL exports it. Without it, changing
 # tempo could not cancel already-queued clicks and every bpm change would double up.
+#
+# The (source, dest, type) triple is a filter, and -1 means "any". Passing -1 for all
+# three removes every queued event in the sequencer -- including the loop station's,
+# which shares this sequencer. Verified on this machine: filtering by source really
+# does work, so every scheduler in this app tags its events with its own client id and
+# only ever flushes its own. See _flush().
 _remove_events = fluidsynth.cfunc(
     "fluid_sequencer_remove_events", None,
     ("seq", ctypes.c_void_p, 1),
@@ -72,6 +78,10 @@ class Metronome:
         self._overlay: dict[str, Any] = {}
 
         self._cursor = 0.0          # tick (ms) of the next click not yet scheduled
+        # Tick of click 0, which is always a downbeat. Published because the loop
+        # station lines its bars up with this instead of inventing a second grid --
+        # two grids that agree by luck is the same thing as two grids that don't.
+        self.start_tick: float = 0.0
         self._click_index = 0       # global click counter since start
         self._beats_fired = 0       # incremented by the audio thread, one per beat
         self._ramp_steps = 0        # completed tempo-ramp steps
@@ -119,7 +129,12 @@ class Metronome:
         return self.cfg()
 
     # ------------------------------------------------------------ start/stop
-    def start(self) -> None:
+    def start(self, at_tick: float | None = None) -> None:
+        """Start clicking. `at_tick` places click 0 on a caller-chosen tick.
+
+        The loop station uses it to put the click and the loop bar line on the same
+        instant; everything else leaves it None and gets the usual short lead-in.
+        """
         with self._lock:
             if self._running or self.engine.sequencer is None:
                 return
@@ -134,7 +149,9 @@ class Metronome:
             self._bars_at_step = 0
             self.clicks.clear()
             self._obs.clear()
-            self._cursor = self.engine.sequencer.get_tick() + LEAD_IN_MS
+            now = self.engine.sequencer.get_tick()
+            self._cursor = now + LEAD_IN_MS if at_tick is None else max(float(at_tick), now)
+            self.start_tick = self._cursor
             if self._thread is None or not self._thread.is_alive():
                 self._thread = threading.Thread(
                     target=self._loop, name="metronome", daemon=True,
@@ -188,9 +205,15 @@ class Metronome:
         fs.cc(METRONOME_CHANNEL, 91, 8)   # a touch of reverb, not a dry tick in the ear
 
     def _flush(self) -> None:
+        """Drop our own queued clicks -- and nothing else's.
+
+        Scoped to this client's source id on purpose. The loop station schedules into
+        the same sequencer, and a wholesale (-1, -1, -1) flush here would silently
+        delete a recorded ensemble every time the tempo slider moved.
+        """
         seq = self.engine.sequencer
-        if seq is not None and _remove_events is not None:
-            _remove_events(seq.sequencer, -1, -1, -1)
+        if seq is not None and _remove_events is not None and self._client is not None:
+            _remove_events(seq.sequencer, self._client, -1, -1)
         self.clicks.clear()
 
     def _reschedule(self) -> None:
@@ -204,6 +227,7 @@ class Metronome:
             self._beats_fired = 0
             self._bars_at_step = 0
             self._cursor = self.engine.sequencer.get_tick() + LEAD_IN_MS
+            self.start_tick = self._cursor
         self._wake.set()
 
     def _on_beat(self, tick, event, seq, data) -> None:  # noqa: ANN001
@@ -282,7 +306,9 @@ class Metronome:
                 key, vel = int(cfg.get("sub_note", 42)), int(cfg.get("sub_velocity", 55))
 
             at = int(round(self._cursor))
-            seq.note(at, METRONOME_CHANNEL, key, vel, 45, dest=dest)
+            # source= is what makes _flush() able to cancel these without touching the
+            # loop station's events in the same queue.
+            seq.note(at, METRONOME_CHANNEL, key, vel, 45, source=self._client or -1, dest=dest)
             if is_beat and self._client is not None:
                 # One observation per beat, not per subdivision -- enough to fit the
                 # clock map without waking the audio thread's Python side too often.
@@ -356,6 +382,17 @@ class Metronome:
             "channel": METRONOME_CHANNEL,
             "can_cancel_events": _remove_events is not None,
         }
+
+    def grid(self) -> tuple[float, float, int]:
+        """(beat_ms, bar_ms, beats_per_bar) for the tempo currently in force.
+
+        One place computes bar length. The loop station asking for it here is what
+        keeps a four-bar loop exactly four bars of click.
+        """
+        cfg = self.cfg()
+        beats = max(1, int(cfg.get("beats_per_bar", 4)))
+        beat_ms = 60000.0 / self._current_bpm(cfg)
+        return (beat_ms, beat_ms * beats, beats)
 
     def ramp_setback(self) -> None:
         """Drop one tempo step. Call this when the player misses."""

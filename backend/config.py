@@ -72,6 +72,9 @@ DEFAULTS: dict[str, Any] = {
         "ramp_bpm_step": 4,
         "ramp_bpm_max": 160,
     },
+    # The loop station. Tempo and meter deliberately absent -- those live in
+    # "metronome", because a loop with its own tempo field is a second clock.
+    "loop": {"bars": 4, "click": True, "count_in_bars": 1},
     "reverb": {"room": 0.3, "damping": 0.4, "width": 6.0, "level": 0.55},
     "chorus": {"nr": 3, "level": 1.2, "speed": 0.4, "depth": 6.0, "type": 0},
     # tour_seen lives here rather than in localStorage because localStorage is

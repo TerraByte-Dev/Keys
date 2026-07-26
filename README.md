@@ -1,7 +1,6 @@
-<!-- Hero: CRT "KEYS" wordmark — see docs/assets/README.md for the image-gen prompt. -->
-<p align="center">
-  <img src="docs/assets/keys-wordmark.png" alt="Keys" width="680" />
-</p>
+<!-- A CRT wordmark belongs here; docs/assets/README.md carries the prompt. Text until it exists —
+     a README that opens with a broken-image icon is worse than one that opens with a word. -->
+<h1 align="center">K E Y S</h1>
 
 <p align="center">
   <strong>A MIDI piano that answers in three milliseconds.</strong><br/>
@@ -12,7 +11,7 @@
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-FFA62B.svg"></a>
   <a href="https://github.com/TerraByte-Dev/Keys/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/TerraByte-Dev/Keys?color=FFA62B&label=release"></a>
   <img alt="3.00 ms latency" src="https://img.shields.io/badge/latency-3.00%20ms-FFA62B">
-  <img alt="100% offline" src="https://img.shields.io/badge/100%25-offline-FFA62B">
+  <img alt="No account, no telemetry" src="https://img.shields.io/badge/no%20account-no%20telemetry-FFA62B">
   <img alt="Python 3.11 · FluidSynth · zero-build frontend" src="https://img.shields.io/badge/Python%203.11-FluidSynth%20%C2%B7%20zero--build%20frontend-FFA62B">
 </p>
 
@@ -36,8 +35,8 @@
 Keys is a **workspace** for a USB piano — a room you open and play in, at your own pace, with nothing to enrol
 in and nobody grading you. MIDI comes in, **FluidSynth** renders it through WASAPI in exclusive mode at a
 measured **3.00 ms**, and a browser UI hangs off the side showing what you played — never in the path of what
-you hear. It's **genuinely offline**: no account, no telemetry, no CDN, fonts already on your machine, and a
-history that lives in a local SQLite file. The frontend has **no build step and no dependencies** — vanilla ES
+you hear. It's **local-first**: no account, no telemetry, no CDN, fonts already on your machine, and a practice
+history that lives in a SQLite file you own. The frontend has **no build step and no dependencies** — vanilla ES
 modules served straight off disk. There is no `package.json`.
 
 It isn't a tutor and it isn't Synthesia. There's no curriculum, no unlock sequence, no streak-shaming. What
@@ -169,7 +168,8 @@ Sensitivity setting that transmits a constant velocity regardless of how hard yo
 response** meter tells you live, and on a Yamaha P-45/P-71 the fix is to hold `[GRAND PIANO/FUNCTION]` and press
 the white key immediately left of middle C.
 
-`engine_check` and `pipeline_check` open the audio device, so stop the app before running them.
+`engine_check` and `pipeline_check` open the audio device and make noise on purpose, so they refuse to run while
+Keys is up — close it first, or pass `--force` if you know what you're doing.
 
 ## Development
 
@@ -178,7 +178,7 @@ the white key immediately left of middle C.
 .venv\Scripts\python tools\frontend_check.py    # every ES module parses; needs Node for the syntax pass
 ```
 
-The full suite is six checks and about 250 assertions; see [`CONTRIBUTING.md`](CONTRIBUTING.md). There is no
+The full suite is seven checks and 560 assertions; see [`CONTRIBUTING.md`](CONTRIBUTING.md). There is no
 bundler, no transpiler and no `node_modules` — editing `frontend/` and reloading the page is the whole loop.
 
 ## License
