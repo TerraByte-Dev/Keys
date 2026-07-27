@@ -1,0 +1,227 @@
+/* Rearrangeable panels. Drag a panel by its header, resize it with the arrows.
+ *
+ * Bolted on from the outside on purpose: no view knows this exists. It walks the grid
+ * a view just built, identifies each panel by the title it already renders, and
+ * applies a saved order and width. That means a new panel needs no registration and
+ * cannot forget to opt in -- and if this module were deleted tomorrow, every view
+ * would still render exactly as its author wrote it.
+ *
+ * Identity is the slug of the panel's own title. Not an index, because inserting a
+ * panel would shuffle everyone's saved layout; not a hand-assigned id, because that is
+ * a registry to keep in sync. A title that changes loses its saved position once,
+ * which is the right price.
+ *
+ * The dragged panel goes `position: fixed` and follows the pointer while a placeholder
+ * holds its slot in the grid, so the other panels reflow live underneath it. Moving
+ * the element in the DOM as you drag instead would work, but the panel would jump
+ * between slots rather than follow your hand, and following your hand is the whole
+ * point of picking it up.
+ */
+
+import { $, api, h, toast } from './ui.js';
+
+// The spans style.css actually defines. Anything else silently falls back to full
+// width, so the stepper walks this list rather than doing arithmetic.
+const SPANS = [3, 4, 5, 6, 7, 8, 9, 12];
+const DRAG_THRESHOLD = 5;   // px before a click becomes a drag
+
+let saved = {};             // { viewId: [{id, span}, ...] } -- last known server state
+
+export function primeLayout(state) {
+  saved = (state?.settings?.ui?.layout) || {};
+}
+
+const slug = (s) => String(s || '').toLowerCase().trim()
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'panel';
+
+function panelId(col, seen) {
+  const title = col.querySelector('.mod__title')?.textContent || '';
+  let id = slug(title);
+  // Two panels with the same title in one view would otherwise share a slot.
+  while (seen.has(id)) id += '-2';
+  seen.add(id);
+  return id;
+}
+
+function spanOf(col) {
+  for (const cls of col.classList) {
+    const m = /^col-(\d+)$/.exec(cls);
+    if (m) return Number(m[1]);
+  }
+  return 12;
+}
+
+function setSpan(col, span) {
+  for (const cls of [...col.classList]) if (/^col-\d+$/.test(cls)) col.classList.remove(cls);
+  col.classList.add('col-' + span);
+}
+
+/* ── public ───────────────────────────────────────────────────────────────── */
+export function attachLayout(grid, viewId) {
+  if (!grid || grid.dataset.layoutOn) return;
+  grid.dataset.layoutOn = '1';
+
+  const seen = new Set();
+  const cols = [...grid.children].filter((el) => el.className.includes('col-'));
+  if (cols.length < 2) return;      // nothing to rearrange
+
+  for (const col of cols) {
+    col.dataset.panel = panelId(col, seen);
+    col.dataset.defaultSpan = String(spanOf(col));
+    addControls(grid, col, viewId);
+  }
+
+  applySaved(grid, viewId);
+}
+
+/* Order and width from settings. Panels the saved layout has never heard of keep the
+   position their author gave them, which is what makes adding a panel safe. */
+function applySaved(grid, viewId) {
+  const layout = saved[viewId];
+  if (!Array.isArray(layout) || !layout.length) return;
+  const byId = new Map([...grid.children]
+    .filter((el) => el.dataset.panel)
+    .map((el) => [el.dataset.panel, el]));
+
+  for (const entry of layout) {
+    const col = byId.get(entry.id);
+    if (!col) continue;                       // a panel that no longer exists
+    if (SPANS.includes(entry.span)) setSpan(col, entry.span);
+    grid.append(col);                         // saved panels first, in saved order
+  }
+  // Anything not in the saved layout is new since it was written, and lands after --
+  // visible rather than silently hidden or wedged into a stale slot.
+}
+
+function readLayout(grid) {
+  return [...grid.children]
+    .filter((el) => el.dataset.panel)
+    .map((el) => ({ id: el.dataset.panel, span: spanOf(el) }));
+}
+
+let saveTimer = null;
+function persist(grid, viewId) {
+  const layout = readLayout(grid);
+  saved = { ...saved, [viewId]: layout };
+  clearTimeout(saveTimer);
+  // Debounced: a width stepper is clicked several times in a row and each one would
+  // otherwise be a request and a file write.
+  saveTimer = setTimeout(() => {
+    api.post('/api/settings', { ui: { layout: { [viewId]: layout } } })
+      .catch(() => { /* a lost layout save is not worth interrupting anyone for */ });
+  }, 500);
+}
+
+/* ── per-panel controls ───────────────────────────────────────────────────── */
+function addControls(grid, col, viewId) {
+  const head = col.querySelector('.mod__head');
+  if (!head) return;
+
+  const step = (delta) => {
+    const i = SPANS.indexOf(spanOf(col));
+    const next = SPANS[Math.max(0, Math.min(SPANS.length - 1, (i < 0 ? SPANS.length - 1 : i) + delta))];
+    setSpan(col, next);
+    persist(grid, viewId);
+  };
+
+  head.append(h('div.mod__grip', { title: 'drag to rearrange' },
+    h('button.mod__btn', {
+      title: 'narrower',
+      onclick: (e) => { e.stopPropagation(); step(-1); },
+    }, '‹'),
+    h('button.mod__btn', {
+      title: 'wider',
+      onclick: (e) => { e.stopPropagation(); step(1); },
+    }, '›')));
+
+  head.addEventListener('pointerdown', (e) => startDrag(e, grid, col, viewId));
+}
+
+/* ── drag ─────────────────────────────────────────────────────────────────── */
+function startDrag(e, grid, col, viewId) {
+  // Left button only, and never from a control inside the header.
+  if (e.button !== 0 || e.target.closest('button, input, select, a')) return;
+
+  const head = e.currentTarget;
+  const startX = e.clientX;
+  const startY = e.clientY;
+  let dragging = false;
+  let ghostDx = 0;
+  let ghostDy = 0;
+  let placeholder = null;
+
+  const onMove = (ev) => {
+    if (!dragging) {
+      if (Math.hypot(ev.clientX - startX, ev.clientY - startY) < DRAG_THRESHOLD) return;
+      dragging = true;
+      const r = col.getBoundingClientRect();
+      ghostDx = startX - r.left;
+      ghostDy = startY - r.top;
+
+      // A placeholder of the same span keeps the grid the same shape while the panel
+      // is out of flow -- without it every other panel jumps the moment you lift one.
+      placeholder = h('div.col-' + spanOf(col) + '.layout__slot');
+      placeholder.style.minHeight = r.height + 'px';
+      col.after(placeholder);
+
+      Object.assign(col.style, {
+        position: 'fixed', zIndex: '80', width: r.width + 'px', height: r.height + 'px',
+        left: r.left + 'px', top: r.top + 'px', pointerEvents: 'none',
+      });
+      col.classList.add('is-dragging');
+      document.body.classList.add('is-rearranging');
+    }
+    col.style.left = (ev.clientX - ghostDx) + 'px';
+    col.style.top = (ev.clientY - ghostDy) + 'px';
+
+    const target = slotUnder(grid, col, placeholder, ev.clientX, ev.clientY);
+    if (target) {
+      const { el, after } = target;
+      if (after) el.after(placeholder);
+      else el.before(placeholder);
+    }
+  };
+
+  const onUp = () => {
+    head.releasePointerCapture?.(e.pointerId);
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointercancel', onUp);
+    if (!dragging) return;
+    placeholder.replaceWith(col);
+    col.removeAttribute('style');
+    col.classList.remove('is-dragging');
+    document.body.classList.remove('is-rearranging');
+    persist(grid, viewId);
+  };
+
+  head.setPointerCapture?.(e.pointerId);
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+  window.addEventListener('pointercancel', onUp);
+}
+
+/* Which slot is the pointer over? Hit-tested against the laid-out siblings rather
+   than elementFromPoint, because the dragged panel is fixed and on top of everything
+   and would answer every query with itself. */
+function slotUnder(grid, dragged, placeholder, x, y) {
+  for (const el of grid.children) {
+    if (el === dragged || el === placeholder) continue;
+    const r = el.getBoundingClientRect();
+    if (x < r.left || x > r.right || y < r.top || y > r.bottom) continue;
+    // Past the horizontal midpoint means "after", which reads correctly in a grid
+    // that flows left to right and then wraps.
+    return { el, after: (x - r.left) > r.width / 2 };
+  }
+  return null;
+}
+
+/* ── reset ────────────────────────────────────────────────────────────────── */
+export async function resetLayout(viewId = null) {
+  const next = viewId ? { ...saved, [viewId]: [] } : {};
+  saved = next;
+  try {
+    await api.post('/api/settings', { ui: { layout: next } });
+    toast(viewId ? `${viewId} layout reset` : 'All panel layouts reset', 'good');
+  } catch (err) { toast(err.message, 'bad'); }
+}

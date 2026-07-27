@@ -7,6 +7,7 @@
  * reports the piece it can actually see and labels it. */
 
 import { $, api, h, mod, slider, stat, toast } from '../ui.js';
+import { resetLayout } from '../layout.js';
 import { startTour } from '../tour.js';
 
 export default {
@@ -175,6 +176,15 @@ export default {
           'Keys checks only when you press that button -- never on launch, never on a ',
           'timer, never in the background. The request sends nothing but a GET for the ',
           'public release list.'))),
+
+      h('div.col-6', null, mod('Panel layout', null,
+        h('div.note', null,
+          'Every panel can be dragged by its header and resized with the arrows that ',
+          'appear when you hover it. The arrangement is per tab and saved as you go, ',
+          'so put the things you actually use at the top.'),
+        h('div.btnrow', { style: { marginTop: '12px' } },
+          h('button.btn', { onclick: () => resetLayout() },
+            'Put every tab back the way it shipped')))),
 
       h('div.col-6', null, mod('First run', null,
         h('div.note', null,

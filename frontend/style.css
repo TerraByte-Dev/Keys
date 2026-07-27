@@ -256,6 +256,35 @@ body::after {
 .mod__rule { flex: 1; height: 1px; background: var(--hairline); }
 .mod__aside { font-family: var(--font-mono); font-size: 10px; color: var(--ink-faint); }
 
+/* ── rearranging ────────────────────────────────────────────────────────── */
+/* The header is the drag handle, so it has to say so before you try it. */
+.mod__head { cursor: grab; user-select: none; }
+.mod__head:active { cursor: grabbing; }
+.mod__grip { display: flex; gap: 2px; opacity: 0; transition: opacity .14s var(--ease); }
+.mod:hover .mod__grip, .mod__head:focus-within .mod__grip { opacity: 1; }
+.mod__btn {
+  width: 17px; height: 17px; padding: 0; line-height: 1;
+  display: grid; place-items: center; cursor: pointer;
+  background: var(--panel-3); color: var(--ink-dim);
+  border: 1px solid var(--hairline); border-radius: 2px;
+  font-family: var(--font-panel); font-size: 12px;
+}
+.mod__btn:hover { color: var(--amber); border-color: var(--amber-deep); }
+
+.is-dragging .mod {
+  border-color: var(--amber-deep);
+  box-shadow: 0 18px 40px #000000aa, 0 0 0 1px var(--amber-deep);
+  transform: scale(.985);
+}
+/* Where it will land. Sized to the panel it replaced so the grid holds its shape. */
+.layout__slot {
+  border: 1px dashed var(--amber-deep);
+  border-radius: var(--radius);
+  background: #ffa62b0a;
+}
+/* Text selection while dragging across panels looks like a bug. */
+body.is-rearranging { user-select: none; }
+
 /* ── readouts ───────────────────────────────────────────────────────────── */
 .readout {
   grid-area: readout;

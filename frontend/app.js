@@ -12,6 +12,7 @@
  */
 
 import { createKeyboard } from './keyboard.js';
+import { attachLayout, primeLayout } from './layout.js';
 import { $, api, hms, toast } from './ui.js';
 import { startTour, tourOpen } from './tour.js';
 
@@ -203,6 +204,9 @@ async function route() {
     a.classList.toggle('is-active', a.dataset.view === id);
   }
   await view.mount?.(stage, ctx);
+  // After mount, so it operates on the DOM the view actually built. No view knows
+  // this exists; a new panel is rearrangeable without being registered anywhere.
+  for (const grid of stage.querySelectorAll('.grid')) attachLayout(grid, id);
   if (ctx.status) view.status?.(ctx.status, ctx);
 }
 
@@ -251,6 +255,7 @@ window.addEventListener('beforeunload', () => { if (ws) { ws.onclose = null; ws.
     toast('Could not reach the app: ' + err.message, 'bad', 10000);
     ctx.state = {};
   }
+  primeLayout(ctx.state);
   for (const problem of ctx.state.errors || []) toast(problem, 'bad', 12000);
   await route();
   connect();
