@@ -41,7 +41,7 @@ export default {
     station = createLoopStation(ctx, () => instruments);
 
     root.append(h('div.grid', null,
-      h('div.col-4', null, mod('What this is', null,
+      h('div.col-6', null, mod('What this is', null,
         h('div.note', null,
           'A ', h('strong', null, 'split'), ' puts one sound in your left hand and another ',
           'in your right -- bass below the split point, piano above. A ',
@@ -52,6 +52,15 @@ export default {
           'pointed at a sound, and overlapping two zones ', h('em', null, 'is'), ' the layer. ',
           'Build one below in a click, or open the editor at the bottom to move the split ',
           'point and balance the two sounds.'))),
+
+      h('div.col-6', null, mod('Layout', 'A0 to C8 -- 88 keys',
+        h('div.zonebar', { id: 'zonebar' }),
+        h('div.btnrow', null,
+          h('button.btn', { onclick: () => { zones.push(blank(zones.length)); render(ctx); } },
+            '+ Add zone'),
+          h('button.btn', { onclick: () => apply(ctx) }, 'Apply'),
+          h('button.btn', { onclick: () => saveAs(ctx) }, 'Save as preset...'),
+          h('button.btn', { onclick: () => { zones = [blank(0)]; render(ctx); } }, 'Reset')))),
 
       h('div.col-12', null, mod('Build one', 'a click each',
         h('div.builds', null,
@@ -104,14 +113,7 @@ export default {
             h('button.btn.btn--wide', { id: 'do-single', onclick: () => buildSingle(ctx) },
               'Use one sound'))))),
 
-      h('div.col-8', null, mod('Layout', 'A0 to C8 -- 88 keys',
-        h('div.zonebar', { id: 'zonebar' }),
-        h('div.btnrow', null,
-          h('button.btn', { onclick: () => { zones.push(blank(zones.length)); render(ctx); } },
-            '+ Add zone'),
-          h('button.btn', { onclick: () => apply(ctx) }, 'Apply'),
-          h('button.btn', { onclick: () => saveAs(ctx) }, 'Save as preset...'),
-          h('button.btn', { onclick: () => { zones = [blank(0)]; render(ctx); } }, 'Reset')))),
+      
       h('div.col-12', null, station.el),
 
       h('div.col-12', null, mod('Zone editor', 'the long way',

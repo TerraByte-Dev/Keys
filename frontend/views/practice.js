@@ -29,12 +29,12 @@ let current = null;    // the open runner, or null when the shelf is showing
 export default {
   async mount(root, ctx) {
     root.append(h('div.grid', null,
-      h('div.col-12', null, mod('Now', null,
+      h('div.col-6', null, mod('Now', null,
         h('div.stats', { id: 'practice-hud' },
           h('div.empty', null, 'waiting for the first note')),
         h('div.btnrow', { style: { marginTop: '14px' } },
           h('button.btn', { onclick: () => endSession() }, 'End session')))),
-      h('div.col-12', null, mod('Timing', 'from your last ~96 notes',
+      h('div.col-6', null, mod('Timing', 'from your last ~96 notes',
         h('div.stats', { id: 'practice-timing' },
           h('div.empty', null, 'play something')),
         h('div.note', { style: { marginTop: '12px' } },

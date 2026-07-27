@@ -154,7 +154,7 @@ function render(d) {
   const days = totals.days_practiced ?? streak.total_days ?? 0;
 
   $('#an-grid').replaceChildren(
-    h('div.col-12', null, mod('All time', d.range_days ? `last ${d.range_days} days` : null,
+    h('div.col-6', null, mod('All time', d.range_days ? `last ${d.range_days} days` : null,
       h('div.stats', null,
         stat(humanMinutes(seconds), 'Total practice', `${count(totals.sessions)} sessions`,
              'stat__value--amber'),
@@ -167,17 +167,17 @@ function render(d) {
       h('div.note', { id: 'an-today', style: { marginTop: '12px' } },
         'Nothing logged today yet.'))),
 
-    h('div.col-12', null, mod('Activity', `${days} days with a note on them`,
+    h('div.col-6', null, mod('Activity', `${days} days with a note on them`,
       calendar(d.calendar))),
 
     h('div.col-12', null, mod('Keys you have played', 'every note, all time',
       pianoMap(d.note_heatmap, d.range),
       rangeLine(d.range))),
 
-    h('div.col-7', null, mod('What key you play in', null,
+    h('div.col-6', null, mod('What key you play in', null,
       keyList(d.keys))),
 
-    h('div.col-5', null, mod('Note circle', 'every note, ignoring octave',
+    h('div.col-6', null, mod('Note circle', 'every note, ignoring octave',
       wheel(d.pitch_classes))),
 
     h('div.col-6', null, mod('Chords', 'most played',
@@ -207,13 +207,13 @@ function render(d) {
         'Idle time is already subtracted, so this is density, not diligence. ',
         'It goes up with faster pieces and down with harder ones.'))),
 
-    h('div.col-4', null, mod('Session length', null,
+    h('div.col-6', null, mod('Session length', null,
       sessionLengths(d.session_lengths))),
 
-    h('div.col-4', null, mod('Sounds you reach for', null,
+    h('div.col-3', null, mod('Sounds you reach for', null,
       presets(d.presets))),
 
-    h('div.col-4', null, mod('Sight reading', 'all attempts',
+    h('div.col-3', null, mod('Sight reading', 'all attempts',
       sightread(d.sightread))),
   );
 

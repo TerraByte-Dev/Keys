@@ -18,7 +18,7 @@ export default {
     const s = st.settings || {};
 
     root.append(h('div.grid', null,
-      h('div.col-4', null, mod('MIDI input', midi.connected ? 'connected' : 'not connected',
+      h('div.col-6', null, mod('MIDI input', midi.connected ? 'connected' : 'not connected',
         h('div.list', { id: 'port-list' },
           (midi.ports || []).length
             ? midi.ports.map((p, i) => h('div.list__row', {
@@ -39,6 +39,13 @@ export default {
           'plugging it back in does not need a restart. If Windows sees no MIDI device ',
           'at all, that is a driver problem -- run ', h('strong', null, 'tools/midi_probe.py'),
           ', which needs no venv and no packages.'))),
+
+      h('div.col-6', null, mod('Latency', 'the honest number', h('div.stats', { id: 'lat-stats' }),
+        h('div.note', { style: { marginTop: '12px' } },
+          h('strong', null, 'This is not end-to-end latency.'), ' It is the time from the ',
+          'MIDI callback being entered to the synth call returning. It excludes USB ',
+          'transfer, the audio buffer, DMA, the DAC and the air. Software cannot measure ',
+          'the real figure. The buffer above is the part you can reason about.'))),
 
       h('div.col-12', null, mod('Audio output', 'applies live -- the stream reopens',
         h('div.stats', { id: 'audio-stats', style: { marginBottom: '16px' } },
@@ -92,12 +99,7 @@ export default {
           'is 144". Buffer size only does anything in exclusive mode. Raise it if you hear ',
           'crackling.'))),
 
-      h('div.col-6', null, mod('Latency', 'the honest number', h('div.stats', { id: 'lat-stats' }),
-        h('div.note', { style: { marginTop: '12px' } },
-          h('strong', null, 'This is not end-to-end latency.'), ' It is the time from the ',
-          'MIDI callback being entered to the synth call returning. It excludes USB ',
-          'transfer, the audio buffer, DMA, the DAC and the air. Software cannot measure ',
-          'the real figure. The buffer above is the part you can reason about.'))),
+      
 
       h('div.col-6', null, mod('Reading key', null,
         h('label.field', null,
@@ -135,17 +137,6 @@ export default {
         fx('chorus', 'depth', 0, 21, 0.1, s.chorus?.depth ?? 6),
         fx('chorus', 'nr', 0, 20, 1, s.chorus?.nr ?? 3))),
 
-      h('div.col-12', null, mod('SoundFonts', null,
-        h('div.list', null, (st.soundfonts || []).map((sf) => h('div.list__row', null,
-          h('span', null, sf.file),
-          h('span.list__spacer'),
-          h('span.mono', null, (sf.size / 1048576).toFixed(1) + ' MB'),
-          sf.loaded ? h('span.tag.tag--green', null, 'loaded') : h('span.tag', null, 'on disk')))),
-        h('div.note', { style: { marginTop: '10px' } },
-          'Drop more .sf2 / .sf3 files into ', h('strong', null, 'soundfonts/'),
-          ' and pick them per zone. Salamander Grand will not work here -- it is SFZ, ',
-          'and FluidSynth cannot load SFZ.'))),
-
       h('div.col-6', null, mod('Startup sound', 'what Keys opens with',
         h('label.field', null,
           h('span.field__label', null, h('span', null, 'Preset')),
@@ -161,6 +152,19 @@ export default {
           'Loading a preset in ', h('strong', null, 'Play'), ' does not change this. ',
           'The keyboard is one instrument end to end unless you say otherwise.'))),
 
+      h('div.col-12', null, mod('SoundFonts', null,
+        h('div.list', null, (st.soundfonts || []).map((sf) => h('div.list__row', null,
+          h('span', null, sf.file),
+          h('span.list__spacer'),
+          h('span.mono', null, (sf.size / 1048576).toFixed(1) + ' MB'),
+          sf.loaded ? h('span.tag.tag--green', null, 'loaded') : h('span.tag', null, 'on disk')))),
+        h('div.note', { style: { marginTop: '10px' } },
+          'Drop more .sf2 / .sf3 files into ', h('strong', null, 'soundfonts/'),
+          ' and pick them per zone. Salamander Grand will not work here -- it is SFZ, ',
+          'and FluidSynth cannot load SFZ.'))),
+
+      
+
       h('div.col-6', null, mod('About', `version ${st.version || '?'}`,
         h('div.stats', null,
           stat(st.version || '?', 'Version', st.frozen ? 'installed build' : 'source checkout'),
@@ -175,7 +179,7 @@ export default {
           'timer, never in the background. The request sends nothing but a GET for the ',
           'public release list.'))),
 
-      h('div.col-6', null, mod('Panel layout', null,
+      h('div.col-3', null, mod('Panel layout', null,
         h('div.note', null,
           'Every panel can be dragged by its header and resized with the arrows that ',
           'appear when you hover it. The arrangement is per tab and saved as you go, ',
@@ -184,7 +188,7 @@ export default {
           h('button.btn', { onclick: () => resetLayout() },
             'Put every tab back the way it shipped')))),
 
-      h('div.col-6', null, mod('First run', null,
+      h('div.col-3', null, mod('First run', null,
         h('div.note', null,
           'The six-card tour that runs the first time you open Keys. It covers the ',
           'things that are not guessable -- what a split and a layer are, that the ',

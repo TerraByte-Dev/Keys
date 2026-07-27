@@ -20,11 +20,12 @@
 
 import { $, api, h, toast } from './ui.js';
 
-// The spans style.css actually defines. Anything else silently falls back to full
-// width, so the stepper walks this list rather than doing arithmetic. Every step from
-// a sixth of the row to the whole row, so a small panel can be made to fit a gap
-// exactly instead of nearly.
-const SPANS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+// Quarter, half, full. Nothing else, on purpose: every row then tiles exactly --
+// 12, or 6+6, or 6+3+3, or 3+3+3+3 -- so there is no arrangement that leaves a ragged
+// column at the end. Eleven sizes let a row come to eleven twelfths, which is where
+// the leftover slivers came from. A saved layout holding one of the old spans falls
+// back to the panel's shipped size, because applySaved only honours what is in here.
+const SPANS = [3, 6, 12];
 const DRAG_THRESHOLD = 5;   // px before a click becomes a drag
 
 // Must match .grid--packed's grid-auto-rows and .grid's gap in style.css.
@@ -47,6 +48,17 @@ function panelId(col, seen) {
   while (seen.has(id)) id += '-2';
   seen.add(id);
   return id;
+}
+
+/* A panel is a grid child whose own first child is a .mod -- the screwed-down section
+   with a header to drag it by. Practice's exercise host is `div.grid.col-12`, which
+   matches "has a col- class" but is a nested GRID of panels, not a panel: treating it
+   as one gave it a drag handle it cannot use, an id stolen from the first panel
+   inside it, and grid--packed's 8px rows applied to a grid that was never ours. */
+function isPanel(el) {
+  if (el.classList.contains('grid')) return false;
+  if (!el.firstElementChild?.classList.contains('mod')) return false;
+  return [...el.classList].some((c) => /^col-\d+$/.test(c));
 }
 
 function spanOf(col) {
@@ -94,11 +106,17 @@ function watch(grid) {
     queued = true;
     requestAnimationFrame(() => { queued = false; pack(grid); });
   };
-  const ro = new ResizeObserver(repack);
+  // Torn down and rebuilt whenever the view replaces its panels, or this keeps
+  // observing detached nodes and leaks one observer per refresh.
+  grid._ro?.disconnect();
+  grid._ro = new ResizeObserver(repack);
   for (const el of grid.children) {
-    if (el.dataset.panel && el.firstElementChild) ro.observe(el.firstElementChild);
+    if (el.dataset.panel && el.firstElementChild) grid._ro.observe(el.firstElementChild);
   }
-  window.addEventListener('resize', repack);
+  if (!grid._onResize) {
+    grid._onResize = () => grid.repack?.();
+    window.addEventListener('resize', grid._onResize);
+  }
   return repack;
 }
 
@@ -106,23 +124,49 @@ function watch(grid) {
 export function attachLayout(grid, viewId) {
   if (!grid || grid.dataset.layoutOn) return;
   grid.dataset.layoutOn = '1';
+  if ([...grid.children].filter(isPanel).length < 2) return;
 
-  const seen = new Set();
-  const cols = [...grid.children].filter((el) => el.className.includes('col-'));
-  if (cols.length < 2) return;      // nothing to rearrange
+  const build = () => {
+    // A rebuild changes every panel's height, and it lands after the view has already
+    // restored its own scroll position -- Stats does exactly that. Without this, every
+    // refresh while you are reading the bottom of the page throws you somewhere else.
+    const stage = document.getElementById('stage');
+    const top = stage ? stage.scrollTop : 0;
+    const seen = new Set();
+    const cols = [...grid.children].filter(isPanel);
+    if (!cols.length) return;
+    for (const col of cols) {
+      col.dataset.panel = panelId(col, seen);
+      col.dataset.defaultSpan = String(spanOf(col));
+      addControls(grid, col, viewId);
+    }
+    applySaved(grid, viewId);
+    // Opt in by class, not globally: nested grids (the exercise host in Practice) are
+    // not managed here and 8px auto-rows would wreck them.
+    grid.classList.add('grid--packed');
+    grid.repack = watch(grid);
+    pack(grid);
+    if (stage && top) stage.scrollTop = top;
+  };
 
-  for (const col of cols) {
-    col.dataset.panel = panelId(col, seen);
-    col.dataset.defaultSpan = String(spanOf(col));
-    addControls(grid, col, viewId);
-  }
+  build();
 
-  applySaved(grid, viewId);
-  // Opt in by class, not globally: nested grids (the exercise host in Practice) are
-  // not managed here and 8px auto-rows would wreck them.
-  grid.classList.add('grid--packed');
-  grid.repack = watch(grid);
-  pack(grid);
+  /* A view is allowed to replace its own panels -- Stats does exactly that every time
+   * its numbers refresh. The new children arrive with no data-panel, no drag handler
+   * and, fatally, no computed row span: with grid-auto-rows at 8px every one of them
+   * collapses to 8px and the whole page piles up at the top, unmovable.
+   *
+   * So watch for it and rebuild, rather than making every view remember to tell us.
+   * That is the same argument as attaching from the router in the first place: a view
+   * that has to opt in is a view that will forget. */
+  const mo = new MutationObserver(() => {
+    if (grid._layoutBusy || grid.querySelector('.is-dragging')) return;
+    // Only when someone else replaced the panels, not when we reordered them.
+    if ([...grid.children].some((el) => isPanel(el) && !el.dataset.panel)) {
+      build();
+    }
+  });
+  mo.observe(grid, { childList: true });
 }
 
 /* Order and width from settings. Panels the saved layout has never heard of keep the
@@ -214,6 +258,9 @@ function startDrag(e, grid, col, viewId) {
 
       // A placeholder of the same span keeps the grid the same shape while the panel
       // is out of flow -- without it every other panel jumps the moment you lift one.
+      // The placeholder is a col- child with no data-panel, which is exactly the
+      // signature the rebuild watcher looks for. Tell it we are mid-drag.
+      grid._layoutBusy = true;
       placeholder = h('div.col-' + spanOf(col) + '.layout__slot');
       // The same row span the panel had, or the grid closes up around the hole and
       // everything below it jumps the instant you lift a panel.
@@ -246,6 +293,7 @@ function startDrag(e, grid, col, viewId) {
     window.removeEventListener('pointercancel', onUp);
     if (!dragging) return;
     placeholder.replaceWith(col);
+    grid._layoutBusy = false;
     col.removeAttribute('style');
     col.classList.remove('is-dragging');
     document.body.classList.remove('is-rearranging');

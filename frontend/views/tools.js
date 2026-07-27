@@ -23,7 +23,7 @@ export default {
     backing = createBacking();
 
     root.append(h('div.grid', null,
-      h('div.col-5', null, mod('Tempo', null,
+      h('div.col-6', null, mod('Tempo', null,
         h('div', { style: { display: 'flex', alignItems: 'baseline' } },
           h('span.bpm', { id: 'bpm-display' }, String(cfg.bpm ?? 80)),
           h('span.bpm__unit', null, 'BPM')),
@@ -45,7 +45,7 @@ export default {
           h('button.btn.btn--lg', { id: 'metro-toggle', onclick: toggle }, 'Start'),
           h('button.btn', { onclick: () => api.post('/api/metronome/setback') }, 'Drop a step')))),
 
-      h('div.col-7', null, mod('Meter', null,
+      h('div.col-6', null, mod('Meter', null,
         h('div.beats', { id: 'beat-lamps' }),
         h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '16px' } },
           h('label.field', null,

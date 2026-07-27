@@ -59,7 +59,7 @@ export default {
     const eng = st.engine || {};
 
     root.append(h('div.grid', null,
-      h('div.col-7', null, mod('Presets',
+      h('div.col-12', null, mod('Presets',
         h('span', { id: 'preset-state' }, `${(st.presets || []).length} on file`),
         h('div.chips', { id: 'preset-chips' },
           (st.presets || []).map((p) => chip(p, eng.preset_id, ctx))),
@@ -67,7 +67,7 @@ export default {
           'Overlap is the layering mechanism. A preset with two zones over the same keys ',
           'sounds both -- see ', h('strong', null, 'Layers'), ' to build your own.'))),
 
-      h('div.col-5', null, mod('Sound', null,
+      h('div.col-3', null, mod('Sound', null,
         h('div.stats', { id: 'play-stats' },
           stat(eng.voices ?? 0, 'Ringing now', `of ${eng.polyphony ?? 256}`,
                'stat__value--amber'),
@@ -88,7 +88,7 @@ export default {
           'Keys only. Your system volume is untouched. Change the delay in ',
           h('strong', null, 'Settings'), '.'))),
 
-      h('div.col-7', null, mod('Instruments', null,
+      h('div.col-6', null, mod('Instruments', null,
         h('div', { style: { display: 'flex', gap: '8px', marginBottom: '10px' } },
           h('input', {
             type: 'text', placeholder: 'filter -- rhodes, organ, kit...',
@@ -116,7 +116,7 @@ export default {
         h('div.scroller', null, h('div.list', { id: 'inst-list' },
           h('div.empty', null, 'loading...'))))),
 
-      h('div.col-4', null, mod('Touch response', 'play soft, then hard',
+      h('div.col-3', null, mod('Touch response', 'play soft, then hard',
         h('div.touch', null,
           h('div.touch__bar', null, h('div.touch__fill', { id: 'touch-fill' })),
           h('div.touch__marks', { id: 'touch-marks' })),
@@ -133,7 +133,7 @@ export default {
           }, 'Show me the setting keys')),
         h('div.note', { id: 'touch-note', style: { marginTop: '10px' } }))),
 
-      h('div.col-8', null, mod('Pedal', 'you have one; a grand has three',
+      h('div.col-6', null, mod('Pedal', 'you have one; a grand has three',
         h('div.note', null,
           'One pedal, spent on something a grand needs three for.'),
         h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', marginTop: '12px' } },
@@ -181,7 +181,7 @@ export default {
           }, 'Whole keyboard')),
         h('div.note', { id: 'pedal-note', style: { marginTop: '10px' } }))),
 
-      h('div.col-4', null, mod('Scale highlighter', null,
+      h('div.col-6', null, mod('Scale highlighter', null,
         h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' } },
           h('select', { id: 'scale-root', onchange: () => paintScale(ctx) },
             Object.keys(ROOT_PC).map((k) => h('option', { value: k }, k))),
