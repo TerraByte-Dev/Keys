@@ -217,11 +217,18 @@ function slotUnder(grid, dragged, placeholder, x, y) {
 }
 
 /* ── reset ────────────────────────────────────────────────────────────────── */
+/* Settings deep-merges dicts, so posting `{layout: {}}` merges nothing and clears
+   nothing -- the saved arrangement would survive its own reset button. Lists ARE
+   replaced wholesale, so every view is explicitly set to an empty list instead. */
 export async function resetLayout(viewId = null) {
-  const next = viewId ? { ...saved, [viewId]: [] } : {};
-  saved = next;
+  const ids = viewId ? [viewId] : Object.keys(saved);
+  if (!ids.length) { toast('Nothing to reset -- panels are where they shipped', '', 2600); return; }
+  const cleared = Object.fromEntries(ids.map((id) => [id, []]));
+  saved = { ...saved, ...cleared };
   try {
-    await api.post('/api/settings', { ui: { layout: next } });
-    toast(viewId ? `${viewId} layout reset` : 'All panel layouts reset', 'good');
+    await api.post('/api/settings', { ui: { layout: cleared } });
+    toast(viewId ? `${viewId} panels reset` : 'Panels back where they shipped', 'good');
+    // The current view is already drawn from the old layout, so re-render it.
+    location.reload();
   } catch (err) { toast(err.message, 'bad'); }
 }

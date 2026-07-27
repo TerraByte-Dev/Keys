@@ -18,8 +18,7 @@ const PEDAL_LABELS = [
 ];
 
 const PEDAL_HELP = {
-  '': 'Standard piano sustain: everything you play rings until you lift your foot. '
-      + 'FluidSynth does this itself, so nothing in Keys is in the way of it.',
+  '': 'Standard piano sustain: everything rings until you lift your foot.',
   zone: 'The pedal only sustains the range below. Hold a bass note with your foot and '
       + 'play staccato on top without it smearing -- an acoustic piano physically '
       + 'cannot do this, because one set of dampers serves the whole instrument.',
@@ -69,20 +68,26 @@ export default {
 
       h('div.col-5', null, mod('Sound', null,
         h('div.stats', { id: 'play-stats' },
-          stat(eng.voices ?? 0, 'Voices', null, 'stat__value--amber'),
-          stat(eng.buffer_ms ?? 'sys', 'Buffer ms',
-               eng.exclusive ? 'WASAPI exclusive' : 'WASAPI shared'),
-          stat(eng.polyphony ?? 256, 'Polyphony')),
+          stat(eng.voices ?? 0, 'Ringing now', `of ${eng.polyphony ?? 256}`,
+               'stat__value--amber'),
+          // "sys" meant nothing to anyone. In shared mode Windows owns the buffer, so
+          // the honest readout is the mode, not a number we did not choose.
+          stat(latencyLabel(eng), 'Delay',
+               eng.exclusive ? 'Keys owns the speakers' : 'sharing your speakers')),
         h('div', { style: { marginTop: '14px' } },
-          h('span.field__label', null, h('span', null, 'Master gain'),
-            h('span.field__value', { id: 'gain-val' }, String(eng.gain ?? 0.6))),
+          h('span.field__label', null, h('span', null, 'Volume'),
+            h('span.field__value', { id: 'gain-val' },
+              Math.round((eng.gain ?? 0.6) / 1.2 * 100) + '%')),
           slider({
             min: 0, max: 1.2, step: 0.02, value: eng.gain ?? 0.6,
-            oninput: (v) => { $('#gain-val').textContent = v.toFixed(2); },
+            oninput: (v) => { $('#gain-val').textContent = Math.round(v / 1.2 * 100) + '%'; },
             onchange: (v) => api.post('/api/settings', { audio: { gain: v } }),
-          })))),
+          })),
+        h('div.note', { style: { marginTop: '10px' } },
+          'Keys only. Your system volume is untouched. Change the delay in ',
+          h('strong', null, 'Settings'), '.'))),
 
-      h('div.col-7', null, mod('Instrument browser', null,
+      h('div.col-7', null, mod('Instruments', null,
         h('div', { style: { display: 'flex', gap: '8px', marginBottom: '10px' } },
           h('input', {
             type: 'text', placeholder: 'filter -- rhodes, organ, kit...',
@@ -92,11 +97,21 @@ export default {
             value: filter, style: { flex: '1' },
             oninput: (e) => { filter = e.target.value.toLowerCase(); renderList(ctx); },
           }),
+          // 287 instruments is enough to browse instead of play. This picks one.
+          h('button.btn', { onclick: () => randomInstrument(ctx), title: 'surprise me' },
+            'Random'),
           h('button.btn', { onclick: () => audition(ctx) }, 'Audition')),
+        h('div.btnrow', { style: { marginBottom: '10px' } },
+          h('input', {
+            type: 'text', id: 'preset-name', placeholder: 'name this sound',
+            style: { flex: '1', minWidth: '140px' },
+            onkeydown: (e) => { if (e.key === 'Enter') savePreset(ctx); },
+          }),
+          h('button.btn', { onclick: () => savePreset(ctx) }, 'Save as preset')),
         h('div.scroller', null, h('div.list', { id: 'inst-list' },
           h('div.empty', null, 'loading...'))))),
 
-      h('div.col-7', null, mod('Touch response', 'play soft, then hard',
+      h('div.col-4', null, mod('Touch response', 'play soft, then hard',
         h('div.touch', null,
           h('div.touch__bar', null, h('div.touch__fill', { id: 'touch-fill' })),
           h('div.touch__marks', { id: 'touch-marks' })),
@@ -113,11 +128,9 @@ export default {
           }, 'Show me the setting keys')),
         h('div.note', { id: 'touch-note', style: { marginTop: '10px' } }))),
 
-      h('div.col-12', null, mod('Pedal', 'you have one; a grand has three',
+      h('div.col-8', null, mod('Pedal', 'you have one; a grand has three',
         h('div.note', null,
-          'Your piano has a damper pedal, and by default that is exactly what it is. ',
-          'The other settings here spend that one pedal on something it cannot ',
-          'otherwise do.'),
+          'One pedal, spent on something a grand needs three for.'),
         h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', marginTop: '12px' } },
           h('label.field', null,
             h('span.field__label', null, h('span', null, 'What the pedal does')),
@@ -128,7 +141,10 @@ export default {
               h('span.field__value', { id: 'pedal-lo-v' }, 'A0')),
             slider({
               min: 21, max: 108, step: 1, value: 21,
-              oninput: (v) => { $('#pedal-lo-v').textContent = noteName(v); },
+              oninput: (v) => {
+                $('#pedal-lo-v').textContent = noteName(v);
+                previewRange(v, Number($('#pedal-range-hi input').value));
+              },
               onchange: () => pushPedal(),
             })),
           h('label.field', { id: 'pedal-range-hi' },
@@ -136,7 +152,10 @@ export default {
               h('span.field__value', { id: 'pedal-hi-v' }, 'C8')),
             slider({
               min: 21, max: 108, step: 1, value: 108,
-              oninput: (v) => { $('#pedal-hi-v').textContent = noteName(v); },
+              oninput: (v) => {
+                $('#pedal-hi-v').textContent = noteName(v);
+                previewRange(Number($('#pedal-range-lo input').value), v);
+              },
               onchange: () => pushPedal(),
             })),
           h('label.field', null,
@@ -157,7 +176,7 @@ export default {
           }, 'Whole keyboard')),
         h('div.note', { id: 'pedal-note', style: { marginTop: '10px' } }))),
 
-      h('div.col-5', null, mod('Scale highlighter', null,
+      h('div.col-4', null, mod('Scale highlighter', null,
         h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' } },
           h('select', { id: 'scale-root', onchange: () => paintScale(ctx) },
             Object.keys(ROOT_PC).map((k) => h('option', { value: k }, k))),
@@ -216,6 +235,7 @@ export default {
     const host = $('#play-stats');
     if (!host || !s.engine) return;
     host.children[0].firstChild.textContent = s.engine.voices ?? 0;
+    host.children[1].firstChild.textContent = latencyLabel(s.engine);
     // Keep the preset chips honest if the preset changed from another tab or the API.
     // An empty preset_id means no saved preset is loaded, so every chip goes dark and
     // the aside says what you are actually hearing.
@@ -245,6 +265,25 @@ let labelMode = 'c-only';
 function pedalEls() {
   const mode = $('#pedal-mode');
   return mode ? { mode, lo: $('#pedal-range-lo input'), hi: $('#pedal-range-hi input') } : null;
+}
+
+/* Paint a key range onto the always-docked keyboard while you drag a slider setting it.
+ *
+ * "Sustains from A0 up to B3" is two note names you have to picture. The keyboard is
+ * already on screen and already knows how to light keys, so showing the range there
+ * turns reading into looking. Cleared on release so it never competes with what you
+ * are actually playing. */
+let ghostTimer = null;
+function previewRange(lo, hi) {
+  const kb = appCtx.kb;
+  if (!kb) return;
+  const keys = [];
+  for (let n = Math.min(lo, hi); n <= Math.max(lo, hi); n++) keys.push(n);
+  kb.setGhost(keys);
+  clearTimeout(ghostTimer);
+  // Time-based rather than on pointerup: sliders are also driven by the arrow keys and
+  // by clicking the track, neither of which produces a drag to end.
+  ghostTimer = setTimeout(() => kb.setGhost([]), 1400);
 }
 
 function setPedalRange(lo, hi) {
@@ -301,6 +340,55 @@ function paintPedal(pedal, force = false) {
             held ? ` Ringing on the pedal: ${held} note${held > 1 ? 's' : ''}.` : '')
         : null);
   }
+}
+
+/* buffer_ms is null in shared mode, where Windows owns the period -- quoting a number
+   we did not choose would be a lie, and "sys" was worse: it was a lie nobody could
+   read. About 10 ms is the standard Windows engine period at 48 kHz. */
+function latencyLabel(eng) {
+  if (!eng?.started) return 'off';
+  return eng.buffer_ms != null ? `${eng.buffer_ms} ms` : '~10 ms';
+}
+
+/* Too many options and you browse instead of play. This is the cure for that. */
+async function randomInstrument(ctx) {
+  // Melodic only. Landing on a drum kit when you wanted "a sound" reads as a bug, and
+  // a kit needs channel 9 and a bank-128 select to be right anyway.
+  const pool = instruments.filter((i) => !i.drums);
+  if (!pool.length) { toast('No instruments loaded yet', 'bad'); return;
+  }
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  await applyInstrument(pick, ctx);
+  toast(pick.name, 'good', 2600);
+  // Show it, so Random is a way to discover the list rather than a black box.
+  filter = '';
+  const box = $('#inst-list')?.closest('.mod')?.querySelector('input[type=text]');
+  if (box) box.value = '';
+  renderList(ctx);
+  const row = [...($('#inst-list')?.children || [])]
+    .find((el) => el.textContent.includes(pick.name));
+  row?.scrollIntoView({ block: 'center' });
+  row?.classList.add('is-on');
+}
+
+/* Save whatever is loaded right now as a preset chip. Presets used to be read-only
+   files you could pick from and never add to, which made the panel a menu rather than
+   a place you keep things. */
+async function savePreset(ctx) {
+  const input = $('#preset-name');
+  const name = (input?.value || '').trim();
+  if (!name) { toast('Give the sound a name first', 'bad'); return; }
+  const zones = ctx.state.engine?.zones || [];
+  if (!zones.length) { toast('Nothing loaded to save', 'bad'); return; }
+  const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  if (!id) { toast('That name has no letters or numbers in it', 'bad'); return; }
+  try {
+    await api.post('/api/presets/save', { id, name, zones });
+    await api.post(`/api/presets/${id}/load`);
+    input.value = '';
+    toast(`Saved "${name}"`, 'good');
+    await ctx.refresh();      // rebuild the chips so the new one is there
+  } catch (err) { toast(err.message, 'bad'); }
 }
 
 function chip(preset, activeId, ctx) {

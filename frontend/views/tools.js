@@ -63,7 +63,7 @@ export default {
               h('option', { value: n, selected: n === (cfg.subdivision ?? 1) }, label))))),
         h('div.stats', { id: 'metro-stats', style: { marginTop: '4px' } }))),
 
-      h('div.col-6', null, mod('Tempo ramp', 'the feature with evidence behind it',
+      h('div.col-6', null, mod('Tempo ramp', 'gets faster as you go',
         h('div', { style: { marginBottom: '10px' } },
           h('label.toggle', null,
             h('input', {
@@ -71,9 +71,9 @@ export default {
               onchange: (e) => push({ ramp_enabled: e.target.checked }),
             }),
             h('span.toggle__track'), 'Climb automatically')),
-        numField('Every N bars', 'ramp_bars', 1, 32),
-        numField('Step (bpm)', 'ramp_bpm_step', 1, 20),
-        numField('Ceiling (bpm)', 'ramp_bpm_max', 40, 240),
+        numField('Every (bars)', 'ramp_bars', 1, 32),
+        numField('Faster by (bpm)', 'ramp_bpm_step', 1, 20),
+        numField('Stop at (bpm)', 'ramp_bpm_max', 40, 240),
         h('div.note', { style: { marginTop: '10px' } },
           'Start slower than feels necessary and let it climb. ',
           h('strong', null, 'Drop a step'), ' when you miss -- that is the loop that ',
@@ -87,10 +87,9 @@ export default {
         h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' } },
           gainField('Downbeat', 'accent_velocity'),
           gainField('Beat', 'beat_velocity'),
-          gainField('Subdiv', 'sub_velocity')),
+          gainField('Subdivision', 'sub_velocity')),
         h('div.note', { style: { marginTop: '10px' } },
-          'The click runs on channel 15 with an explicit bank-128 program select, so it ',
-          'never collides with a drum zone you put on channel 9.'))),
+          'The click has its own MIDI channel, so a drum zone can never steal it.'))),
 
       h('div.col-12', null, backing.el),
     ));
@@ -130,7 +129,7 @@ export default {
         stat(Math.round(m.effective_bpm), 'Playing at',
              m.config.ramp_enabled ? `+${m.ramp_steps} step(s)` : 'no ramp', 'stat__value--amber'),
         stat(m.running ? m.bar + 1 : '--', 'Bar'),
-        stat(m.clock_samples, 'Clock samples', 'audio vs system fit'));
+        stat(m.clock_samples, 'Clock samples'));
     }
   },
 

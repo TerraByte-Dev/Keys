@@ -18,7 +18,7 @@ export default {
     const s = st.settings || {};
 
     root.append(h('div.grid', null,
-      h('div.col-6', null, mod('MIDI input', midi.connected ? 'connected' : 'not connected',
+      h('div.col-4', null, mod('MIDI input', midi.connected ? 'connected' : 'not connected',
         h('div.list', { id: 'port-list' },
           (midi.ports || []).length
             ? midi.ports.map((p, i) => h('div.list__row', {
@@ -42,11 +42,12 @@ export default {
 
       h('div.col-12', null, mod('Audio output', 'applies live -- the stream reopens',
         h('div.stats', { id: 'audio-stats', style: { marginBottom: '16px' } },
-          stat(eng.buffer_ms ?? 'sys', 'Buffer ms',
-               eng.exclusive ? `${eng.period_size ?? '--'} samples` : 'Windows decides',
+          stat(eng.buffer_ms != null ? `${eng.buffer_ms} ms` : '~10 ms', 'Delay',
+               eng.exclusive ? `${eng.period_size ?? '--'} sample buffer`
+                             : 'Windows picks the buffer',
                'stat__value--amber'),
           stat((eng.sample_rate ?? 0) / 1000 + 'k', 'Sample rate', '16-bit'),
-          stat(eng.exclusive ? 'EXCL' : 'SHARED', 'WASAPI mode',
+          stat(eng.exclusive ? 'Exclusive' : 'Shared', 'Device mode',
                eng.exclusive ? 'Keys owns the device' : 'shared with other apps')),
 
         h('div', { style: { display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '14px', alignItems: 'end' } },
@@ -111,7 +112,7 @@ export default {
           'Sets how notes are spelled everywhere: in E flat major, MIDI 63 reads ',
           h('strong', null, 'Eb4'), ', not D#4.'),
         h('label.field', { style: { marginTop: '14px' } },
-          h('span.field__label', null, h('span', null, 'Practice idle timeout'),
+          h('span.field__label', null, h('span', null, 'Stop the clock after'),
             h('span.field__value', { id: 'idle-v' }, (s.idle_seconds ?? 12) + 's')),
           slider({
             min: 3, max: 60, step: 1, value: s.idle_seconds ?? 12,
@@ -157,11 +158,8 @@ export default {
             value: p.id, selected: p.id === (s.preset || 'grand-piano'),
           }, `${p.name}${p.zones?.length > 1 ? `  (${p.zones.length} zones)` : ''}`)))),
         h('div.note', null,
-          'Loading a preset in ', h('strong', null, 'Play'), ' no longer changes this. ',
-          'Trying a split out of curiosity used to pin it forever, so every launch ',
-          'afterwards came up with the keyboard cut in half and nothing on screen ',
-          'explaining why. The keyboard is one instrument end to end unless you say ',
-          'otherwise here.'))),
+          'Loading a preset in ', h('strong', null, 'Play'), ' does not change this. ',
+          'The keyboard is one instrument end to end unless you say otherwise.'))),
 
       h('div.col-6', null, mod('About', `version ${st.version || '?'}`,
         h('div.stats', null,
@@ -194,7 +192,7 @@ export default {
         h('div.btnrow', { style: { marginTop: '12px' } },
           h('button.btn', { onclick: () => startTour(ctx) }, 'Show the tour again')))),
 
-      h('div.col-12', null, mod('Event pipeline', 'MIDI callback to browser',
+      h('div.col-12', null, mod('Events', 'engine to browser',
         h('div.stats', { id: 'hub-stats' }),
         h('div.note', { style: { marginTop: '12px' } },
           'Dropped frames mean the UI fell behind and the queue shed its oldest events. ',

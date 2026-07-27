@@ -92,8 +92,8 @@ function paintTiming(t) {
   const s = t.steadiness || {};
   const g = t.grid;
   const cards = [
-    stat(Math.round(t.tempo.bpm), 'Tempo', 'bpm, median IOI', 'stat__value--amber'),
-    stat(s.rating || '--', 'Steadiness', s.cv != null ? `cv ${s.cv.toFixed(3)}` : ''),
+    stat(Math.round(t.tempo.bpm), 'Tempo', 'bpm', 'stat__value--amber'),
+    stat(s.rating || '--', 'Steadiness'),
   ];
   if (d.bpm_per_min != null) {
     cards.push(stat(
@@ -104,7 +104,7 @@ function paintTiming(t) {
   if (g && g.n) {
     cards.push(stat(
       (g.mean_ms > 0 ? '+' : '') + g.mean_ms.toFixed(0),
-      'Vs click', g.rushing ? 'rushing' : g.dragging ? 'dragging' : 'on the beat'));
+      'Vs metronome', g.rushing ? 'rushing' : g.dragging ? 'dragging' : 'on the beat'));
   }
   host.replaceChildren(...cards);
 }

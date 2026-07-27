@@ -49,7 +49,7 @@ export function createRunner(ex, ctx, onExit, initial = null) {
         h('button.btn', { onclick: exit }, 'Back to the shelf')))),
 
     h('div.col-5', null, mod('Setup',
-      ex.timed_default ? 'timed against the click' : 'untimed', formHost)),
+      ex.timed_default ? 'with the metronome' : 'at your own pace', formHost)),
 
     h('div.col-7', null, mod('This run', null, statsHost, resultHost)));
 

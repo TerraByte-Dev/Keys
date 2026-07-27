@@ -33,9 +33,8 @@ export function createLoopStation(ctx, getInstruments) {
       'a band that is entirely you. Each layer keeps the sound you recorded it with, so ',
       'pick your instrument in ', h('strong', null, 'Play'), ' first.'),
     h('div.note', { style: { marginTop: '8px' } },
-      'Takes are locked to the bar. You get a count-in, the recording starts on the ',
-      'downbeat and ends itself at the end of the loop -- so a take is never 40 ms too ',
-      'long, which is what makes a hand-stopped loop drift by the fourth pass.'),
+      'Takes are locked to the bar: a count-in, then recording starts on the downbeat ',
+      'and ends itself at the end of the loop. That is what stops a loop drifting.'),
 
     h('div.loop', null,
       h('div.loop__transport', null,
@@ -86,8 +85,7 @@ export function createLoopStation(ctx, getInstruments) {
       h('button.btn', { id: 'loop-clear', onclick: () => act('clear') }, 'Clear all')),
     h('div.note', { style: { marginTop: '8px' } },
       'Saved loops keep their tempo, and land in ', h('strong', null, 'recordings/'),
-      ' as plain JSON. Five layers is the ceiling: there are sixteen MIDI channels, the ',
-      'click owns one, and your live zones need the rest.'));
+      ' as plain JSON. Five layers is the ceiling.'));
 
   const running = () => state && state.state !== 'stopped';
 
@@ -193,7 +191,7 @@ export function createLoopStation(ctx, getInstruments) {
               }, `${inst.drums ? 'KIT ' : ''}${inst.name}`))))
           : null,
         h('label.field', null,
-          h('span.field__label', null, h('span', null, 'Level'),
+          h('span.field__label', null, h('span', null, 'Volume'),
             h('span.field__value', { id: `lg-${l.id}` }, Math.round(l.gain * 100) + '%')),
           slider({
             min: 0, max: 1, step: 0.01, value: l.gain,

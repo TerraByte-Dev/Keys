@@ -177,7 +177,7 @@ function render(d) {
     h('div.col-7', null, mod('What key you play in', null,
       keyList(d.keys))),
 
-    h('div.col-5', null, mod('Chromatic circle', 'notes by pitch class',
+    h('div.col-5', null, mod('Note circle', 'every note, ignoring octave',
       wheel(d.pitch_classes))),
 
     h('div.col-6', null, mod('Chords', 'most played',

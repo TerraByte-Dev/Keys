@@ -18,6 +18,7 @@
  * warns when that happens and this editor auto-assigns to avoid it. */
 
 import { createLoopStation } from '../loopstation.js';
+import { ctx as appCtx } from '../app.js';
 import { $, $$, api, h, mod, noteName, slider, toast } from '../ui.js';
 
 const LOW = 21, HIGH = 108;
@@ -40,7 +41,7 @@ export default {
     station = createLoopStation(ctx, () => instruments);
 
     root.append(h('div.grid', null,
-      h('div.col-12', null, mod('What this is', null,
+      h('div.col-4', null, mod('What this is', null,
         h('div.note', null,
           'A ', h('strong', null, 'split'), ' puts one sound in your left hand and another ',
           'in your right -- bass below the split point, piano above. A ',
@@ -66,7 +67,12 @@ export default {
                 h('span.field__value', { id: 'split-pt-v' }, noteName(SPLIT_DEFAULT.point))),
               slider({
                 min: LOW + 6, max: HIGH - 6, step: 1, value: SPLIT_DEFAULT.point,
-                oninput: (v) => { $('#split-pt-v').textContent = noteName(v); },
+                oninput: (v) => {
+                  $('#split-pt-v').textContent = noteName(v);
+                  // Light the left hand's half on the dock, so the split point is
+                  // something you see rather than a note name you decode.
+                  ghost(LOW, v);
+                },
               })),
             h('button.btn.btn--wide', { id: 'do-split', onclick: () => buildSplit(ctx) },
               'Make a split')),
@@ -98,7 +104,7 @@ export default {
             h('button.btn.btn--wide', { id: 'do-single', onclick: () => buildSingle(ctx) },
               'Use one sound'))))),
 
-      h('div.col-12', null, mod('Layout', 'A0 to C8 -- 88 keys',
+      h('div.col-8', null, mod('Layout', 'A0 to C8 -- 88 keys',
         h('div.zonebar', { id: 'zonebar' }),
         h('div.btnrow', null,
           h('button.btn', { onclick: () => { zones.push(blank(zones.length)); render(ctx); } },
@@ -127,6 +133,18 @@ export default {
     station = null;
   },
 };
+
+/* Paint a key range on the docked keyboard while a slider sets it, then let go. */
+let ghostTimer = null;
+function ghost(lo, hi) {
+  const kb = appCtx.kb;
+  if (!kb) return;
+  const keys = [];
+  for (let n = Math.min(lo, hi); n <= Math.max(lo, hi); n++) keys.push(n);
+  kb.setGhost(keys);
+  clearTimeout(ghostTimer);
+  ghostTimer = setTimeout(() => kb.setGhost([]), 1400);
+}
 
 function blank(i) {
   return {
@@ -300,7 +318,7 @@ function zoneCard(z, i, ctx) {
         $(`#ztr-${i}`).textContent = (v > 0 ? '+' : '') + v;
       }, `ztr-${i}`, (z.transpose > 0 ? '+' : '') + z.transpose),
 
-      pctField('Gain', z.gain, (v) => set('gain', v), `zg-${i}`),
+      pctField('Volume', z.gain, (v) => set('gain', v), `zg-${i}`),
       pctField('Pan', z.pan, (v) => set('pan', v), `zp-${i}`),
       pctField('Reverb', z.reverb, (v) => set('reverb', v), `zr-${i}`),
       pctField('Chorus', z.chorus, (v) => set('chorus', v), `zc-${i}`),
