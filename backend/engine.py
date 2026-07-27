@@ -22,6 +22,7 @@ from __future__ import annotations
 import ctypes
 import json
 import threading
+import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
@@ -30,8 +31,23 @@ from . import config  # noqa: F401  (sets PATH + switch interval via backend/__i
 
 import fluidsynth  # noqa: E402  -- must come after the package import above
 
+# Bound once. note_off() stamps with this in the timed pedal mode, and the hot path
+# does not do attribute lookups it can avoid.
+_now = time.perf_counter
+
 DRUM_BANK = 128
 GM_CHANNELS = 16
+SUSTAIN_CC = 64
+
+# What the one pedal on a P-71 can be made to do. "" is the fourth option and the
+# default: hand CC 64 straight to FluidSynth and stay out of it.
+#   zone      -- sustain only a range of keys, so the left hand rings and the right
+#                hand stays dry. No acoustic piano can do this; a split keyboard can.
+#   sostenuto -- the middle pedal of a grand: catches what is sounding at the moment
+#                you press, and nothing after. The classic answer to the same problem.
+#   hold      -- latching. Press to sustain, press again to release, for a momentary
+#                pedal and a passage where you would rather not hold your foot down.
+PEDAL_MODES = ("zone", "sostenuto", "hold")
 
 
 # --- output device enumeration ----------------------------------------------
@@ -198,6 +214,29 @@ class Engine:
         # Channels with an enabled zone -- CC and pitch bend broadcast to these.
         self.active_channels: tuple[int, ...] = (0,)
 
+        # --- pedal ------------------------------------------------------------
+        # "" means FluidSynth handles the damper itself: CC 64 goes down the wire and
+        # nothing in Python is involved. That is the default and it costs one attribute
+        # load in note_off().
+        #
+        # Every other mode has to be implemented here instead, because they all mean
+        # "sustain SOME of the notes", and CC 64 has no way to say that -- the synth
+        # sustains a whole channel or none of it. So the pedal is swallowed and a
+        # note-off is held back for the notes the mode catches.
+        #
+        # _catch is a 128-byte mask, not a set or a range check: the hot path does one
+        # indexed load, and rebuilding it is a pedal-rate operation, not a note-rate one.
+        self.pedal_mode: str = ""
+        self.pedal_lo: int = config.LOW_KEY
+        self.pedal_hi: int = config.HIGH_KEY
+        self._pedal_down = False
+        self._catch = bytearray(128)
+        # Routes for notes whose note-off the pedal is holding back.
+        self._pedal_held: list[tuple | None] = [None] * 128
+        # perf_counter at which each of those was caught, for the timed mode.
+        self._pedal_at: list[float] = [0.0] * 128
+        self.pedal_decay: float = 0.0   # seconds; 0 = hold until the pedal comes up
+
         # --- cold state (server thread only) ----------------------------------
         self._lock = threading.Lock()
         self._sfids: dict[str, int] = {}
@@ -269,8 +308,10 @@ class Engine:
         """
         self.routes = EMPTY_ROUTES
         self.active_channels = ()
+        self._pedal_down = False
         for i in range(128):
             self._held[i] = None
+            self._pedal_held[i] = None
 
     def restart(self, audio_patch: dict[str, Any] | None = None) -> list[str]:
         """Rebuild the Synth on new audio settings, keeping zones and presets.
@@ -461,12 +502,24 @@ class Engine:
         if not routes:
             return
         noteon = self.fs.noteon
+        # Re-striking a key the pedal is still holding: that voice is now the new one's
+        # to own, so drop the pedal's claim rather than release it a second time later.
+        if self._pedal_held[note] is not None:
+            self._pedal_held[note] = None
         for channel, out, curve in routes:
             noteon(channel, out, curve[velocity])
         self._held[note] = routes
 
     def note_off(self, note: int) -> None:
         routes = self._held[note]
+        # One attribute load and one bool test when the pedal is native, which is the
+        # default. Everything below this line is off unless a pedal mode is set.
+        if self._pedal_down and self._catch[note]:
+            if routes is not None:
+                self._pedal_held[note] = routes
+                self._pedal_at[note] = _now()
+                self._held[note] = None
+            return
         if routes is None:
             routes = self.routes[note]
         else:
@@ -476,9 +529,154 @@ class Engine:
             noteoff(channel, out)
 
     def control(self, cc: int, value: int) -> None:
+        if cc == SUSTAIN_CC and self.pedal_mode:
+            self._pedal(value >= 64)
+            return          # swallowed: the synth must not also sustain the channel
         send = self.fs.cc
         for channel in self.active_channels:
             send(channel, cc, value)
+
+    def _pedal(self, down: bool) -> None:
+        """Pedal edge. Runs on the callback thread, a few times a second at most."""
+        if self.pedal_mode == "hold":
+            # Latching: the press is the whole event and the release means nothing.
+            if not down:
+                return
+            if self._pedal_down:
+                self._pedal_down = False
+                self._release_pedal_held()
+            else:
+                self._pedal_down = True
+            return
+        if down == self._pedal_down:
+            return
+        if down:
+            if self.pedal_mode == "sostenuto":
+                # The middle pedal of a grand: it catches exactly what is sounding at
+                # the instant it goes down, and nothing you play afterwards. A pianist
+                # holds a bass note with it and then plays staccato over the top --
+                # which is the thing one damper pedal cannot do.
+                held = self._held
+                catch = self._catch
+                for i in range(128):
+                    catch[i] = 1 if held[i] is not None else 0
+            self._pedal_down = True
+            return
+        self._pedal_down = False
+        self._release_pedal_held()
+
+    def decay_tick(self, now: float) -> list[int]:
+        """Release pedal-held notes whose decay has run out. Called from the drain.
+
+        Deliberately NOT the sequencer, which is the house rule for musical timing --
+        and this is the one case where the rule points the wrong way. A scheduled
+        note-off cannot be cancelled individually (fluid_sequencer_remove_events
+        filters by source, dest and type, never by note), so re-striking a key while
+        its tail was still ringing would let the old event fire and cut the new note
+        off mid-phrase. Holding the note here instead makes that case correct, and a
+        decay tail is not a grid event: the drain's 16 ms resolution on "this stopped
+        after three seconds" is inaudible, and there is nothing for it to drift against.
+        """
+        if not self.pedal_decay or self.fs is None:
+            return []
+        cutoff = now - self.pedal_decay
+        released: list[int] = []
+        pedal_held = self._pedal_held
+        noteoff = self.fs.noteoff
+        for i in range(128):
+            routes = pedal_held[i]
+            if routes is None or self._pedal_at[i] > cutoff:
+                continue
+            pedal_held[i] = None
+            released.append(i)
+            for channel, out, _curve in routes:
+                noteoff(channel, out)
+        return released
+
+    def _release_pedal_held(self) -> None:
+        fs = self.fs
+        if fs is None:
+            for i in range(128):
+                self._pedal_held[i] = None
+            return
+        noteoff = fs.noteoff
+        pedal_held = self._pedal_held
+        for i in range(128):
+            routes = pedal_held[i]
+            if routes is None:
+                continue
+            pedal_held[i] = None
+            for channel, out, _curve in routes:
+                noteoff(channel, out)
+
+    # ------------------------------------------------------------------ pedal
+    def set_pedal(self, mode: str = "", lo: int | None = None, hi: int | None = None,
+                  decay: float | None = None) -> dict[str, Any]:
+        """Choose what the one pedal you own actually does.
+
+        Rebinding order matters. The catch mask is built before the mode is published,
+        so the callback thread never sees a live mode pointed at a stale mask.
+        """
+        mode = mode if mode in PEDAL_MODES else ""
+        if decay is not None:
+            # 0 means hold until the pedal comes up. 30 s is a ceiling, not a
+            # recommendation -- past a few seconds this is a texture, not a pedal.
+            self.pedal_decay = max(0.0, min(30.0, float(decay)))
+        if lo is not None:
+            self.pedal_lo = max(config.LOW_KEY, min(config.HIGH_KEY, int(lo)))
+        if hi is not None:
+            self.pedal_hi = max(config.LOW_KEY, min(config.HIGH_KEY, int(hi)))
+        if self.pedal_lo > self.pedal_hi:
+            self.pedal_lo, self.pedal_hi = self.pedal_hi, self.pedal_lo
+
+        catch = self._catch
+        if mode == "zone":
+            lo_, hi_ = self.pedal_lo, self.pedal_hi
+            for i in range(128):
+                catch[i] = 1 if lo_ <= i <= hi_ else 0
+        elif mode == "sostenuto":
+            for i in range(128):
+                catch[i] = 0          # filled at the moment the pedal goes down
+        else:
+            for i in range(128):
+                catch[i] = 1          # "hold" catches everything; "" never reads it
+
+        # Anything the old mode was holding is not the new mode's to hold.
+        was_down = self._pedal_down
+        self._pedal_down = False
+        self._release_pedal_held()
+        self.pedal_mode = mode
+        if not mode and self.fs is not None:
+            # Handing the damper back to FluidSynth: make sure it does not inherit a
+            # pedal we swallowed the down-edge of.
+            for ch in self.active_channels:
+                self.fs.cc(ch, SUSTAIN_CC, 0)
+        elif mode and was_down:
+            self._pedal_down = True
+        self.settings.update({"pedal": {
+            "mode": mode, "lo": self.pedal_lo, "hi": self.pedal_hi,
+            "decay": self.pedal_decay,
+        }})
+        return self.pedal_status()
+
+    def load_pedal(self) -> None:
+        """Restore the saved pedal setup. Called once, after the Synth exists."""
+        saved = self.settings.get("pedal", default={}) or {}
+        self.set_pedal(
+            mode=str(saved.get("mode", "") or ""),
+            lo=saved.get("lo"), hi=saved.get("hi"), decay=saved.get("decay"),
+        )
+
+    def pedal_status(self) -> dict[str, Any]:
+        return {
+            "mode": self.pedal_mode,
+            "lo": self.pedal_lo,
+            "hi": self.pedal_hi,
+            "decay": self.pedal_decay,
+            "down": self._pedal_down,
+            "holding": [i for i in range(128) if self._pedal_held[i] is not None],
+            "modes": ["", *PEDAL_MODES],
+        }
 
     def bend(self, value: int) -> None:
         send = self.fs.pitch_bend
@@ -489,12 +687,15 @@ class Engine:
     def panic(self) -> None:
         if self.fs is None:
             return
+        self._pedal_down = False
         for ch in range(GM_CHANNELS):
-            self.fs.cc(ch, 64, 0)    # sustain off first, or notes hang on
+            self.fs.cc(ch, SUSTAIN_CC, 0)  # sustain off first, or notes hang on
             self.fs.cc(ch, 123, 0)   # all notes off
             self.fs.cc(ch, 120, 0)   # all sound off
         for i in range(128):
             self._held[i] = None
+            self._pedal_held[i] = None
+            self._pedal_at[i] = 0.0
 
     def voice_count(self) -> int:
         return self.fs.get_active_voice_count() if self.fs is not None else 0

@@ -4,8 +4,31 @@
  * long: presets are one click, the instrument browser filters as you type, and the
  * scale highlighter paints straight onto the dock keyboard. */
 
-import { $, api, h, mod, slider, stat, toast } from '../ui.js';
+import { $, api, h, mod, noteName, paint, slider, stat, toast } from '../ui.js';
 import { ctx as appCtx, resetTouch } from '../app.js';
+
+/* Wire value -> what it means to someone with one pedal. The empty string is the
+   damper, i.e. what the pedal is already for, and it is first because it is the
+   default and the right answer almost always. */
+const PEDAL_LABELS = [
+  ['', 'Damper -- normal sustain'],
+  ['zone', 'Sustain only some keys'],
+  ['sostenuto', 'Sostenuto -- hold what is already down'],
+  ['hold', 'Latch -- press on, press off'],
+];
+
+const PEDAL_HELP = {
+  '': 'Standard piano sustain: everything you play rings until you lift your foot. '
+      + 'FluidSynth does this itself, so nothing in Keys is in the way of it.',
+  zone: 'The pedal only sustains the range below. Hold a bass note with your foot and '
+      + 'play staccato on top without it smearing -- an acoustic piano physically '
+      + 'cannot do this, because one set of dampers serves the whole instrument.',
+  sostenuto: 'The middle pedal of a grand. It catches exactly the notes that are '
+      + 'sounding at the instant you press, and nothing you play afterwards. Hold a '
+      + 'chord, press, then play over the top of it cleanly.',
+  hold: 'Press to sustain and take your foot off; press again to release. For a '
+      + 'momentary pedal and a passage where holding your foot down is the awkward part.',
+};
 
 const MODES = {
   major: [0, 2, 4, 5, 7, 9, 11],
@@ -90,6 +113,50 @@ export default {
           }, 'Show me the setting keys')),
         h('div.note', { id: 'touch-note', style: { marginTop: '10px' } }))),
 
+      h('div.col-12', null, mod('Pedal', 'you have one; a grand has three',
+        h('div.note', null,
+          'Your piano has a damper pedal, and by default that is exactly what it is. ',
+          'The other settings here spend that one pedal on something it cannot ',
+          'otherwise do.'),
+        h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', marginTop: '12px' } },
+          h('label.field', null,
+            h('span.field__label', null, h('span', null, 'What the pedal does')),
+            h('select', { id: 'pedal-mode', onchange: () => pushPedal() },
+              PEDAL_LABELS.map(([v, label]) => h('option', { value: v }, label)))),
+          h('label.field', { id: 'pedal-range-lo' },
+            h('span.field__label', null, h('span', null, 'Sustains from'),
+              h('span.field__value', { id: 'pedal-lo-v' }, 'A0')),
+            slider({
+              min: 21, max: 108, step: 1, value: 21,
+              oninput: (v) => { $('#pedal-lo-v').textContent = noteName(v); },
+              onchange: () => pushPedal(),
+            })),
+          h('label.field', { id: 'pedal-range-hi' },
+            h('span.field__label', null, h('span', null, 'up to'),
+              h('span.field__value', { id: 'pedal-hi-v' }, 'C8')),
+            slider({
+              min: 21, max: 108, step: 1, value: 108,
+              oninput: (v) => { $('#pedal-hi-v').textContent = noteName(v); },
+              onchange: () => pushPedal(),
+            })),
+          h('label.field', null,
+            h('span.field__label', null, h('span', null, 'Let go after'),
+              h('span.field__value', { id: 'pedal-decay-v' }, 'never')),
+            slider({
+              min: 0, max: 20, step: 0.5, value: 0,
+              oninput: (v) => { $('#pedal-decay-v').textContent = v ? `${v}s` : 'never'; },
+              onchange: () => pushPedal(),
+            }))),
+        h('div.btnrow', { style: { marginTop: '10px' } },
+          h('button.btn', {
+            id: 'pedal-split',
+            onclick: () => { setPedalRange(21, 59); pushPedal(); },
+          }, 'Left hand only (A0-B3)'),
+          h('button.btn', {
+            onclick: () => { setPedalRange(21, 108); pushPedal(); },
+          }, 'Whole keyboard')),
+        h('div.note', { id: 'pedal-note', style: { marginTop: '10px' } }))),
+
       h('div.col-5', null, mod('Scale highlighter', null,
         h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' } },
           h('select', { id: 'scale-root', onchange: () => paintScale(ctx) },
@@ -122,6 +189,10 @@ export default {
           'Highlighted keys are the scale. They do not change what sounds -- ',
           'this is a reading aid, not a lock.'))),
     ));
+
+    // Seeded from state rather than left at the markup's defaults, so the panel does
+    // not show "Damper / A0-C8" for a second before the first status frame corrects it.
+    paintPedal(st.pedal || ctx.status?.pedal, true);
 
     const root0 = ctx.keySignature();
     if (ROOT_PC[root0] !== undefined) $('#scale-root').value = root0;
@@ -160,12 +231,77 @@ export default {
         ? `${(ctx.state.presets || []).length} on file`
         : `unsaved -- ${s.engine.preset_name || 'custom'}`;
     }
+    paintPedal(s.pedal);
   },
 
   unmount() { scaleOn = false; showTouchKeys = false; },
 };
 
 let labelMode = 'c-only';
+
+/* ── pedal ────────────────────────────────────────────────────────────────── */
+/* Guarded against paint-after-unmount: status() fires once a second and can arrive
+   after the router has replaced the stage. */
+function pedalEls() {
+  const mode = $('#pedal-mode');
+  return mode ? { mode, lo: $('#pedal-range-lo input'), hi: $('#pedal-range-hi input') } : null;
+}
+
+function setPedalRange(lo, hi) {
+  const els = pedalEls();
+  if (!els) return;
+  els.lo.value = lo;
+  els.hi.value = hi;
+  paint(els.lo);
+  paint(els.hi);
+  $('#pedal-lo-v').textContent = noteName(lo);
+  $('#pedal-hi-v').textContent = noteName(hi);
+}
+
+async function pushPedal() {
+  const els = pedalEls();
+  if (!els) return;
+  const body = {
+    mode: els.mode.value,
+    lo: Number(els.lo.value),
+    hi: Number(els.hi.value),
+    decay: Number($('#pedal-decay-v').closest('.field').querySelector('input').value),
+  };
+  try {
+    const res = await api.post('/api/pedal', body);
+    paintPedal(res.pedal, true);
+  } catch (err) { toast(err.message, 'bad'); }
+}
+
+/* `force` is set by pushPedal, which knows the values are new. Otherwise the selects
+   and sliders are left alone -- writing to them once a second would fight a drag. */
+function paintPedal(pedal, force = false) {
+  if (!pedal) return;
+  const els = pedalEls();
+  if (!els) return;
+
+  if (force || document.activeElement !== els.mode) els.mode.value = pedal.mode || '';
+  const zoned = (pedal.mode || '') === 'zone';
+  $('#pedal-range-lo').style.opacity = zoned ? '1' : '0.35';
+  $('#pedal-range-hi').style.opacity = zoned ? '1' : '0.35';
+  els.lo.disabled = !zoned;
+  els.hi.disabled = !zoned;
+  $('#pedal-split').disabled = !zoned;
+
+  if (force) setPedalRange(pedal.lo, pedal.hi);
+
+  const note = $('#pedal-note');
+  if (note) {
+    const held = (pedal.holding || []).length;
+    note.replaceChildren(
+      h('span', null, PEDAL_HELP[pedal.mode || ''] || ''),
+      pedal.mode
+        ? h('span', null, '  ',
+            h('strong', null, pedal.down ? 'Pedal down.' : 'Pedal up.'),
+            held ? ` Ringing on the pedal: ${held} note${held > 1 ? 's' : ''}.` : '')
+        : null);
+  }
+}
 
 function chip(preset, activeId, ctx) {
   return h('button.chip', {

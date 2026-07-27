@@ -103,6 +103,8 @@ class App:
             self._boot_errors.append("no presets found in presets/")
             self.engine.set_zones([Zone()], "default", "Acoustic Grand")
 
+        self.engine.load_pedal()
+
         port = self.settings.get("midi_port")
         if not self.midi.open(port):
             self._boot_errors.append(self.midi.last_error)
@@ -191,6 +193,13 @@ class App:
                     elif kind == BEND:
                         ccs.append([-1, a])
 
+                # Pedal-held notes whose decay ran out. Off the hot path on purpose --
+                # see Engine.decay_tick. Their keys are already up, so this only tells
+                # the UI to stop drawing them as ringing.
+                faded = self.engine.decay_tick(now)
+                if faded:
+                    off.extend(faded)
+
                 if held_changed:
                     notes = sorted(self.held)
                     self.chord = music.detect_chord(notes, key) if len(notes) >= 3 else None
@@ -260,6 +269,7 @@ class App:
             "midi": self.midi.status(),
             "metronome": self.metro.status(),
             "loop": self.loop.status(),
+            "pedal": self.engine.pedal_status(),
             "practice": self.practice.status(now),
             "sightread": {"active": self.sight.active, "index": self.sight.index},
             "exercise": (
@@ -284,6 +294,7 @@ class App:
             "midi": self.midi.status(),
             "metronome": self.metro.status(),
             "loop": self.loop.status(),
+            "pedal": self.engine.pedal_status(),
             "saved_loops": self.loop.saved(),
             "practice": self.practice.status(),
             "sightread": self.sight.state(),
@@ -538,6 +549,15 @@ def metronome_action(action: str) -> dict[str, Any]:
         raise HTTPException(404, f"unknown action '{action}'")
     app_state.click_offsets.clear()
     return {"ok": True, "metronome": app_state.metro.status()}
+
+
+# ---------------------------------------------------------------------- pedal
+@api.post("/api/pedal")
+def set_pedal(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    return {"ok": True, "pedal": app_state.engine.set_pedal(
+        mode=str(body.get("mode", "") or ""),
+        lo=body.get("lo"), hi=body.get("hi"), decay=body.get("decay"),
+    )}
 
 
 # ---------------------------------------------------------------- loop station

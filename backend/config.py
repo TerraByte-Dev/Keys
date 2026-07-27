@@ -158,6 +158,9 @@ DEFAULTS: dict[str, Any] = {
     # The loop station. Tempo and meter deliberately absent -- those live in
     # "metronome", because a loop with its own tempo field is a second clock.
     "loop": {"bars": 4, "click": True, "count_in_bars": 1},
+    # What the sustain pedal does. "" is the damper, handled inside FluidSynth, and is
+    # the default because it is what the pedal on your piano is for.
+    "pedal": {"mode": "", "lo": 21, "hi": 108, "decay": 0.0},
     # The only feature in the app that reaches the network, and only when you open a
     # track. Empty until you paste a link.
     "backing": {"tracks": []},
