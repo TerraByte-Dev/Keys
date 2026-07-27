@@ -30,3 +30,9 @@ node_modules/
 dist/
 build/
 *.manifest
+
+# Third-party bundles a research pass may drop here while it is sizing renderers.
+# Nothing vendored belongs at the repo root -- if a renderer is ever adopted it goes in
+# frontend/vendor/ with its licence file beside it, deliberately and reviewed.
+/*.js
+!keys.js
