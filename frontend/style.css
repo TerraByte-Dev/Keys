@@ -223,6 +223,21 @@ body::after {
 .stage::-webkit-scrollbar-track { background: transparent; }
 
 .grid { display: grid; gap: 14px; grid-template-columns: repeat(12, 1fr); align-content: start; }
+
+/* Masonry, for grids layout.js manages.
+ *
+ * A plain row grid makes every item in a row as tall as the tallest one, and a short
+ * panel next to a tall one is then a short panel inside a tall empty box -- measured
+ * at 195px of hollow in one case. Row tracks of 8px plus a computed `grid-row: span N`
+ * per panel gives each one exactly its own height, so panels stack up the columns
+ * independently and the dead space is gone.
+ *
+ * 8px is the quantum: small enough that the rounding is invisible, large enough that
+ * the browser is not laying out hundreds of tracks. layout.js does the arithmetic,
+ * because only it knows how tall the content actually is. */
+.grid--packed { grid-auto-rows: 8px; align-items: start; }
+
+.col-2  { grid-column: span 2; }
 .col-3  { grid-column: span 3; }
 .col-4  { grid-column: span 4; }
 .col-5  { grid-column: span 5; }
@@ -230,10 +245,12 @@ body::after {
 .col-7  { grid-column: span 7; }
 .col-8  { grid-column: span 8; }
 .col-9  { grid-column: span 9; }
+.col-10 { grid-column: span 10; }
+.col-11 { grid-column: span 11; }
 .col-12 { grid-column: span 12; }
 @media (max-width: 1100px) {
-  .col-3, .col-4, .col-5 { grid-column: span 6; }
-  .col-7, .col-8, .col-9 { grid-column: span 12; }
+  .col-2, .col-3, .col-4, .col-5 { grid-column: span 6; }
+  .col-7, .col-8, .col-9, .col-10, .col-11 { grid-column: span 12; }
 }
 
 /* A module is one screwed-down section of the panel. */

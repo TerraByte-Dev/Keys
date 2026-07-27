@@ -21,9 +21,15 @@
 import { $, api, h, toast } from './ui.js';
 
 // The spans style.css actually defines. Anything else silently falls back to full
-// width, so the stepper walks this list rather than doing arithmetic.
-const SPANS = [3, 4, 5, 6, 7, 8, 9, 12];
+// width, so the stepper walks this list rather than doing arithmetic. Every step from
+// a sixth of the row to the whole row, so a small panel can be made to fit a gap
+// exactly instead of nearly.
+const SPANS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 const DRAG_THRESHOLD = 5;   // px before a click becomes a drag
+
+// Must match .grid--packed's grid-auto-rows and .grid's gap in style.css.
+const ROW_PX = 8;
+const GAP_PX = 14;
 
 let saved = {};             // { viewId: [{id, span}, ...] } -- last known server state
 
@@ -56,6 +62,46 @@ function setSpan(col, span) {
   col.classList.add('col-' + span);
 }
 
+/* ── masonry ──────────────────────────────────────────────────────────────── */
+/* Give every panel a row span matching its own content height.
+ *
+ * Without this the grid makes each panel as tall as the tallest one in its row, so a
+ * short panel beside a tall one is a short panel inside a tall empty box -- 195px of
+ * hollow, measured, in one case on Play. With it, panels stack up the columns
+ * independently and there is nothing between them.
+ *
+ * The +GAP terms are because gap applies between every one of the 8px row tracks a
+ * panel spans, so the height a span of N buys is N*ROW + (N-1)*GAP. */
+function pack(grid) {
+  for (const el of grid.children) {
+    if (!el.dataset.panel || el.classList.contains('is-dragging')) continue;
+    const content = el.firstElementChild;
+    if (!content) continue;
+    const h = content.getBoundingClientRect().height;
+    if (!h) continue;                       // hidden panel; leave it alone
+    el.style.gridRowEnd = 'span ' + Math.max(1, Math.ceil((h + GAP_PX) / (ROW_PX + GAP_PX)));
+  }
+}
+
+/* Panels change height on their own -- Stats refreshes, the loop station gains a
+   layer, an instrument list finishes loading. Observing the CONTENT rather than the
+   slot is what stops this feeding back on itself: with align-items:start the content's
+   height does not depend on the row span we just set from it. */
+function watch(grid) {
+  let queued = false;
+  const repack = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => { queued = false; pack(grid); });
+  };
+  const ro = new ResizeObserver(repack);
+  for (const el of grid.children) {
+    if (el.dataset.panel && el.firstElementChild) ro.observe(el.firstElementChild);
+  }
+  window.addEventListener('resize', repack);
+  return repack;
+}
+
 /* ── public ───────────────────────────────────────────────────────────────── */
 export function attachLayout(grid, viewId) {
   if (!grid || grid.dataset.layoutOn) return;
@@ -72,6 +118,11 @@ export function attachLayout(grid, viewId) {
   }
 
   applySaved(grid, viewId);
+  // Opt in by class, not globally: nested grids (the exercise host in Practice) are
+  // not managed here and 8px auto-rows would wreck them.
+  grid.classList.add('grid--packed');
+  grid.repack = watch(grid);
+  pack(grid);
 }
 
 /* Order and width from settings. Panels the saved layout has never heard of keep the
@@ -121,6 +172,9 @@ function addControls(grid, col, viewId) {
     const i = SPANS.indexOf(spanOf(col));
     const next = SPANS[Math.max(0, Math.min(SPANS.length - 1, (i < 0 ? SPANS.length - 1 : i) + delta))];
     setSpan(col, next);
+    // Narrower means taller, so the row span has to be recomputed -- but only after
+    // the browser has reflowed the content at its new width.
+    requestAnimationFrame(() => grid.repack?.());
     persist(grid, viewId);
   };
 
@@ -161,6 +215,9 @@ function startDrag(e, grid, col, viewId) {
       // A placeholder of the same span keeps the grid the same shape while the panel
       // is out of flow -- without it every other panel jumps the moment you lift one.
       placeholder = h('div.col-' + spanOf(col) + '.layout__slot');
+      // The same row span the panel had, or the grid closes up around the hole and
+      // everything below it jumps the instant you lift a panel.
+      placeholder.style.gridRowEnd = col.style.gridRowEnd || 'span 1';
       placeholder.style.minHeight = r.height + 'px';
       col.after(placeholder);
 
@@ -192,6 +249,7 @@ function startDrag(e, grid, col, viewId) {
     col.removeAttribute('style');
     col.classList.remove('is-dragging');
     document.body.classList.remove('is-rearranging');
+    grid.repack?.();
     persist(grid, viewId);
   };
 

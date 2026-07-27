@@ -10579,3 +10579,1074 @@ INFO:     connection open
   [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
   [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
   [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+
+======================================================================
+Keys 0.3.0 starting
+
+  Keys 0.3.0
+  WASAPI shared -- Windows picks the buffer (~10 ms), 48000 Hz
+  1 ms timer: yes
+  http://127.0.0.1:8770
+
+  The 'Device "__none__" does not exists' error below is intentional --
+  it is what stops FluidSynth grabbing the piano and doubling every note.
+
+  --- dev ------------------------------------------------------------
+  data dir    C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys
+  bundle      C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys
+  fluidsynth  C:\tools\fluidsynth\bin
+  soundfont   C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys\soundfonts\GeneralUser-GS.sf2
+  database    C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys\keys.db
+  settings    C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys\config.local.json
+  switch int. 0.80 ms  (0.80 is the tuned value)
+
+  Frontend edits need no restart -- the modules are served straight off
+  disk, so save and refresh the browser. Backend edits do need one:
+  auto-reload would drop and re-acquire the exclusive-mode audio device
+  on every save, which is a second of silence and a race for the port.
+  --------------------------------------------------------------------
+
+INFO:     Started server process [55596]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8770 (Press CTRL+C to quit)
+[pywebview] Using WinForms / Chromium
+INFO:     127.0.0.1:64600 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65448 - "GET /style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64702 - "GET /app.js HTTP/1.1" 200 OK
+  [dev] MIDI CONNECTED: Digital Piano 0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:64702 - "GET /keyboard.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65448 - "GET /layout.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51772 - "GET /ui.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53767 - "GET /tour.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62334 - "GET /views/play.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50423 - "GET /views/practice.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64702 - "GET /views/layers.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65448 - "GET /views/tools.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51772 - "GET /views/stats.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53767 - "GET /views/settings.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62334 - "GET /views/read.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65448 - "GET /exercise-run.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51772 - "GET /loopstation.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64702 - "GET /backing.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62334 - "GET /staff.js HTTP/1.1" 200 OK
+[pywebview] before_load event fired. injecting pywebview object
+[pywebview] Loading JS files from C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys\.venv\Lib\site-packages\webview\js
+INFO:     127.0.0.1:62334 - "GET /api/state HTTP/1.1" 200 OK
+[pywebview] _pywebviewready event fired
+[pywebview] loaded event fired
+INFO:     127.0.0.1:62334 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58997 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:62334 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:54799 - "GET /api/health HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:56185 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56185 - "GET /style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61590 - "GET /app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61590 - "GET /keyboard.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56185 - "GET /layout.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64142 - "GET /ui.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56470 - "GET /tour.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57434 - "GET /views/practice.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58712 - "GET /views/play.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61590 - "GET /views/layers.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56185 - "GET /views/tools.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64142 - "GET /views/stats.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56470 - "GET /views/settings.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57434 - "GET /views/read.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61590 - "GET /exercise-run.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58712 - "GET /loopstation.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61590 - "GET /staff.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58712 - "GET /backing.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58712 - "GET /api/state HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58712 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61540 - "WebSocket /ws" [accepted]
+INFO:     connection open
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:50425 - "GET /api/state HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58712 - "POST /api/zones HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58712 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   6
+INFO:     127.0.0.1:58295 - "GET /api/state HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58712 - "POST /api/presets/save HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58712 - "POST /api/presets/my-test-sound/load HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58712 - "GET /api/state HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58712 - "GET /api/instruments HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:65264 - "GET /api/state HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58712 - "POST /api/pedal HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:58712 - "POST /api/pedal HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:65018 - "POST /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65018 - "DELETE /api/presets/my-test-sound HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65018 - "POST /api/presets/grand-piano/load HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65018 - "GET /api/state HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:65114 - "POST /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65114 - "GET /api/state HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:58978 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58978 - "GET /style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53748 - "GET /app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53748 - "GET /keyboard.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58978 - "GET /layout.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64846 - "GET /ui.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59962 - "GET /tour.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65058 - "GET /views/play.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64345 - "GET /views/practice.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53748 - "GET /views/layers.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58978 - "GET /views/tools.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64846 - "GET /views/stats.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65058 - "GET /views/settings.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59962 - "GET /views/read.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64345 - "GET /backing.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53748 - "GET /exercise-run.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58978 - "GET /loopstation.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58978 - "GET /staff.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58978 - "GET /api/state HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58978 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58286 - "WebSocket /ws" [accepted]
+INFO:     connection open
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] MIDI not connected -- is the piano on?
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:64539 - "GET /api/analytics?days=371 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64539 - "GET /api/audio/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64539 - "GET /api/analytics?days=371 HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:64539 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65212 - "GET /api/backing HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:65212 - "GET /api/audio/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65212 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64539 - "GET /api/backing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64539 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64539 - "GET /api/loop HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:64539 - "GET /api/exercises HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64539 - "GET /api/exercises/state HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64539 - "GET /api/instruments HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:64539 - "POST /api/settings HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:64539 - "POST /api/settings HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:64539 - "POST /api/settings HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:64539 - "POST /api/settings HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:64539 - "POST /api/settings HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:61823 - "POST /api/settings HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:61823 - "POST /api/settings HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:55905 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55905 - "GET /style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55219 - "GET /app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55219 - "GET /keyboard.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55905 - "GET /layout.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55162 - "GET /ui.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60162 - "GET /tour.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50423 - "GET /views/practice.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64766 - "GET /views/play.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55219 - "GET /views/layers.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55905 - "GET /views/tools.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60162 - "GET /views/settings.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55162 - "GET /views/stats.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50423 - "GET /views/read.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55905 - "GET /exercise-run.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55219 - "GET /backing.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64766 - "GET /loopstation.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64766 - "GET /staff.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64766 - "GET /api/state HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64766 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51254 - "WebSocket /ws" [accepted]
+INFO:     connection open
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] MIDI CONNECTED: Digital Piano 0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:63406 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63406 - "GET /style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57663 - "GET /app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57663 - "GET /keyboard.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63406 - "GET /layout.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56554 - "GET /ui.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60721 - "GET /tour.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61709 - "GET /views/play.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51478 - "GET /views/practice.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57663 - "GET /views/layers.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63406 - "GET /views/tools.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56554 - "GET /views/stats.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60721 - "GET /views/settings.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61709 - "GET /views/read.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57663 - "GET /exercise-run.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51478 - "GET /loopstation.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63406 - "GET /backing.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63406 - "GET /staff.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63406 - "GET /api/state HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63406 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62607 - "WebSocket /ws" [accepted]
+INFO:     connection open
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:63406 - "GET /api/analytics?days=371 HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:63406 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62965 - "GET /api/backing HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:62965 - "GET /api/audio/devices HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.5 | q   0/4096 | drop 0 | voices   1 | cb  169.2us p95   169.2us  held: B5
+  [dev] midi ok  | ev/s   1.5 | q   0/4096 | drop 0 | voices   1 | cb   51.2us p95   169.2us
+  [dev] midi ok  | ev/s   2.0 | q   0/4096 | drop 0 | voices   1 | cb   51.2us p95   169.2us
+  [dev] midi ok  | ev/s   1.5 | q   1/4096 | drop 0 | voices   2 | cb   45.8us p95   169.2us
+  [dev] midi ok  | ev/s   0.5 | q   0/4096 | drop 0 | voices   0 | cb   46.8us p95   169.2us
+  [dev] midi ok  | ev/s   1.0 | q   0/4096 | drop 0 | voices   1 | cb   46.8us p95   169.2us
+  [dev] midi ok  | ev/s   1.0 | q   0/4096 | drop 0 | voices   1 | cb   46.8us p95   169.2us
+  [dev] midi ok  | ev/s   1.0 | q   0/4096 | drop 0 | voices   0 | cb   45.8us p95   169.2us
+  [dev] midi ok  | ev/s   1.0 | q   0/4096 | drop 0 | voices   0 | cb   45.8us p95   169.2us
+  [dev] midi ok  | ev/s   7.0 | q   0/4096 | drop 0 | voices   6 | cb   46.1us p95    79.6us  held: B5 G6
+  [dev] midi ok  | ev/s   4.0 | q   0/4096 | drop 0 | voices   7 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   6 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   2 | cb   45.7us p95    74.5us
+INFO:     127.0.0.1:54138 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54138 - "GET /style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54956 - "GET /app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54956 - "GET /keyboard.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54138 - "GET /layout.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51478 - "GET /ui.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55341 - "GET /tour.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64771 - "GET /views/play.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61013 - "GET /views/practice.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54956 - "GET /views/layers.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54138 - "GET /views/tools.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51478 - "GET /views/stats.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55341 - "GET /views/settings.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64771 - "GET /views/read.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54138 - "GET /exercise-run.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54956 - "GET /backing.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61013 - "GET /loopstation.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61013 - "GET /staff.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61013 - "GET /api/state HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61013 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54108 - "WebSocket /ws" [accepted]
+INFO:     connection open
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+INFO:     127.0.0.1:61013 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   1 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+INFO:     127.0.0.1:52827 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52827 - "GET /style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64379 - "GET /app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64379 - "GET /keyboard.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52827 - "GET /layout.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51014 - "GET /ui.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57319 - "GET /tour.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54461 - "GET /views/play.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52758 - "GET /views/practice.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64379 - "GET /views/layers.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52827 - "GET /views/tools.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51014 - "GET /views/stats.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57319 - "GET /views/settings.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54461 - "GET /views/read.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52827 - "GET /exercise-run.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64379 - "GET /loopstation.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52758 - "GET /backing.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52758 - "GET /staff.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52758 - "GET /api/state HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52758 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63510 - "WebSocket /ws" [accepted]
+INFO:     connection open
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+INFO:     127.0.0.1:52758 - "POST /api/settings HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+INFO:     127.0.0.1:52758 - "POST /api/settings HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   45.7us p95    74.5us
