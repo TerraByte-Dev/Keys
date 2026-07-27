@@ -686,6 +686,22 @@ def get_timing() -> dict[str, Any]:
     return app_state.timing_snapshot()
 
 
+@api.get("/api/calendar")
+def calendar(year: int = 0) -> dict[str, Any]:
+    """One calendar year of daily practice, for the Activity chart.
+
+    Its own endpoint rather than a field on /api/analytics, because paging back a year
+    must not also change the chord counts, the key inference and every other panel on
+    the page -- those answer over a rolling window and have nothing to do with which
+    year you are looking at.
+    """
+    import datetime as _dt
+    years = app_state.store.years()
+    y = int(year) or _dt.date.today().year
+    y = max(1970, min(9999, y))
+    return {"ok": True, "years": years, **app_state.store.year(y)}
+
+
 @api.get("/api/analytics")
 def analytics(days: int = 365) -> dict[str, Any]:
     """Everything the Analytics view draws, in one request.

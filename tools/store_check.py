@@ -202,6 +202,46 @@ step("same-day sessions merge", h[6]["sessions"] == 2 and h[6]["active_seconds"]
      str(h[6]))
 step("history is not the last 24 hours", h[0]["date"] == (TODAY - timedelta(days=6)).isoformat())
 
+print("3b. year() is a calendar year, not a rolling window")
+yr = fresh("year")
+Y = TODAY.year
+# 1 January and 31 December of the current year, at local noon, plus a day in the
+# previous year that must NOT appear.
+seed_at(yr, datetime(Y, 1, 1, 12).timestamp(), 900_000, 700)
+seed_at(yr, datetime(Y - 1, 12, 31, 12).timestamp(), 600_000, 500)
+cy = yr.year(Y)
+days = cy["days"]
+step("every day of the year is present", len(days) in (365, 366), str(len(days)))
+step("starts on 1 January", days[0]["date"] == f"{Y}-01-01")
+step("ends on 31 December", days[-1]["date"] == f"{Y}-12-31")
+step("1 January has its session", days[0]["active_seconds"] == 900 and days[0]["note_count"] == 700,
+     str(days[0]))
+step("last year's 31 December is not in it",
+     all(d["date"][:4] == str(Y) for d in days),
+     "a calendar year is not a rolling window")
+step("totals count only days actually played",
+     cy["days_played"] == 1 and cy["active_seconds"] == 900, str(cy["days_played"]))
+
+future = [d for d in days if d["future"]]
+past = [d for d in days if not d["future"]]
+step("days after today are flagged, not dropped",
+     len(future) + len(past) == len(days) and all(d["date"] > TODAY.isoformat() for d in future),
+     f"{len(future)} future, {len(past)} up to today")
+step("today itself is not the future",
+     next(d for d in days if d["date"] == TODAY.isoformat())["future"] is False,
+     "an off-by-one here hides the day you are currently practising")
+
+prev = yr.year(Y - 1)
+step("the previous year is reachable and has its day",
+     prev["days_played"] == 1 and prev["active_seconds"] == 600, str(prev["days_played"]))
+step("a year with nothing in it is an empty grid, not an error",
+     yr.year(Y - 5)["days_played"] == 0 and len(yr.year(Y - 5)["days"]) in (365, 366))
+
+step("years() lists both, ascending", yr.years() == sorted({Y - 1, Y}), str(yr.years()))
+step("years() always includes this one",
+     Y in fresh("year-empty").years(),
+     "a fresh install must still have somewhere for the arrows to land")
+
 print("4. streak()")
 run = fresh("streak")
 for d in range(19, 31):          # 12 consecutive days, long ago

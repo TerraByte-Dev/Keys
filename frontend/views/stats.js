@@ -34,6 +34,12 @@ let hovering = false;         // pointer inside the grid -- a tooltip may be ope
 let stale = false;            // notes arrived while hovering; refresh on the way out
 let live = false;
 
+/* Which year the Activity chart is showing, and which years there is anything to show.
+   Module-scoped so paging back survives the refresh that a note triggers. */
+let calYear = 0;
+let calYears = [];
+let calData = null;
+
 export default {
   async mount(root) {
     const grid = h('div.grid', { id: 'an-grid' },
@@ -66,6 +72,7 @@ export default {
     }
     lastFetch = performance.now();
     render(data);
+    await loadCalendar(calYear);
   },
 
   /* Two jobs, once a second. Today's line is mutated in place because it changes
@@ -100,11 +107,57 @@ export default {
 
   unmount() {
     data = null;
+    calData = null;
+    calYear = 0;
     lastNotes = null;
     inFlight = false;
     stale = false;
   },
 };
+
+/* The calendar is fetched separately from everything else on this page. Paging back a
+   year must not change the chord counts or the key inference -- those answer over a
+   rolling window and have nothing to do with which year you are looking at. */
+async function loadCalendar(year) {
+  try {
+    const res = await api.get(`/api/calendar?year=${year || 0}`);
+    calYear = res.year;
+    calYears = res.years || [calYear];
+    calData = res;
+    paintCalendar();
+  } catch {
+    const host = $('#cal-host');
+    if (host) host.replaceChildren(h('div.empty', null, 'could not load the calendar'));
+  }
+}
+
+function paintCalendar() {
+  const host = $('#cal-host');
+  if (!host || !calData) return;
+  host.replaceChildren(calendar(calData));
+  const label = $('#cal-year');
+  if (label) label.textContent = String(calYear);
+  const aside = $('#cal-aside');
+  if (aside) {
+    aside.textContent = calData.days_played
+      ? `${calData.days_played} days, ${humanMinutes(calData.active_seconds)}`
+      : 'nothing yet this year';
+  }
+  const lo = Math.min(...calYears, calYear);
+  const hi = Math.max(...calYears, calYear);
+  const prev = $('#cal-prev');
+  const next = $('#cal-next');
+  if (prev) prev.disabled = calYear <= lo;
+  if (next) next.disabled = calYear >= hi;
+}
+
+function stepYear(delta) {
+  const want = calYear + delta;
+  const lo = Math.min(...calYears, calYear);
+  const hi = Math.max(...calYears, calYear);
+  if (want < lo || want > hi) return;
+  loadCalendar(want);
+}
 
 async function refresh() {
   const grid = $('#an-grid');
@@ -122,6 +175,7 @@ async function refresh() {
     if (!$('#an-grid')) return;      // navigated away mid-flight
     data = fresh;
     render(fresh);
+    await loadCalendar(calYear);
   } catch {
     // A failed refresh leaves the last good numbers on screen, which is strictly
     // better than replacing a year of history with an error because one poll lost.
@@ -146,7 +200,6 @@ function render(d) {
   // ago. Losing it makes this month unreachable.
   const stage = $('#stage');
   const stageTop = stage ? stage.scrollTop : 0;
-  const calLeft = $('.calx__scroll')?.scrollLeft ?? 0;
 
   const streak = d.streak || {};
   const totals = d.totals || {};
@@ -167,8 +220,12 @@ function render(d) {
       h('div.note', { id: 'an-today', style: { marginTop: '12px' } },
         'Nothing logged today yet.'))),
 
-    h('div.col-6', null, mod('Activity', `${days} days with a note on them`,
-      calendar(d.calendar))),
+    h('div.col-6', null, mod('Activity', h('span', { id: 'cal-aside' }, ''),
+      h('div.calx__nav', null,
+        h('button.btn', { id: 'cal-prev', onclick: () => stepYear(-1) }, '‹'),
+        h('span.calx__year', { id: 'cal-year' }, String(calYear || new Date().getFullYear())),
+        h('button.btn', { id: 'cal-next', onclick: () => stepYear(1) }, '›')),
+      h('div.calx', { id: 'cal-host' }))),
 
     h('div.col-12', null, mod('Keys you have played', 'every note, all time',
       pianoMap(d.note_heatmap, d.range),
@@ -217,10 +274,6 @@ function render(d) {
       sightread(d.sightread))),
   );
 
-  if (calLeft) {
-    const el = $('.calx__scroll');
-    if (el) el.scrollLeft = calLeft;
-  }
   if (stage && stageTop) stage.scrollTop = stageTop;
 }
 
@@ -267,58 +320,62 @@ const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0
 
 /* 53 columns of 7 days, Monday on top. The empty cells are the whole reason this
    chart exists -- a habit is legible in its gaps, not its good weeks. */
-function calendar(rows) {
-  const byDate = new Map((rows || []).map((r) => [r.date, r]));
-  // Midday, so no daylight-saving jump can push a day into its neighbour.
-  const today = new Date();
-  today.setHours(12, 0, 0, 0);
-  const todayISO = iso(today);
+/* A calendar year, 53 columns of 7 days, Monday on top.
+ *
+ * Fixed to 1 January - 31 December rather than a rolling 53 weeks back from today,
+ * because "how has this year gone" is the question the chart answers and a rolling
+ * window's shape changes under you every morning. Days after today are drawn as voids:
+ * the empty right-hand side IS the reading.
+ *
+ * Columns are fractions, not pixels. At 11px a column the grid was 739px wide, which
+ * needed a horizontal scrollbar the moment the panel was anything less than full
+ * width -- and the panel is a half now. Fractions mean the whole year fits whatever
+ * width it is given, and making the panel wider is how you get bigger cells. */
+function calendar(payload) {
+  const rows = payload?.days || [];
+  const byDate = new Map(rows.map((r) => [r.date, r]));
+  const year = payload?.year || new Date().getFullYear();
 
-  const cursor = new Date(today);
-  // Back to this week's Monday (getDay is 0=Sunday), then back 52 more weeks.
-  cursor.setDate(cursor.getDate() - ((cursor.getDay() + 6) % 7) - (WEEKS - 1) * 7);
+  // Grid position of 1 January: Monday is row 0, and Jan 1 rarely lands on it.
+  const jan1 = new Date(year, 0, 1);
+  const lead = (jan1.getDay() + 6) % 7;
 
   const months = [];
   const cells = [];
-  let lastMonth = -1;
+  // Blanks so the first column starts on the right weekday.
+  for (let i = 0; i < lead; i++) cells.push(h('div.cal__day.cal__day--void'));
 
-  for (let w = 0; w < WEEKS; w++) {
-    if (cursor.getMonth() !== lastMonth) {
-      lastMonth = cursor.getMonth();
-      // No label in the final column; there is nowhere for the text to go.
-      if (w < WEEKS - 1) {
-        months.push(h('div.calx__month', { style: { gridColumn: String(w + 1) } },
+  let lastMonth = -1;
+  for (const row of rows) {
+    const d = new Date(row.date + 'T12:00:00');
+    if (d.getMonth() !== lastMonth) {
+      lastMonth = d.getMonth();
+      const col = Math.floor((lead + rows.indexOf(row)) / 7) + 1;
+      if (col < WEEKS) {
+        months.push(h('div.calx__month', { style: { gridColumn: String(col) } },
           MONTHS[lastMonth]));
       }
     }
-    // Column-major append order, because .cal flows down each column first.
-    for (let dow = 0; dow < 7; dow++) {
-      const day = iso(cursor);
-      if (day > todayISO) {
-        cells.push(h('div.cal__day.cal__day--void'));
-      } else {
-        const row = byDate.get(day);
-        const secs = row ? row.active_seconds || 0 : 0;
-        const notes = row ? row.note_count || 0 : 0;
-        cells.push(h('div.cal__day', {
-          'data-l': secs === 0 ? 0 : secs < 300 ? 1 : secs < 900 ? 2 : secs < 1800 ? 3 : 4,
-          title: secs
-            ? `${day} -- ${humanMinutes(secs)}, ${count(notes)} notes`
-            : `${day} -- nothing`,
-        }));
-      }
-      cursor.setDate(cursor.getDate() + 1);
+    if (row.future) {
+      cells.push(h('div.cal__day.cal__day--void'));
+      continue;
     }
+    const secs = row.active_seconds || 0;
+    cells.push(h('div.cal__day', {
+      'data-l': secs === 0 ? 0 : secs < 300 ? 1 : secs < 900 ? 2 : secs < 1800 ? 3 : 4,
+      title: secs
+        ? `${row.date} -- ${humanMinutes(secs)}, ${count(row.note_count)} notes`
+        : `${row.date} -- nothing`,
+    }));
   }
 
-  return h('div.calx', null,
-    h('div.calx__scroll', null,
-      h('div.calx__months', { style: { gridTemplateColumns: `repeat(${WEEKS}, 11px)` } },
-        months),
-      h('div.calx__rows', null,
-        h('div.calx__wd', null,
-          ['Mon', '', 'Wed', '', 'Fri', '', ''].map((t) => h('span', null, t))),
-        h('div.cal', null, cells))),
+  return h('div.calx__fit', null,
+    h('div.calx__months', { style: { gridTemplateColumns: `repeat(${WEEKS}, 1fr)` } },
+      months),
+    h('div.calx__rows', null,
+      h('div.calx__wd', null,
+        ['Mon', '', 'Wed', '', 'Fri', '', ''].map((t) => h('span', null, t))),
+      h('div.cal', { style: { gridTemplateColumns: `repeat(${WEEKS}, 1fr)` } }, cells)),
     h('div.cal__legend', null, 'Less',
       [0, 1, 2, 3, 4].map((l) => h('div.cal__day', { 'data-l': l })),
       'More'));

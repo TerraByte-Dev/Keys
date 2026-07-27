@@ -524,6 +524,63 @@ class Store:
             day += timedelta(days=1)
         return out
 
+    def year(self, y: int) -> dict:
+        """One row per local day of calendar year `y`, oldest first, zeros included.
+
+        Separate from history() because a calendar year is not a rolling window: the
+        Activity chart answers "how has this year gone", which needs a fixed 1 January
+        to 31 December grid whose width does not change as the year passes.
+
+        Days after today are returned with `future: True` rather than omitted, so the
+        chart can draw the shape of the whole year and leave the rest blank instead of
+        redrawing itself every day.
+        """
+        first = date(y, 1, 1)
+        last = date(y, 12, 31)
+        today = date.today()
+        buckets: dict[date, list[int]] = {}
+        for r in self._rows(
+            "SELECT started_at, active_ms, note_count FROM session "
+            "WHERE started_at >= ? AND started_at < ?",
+            (day_start(first), day_start(last + timedelta(days=1))),
+        ):
+            b = buckets.setdefault(local_day(r["started_at"]), [0, 0, 0])
+            b[0] += int(r["active_ms"] or 0)
+            b[1] += int(r["note_count"] or 0)
+            b[2] += 1
+
+        days: list[dict] = []
+        day = first
+        while day <= last:
+            ms, notes, n = buckets.get(day, (0, 0, 0))
+            days.append({
+                "date": day.isoformat(),
+                "active_seconds": int(round(ms / 1000.0)),
+                "note_count": notes,
+                "sessions": n,
+                "future": day > today,
+            })
+            day += timedelta(days=1)
+        played = [d for d in days if d["active_seconds"]]
+        return {
+            "year": y,
+            "days": days,
+            "days_played": len(played),
+            "active_seconds": sum(d["active_seconds"] for d in played),
+            "note_count": sum(d["note_count"] for d in played),
+        }
+
+    def years(self) -> list[int]:
+        """Every calendar year with a session in it, plus this one. Ascending.
+
+        This year is always included so the arrows have somewhere to land on a fresh
+        install, where the honest answer is an empty grid rather than no grid.
+        """
+        found = {date.today().year}
+        for r in self._rows("SELECT started_at FROM session", ()):
+            found.add(local_day(r["started_at"]).year)
+        return sorted(found)
+
     def streak(self) -> dict:
         """Consecutive local days with at least STREAK_SECONDS of active practice.
 

@@ -31776,3 +31776,854 @@ INFO:     127.0.0.1:50658 - "POST /api/settings HTTP/1.1" 200 OK
   [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
   [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
   [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [58408]
+
+bye
+  [dev] MIDI not connected -- is the piano on?
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb 4122.3us p95 64929.2us
+
+======================================================================
+Keys 0.3.0 starting
+
+  Keys 0.3.0
+  WASAPI shared -- Windows picks the buffer (~10 ms), 48000 Hz
+  1 ms timer: yes
+  http://127.0.0.1:8770
+
+  The 'Device "__none__" does not exists' error below is intentional --
+  it is what stops FluidSynth grabbing the piano and doubling every note.
+
+  --- dev ------------------------------------------------------------
+  data dir    C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys
+  bundle      C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys
+  fluidsynth  C:\tools\fluidsynth\bin
+  soundfont   C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys\soundfonts\GeneralUser-GS.sf2
+  database    C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys\keys.db
+  settings    C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys\config.local.json
+  switch int. 0.80 ms  (0.80 is the tuned value)
+
+  Frontend edits need no restart -- the modules are served straight off
+  disk, so save and refresh the browser. Backend edits do need one:
+  auto-reload would drop and re-acquire the exclusive-mode audio device
+  on every save, which is a second of silence and a race for the port.
+  --------------------------------------------------------------------
+
+INFO:     Started server process [55244]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8770 (Press CTRL+C to quit)
+[pywebview] Using WinForms / Chromium
+INFO:     127.0.0.1:64448 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64296 - "GET /style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64037 - "GET /app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64037 - "GET /keyboard.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64296 - "GET /layout.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61508 - "GET /ui.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58190 - "GET /tour.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59087 - "GET /views/play.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50133 - "GET /views/practice.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64037 - "GET /views/layers.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64296 - "GET /views/tools.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61508 - "GET /views/stats.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58190 - "GET /views/settings.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59087 - "GET /views/read.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50133 - "GET /exercise-run.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58190 - "GET /loopstation.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61508 - "GET /backing.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59087 - "GET /staff.js HTTP/1.1" 200 OK
+[pywebview] before_load event fired. injecting pywebview object
+[pywebview] Loading JS files from C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys\.venv\Lib\site-packages\webview\js
+[pywebview] _pywebviewready event fired
+INFO:     127.0.0.1:59087 - "GET /api/state HTTP/1.1" 200 OK
+[pywebview] loaded event fired
+  [dev] MIDI not connected -- is the piano on?
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:59087 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63017 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:59087 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:49785 - "GET /api/state HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:64352 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   1
+INFO:     127.0.0.1:64352 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64352 - "GET /api/loop HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:64352 - "GET /api/exercises HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64352 - "GET /api/exercises/state HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64352 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64749 - "GET /api/backing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64749 - "GET /api/analytics?days=371 HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:64749 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   1
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   1
+INFO:     127.0.0.1:64749 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   2
+INFO:     127.0.0.1:64749 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   1
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:64867 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64867 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64867 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64867 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64867 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices   5
+INFO:     127.0.0.1:64867 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64867 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64867 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64867 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64867 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64867 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices  11
+  [dev] NO MIDI  | ev/s   0.0 | q   0/4096 | drop 0 | voices  11
+INFO:     127.0.0.1:59291 - "GET /api/analytics?days=371 HTTP/1.1" 200 OK
+  [dev] MIDI CONNECTED: Digital Piano 0
+  [dev] midi ok  | ev/s   2.0 | q   0/4096 | drop 0 | voices   5 | cb   48.6us p95    58.3us
+  [dev] midi ok  | ev/s  11.0 | q   0/4096 | drop 0 | voices  13 | cb   42.6us p95    59.9us
+  [dev] midi ok  | ev/s   5.5 | q   0/4096 | drop 0 | voices  19 | cb   42.6us p95    62.0us  held: B7
+INFO:     127.0.0.1:54671 - "GET /api/analytics?days=371 HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   5.5 | q   0/4096 | drop 0 | voices  19 | cb   42.6us p95    62.0us
+  [dev] midi ok  | ev/s   5.5 | q   0/4096 | drop 0 | voices  15 | cb   42.6us p95    64.3us  held: B7
+INFO:     127.0.0.1:54671 - "POST /api/settings HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   1.5 | q   0/4096 | drop 0 | voices  10 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   5 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+INFO:     127.0.0.1:58572 - "POST /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58572 - "POST /api/settings HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+INFO:     127.0.0.1:58572 - "POST /api/settings HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+INFO:     127.0.0.1:58572 - "POST /api/settings HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+INFO:     127.0.0.1:58572 - "POST /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58572 - "POST /api/settings HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+INFO:     127.0.0.1:58572 - "POST /api/settings HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+INFO:     127.0.0.1:65242 - "POST /api/settings HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+INFO:     127.0.0.1:65242 - "POST /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65242 - "POST /api/settings HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+INFO:     127.0.0.1:58235 - "POST /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58235 - "POST /api/settings HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+INFO:     127.0.0.1:60171 - "GET /api/analytics?days=371 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60171 - "GET /api/analytics?days=371 HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+INFO:     127.0.0.1:61697 - "GET /api/analytics?days=371 HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+INFO:     127.0.0.1:55171 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61307 - "GET /api/backing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61307 - "GET /api/analytics?days=371 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61307 - "GET /api/audio/devices HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+INFO:     127.0.0.1:61307 - "GET /api/analytics?days=371 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61307 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55171 - "GET /api/backing HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+INFO:     127.0.0.1:55171 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55171 - "GET /api/loop HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55171 - "GET /api/exercises HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55171 - "GET /api/exercises/state HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+INFO:     127.0.0.1:55171 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55171 - "GET /api/exercises HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55171 - "GET /api/exercises/state HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+INFO:     127.0.0.1:55171 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55171 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55171 - "GET /api/loop HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55171 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60406 - "GET /api/backing HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+INFO:     127.0.0.1:60406 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60406 - "GET /api/loop HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   2.5 | q   0/4096 | drop 0 | voices   1 | cb   42.6us p95    63.0us  held: A5
+  [dev] midi ok  | ev/s   1.5 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   42.6us p95    63.0us
+INFO:     127.0.0.1:56652 - "POST /api/zones HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56652 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51728 - "POST /api/preview HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   9 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   6 | cb   42.6us p95    63.0us
+  [dev] midi ok  | ev/s   5.0 | q   0/4096 | drop 0 | voices  17 | cb   42.6us p95    64.3us
+  [dev] midi ok  | ev/s   4.5 | q   0/4096 | drop 0 | voices  21 | cb   42.6us p95    64.3us  held: E5
+  [dev] midi ok  | ev/s   4.0 | q   0/4096 | drop 0 | voices  23 | cb   42.6us p95    64.3us  held: F5
+  [dev] midi ok  | ev/s   5.0 | q   0/4096 | drop 0 | voices  26 | cb   42.6us p95    63.2us  held: E6
+  [dev] midi ok  | ev/s   4.0 | q   0/4096 | drop 0 | voices  23 | cb   42.6us p95    64.3us  held: A5
+  [dev] midi ok  | ev/s   3.0 | q   0/4096 | drop 0 | voices  22 | cb   42.6us p95    63.2us  held: A5
+  [dev] midi ok  | ev/s   3.0 | q   0/4096 | drop 0 | voices  17 | cb   43.9us p95    64.3us  held: Ab5
+  [dev] midi ok  | ev/s   3.0 | q   0/4096 | drop 0 | voices  19 | cb   43.9us p95    64.3us  held: E5
+  [dev] midi ok  | ev/s   5.0 | q   0/4096 | drop 0 | voices  22 | cb   44.0us p95    66.1us  held: E6
+  [dev] midi ok  | ev/s   4.0 | q   0/4096 | drop 0 | voices  23 | cb   44.0us p95    66.8us  held: A5
+  [dev] midi ok  | ev/s   1.0 | q   0/4096 | drop 0 | voices  15 | cb   44.0us p95    66.8us  held: E5
+  [dev] midi ok  | ev/s   3.0 | q   0/4096 | drop 0 | voices  12 | cb   44.0us p95    66.8us  held: A5
+  [dev] midi ok  | ev/s   4.0 | q   0/4096 | drop 0 | voices  18 | cb   44.0us p95    66.2us  held: D6
+  [dev] midi ok  | ev/s   4.0 | q   0/4096 | drop 0 | voices  20 | cb   44.0us p95    68.4us  held: E6
+  [dev] midi ok  | ev/s   4.0 | q   0/4096 | drop 0 | voices  22 | cb   44.0us p95    68.4us  held: D6
+  [dev] midi ok  | ev/s   5.0 | q   0/4096 | drop 0 | voices  23 | cb   44.0us p95    70.6us  held: B5
+  [dev] midi ok  | ev/s   1.0 | q   0/4096 | drop 0 | voices  17 | cb   44.0us p95    70.6us  held: E5
+  [dev] midi ok  | ev/s   8.0 | q   0/4096 | drop 0 | voices  24 | cb   44.0us p95    70.6us  held: E6
+  [dev] midi ok  | ev/s   1.0 | q   0/4096 | drop 0 | voices  23 | cb   44.0us p95    70.6us  held: Eb6
+  [dev] midi ok  | ev/s   4.5 | q   0/4096 | drop 0 | voices  20 | cb   44.6us p95    70.6us  held: D6 E6
+  [dev] midi ok  | ev/s   1.5 | q   0/4096 | drop 0 | voices  17 | cb   44.0us p95    70.6us  held: C6
+  [dev] midi ok  | ev/s   3.0 | q   0/4096 | drop 0 | voices  15 | cb   44.0us p95    71.2us  held: C6
+  [dev] midi ok  | ev/s   1.5 | q   0/4096 | drop 0 | voices  10 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   6 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+INFO:     127.0.0.1:49731 - "POST /api/settings HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+INFO:     127.0.0.1:49731 - "POST /api/settings HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0 | cb   44.0us p95    71.2us
+
+======================================================================
+Keys 0.3.0 starting
+
+  Keys 0.3.0
+  WASAPI shared -- Windows picks the buffer (~10 ms), 48000 Hz
+  1 ms timer: yes
+  http://127.0.0.1:8770
+
+  The 'Device "__none__" does not exists' error below is intentional --
+  it is what stops FluidSynth grabbing the piano and doubling every note.
+
+  --- dev ------------------------------------------------------------
+  data dir    C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys
+  bundle      C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys
+  fluidsynth  C:\tools\fluidsynth\bin
+  soundfont   C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys\soundfonts\GeneralUser-GS.sf2
+  database    C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys\keys.db
+  settings    C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys\config.local.json
+  switch int. 0.80 ms  (0.80 is the tuned value)
+
+  Frontend edits need no restart -- the modules are served straight off
+  disk, so save and refresh the browser. Backend edits do need one:
+  auto-reload would drop and re-acquire the exclusive-mode audio device
+  on every save, which is a second of silence and a race for the port.
+  --------------------------------------------------------------------
+
+INFO:     Started server process [29228]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8770 (Press CTRL+C to quit)
+[pywebview] Using WinForms / Chromium
+INFO:     127.0.0.1:57618 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57618 - "GET /style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55277 - "GET /app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55277 - "GET /keyboard.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57618 - "GET /layout.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53444 - "GET /ui.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62602 - "GET /tour.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52641 - "GET /views/play.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65112 - "GET /views/practice.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55277 - "GET /views/layers.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57618 - "GET /views/tools.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53444 - "GET /views/stats.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62602 - "GET /views/settings.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52641 - "GET /views/read.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57618 - "GET /exercise-run.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55277 - "GET /loopstation.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65112 - "GET /backing.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52641 - "GET /staff.js HTTP/1.1" 200 OK
+[pywebview] before_load event fired. injecting pywebview object
+[pywebview] Loading JS files from C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys\.venv\Lib\site-packages\webview\js
+INFO:     127.0.0.1:52641 - "GET /api/state HTTP/1.1" 200 OK
+[pywebview] _pywebviewready event fired
+[pywebview] loaded event fired
+  [dev] MIDI CONNECTED: Digital Piano 0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:52641 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64861 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:52641 - "GET /style.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:52641 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:61470 - "GET /api/calendar HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:56223 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56223 - "GET /style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56027 - "GET /app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56027 - "GET /keyboard.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56223 - "GET /layout.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61140 - "GET /ui.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58602 - "GET /tour.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61240 - "GET /views/play.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58992 - "GET /views/practice.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56223 - "GET /views/layers.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56027 - "GET /views/tools.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61140 - "GET /views/stats.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58602 - "GET /views/settings.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61240 - "GET /views/read.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56027 - "GET /exercise-run.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56223 - "GET /backing.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58992 - "GET /loopstation.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58992 - "GET /staff.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58992 - "GET /api/state HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58992 - "GET /api/analytics?days=371 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58992 - "GET /api/calendar?year=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59792 - "WebSocket /ws" [accepted]
+INFO:     connection open
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:58992 - "POST /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58992 - "POST /api/settings HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:58992 - "POST /api/settings HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+
+======================================================================
+Keys 0.3.0 starting
+
+  Keys 0.3.0
+  WASAPI shared -- Windows picks the buffer (~10 ms), 48000 Hz
+  1 ms timer: yes
+  http://127.0.0.1:8770
+
+  The 'Device "__none__" does not exists' error below is intentional --
+  it is what stops FluidSynth grabbing the piano and doubling every note.
+
+  --- dev ------------------------------------------------------------
+  data dir    C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys
+  bundle      C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys
+  fluidsynth  C:\tools\fluidsynth\bin
+  soundfont   C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys\soundfonts\GeneralUser-GS.sf2
+  database    C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys\keys.db
+  settings    C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys\config.local.json
+  switch int. 0.80 ms  (0.80 is the tuned value)
+
+  Frontend edits need no restart -- the modules are served straight off
+  disk, so save and refresh the browser. Backend edits do need one:
+  auto-reload would drop and re-acquire the exclusive-mode audio device
+  on every save, which is a second of silence and a race for the port.
+  --------------------------------------------------------------------
+
+INFO:     Started server process [19240]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8770 (Press CTRL+C to quit)
+[pywebview] Using WinForms / Chromium
+INFO:     127.0.0.1:50910 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50910 - "GET /style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52101 - "GET /app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52101 - "GET /keyboard.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50910 - "GET /layout.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54721 - "GET /ui.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53838 - "GET /tour.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53170 - "GET /views/play.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62406 - "GET /views/practice.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52101 - "GET /views/layers.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50910 - "GET /views/tools.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54721 - "GET /views/stats.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53838 - "GET /views/settings.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53170 - "GET /views/read.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62406 - "GET /exercise-run.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53170 - "GET /loopstation.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53838 - "GET /backing.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54721 - "GET /staff.js HTTP/1.1" 200 OK
+[pywebview] before_load event fired. injecting pywebview object
+[pywebview] Loading JS files from C:\Users\tatew\Desktop\ClaudeHub\01-Home\Tate\01-Personal\02-Projects\06-library\Keys\.venv\Lib\site-packages\webview\js
+INFO:     127.0.0.1:54721 - "GET /api/state HTTP/1.1" 200 OK
+[pywebview] _pywebviewready event fired
+[pywebview] loaded event fired
+  [dev] MIDI CONNECTED: Digital Piano 0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:49669 - "GET /api/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57563 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49669 - "GET /style.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:49669 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:63773 - "GET /api/health HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:64219 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64219 - "GET /style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56620 - "GET /app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56620 - "GET /keyboard.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64219 - "GET /layout.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65447 - "GET /ui.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52293 - "GET /tour.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51283 - "GET /views/play.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63117 - "GET /views/practice.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56620 - "GET /views/layers.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64219 - "GET /views/tools.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65447 - "GET /views/stats.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52293 - "GET /views/settings.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51283 - "GET /views/read.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52293 - "GET /exercise-run.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51283 - "GET /loopstation.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65447 - "GET /backing.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64219 - "GET /staff.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64219 - "GET /api/state HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64219 - "GET /api/analytics?days=371 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64219 - "GET /api/calendar?year=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60794 - "WebSocket /ws" [accepted]
+INFO:     connection open
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
+INFO:     127.0.0.1:64219 - "POST /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64219 - "POST /api/settings HTTP/1.1" 200 OK
+  [dev] midi ok  | ev/s   0.0 | q   0/4096 | drop 0 | voices   0
