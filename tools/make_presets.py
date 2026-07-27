@@ -21,8 +21,13 @@ What this cannot do, stated plainly rather than approximated badly:
 * **No hardstyle kick.** That is a distorted, pitch-swept sample, not a playable
   instrument. Use a drum kit zone.
 * **No real didgeridoo.** General MIDI has 128 programs and none of them is one. The
-  entry here is a drone built from a low reed plus a vocal formant layer, ranged to the
-  bottom two octaves so it plays like the instrument does. It is an impression.
+  entry here is a drone built from a low reed plus a vocal formant layer, transposed
+  down an octave. It is an impression.
+
+**Zones never leave a key silent.** A range limit on a single-instrument preset makes
+half the keyboard do nothing with nothing on screen saying why -- so ranges appear only
+where two zones tile the whole keyboard between them, which is what a split is. The
+check below enforces it.
 """
 
 from __future__ import annotations
@@ -109,11 +114,11 @@ RECIPES = [
       z("Synth Bass 2", lo=LOW, hi=51, transpose=-12, gain=1.0, reverb=0.08)]),
     ("dubstep-bass", "Dubstep Bass",
      "Low saw plus sub. Harmonic content only -- the wobble is a filter LFO Keys has no way to automate.",
-     [z("Synth Bass 2", hi=59, transpose=-12, gain=1.0, reverb=0.05, curve="hard"),
-      z("Synth Bass 1", hi=59, gain=0.55, reverb=0.05)]),
+     [z("Synth Bass 2", transpose=-12, gain=1.0, reverb=0.05, curve="hard"),
+      z("Synth Bass 1", gain=0.55, reverb=0.05)]),
     ("reese-bass", "Reese Bass", "Two detuned saws beating against each other.",
-     [z("Synth Bass 1", hi=59, transpose=-12, gain=0.95, chorus=0.55, reverb=0.06),
-      z("Saw Lead", hi=59, transpose=-24, gain=0.45, chorus=0.60, reverb=0.06)]),
+     [z("Synth Bass 1", transpose=-12, gain=0.95, chorus=0.55, reverb=0.06),
+      z("Saw Lead", transpose=-24, gain=0.45, chorus=0.60, reverb=0.06)]),
     ("trance-supersaw", "Trance Supersaw", "Wide, detuned, drenched. Play chords.",
      [z("Saw Lead", gain=0.80, pan=0.35, reverb=0.55, chorus=0.70, curve="soft"),
       z("5th Saw Wave", gain=0.60, pan=0.65, reverb=0.55, chorus=0.70, curve="soft")]),
@@ -140,9 +145,9 @@ RECIPES = [
     ("didgeridoo", "Didgeridoo",
      "An impression, not the instrument -- GM has no didgeridoo. A low reed drone with a "
      "vocal formant layer, ranged to the bottom two octaves so it plays like one.",
-     [z("Bassoon", hi=52, transpose=-12, gain=1.0, reverb=0.55, curve="soft"),
-      z("Synth Voice", hi=52, transpose=-12, gain=0.45, reverb=0.65, curve="softer"),
-      z("Tuba", hi=52, transpose=-12, gain=0.35, reverb=0.50, curve="soft")]),
+     [z("Bassoon", transpose=-12, gain=1.0, reverb=0.55, curve="soft"),
+      z("Synth Voice", transpose=-12, gain=0.45, reverb=0.65, curve="softer"),
+      z("Tuba", transpose=-12, gain=0.35, reverb=0.50, curve="soft")]),
     ("sitar", "Sitar", "Drone-friendly; hold the low strings.",
      [z("Sitar", reverb=0.55)]),
     ("koto", "Koto", "Japanese zither.", [z("Koto", reverb=0.45)]),
@@ -154,8 +159,8 @@ RECIPES = [
      [z("Shakuhachi", reverb=0.60, curve="soft")]),
     ("steel-drum", "Steel Drum", "Pan, bright and tuned.",
      [z("Steel Drums", reverb=0.40)]),
-    ("taiko", "Taiko", "Big drum plus a low pad. Play the bottom octave.",
-     [z("Taiko Drum", hi=59, reverb=0.50, curve="hard")]),
+    ("taiko", "Taiko", "Big drum. Play the bottom octave.",
+     [z("Taiko Drum", reverb=0.50, curve="hard")]),
 
     # ── strings, brass, winds ───────────────────────────────────────────────
     ("strings", "String Ensemble", "Full section, slow attack.",
@@ -187,9 +192,9 @@ RECIPES = [
      [z("Fretless Bass", lo=LOW, hi=47, gain=0.90, reverb=0.20),
       z("Tine Electric Piano", lo=48, chorus=0.25)]),
     ("slap-bass", "Slap Bass", "Play it hard.",
-     [z("Slap Bass 1", hi=59, reverb=0.15, curve="hard")]),
+     [z("Slap Bass 1", reverb=0.15, curve="hard")]),
     ("upright-bass", "Upright Bass", "Acoustic, for walking lines.",
-     [z("Acoustic Bass", hi=59, reverb=0.25)]),
+     [z("Acoustic Bass", reverb=0.25)]),
 
     # ── pads and atmospheres ────────────────────────────────────────────────
     ("poly-pad", "Poly Pad", "Warm and wide. Hold chords.",
@@ -271,6 +276,20 @@ def main() -> int:
     if len(set(ids)) != len(ids):
         dupes = {i for i in ids if ids.count(i) > 1}
         print(f"  [FAIL] duplicate preset ids: {sorted(dupes)}")
+        return 1
+
+    dead_report = []
+    for preset in presets:
+        covered = set()
+        for zone in preset["zones"]:
+            covered |= set(range(zone["lo"], zone["hi"] + 1))
+        dead = sorted(set(range(LOW, HIGH + 1)) - covered)
+        if dead:
+            dead_report.append(f"{preset['id']}: {len(dead)} silent keys ({dead[0]}-{dead[-1]})")
+    if dead_report:
+        for line in dead_report:
+            print(f"  [FAIL] {line}")
+        print("\nA preset that leaves keys silent is a preset that looks broken.")
         return 1
 
     layered = sum(1 for p in presets if len(p["zones"]) > 1)

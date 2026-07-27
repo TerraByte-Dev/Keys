@@ -67,6 +67,7 @@ export function resetTouch() {
 
 let current = null;
 let currentId = null;
+let lastZoneSig = null;
 
 /* ── keyboard + readout (global, always live) ─────────────────────────────── */
 const dock = $('#dock');
@@ -133,6 +134,23 @@ function applyStatus(s) {
   lamp('lamp-audio', s.engine?.started ? 'on' : 'bad',
        !s.engine?.started ? 'off' : buf == null ? 'shared' : `${buf}ms`);
   lamp('lamp-voices', (s.engine?.voices || 0) > 0 ? 'warn' : '', String(s.engine?.voices ?? 0));
+
+  // Keys no enabled zone covers do nothing when pressed. Marking them is the whole
+  // answer to "where can I actually play" -- for a split, and for any zone set you
+  // build yourself that leaves a hole. Recomputed only when the zones change.
+  const zoneSig = JSON.stringify((s.engine?.zones || [])
+    .filter((z) => z.enabled).map((z) => [z.lo, z.hi]));
+  if (zoneSig !== lastZoneSig) {
+    lastZoneSig = zoneSig;
+    const live = new Set();
+    for (const z of s.engine?.zones || []) {
+      if (!z.enabled) continue;
+      for (let n = z.lo; n <= z.hi; n++) live.add(n);
+    }
+    const dead = [];
+    for (let n = 21; n <= 108; n++) if (!live.has(n)) dead.push(n);
+    ctx.kb.setDead(dead);
+  }
 
   const p = s.practice || {};
   els.todayClock.textContent = hms(p.today_seconds || 0);

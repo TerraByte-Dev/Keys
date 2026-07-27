@@ -365,7 +365,7 @@ async function randomInstrument(ctx) {
   }
   const pick = pool[Math.floor(Math.random() * pool.length)];
   await applyInstrument(pick, ctx);
-  toast(pick.name, 'good', 2600);
+  toast(`${pick.name} -- play something`, 'good', 2600);
   // Show it, so Random is a way to discover the list rather than a black box.
   filter = '';
   const box = $('#inst-list')?.closest('.mod')?.querySelector('input[type=text]');
@@ -489,12 +489,17 @@ async function applyInstrument(inst, ctx) {
     ctx.state.engine = res.engine;
     for (const w of res.warnings || []) toast(w, 'bad', 7000);
     toast(`${inst.name} -> ${zones[0].id}`, 'good', 1800);
-    api.post('/api/preview', { notes: [60, 64, 67], velocity: 88, ms: 900 }).catch(() => {});
+    // No chord. Browsing 287 instruments used to fire a fortissimo triad on every
+    // click, which is startling rather than informative -- you are at a piano, and
+    // the fastest way to hear a sound is to play it. Audition is still one button
+    // away for when your hands are on the mouse.
   } catch (err) { toast(err.message, 'bad'); }
 }
 
+/* Deliberate, so it may make a noise -- but a soft one. 92 was most of the way to
+   fortissimo for something you did not ask to be loud. */
 function audition() {
-  api.post('/api/preview', { notes: [48, 55, 64, 67, 72], velocity: 92, ms: 1400 })
+  api.post('/api/preview', { notes: [48, 55, 64, 67, 72], velocity: 58, ms: 1400 })
     .catch(() => {});
 }
 

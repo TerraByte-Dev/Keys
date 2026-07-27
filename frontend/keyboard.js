@@ -100,6 +100,8 @@ const CSS = `
 .keys-kb .key--white{fill:var(--key-white,#f2f2ef)}
 .keys-kb .key--black{fill:var(--key-black,#16171b)}
 .keys-kb .key.is-ghost{fill:var(--key-ghost,#8a93a3)}
+.keys-kb .key.is-dead{opacity:.34}
+.keys-kb .key.is-dead.key--white{fill:var(--key-dead,#6b675f)}
 .keys-kb .key.is-highlight{fill:var(--key-highlight,#e0a53c)}
 .keys-kb .key.is-sustained{fill:var(--key-sustain,#6f5bd6)}
 .keys-kb .key.is-held{fill:var(--key-held,#3f9dff)}
@@ -150,6 +152,8 @@ class Keyboard {
     this._highlightSpare = new Set();
     this._ghost = new Set();
     this._ghostSpare = new Set();
+    this._dead = new Set();
+    this._deadSpare = new Set();
     this._sustained = new Set();
     this._forced = new Set();
     this._pointers = new Map();        // pointerId -> midi currently sounding
@@ -359,6 +363,15 @@ class Keyboard {
     const next = this._layer(midiArray || [], this._ghost, this._ghostSpare, 'is-ghost');
     this._ghostSpare = this._ghost;
     this._ghost = next;
+  }
+
+  /* Keys that no enabled zone covers, i.e. keys that will do nothing when pressed.
+     A silent key is indistinguishable from a broken app unless the keyboard says so. */
+  setDead(midiArray) {
+    if (this._destroyed) return;
+    const next = this._layer(midiArray || [], this._dead, this._deadSpare, 'is-dead');
+    this._deadSpare = this._dead;
+    this._dead = next;
   }
 
   setLabels(mode) {

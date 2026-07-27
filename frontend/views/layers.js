@@ -371,7 +371,7 @@ async function apply(ctx, label) {
       for (const z of zones.filter((zz) => zz.enabled)) {
         const root = Math.max(z.lo, Math.min(z.hi - 7, Math.round((z.lo + z.hi) / 2)));
         api.post('/api/preview', {
-          notes: [root, root + 4, root + 7], velocity: 88, ms: 1100, channel: z.channel,
+          notes: [root, root + 4, root + 7], velocity: 52, ms: 1100, channel: z.channel,
         }).catch(() => {});
       }
     }

@@ -62,6 +62,9 @@
   --key-sustain: #8a6528;               /* released but still ringing on the pedal */
   --key-highlight: var(--cyan);
   --key-ghost: #46525a;
+  /* No enabled zone covers this key, so pressing it does nothing. Grey rather than
+     dark: it should read as "not part of the instrument", not as a black key. */
+  --key-dead: #6b675f;
   --key-label: #6d685e;
   --key-label-black: #8a8378;
   --key-font: var(--font-panel);

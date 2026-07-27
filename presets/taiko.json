@@ -1,13 +1,13 @@
 {
   "id": "taiko",
   "name": "Taiko",
-  "description": "Big drum plus a low pad. Play the bottom octave.",
+  "description": "Big drum. Play the bottom octave.",
   "zones": [
     {
       "id": "z1",
       "name": "Taiko Drum",
       "lo": 21,
-      "hi": 59,
+      "hi": 108,
       "channel": 0,
       "soundfont": "GeneralUser-GS.sf2",
       "bank": 0,
