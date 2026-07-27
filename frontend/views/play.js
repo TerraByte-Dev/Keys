@@ -50,6 +50,7 @@ const ROOT_PC = { C: 0, 'C#': 1, Db: 1, D: 2, Eb: 3, E: 4, F: 5, 'F#': 6, Gb: 6,
 let instruments = [];
 let instrumentsSf = '';   // which SoundFont /api/instruments enumerated
 let filter = '';
+let family = '';          // '' = every family
 let scaleOn = false;
 
 export default {
@@ -101,6 +102,10 @@ export default {
           h('button.btn', { onclick: () => randomInstrument(ctx), title: 'surprise me' },
             'Random'),
           h('button.btn', { onclick: () => audition(ctx) }, 'Audition')),
+        // 287 sounds in one flat list is a list nobody reads. GM groups its programs
+        // into families of eight and every bank is a variation on the same numbers,
+        // so the whole SoundFont sorts itself with no table of names to maintain.
+        h('div.chips.chips--tight', { id: 'fam-chips' }),
         h('div.btnrow', { style: { marginBottom: '10px' } },
           h('input', {
             type: 'text', id: 'preset-name', placeholder: 'name this sound',
@@ -223,6 +228,7 @@ export default {
       // an instrument into a zone pointing at a different SF2 silently falls back to
       // Grand Piano, because that bank/program need not exist over there.
       instrumentsSf = res.soundfont || '';
+      renderFamilies(ctx);
       renderList(ctx);
     } catch (err) {
       $('#inst-list').replaceChildren(h('div.empty', null, 'could not load: ' + err.message));
@@ -410,10 +416,33 @@ function chip(preset, activeId, ctx) {
     preset.zones.length > 1 ? h('span.chip__zones', null, preset.zones.length + 'Z') : null);
 }
 
+function renderFamilies(ctx) {
+  const host = $('#fam-chips');
+  if (!host) return;
+  const counts = new Map();
+  for (const i of instruments) counts.set(i.family, (counts.get(i.family) || 0) + 1);
+  const names = [...counts.keys()].sort();
+  host.replaceChildren(
+    famChip('', `All ${instruments.length}`, ctx),
+    ...names.map((n) => famChip(n, `${n} ${counts.get(n)}`, ctx)));
+}
+
+function famChip(value, label, ctx) {
+  return h('button.chip', {
+    class: value === family ? 'is-active' : '',
+    onclick: () => {
+      family = value;
+      renderFamilies(ctx);
+      renderList(ctx);
+    },
+  }, label);
+}
+
 function renderList(ctx) {
   const host = $('#inst-list');
   if (!host) return;
   const rows = instruments
+    .filter((i) => !family || i.family === family)
     .filter((i) => !filter || i.name.toLowerCase().includes(filter)
                 || String(i.program) === filter)
     .slice(0, 300);

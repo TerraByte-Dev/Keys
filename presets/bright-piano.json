@@ -1,10 +1,10 @@
 {
   "id": "bright-piano",
-  "name": "Bright Grand",
-  "description": "Brighter top end; cuts through a metronome.",
+  "name": "Bright Piano",
+  "description": "Forward and present; cuts through a mix.",
   "zones": [
     {
-      "id": "main",
+      "id": "z1",
       "name": "Bright Grand Piano",
       "lo": 21,
       "hi": 108,
@@ -15,7 +15,7 @@
       "transpose": 0,
       "gain": 1.0,
       "pan": 0.5,
-      "reverb": 0.25,
+      "reverb": 0.22,
       "chorus": 0.0,
       "curve": "linear",
       "fixed_velocity": 100,

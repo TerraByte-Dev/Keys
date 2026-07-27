@@ -49,6 +49,23 @@ SUSTAIN_CC = 64
 #                pedal and a passage where you would rather not hold your foot down.
 PEDAL_MODES = ("zone", "sostenuto", "hold")
 
+# General MIDI groups its 128 programs into sixteen families of eight, and every bank
+# in a GS SoundFont is a variation on the same program numbers -- so program // 8 gives
+# the family for all 287 presets, banked or not, without a lookup table of names.
+#
+# The GM family names are dated ("Chromatic Percussion", "Synth Effects"), so these are
+# what a person would actually search for. A flat list of 287 is a list nobody reads.
+FAMILIES = (
+    "Piano", "Bells", "Organ", "Guitar", "Bass", "Strings", "Ensemble", "Brass",
+    "Reed", "Flute", "Lead", "Pad", "Synth FX", "World", "Drums", "Effects",
+)
+
+
+def family_of(bank: int, program: int) -> str:
+    if bank == DRUM_BANK:
+        return "Kits"
+    return FAMILIES[min(15, max(0, program // 8))]
+
 
 # --- output device enumeration ----------------------------------------------
 # FluidSynth publishes the valid values for a string setting as an option list, which
@@ -406,6 +423,7 @@ class Engine:
                         "program": prog,
                         "name": label.strip(),
                         "drums": bank == DRUM_BANK,
+                        "family": family_of(bank, prog),
                     })
         self._preset_cache[name] = found
         return found

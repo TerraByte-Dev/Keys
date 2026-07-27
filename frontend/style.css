@@ -504,6 +504,8 @@ select:focus, input:focus { outline: none; border-color: var(--amber-deep); }
 .note--warn { border-left-color: var(--amber); }
 .note--warn strong { color: var(--amber); }
 
+.chips--tight { gap: 4px; margin-bottom: 10px; }
+.chips--tight .chip { padding: 3px 8px; font-size: 10.5px; letter-spacing: .06em; }
 .empty { color: var(--ink-faint); font-size: 12px; padding: 14px 0; text-align: center; }
 
 /* ── preset / instrument pickers ────────────────────────────────────────── */

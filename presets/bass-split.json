@@ -1,10 +1,10 @@
 {
   "id": "bass-split",
   "name": "Bass / Piano Split",
-  "description": "Acoustic bass below middle C, grand above. The split point is B2 (47).",
+  "description": "Walking bass left, piano right.",
   "zones": [
     {
-      "id": "left",
+      "id": "z1",
       "name": "Acoustic Bass",
       "lo": 21,
       "hi": 47,
@@ -22,7 +22,7 @@
       "enabled": true
     },
     {
-      "id": "right",
+      "id": "z2",
       "name": "Grand Piano",
       "lo": 48,
       "hi": 108,
@@ -33,7 +33,7 @@
       "transpose": 0,
       "gain": 1.0,
       "pan": 0.5,
-      "reverb": 0.28,
+      "reverb": 0.3,
       "chorus": 0.0,
       "curve": "linear",
       "fixed_velocity": 100,

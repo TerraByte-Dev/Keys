@@ -1,23 +1,23 @@
 {
-  "id": "drawbar-organ",
-  "name": "Drawbar Organ",
-  "description": "Hammond-ish, no dynamics -- an organ has none.",
+  "id": "vibraphone",
+  "name": "Vibraphone",
+  "description": "Mallets with a slow chorus.",
   "zones": [
     {
       "id": "z1",
-      "name": "Tonewheel Organ",
+      "name": "Vibraphone",
       "lo": 21,
       "hi": 108,
       "channel": 0,
       "soundfont": "GeneralUser-GS.sf2",
       "bank": 0,
-      "program": 16,
+      "program": 11,
       "transpose": 0,
       "gain": 1.0,
       "pan": 0.5,
-      "reverb": 0.25,
-      "chorus": 0.0,
-      "curve": "fixed",
+      "reverb": 0.45,
+      "chorus": 0.35,
+      "curve": "soft",
       "fixed_velocity": 100,
       "enabled": true
     }

@@ -1,10 +1,10 @@
 {
   "id": "church-organ",
   "name": "Church Organ",
-  "description": "Long reverb, flat dynamics.",
+  "description": "Full stops, long tail.",
   "zones": [
     {
-      "id": "main",
+      "id": "z1",
       "name": "Pipe Organ",
       "lo": 21,
       "hi": 108,
@@ -15,9 +15,9 @@
       "transpose": 0,
       "gain": 1.0,
       "pan": 0.5,
-      "reverb": 0.65,
+      "reverb": 0.75,
       "chorus": 0.0,
-      "curve": "compress",
+      "curve": "fixed",
       "fixed_velocity": 100,
       "enabled": true
     }

@@ -1,10 +1,10 @@
 {
   "id": "fm-ep",
   "name": "FM Electric Piano",
-  "description": "DX-style EP. Soft curve because FM EPs get shrill when hit hard.",
+  "description": "Digital, glassy, eighties.",
   "zones": [
     {
-      "id": "main",
+      "id": "z1",
       "name": "FM Electric Piano",
       "lo": 21,
       "hi": 108,
@@ -15,9 +15,9 @@
       "transpose": 0,
       "gain": 1.0,
       "pan": 0.5,
-      "reverb": 0.2,
-      "chorus": 0.3,
-      "curve": "soft",
+      "reverb": 0.28,
+      "chorus": 0.2,
+      "curve": "linear",
       "fixed_velocity": 100,
       "enabled": true
     }
