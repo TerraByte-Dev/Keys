@@ -10,17 +10,20 @@
  * beat lamps from the status feed. `m` toggles it from any tab. */
 
 import { createBacking } from '../backing.js';
+import { createTheory } from '../theory.js';
 import { $, api, h, mod, slider, stat, toast } from '../ui.js';
 
 let cfg = {};
 let lastBeat = -1;
 let backing = null;
+let theory = null;
 
 export default {
   async mount(root, ctx) {
     const m = ctx.state.metronome || {};
     cfg = { ...(m.config || {}) };
     backing = createBacking();
+    theory = createTheory();
 
     root.append(h('div.grid', null,
       h('div.col-6', null, mod('Tempo', null,
@@ -91,12 +94,15 @@ export default {
         h('div.note', { style: { marginTop: '10px' } },
           'The click has its own MIDI channel, so a drum zone can never steal it.'))),
 
+      theory.el,
+      theory.chordsEl,
       h('div.col-12', null, backing.el),
     ));
 
     renderBeats(cfg.beats_per_bar ?? 4);
     $('#bpm-display').parentElement.nextElementSibling.id = 'bpm-slider';
     loadKits();
+    await theory.init(ctx);
     await backing.init();
   },
 
@@ -136,7 +142,9 @@ export default {
   unmount() {
     lastBeat = -1;
     backing?.destroy();
+    theory?.destroy();
     backing = null;
+    theory = null;
   },
 };
 

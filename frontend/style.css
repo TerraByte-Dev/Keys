@@ -996,3 +996,126 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
   position: absolute; inset: 0 auto 0 0; width: 0;
   background: linear-gradient(90deg, var(--amber-deep), var(--amber));
 }
+
+/* -- chords & scales ----------------------------------------------------- */
+/* The ribbon is the reason this panel exists: the GAP between two notes is the
+   biggest thing on the row, because that is the number you count at the piano.
+   Note names are ordinary weight and the intervals from the root are smallest --
+   they name the shape, they do not help you find it. */
+.th__top {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.th__roots { display: flex; gap: 3px; }
+.th__root {
+  min-width: 30px; padding: 6px 2px; font-family: var(--font-mono); font-size: 11.5px;
+  color: var(--ink-dim); background: var(--panel-2); border: 1px solid var(--hairline);
+  border-radius: 4px; cursor: pointer; transition: background 90ms var(--ease);
+}
+.th__root.is-black { background: var(--panel-0); color: var(--ink-faint); }
+.th__root:hover { color: var(--ink); border-color: var(--hairline-hi); }
+.th__root.is-on {
+  background: var(--amber); color: #17130a; border-color: var(--amber);
+  font-weight: 600;
+}
+.th__shape {
+  min-width: 168px; padding: 6px 8px; font-size: 12px;
+  color: var(--ink); background: var(--panel-2);
+  border: 1px solid var(--hairline); border-radius: 4px;
+}
+.th__opts { display: flex; gap: 8px; margin-left: auto; }
+
+.seg { display: inline-flex; border: 1px solid var(--hairline); border-radius: 5px; overflow: hidden; }
+.seg__btn {
+  padding: 6px 11px; font-size: 11.5px; color: var(--ink-dim);
+  background: var(--panel-2); border: 0; cursor: pointer; white-space: nowrap;
+  transition: background 90ms var(--ease);
+}
+.seg__btn + .seg__btn { border-left: 1px solid var(--hairline); }
+.seg__btn:hover { color: var(--ink); background: var(--panel-3); }
+.seg__btn.is-on { color: #17130a; background: var(--amber); font-weight: 600; }
+
+/* keyboard.js ships width:100%/height:auto, so an unconstrained container lets the
+   SVG derive its own height from the viewBox ratio -- two octaves across a wide
+   panel comes out nearly 600px tall and buries everything below it. Capping the
+   width caps the height with it, and the ribbon stays the biggest thing here,
+   which is the whole point of the panel. */
+.th__main { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.th__board { flex: 0 0 430px; max-width: 430px; margin: 4px 0 8px; }
+/* min-width:0 is what lets the ribbon's overflow-x actually scroll -- a flex item
+   defaults to min-content width and would push the panel wide instead. */
+.th__right { flex: 1 1 360px; min-width: 0; position: relative; }
+/* Says "there is more to the right" without measuring anything: when the ribbon
+   does not overflow, the fade lies over panel-coloured background and vanishes. */
+.th__right::after {
+  content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 36px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--panel-1));
+}
+
+.th__fingers { min-height: 15px; margin-bottom: 2px; }
+.th__flabel { font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink-faint); }
+.th__nofinger { font-size: 11.5px; color: var(--ink-faint); }
+.th__finger {
+  width: 18px; height: 18px; display: grid; place-items: center;
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-dim);
+  background: var(--panel-2); border: 1px solid var(--hairline); border-radius: 50%;
+}
+/* The thumb-under is the moment a scale falls apart, so it is marked rather than
+   left for you to spot in a row of identical circles. */
+.th__finger.is-cross { color: var(--amber); border-color: var(--amber-deep); font-weight: 700; }
+/* Holds the row's height steady for shapes with no fingering, so switching from a
+   scale to a chord does not make the ribbon jump. */
+.th__finger.is-none { visibility: hidden; }
+
+.th__ribbon {
+  display: flex; align-items: stretch; gap: 0;
+  overflow-x: auto; padding: 10px 2px 12px;
+  border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline);
+}
+.th__note {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  min-width: 40px; padding: 2px 4px;
+}
+.th__nname { font-family: var(--font-mono); font-size: 15px; color: var(--ink); }
+.th__ndeg { font-size: 10px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+.th__note.is-root .th__nname { color: var(--amber); font-weight: 700; }
+
+.th__gap {
+  display: flex; flex-direction: column; align-items: center;
+  min-width: 34px; position: relative; padding-top: 20px;
+}
+/* The rule that ties one note to the next. Drawn behind the number so the number
+   sits ON the connection rather than beside it. */
+.th__gap::before {
+  content: ''; position: absolute; left: -6px; right: -6px; top: 31px;
+  border-top: 1px solid var(--hairline-hi);
+}
+.th__gnum {
+  position: relative; font-family: var(--font-mono); font-size: 16px; font-weight: 700;
+  color: var(--ink-dim); background: var(--panel-1); padding: 0 6px; line-height: 22px;
+}
+.th__gword { font-size: 9.5px; letter-spacing: .08em; color: var(--ink-faint); margin-top: 1px; }
+.th__gap.is-half .th__gnum { color: var(--amber); }
+.th__gap.is-half .th__gword { color: var(--amber-deep); }
+
+.th__foot { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.th__from {
+  font-family: var(--font-mono); font-size: 11px; color: var(--ink-faint);
+}
+.th__title { font-size: 12.5px; color: var(--ink-dim); }
+
+.th__chords {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px;
+}
+.th__chord {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 9px 6px; cursor: pointer; text-align: center;
+  background: var(--panel-2); border: 1px solid var(--hairline); border-radius: var(--radius);
+  transition: background 90ms var(--ease), border-color 90ms var(--ease);
+}
+.th__chord:hover { background: var(--panel-3); border-color: var(--amber-deep); }
+.th__croman { font-size: 13px; font-weight: 700; color: var(--amber); }
+.th__csym { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink); }
+.th__cnotes { font-family: var(--font-mono); font-size: 10px; color: var(--ink-faint); }

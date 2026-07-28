@@ -25,7 +25,7 @@ from typing import Any
 from fastapi import Body, FastAPI, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
-from . import config, engine as engine_mod, music, timing
+from . import config, engine as engine_mod, music, theory, timing
 from .backing import Backing
 from .engine import Engine, Preset, Zone
 from .exercises import GenContext, clean_params, load_all
@@ -519,21 +519,63 @@ def panic() -> dict[str, Any]:
 def preview(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
     """Audition notes from the UI. The note-off is scheduled on the sequencer, not
     on a Python timer -- same rule as the metronome."""
-    notes = [int(n) for n in body.get("notes", [])][:16]
+    notes = [int(n) for n in body.get("notes", [])][:36]
     velocity = max(1, min(127, int(body.get("velocity", 90))))
     ms = max(50, min(4000, int(body.get("ms", 700))))
+    # Zero plays them together, which is a chord; anything else spreads them into a
+    # run, which is a scale. One endpoint, because the difference between hearing a
+    # chord and hearing a scale is entirely when the notes start.
+    stagger = max(0, min(600, int(body.get("stagger", 0))))
     eng = app_state.engine
     if eng.fs is None:
         raise HTTPException(503, "engine not started")
     channel = int(body.get("channel", eng.active_channels[0]))
     if eng.sequencer is not None:
         at = eng.sequencer.get_tick() + 5
-        for n in notes:
-            eng.sequencer.note(at, channel, n, velocity, ms, dest=eng.seq_dest)
+        for i, n in enumerate(notes):
+            eng.sequencer.note(at + i * stagger, channel, n, velocity, ms,
+                               dest=eng.seq_dest)
+    elif stagger:
+        raise HTTPException(503, "a run needs the sequencer")
     else:
         for n in notes:
             eng.fs.noteon(channel, n, velocity)
     return {"ok": True, "notes": notes}
+
+
+# -------------------------------------------------------------------- theory
+@api.get("/api/theory")
+def theory_vocabulary() -> dict[str, Any]:
+    """What the pickers can offer. Sent once, so the UI never hardcodes a mode
+    list that drifts from music.py's."""
+    return {
+        # Chromatic from C, so index == pitch class. theory.js relies on that to
+        # light the right chip for a root it was not given by name (a chord in C#
+        # major rooted on E# is spelled E# and sounds like F).
+        "roots": ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"],
+        "modes": [{"id": m, "label": theory.MODE_LABELS.get(m, m),
+                   "fingered": m in theory.FINGERED_FORMS} for m in music.MODES],
+        "qualities": [{"id": q["suffix"], "label": q["suffix"] or "major",
+                       "name": q["name"], "size": len(q["intervals"])}
+                      for q in theory.QUALITIES],
+    }
+
+
+@api.get("/api/theory/scale")
+def theory_scale(key: str = "C", mode: str = "major", octaves: int = 1,
+                 hand: str = "R") -> dict[str, Any]:
+    try:
+        return theory.scale_plan(key, mode, octaves=octaves, hand=hand)
+    except (ValueError, KeyError) as err:
+        raise HTTPException(400, str(err)) from None
+
+
+@api.get("/api/theory/chord")
+def theory_chord(root: str = "C", quality: str = "", inversion: int = 0) -> dict[str, Any]:
+    try:
+        return theory.chord_plan(root, quality, inversion=inversion)
+    except (ValueError, KeyError) as err:
+        raise HTTPException(400, str(err)) from None
 
 
 # ------------------------------------------------------------------ metronome
