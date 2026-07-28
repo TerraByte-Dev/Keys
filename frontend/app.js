@@ -56,6 +56,19 @@ export const ctx = {
   touch: { last: 0, min: 128, max: 0, count: 0, seen: new Set(), hist: new Array(16).fill(0) },
 };
 
+/* Every theme is a block of CSS variables in style.css; midnight is :root itself and
+   therefore needs no attribute. Applied before the first paint and again the moment
+   you pick one, so nothing has to reload. "dark" is what shipped before the picker
+   existed and still means midnight. */
+export const THEMES = ['midnight', 'blueprint', 'phosphor', 'paper'];
+
+export function applyTheme(name) {
+  const t = THEMES.includes(name) ? name : 'midnight';
+  if (t === 'midnight') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = t;
+  return t;
+}
+
 export function resetTouch() {
   ctx.touch.min = 128;
   ctx.touch.max = 0;
@@ -240,21 +253,58 @@ async function refresh() {
 // the matching anchor in index.html.
 const ORDER = ['play', 'practice', 'layers', 'tools', 'stats', 'settings'];
 
+/* Every shortcut in the app, in one table. An action is a label, a default key and
+   the thing it does; the keys are rebindable and the defaults are what ships.
+   `always` means the binding still fires while a text field has focus -- true only
+   for panic, because the one moment you most need all-notes-off is the moment a
+   stuck note is screaming and the cursor happens to be in a search box. */
+export const ACTIONS = [
+  ...ORDER.map((view, i) => ({
+    id: `view:${view}`,
+    label: view[0].toUpperCase() + view.slice(1),
+    group: 'Go to',
+    key: String(i + 1),
+    run: () => { location.hash = view; },
+  })),
+  {
+    id: 'panic', label: 'All notes off', group: 'Do', key: 'Escape', always: true,
+    run: () => api.post('/api/panic').then(() => toast('All notes off', 'good')),
+  },
+  {
+    id: 'metronome', label: 'Start / stop the metronome', group: 'Do', key: 'm',
+    run: () => api.post('/api/metronome/toggle').catch(() => {}),
+  },
+];
+
+const DEFAULT_BINDS = Object.fromEntries(ACTIONS.map((a) => [a.id, a.key]));
+let binds = { ...DEFAULT_BINDS };
+
+/* A key is stored as e.key, lowercased when it is a single character, so "M" and
+   "m" are one binding and "Escape" or "F2" keep their names. */
+export const normalKey = (k) => (k && k.length === 1 ? k.toLowerCase() : k);
+
+export function setBinds(map) {
+  binds = { ...DEFAULT_BINDS };
+  for (const [id, key] of Object.entries(map || {})) {
+    if (id in DEFAULT_BINDS && key) binds[id] = normalKey(key);
+  }
+  return { ...binds };
+}
+
+export const getBinds = () => ({ ...binds });
+export const defaultBinds = () => ({ ...DEFAULT_BINDS });
+
 document.addEventListener('keydown', (e) => {
   // The tour owns the keyboard while it is up. Without this, Esc fires panic and
   // the number keys navigate the tab out from behind the card.
   if (tourOpen()) return;
   const typing = /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName || '');
-  if (e.key === 'Escape') {
-    api.post('/api/panic').then(() => toast('All notes off', 'good'));
+  const pressed = normalKey(e.key);
+  for (const action of ACTIONS) {
+    if (binds[action.id] !== pressed) continue;
+    if (!action.always && (typing || e.ctrlKey || e.altKey || e.metaKey)) return;
+    action.run();
     return;
-  }
-  if (typing || e.ctrlKey || e.altKey || e.metaKey) return;
-  const n = Number(e.key);
-  if (n >= 1 && n <= ORDER.length) {
-    location.hash = ORDER[n - 1];
-  } else if (e.key.toLowerCase() === 'm') {
-    api.post('/api/metronome/toggle').catch(() => {});
   }
 });
 
@@ -273,6 +323,8 @@ window.addEventListener('beforeunload', () => { if (ws) { ws.onclose = null; ws.
     toast('Could not reach the app: ' + err.message, 'bad', 10000);
     ctx.state = {};
   }
+  applyTheme(ctx.state?.settings?.ui?.theme);
+  setBinds(ctx.state?.settings?.keys);
   primeLayout(ctx.state);
   for (const problem of ctx.state.errors || []) toast(problem, 'bad', 12000);
   await route();

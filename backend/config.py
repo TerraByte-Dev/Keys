@@ -169,8 +169,12 @@ DEFAULTS: dict[str, Any] = {
     # tour_seen lives here rather than in localStorage because localStorage is
     # per-browser-profile and dies to "clear browsing data", which would resurrect the
     # first-run tour on a machine that has been played for months.
-    "ui": {"key_signature": "C", "theme": "dark", "show_note_names": True,
+    "ui": {"key_signature": "C", "theme": "midnight", "show_note_names": True,
            "tour_seen": False},
+    # Keyboard shortcuts, action id -> key. Empty means "whatever app.js ships",
+    # which is where the defaults actually live -- duplicating them here would give
+    # the app two answers to the same question.
+    "keys": {},
     "sightread": {
         "clef": "both",
         "key": "C",
@@ -225,6 +229,46 @@ class Settings:
             snapshot = json.loads(json.dumps(self._data))
         self._save(snapshot)
         return snapshot
+
+    def reset_to_defaults(self, keep: tuple[str, ...] = ("ui.layout",)) -> int:
+        """Back to DEFAULTS. Returns how many top-level keys actually changed.
+
+        `keep` takes dotted paths, and the default keeps the panel arrangement --
+        it is offered as its own separate reset, and a button that also silently
+        rearranged every panel would be lying about its own label. It has to be a
+        path rather than a key because layout.js stores it under "ui", alongside
+        settings a reset genuinely should clear.
+
+        Unlike `update`, this REPLACES rather than merges: a deep-merge against
+        the defaults would leave every customised leaf exactly where it was, which
+        is the opposite of a reset.
+        """
+        with self._lock:
+            saved: list[tuple[tuple[str, ...], Any]] = []
+            for path in keep:
+                parts = tuple(path.split("."))
+                node: Any = self._data
+                for part in parts:
+                    if not isinstance(node, dict) or part not in node:
+                        node = None
+                        break
+                    node = node[part]
+                if node is not None:
+                    saved.append((parts, json.loads(json.dumps(node))))
+
+            before = self._data
+            self._data = json.loads(json.dumps(DEFAULTS))
+            for parts, value in saved:
+                node = self._data
+                for part in parts[:-1]:
+                    node = node.setdefault(part, {})
+                node[parts[-1]] = value
+
+            changed = sum(1 for k in set(before) | set(self._data)
+                          if before.get(k) != self._data.get(k))
+            snapshot = json.loads(json.dumps(self._data))
+        self._save(snapshot)
+        return changed
 
     def _save(self, snapshot: dict[str, Any]) -> None:
         try:

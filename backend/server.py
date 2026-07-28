@@ -543,6 +543,34 @@ def preview(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
     return {"ok": True, "notes": notes}
 
 
+# ----------------------------------------------------------------- your data
+@api.get("/api/data")
+def data_inventory() -> dict[str, Any]:
+    return {"ok": True, **app_state.store.inventory()}
+
+
+@api.post("/api/data/reset")
+def data_reset(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """Delete one category of your own data.
+
+    `confirm` must repeat the category. It is not security -- anything that can
+    reach this port can send both fields -- it is a guard against the UI firing
+    this from a mis-wired click handler, which is the failure that actually
+    happens and the one that cannot be undone.
+    """
+    what = str(body.get("what", ""))
+    if str(body.get("confirm", "")) != what:
+        raise HTTPException(400, "reset needs the category repeated in 'confirm'")
+    try:
+        result = app_state.store.wipe(what, app_state.settings)
+    except ValueError as err:
+        raise HTTPException(400, str(err)) from None
+    # printed, not logged: this module has no logger, and keys.py routes stdout to
+    # the data directory's log when there is no console. A reset is worth a trace.
+    print(f"[data] reset {what}: {result['removed']}", flush=True)
+    return {"ok": True, **result, **app_state.store.inventory()}
+
+
 # -------------------------------------------------------------------- theory
 @api.get("/api/theory")
 def theory_vocabulary() -> dict[str, Any]:

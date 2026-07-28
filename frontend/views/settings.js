@@ -8,7 +8,8 @@
 
 import { $, api, h, mod, slider, stat, toast } from '../ui.js';
 import { resetLayout } from '../layout.js';
-import { startTour } from '../tour.js';
+import { CHAPTERS, startTutorial } from '../tour.js';
+import { clockPanel, dataPanel, keysPanel, themePanel } from '../prefs.js';
 
 export default {
   async mount(root, ctx) {
@@ -101,6 +102,10 @@ export default {
 
       
 
+      themePanel(ctx),
+      clockPanel(ctx),
+      keysPanel(ctx),
+
       h('div.col-6', null, mod('Reading key', null,
         h('label.field', null,
           h('span.field__label', null, h('span', null, 'Key signature')),
@@ -112,18 +117,7 @@ export default {
           }, k)))),
         h('div.note', null,
           'Sets how notes are spelled everywhere: in E flat major, MIDI 63 reads ',
-          h('strong', null, 'Eb4'), ', not D#4.'),
-        h('label.field', { style: { marginTop: '14px' } },
-          h('span.field__label', null, h('span', null, 'Stop the clock after'),
-            h('span.field__value', { id: 'idle-v' }, (s.idle_seconds ?? 12) + 's')),
-          slider({
-            min: 3, max: 60, step: 1, value: s.idle_seconds ?? 12,
-            oninput: (v) => { $('#idle-v').textContent = v + 's'; },
-            onchange: (v) => api.post('/api/settings', { idle_seconds: v }),
-          })),
-        h('div.note', null,
-          'A gap longer than this stops the practice clock. It is what makes ',
-          '"34 minutes" mean minutes playing.'))),
+          h('strong', null, 'Eb4'), ', not D#4.'))),
 
       h('div.col-6', null, mod('Reverb', null,
         fx('reverb', 'room', 0, 1, 0.01, s.reverb?.room ?? 0.3),
@@ -165,6 +159,8 @@ export default {
 
       
 
+      dataPanel(),
+
       h('div.col-6', null, mod('About', `version ${st.version || '?'}`,
         h('div.stats', null,
           stat(st.version || '?', 'Version', st.frozen ? 'installed build' : 'source checkout'),
@@ -188,13 +184,18 @@ export default {
           h('button.btn', { onclick: () => resetLayout() },
             'Put every tab back the way it shipped')))),
 
-      h('div.col-3', null, mod('First run', null,
+      h('div.col-6', null, mod('Tutorial', `${CHAPTERS.length} chapters`,
         h('div.note', null,
-          'The six-card tour that runs the first time you open Keys. It covers the ',
-          'things that are not guessable -- what a split and a layer are, that the ',
-          'keyboard is always docked, and what Stats keeps.'),
+          'The whole manual, and the same thing that runs on first launch. Every ',
+          'chapter is one click from every other, so it is also the place to look ',
+          'one thing up.'),
         h('div.btnrow', { style: { marginTop: '12px' } },
-          h('button.btn', { onclick: () => startTour(ctx) }, 'Show the tour again')))),
+          h('button.btn.btn--lg', { onclick: () => startTutorial(ctx) },
+            'Start from the beginning')),
+        h('div.tour__jump', { style: { marginTop: '12px' } },
+          CHAPTERS.map((c) => h('button.btn.btn--sm', {
+            onclick: () => startTutorial(ctx, c.id),
+          }, c.title))))),
 
       h('div.col-12', null, mod('Events', 'engine to browser',
         h('div.stats', { id: 'hub-stats' }),

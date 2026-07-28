@@ -69,6 +69,48 @@
   --key-label-black: #8a8378;
   --key-font: var(--font-panel);
 
+  /* ── surfaces that are not a colour so much as a lighting effect ──────────
+     These were 66 literals scattered through the sheet until themes needed them.
+     They are separated from the palette above because a theme redefines them for
+     a different REASON: on a dark panel a highlight is white at 3% and a shadow
+     is black at 60%; on a light one both invert, and a theme that only swapped
+     the palette would keep painting white gloss onto white cards. */
+  --wash: #ffffff05;         /* a row or well, barely lifted off its panel */
+  --wash-hi: #ffffff0a;      /* the same thing, hovered */
+  --gloss: #ffffff0d;        /* the 1px top edge that makes a control look raised */
+  --gloss-hard: #ffffff;     /* a specular dot; full strength on purpose */
+  --shadow: #000000aa;
+  --shadow-soft: #00000055;
+  --shadow-deep: #000000cc;
+  --stage-glow: #1a1e2408;   /* the ambient wash behind the working area */
+
+  /* Accent tints. Amber at four strengths, because "the lamp" is also a fill, a
+     glow and a stain, and each needs its own weight. */
+  --on-accent: #17130a;      /* text ON amber -- never --ink, which vanishes */
+  --amber-glow: #ffa62b55;
+  --amber-wash: #ffa62b1a;
+  --amber-faint: #ffa62b0c;
+  --amber-fill-hi: #3a2a10;
+  --amber-fill-lo: #1d1509;
+
+  --cyan-deep: #2b5a63;
+  --green-deep: #2c5c37;
+  --red-deep: #5e2b26;
+  --red-ink: #ffb3aa;
+  --red-fill: #2a110e;
+  --red-fill-hi: #4a1f1a;
+
+  /* Physical controls: the slider thumb and toggle knob read as machined metal. */
+  --control: #6b7178;
+  --control-lo: #33383e;
+  --control-edge: #7d848c;
+  --led-off: #2c3036;        /* an LED with no current through it */
+
+  /* Practice-calendar heat, coldest to hottest. */
+  --heat-1: #4a3413;
+  --heat-2: #7a5417;
+  --heat-3: #b8791c;
+
   /* Zone identity colours. Three of these are just the existing accents under a name;
      the other three exist because six zones need six distinguishable hues and the
      palette only has three. Tokens rather than an array of hexes in layers.js, so the
@@ -80,6 +122,156 @@
   --zone-5: #ff8f6b;
   --zone-6: #8fa5ff;
 }
+
+/* ── themes ─────────────────────────────────────────────────────────────────
+   :root above IS "midnight" -- the default needs no override and therefore cannot
+   drift from it. Each block below restates only what changes.
+
+   Two rules every theme keeps, because they are meaning rather than decoration:
+   the SOUNDING colour stays the brightest thing on screen, and --on-accent stays
+   readable against it. Everything else is free.
+
+   The surface tokens are the reason "paper" works at all: on a dark panel a
+   highlight is white at 5% and on a light one it has to become black at 4%, and a
+   theme that only swapped the palette would go on painting white gloss onto white
+   cards. */
+
+/* Cool, high-altitude. Same instrument, drafting-table light. */
+[data-theme="blueprint"] {
+  --panel-0: #070a0f;
+  --panel-1: #0d131b;
+  --panel-2: #131b25;
+  --panel-3: #1a2531;
+  --panel-4: #24313f;
+  --hairline: #263443;
+  --hairline-hi: #35485c;
+  --ink: #dbe6f0;
+  --ink-dim: #8497a8;
+  --ink-faint: #566878;
+  --cyan: #6fd3e8;
+  --stage-glow: #1c3a5c14;
+  --control: #64798d;
+  --control-lo: #2e3d4c;
+  --control-edge: #7d94aa;
+  --led-off: #24313f;
+  --key-white: #d3dae2;
+  --key-black: #131a22;
+  --key-ghost: #3c5568;
+  --key-dead: #63707c;
+  --key-label: #64717d;
+  --key-label-black: #8695a3;
+  --cyan-deep: #2b5a7a;
+}
+
+/* A phosphor terminal. Green is the live colour here -- the one theme where
+   "sounding" is not amber, because a P1 tube never had an amber to give. */
+[data-theme="phosphor"] {
+  --panel-0: #030603;
+  --panel-1: #070d08;
+  --panel-2: #0b140c;
+  --panel-3: #101c12;
+  --panel-4: #17281a;
+  --hairline: #1c3220;
+  --hairline-hi: #2a4a30;
+  --ink: #c8f5cf;
+  --ink-dim: #6f9c78;
+  --ink-faint: #456b4c;
+  --amber: #4dfb7a;
+  --amber-hot: #b6ffc8;
+  --amber-deep: #1c8c3c;
+  --cyan: #57e0d0;
+  --green: #4dfb7a;
+  --on-accent: #04180a;
+  --amber-glow: #4dfb7a55;
+  --amber-wash: #4dfb7a1a;
+  --amber-faint: #4dfb7a0c;
+  --amber-fill-hi: #123d1d;
+  --amber-fill-lo: #081e0f;
+  --stage-glow: #0b3d1a14;
+  --control: #4d7a56;
+  --control-lo: #1a2e1d;
+  --control-edge: #659c70;
+  --led-off: #1c3220;
+  --key-white: #bcd9bf;
+  --key-black: #0c150d;
+  --key-sustain: #2d6b3c;
+  --key-ghost: #3a5c42;
+  --key-dead: #5c6b5e;
+  --key-label: #5a7a60;
+  --key-label-black: #7d9c84;
+  --heat-1: #123d1d;
+  --heat-2: #1c7a37;
+  --heat-3: #34c257;
+  --zone-1: #4dfb7a;
+  --green-deep: #1c8c3c;
+}
+
+/* Daylight. The amber has to darken to stay legible on a light card -- a lamp
+   colour picked for a black panel becomes an unreadable yellow on a white one. */
+[data-theme="paper"] {
+  --panel-0: #dedace;
+  --panel-1: #f4f1e9;
+  --panel-2: #ebe7dc;
+  --panel-3: #ded9cb;
+  --panel-4: #cec8b8;
+  --hairline: #c3bca9;
+  --hairline-hi: #a49b85;
+  --ink: #23201a;
+  --ink-dim: #5b564a;
+  --ink-faint: #8b8577;
+  --amber: #a8660b;
+  /* Inverted against the dark themes on purpose: on a white card "hotter" means
+     DARKER, and the deep tone is the light one that edges and borders need. */
+  --amber-hot: #7a4a05;
+  --amber-deep: #cf9440;
+  --cyan: #1c6f80;
+  --green: #2f7a45;
+  --red: #b02a1c;
+
+  --wash: #00000006;
+  --wash-hi: #0000000f;
+  --gloss: #ffffffcc;
+  --gloss-hard: #ffffff;
+  --shadow: #0000002b;
+  --shadow-soft: #00000012;
+  --shadow-deep: #00000038;
+  --stage-glow: #8a7a5c14;
+
+  --on-accent: #fdf6e9;
+  --amber-glow: #a8660b3d;
+  --amber-wash: #a8660b1f;
+  --amber-faint: #a8660b12;
+  --amber-fill-hi: #f0dcb8;
+  --amber-fill-lo: #e3cb9f;
+  --cyan-deep: #8fb8c0;
+  --green-deep: #93b89e;
+  --red-deep: #d69f97;
+  --red-ink: #8c2015;
+  --red-fill: #f0cdc7;
+  --red-fill-hi: #e5b3ab;
+
+  --control: #cbc4b2;
+  --control-lo: #ada58f;
+  --control-edge: #9a917b;
+  --led-off: #c3bca9;
+
+  --heat-1: #ecd9ae;
+  --heat-2: #d7a860;
+  --heat-3: #b8791c;
+
+  --key-white: #fbf9f2;
+  --key-black: #2b2721;
+  --key-edge: #00000030;
+  --key-sustain: #d9b26a;
+  --key-ghost: #a9b7bd;
+  --key-dead: #b3ada0;
+  --key-label: #918a7b;
+  --key-label-black: #b8b1a2;
+}
+
+/* The grain exists to stop large DARK fills reading as flat #000. On paper it is
+   just dirt on the screen. */
+html[data-theme="paper"] body::after { opacity: .018; }
 
 * { box-sizing: border-box; }
 
@@ -133,7 +325,7 @@ body::after {
 .rail__mark {
   width: 9px; height: 9px; border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, var(--amber-hot), var(--amber-deep));
-  box-shadow: 0 0 8px var(--amber), 0 0 2px #fff inset;
+  box-shadow: 0 0 8px var(--amber), 0 0 2px var(--gloss-hard) inset;
 }
 .rail__name {
   font-weight: 600; font-size: 13px;
@@ -152,8 +344,8 @@ body::after {
 }
 .lamp__led {
   width: 6px; height: 6px; border-radius: 50%;
-  background: #34383e;
-  box-shadow: inset 0 0 2px #000;
+  background: var(--led-off);
+  box-shadow: inset 0 0 2px var(--shadow);
   transition: background .18s var(--ease), box-shadow .18s var(--ease);
 }
 .lamp.is-on  .lamp__led { background: var(--green); box-shadow: 0 0 7px var(--green); }
@@ -174,7 +366,7 @@ body::after {
   color: var(--ink); font-variant-numeric: tabular-nums;
 }
 .clock__dot {
-  width: 7px; height: 7px; border-radius: 50%; background: #2c3036;
+  width: 7px; height: 7px; border-radius: 50%; background: var(--led-off);
   transition: background .12s var(--ease), box-shadow .4s var(--ease);
 }
 .clock__dot.is-live { background: var(--amber); box-shadow: 0 0 9px var(--amber); }
@@ -197,11 +389,11 @@ body::after {
   border-left: 2px solid transparent;
   transition: color .16s var(--ease), background .16s var(--ease);
 }
-.nav__item:hover { color: var(--ink); background: #ffffff06; }
+.nav__item:hover { color: var(--ink); background: var(--wash-hi); }
 .nav__item.is-active {
   color: var(--amber);
   border-left-color: var(--amber);
-  background: linear-gradient(90deg, #ffa62b14, transparent);
+  background: linear-gradient(90deg, var(--amber-wash), transparent);
 }
 .nav__key {
   font-family: var(--font-mono); font-size: 9px;
@@ -217,7 +409,7 @@ body::after {
   overflow-x: hidden;
   padding: 16px;
   background:
-    radial-gradient(1100px 420px at 30% -10%, #1a1e2408, transparent 70%),
+    radial-gradient(1100px 420px at 30% -10%, var(--stage-glow), transparent 70%),
     var(--panel-0);
   outline: none;
 }
@@ -261,7 +453,7 @@ body::after {
   background: linear-gradient(180deg, var(--panel-2), var(--panel-1));
   border: 1px solid var(--hairline);
   border-radius: var(--radius);
-  box-shadow: inset 0 1px 0 #ffffff08, 0 8px 22px #00000055;
+  box-shadow: inset 0 1px 0 var(--gloss), 0 8px 22px var(--shadow-soft);
   padding: 12px 14px 14px;
   min-width: 0;
 }
@@ -293,14 +485,14 @@ body::after {
 
 .is-dragging .mod {
   border-color: var(--amber-deep);
-  box-shadow: 0 18px 40px #000000aa, 0 0 0 1px var(--amber-deep);
+  box-shadow: 0 18px 40px var(--shadow-deep), 0 0 0 1px var(--amber-deep);
   transform: scale(.985);
 }
 /* Where it will land. Sized to the panel it replaced so the grid holds its shape. */
 .layout__slot {
   border: 1px dashed var(--amber-deep);
   border-radius: var(--radius);
-  background: #ffa62b0a;
+  background: var(--amber-faint);
 }
 /* Text selection while dragging across panels looks like a bug. */
 body.is-rearranging { user-select: none; }
@@ -322,7 +514,7 @@ body.is-rearranging { user-select: none; }
 .readout__value {
   font-size: 30px; font-weight: 600; line-height: 1;
   color: var(--amber); letter-spacing: -.01em;
-  text-shadow: 0 0 22px #ffa62b40;
+  text-shadow: 0 0 22px var(--amber-glow);
   font-variant-numeric: tabular-nums;
 }
 .readout__value.is-empty { color: var(--ink-faint); text-shadow: none; }
@@ -342,7 +534,7 @@ body.is-rearranging { user-select: none; }
   font-size: 9.5px; letter-spacing: .16em; color: var(--ink-faint);
 }
 .pedal__led {
-  width: 7px; height: 7px; border-radius: 50%; background: #2c3036;
+  width: 7px; height: 7px; border-radius: 50%; background: var(--led-off);
   transition: background .1s var(--ease), box-shadow .3s var(--ease);
 }
 .pedal.is-on { color: var(--amber); }
@@ -361,7 +553,7 @@ body.is-rearranging { user-select: none; }
   padding: 8px 10px 10px;
   background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel-0) 100%);
   border-top: 1px solid var(--hairline-hi);
-  box-shadow: inset 0 14px 26px -18px #000;
+  box-shadow: inset 0 14px 26px -18px var(--shadow-deep);
 }
 
 /* keyboard.js ships `.keys-kb{width:100%;height:auto}`, which makes the SVG derive its
@@ -384,18 +576,18 @@ body.is-rearranging { user-select: none; }
   border-radius: var(--radius);
   padding: 6px 12px;
   cursor: pointer;
-  box-shadow: 0 1px 0 #ffffff0d inset, 0 2px 4px #0007;
+  box-shadow: 0 1px 0 var(--gloss) inset, 0 2px 4px var(--shadow);
   transition: color .14s var(--ease), border-color .14s var(--ease), transform .06s var(--ease);
 }
-.btn:hover { color: var(--ink); border-color: #4a5058; }
-.btn:active { transform: translateY(1px); box-shadow: 0 1px 3px #000a inset; }
+.btn:hover { color: var(--ink); border-color: var(--hairline-hi); }
+.btn:active { transform: translateY(1px); box-shadow: 0 1px 3px var(--shadow) inset; }
 .btn.is-on {
-  color: #1a1206; border-color: var(--amber);
+  color: var(--on-accent); border-color: var(--amber);
   background: linear-gradient(180deg, var(--amber-hot), var(--amber));
-  box-shadow: 0 0 16px #ffa62b55;
+  box-shadow: 0 0 16px var(--amber-glow);
 }
-.btn--panic { color: #ffb3aa; border-color: #5e2b26; }
-.btn--panic:hover { color: #fff; border-color: var(--red); background: linear-gradient(180deg, #6d2c25, #3d1a16); }
+.btn--panic { color: var(--red-ink); border-color: var(--red-deep); }
+.btn--panic:hover { color: var(--gloss-hard); border-color: var(--red); background: linear-gradient(180deg, var(--red-deep), var(--red-fill)); }
 .btn--wide { width: 100%; justify-content: center; }
 .btn--lg { font-size: 13px; padding: 9px 18px; }
 
@@ -421,15 +613,15 @@ input[type=range] {
 input[type=range]::-webkit-slider-runnable-track {
   height: 4px; border-radius: 2px;
   background: linear-gradient(90deg, var(--amber-deep) var(--pct, 0%), var(--panel-4) var(--pct, 0%));
-  box-shadow: inset 0 1px 2px #000;
+  box-shadow: inset 0 1px 2px var(--shadow);
 }
 input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none;
   width: 13px; height: 18px; margin-top: -7px;
   border-radius: 2px;
-  background: linear-gradient(180deg, #6b7178, #33383e);
-  border: 1px solid #7d848c;
-  box-shadow: 0 2px 5px #000a;
+  background: linear-gradient(180deg, var(--control), var(--control-lo));
+  border: 1px solid var(--control-edge);
+  box-shadow: 0 2px 5px var(--shadow);
 }
 input[type=range]:focus-visible::-webkit-slider-thumb { border-color: var(--amber); }
 
@@ -458,7 +650,7 @@ select:focus, input:focus { outline: none; border-color: var(--amber-deep); }
 .toggle__track::after {
   content: ""; position: absolute; top: 2px; left: 2px;
   width: 10px; height: 10px; border-radius: 50%;
-  background: #6b7178; transition: transform .18s var(--ease), background .18s var(--ease);
+  background: var(--control); transition: transform .18s var(--ease), background .18s var(--ease);
 }
 .toggle input:checked + .toggle__track { background: var(--amber-deep); }
 .toggle input:checked + .toggle__track::after { transform: translateX(16px); background: var(--amber-hot); }
@@ -480,9 +672,9 @@ select:focus, input:focus { outline: none; border-color: var(--amber-deep); }
   display: flex; align-items: center; gap: 10px;
   padding: 6px 8px; border-radius: 2px;
   font-size: 12px; color: var(--ink-dim);
-  background: #ffffff04;
+  background: var(--wash);
 }
-.list__row:hover { background: #ffffff0a; color: var(--ink); }
+.list__row:hover { background: var(--wash-hi); color: var(--ink); }
 .list__row .mono { font-family: var(--font-mono); font-size: 11px; }
 .list__spacer { flex: 1; }
 
@@ -495,9 +687,9 @@ select:focus, input:focus { outline: none; border-color: var(--amber-deep); }
   border: 1px solid var(--hairline-hi); color: var(--ink-faint);
 }
 .tag--amber { color: var(--amber); border-color: var(--amber-deep); }
-.tag--cyan { color: var(--cyan); border-color: #2b5a63; }
-.tag--red { color: var(--red); border-color: #5e2b26; }
-.tag--green { color: var(--green); border-color: #2c5c37; }
+.tag--cyan { color: var(--cyan); border-color: var(--cyan-deep); }
+.tag--red { color: var(--red); border-color: var(--red-deep); }
+.tag--green { color: var(--green); border-color: var(--green-deep); }
 
 .note {
   font-size: 11.5px; line-height: 1.55; color: var(--ink-dim);
@@ -526,8 +718,8 @@ select:focus, input:focus { outline: none; border-color: var(--amber-deep); }
 .chip:hover { color: var(--ink); border-color: var(--hairline-hi); }
 .chip.is-active {
   color: var(--amber); border-color: var(--amber-deep);
-  background: linear-gradient(180deg, #3a2a10, #1d1509);
-  box-shadow: inset 0 0 12px #ffa62b1a;
+  background: linear-gradient(180deg, var(--amber-fill-hi), var(--amber-fill-lo));
+  box-shadow: inset 0 0 12px var(--amber-wash);
 }
 .chip__zones {
   font-family: var(--font-mono); font-size: 9px; color: var(--ink-faint);
@@ -599,9 +791,9 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
 /* ── heatmaps / charts ──────────────────────────────────────────────────── */
 .cal { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 11px); gap: 3px; }
 .cal__day { width: 11px; height: 11px; border-radius: 2px; background: var(--panel-3); }
-.cal__day[data-l="1"] { background: #4a3413; }
-.cal__day[data-l="2"] { background: #7a5417; }
-.cal__day[data-l="3"] { background: #b8791c; }
+.cal__day[data-l="1"] { background: var(--heat-1); }
+.cal__day[data-l="2"] { background: var(--heat-2); }
+.cal__day[data-l="3"] { background: var(--heat-3); }
 .cal__day[data-l="4"] { background: var(--amber); }
 
 .spark { display: flex; align-items: flex-end; gap: 2px; height: 54px; }
@@ -738,7 +930,7 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
   background: linear-gradient(180deg, var(--panel-2), var(--panel-1));
   border: 1px solid var(--hairline-hi);
   border-radius: var(--radius);
-  box-shadow: 0 24px 60px #000a;
+  box-shadow: 0 24px 60px var(--shadow);
   animation: toast-in .2s var(--ease);
 }
 .tour__step {
@@ -771,7 +963,7 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
   border-left: 2px solid var(--amber);
   border-radius: var(--radius); padding: 9px 13px;
   font-size: 12px; color: var(--ink);
-  box-shadow: 0 10px 30px #000a;
+  box-shadow: 0 10px 30px var(--shadow);
   animation: toast-in .22s var(--ease);
   max-width: 380px;
 }
@@ -784,7 +976,7 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
 .build {
   display: flex; flex-direction: column; gap: 8px;
   padding: 12px 13px 13px;
-  background: #ffffff05;
+  background: var(--wash);
   border: 1px solid var(--hairline);
   border-radius: var(--radius);
 }
@@ -803,13 +995,13 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
 }
 .zonebar__seg {
   position: absolute; top: 0; bottom: 0;
-  border-right: 1px solid #0008;
+  border-right: 1px solid var(--shadow);
   display: flex; align-items: center; justify-content: center;
   font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
-  color: #0d0b06; font-weight: 600;
+  color: var(--on-accent); font-weight: 600;
   overflow: hidden; white-space: nowrap;
 }
-.zone { border: 1px solid var(--hairline); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 10px; background: #ffffff04; }
+.zone { border: 1px solid var(--hairline); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 10px; background: var(--wash); }
 .zone__head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .zone__swatch { width: 10px; height: 10px; border-radius: 2px; }
 .zone__name { font-size: 12px; letter-spacing: .06em; color: var(--ink); flex: 1; }
@@ -820,18 +1012,18 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
 .loop__transport {
   display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap;
   padding: 12px 13px; margin-bottom: 10px;
-  background: #ffffff05; border: 1px solid var(--hairline); border-radius: var(--radius);
+  background: var(--wash); border: 1px solid var(--hairline); border-radius: var(--radius);
 }
 .loop__rec { gap: 8px; }
 .loop__dot {
   width: 10px; height: 10px; border-radius: 50%;
-  background: #4a3a2a; box-shadow: 0 0 0 1px #0006 inset;
+  background: var(--amber-fill-hi); box-shadow: 0 0 0 1px var(--shadow-soft) inset;
 }
 /* Armed is not recording. The blink is the difference between "it heard you" and
    "it is capturing", and confusing the two costs a take. */
 .loop__rec.is-armed { color: var(--amber); border-color: var(--amber-deep); }
 .loop__rec.is-armed .loop__dot { background: var(--amber); animation: loop-arm 1s steps(2) infinite; }
-.loop__rec.is-recording { color: #ffd8d2; border-color: #6d2c25; background: linear-gradient(180deg, #4a1f1a, #2a110e); }
+.loop__rec.is-recording { color: var(--red-ink); border-color: var(--red-deep); background: linear-gradient(180deg, var(--red-fill-hi), var(--red-fill)); }
 .loop__rec.is-recording .loop__dot { background: var(--red); box-shadow: 0 0 8px var(--red); }
 @keyframes loop-arm { 50% { opacity: .15; } }
 .loop__state { min-width: 150px; }
@@ -856,7 +1048,7 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
 
 .layerrow {
   border: 1px solid var(--hairline); border-radius: var(--radius);
-  padding: 9px 11px 11px; margin-bottom: 8px; background: #ffffff04;
+  padding: 9px 11px 11px; margin-bottom: 8px; background: var(--wash);
 }
 .layerrow.is-muted { opacity: .48; }
 .layerrow__head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
@@ -879,7 +1071,7 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
 }
 .layerrow__note {
   position: absolute; height: 2px; border-radius: 2px;
-  background: var(--amber); box-shadow: 0 0 4px #ffa62b40;
+  background: var(--amber); box-shadow: 0 0 4px var(--amber-glow);
 }
 .layerrow__ctl { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
 .layerrow__ctl .field { margin-bottom: 0; }
@@ -903,9 +1095,9 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
 
 .track {
   border: 1px solid var(--hairline); border-radius: var(--radius);
-  padding: 8px 10px; margin-bottom: 6px; background: #ffffff04;
+  padding: 8px 10px; margin-bottom: 6px; background: var(--wash);
 }
-.track.is-on { border-color: var(--amber-deep); background: #ffa62b0c; }
+.track.is-on { border-color: var(--amber-deep); background: var(--amber-faint); }
 .track__head { display: flex; align-items: center; gap: 8px; }
 .track__title, .track__meta, .track__notes {
   background: transparent; border: 1px solid transparent; color: var(--ink);
@@ -1015,7 +1207,7 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
 .th__root.is-black { background: var(--panel-0); color: var(--ink-faint); }
 .th__root:hover { color: var(--ink); border-color: var(--hairline-hi); }
 .th__root.is-on {
-  background: var(--amber); color: #17130a; border-color: var(--amber);
+  background: var(--amber); color: var(--on-accent); border-color: var(--amber);
   font-weight: 600;
 }
 .th__shape {
@@ -1033,7 +1225,7 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
 }
 .seg__btn + .seg__btn { border-left: 1px solid var(--hairline); }
 .seg__btn:hover { color: var(--ink); background: var(--panel-3); }
-.seg__btn.is-on { color: #17130a; background: var(--amber); font-weight: 600; }
+.seg__btn.is-on { color: var(--on-accent); background: var(--amber); font-weight: 600; }
 
 /* keyboard.js ships width:100%/height:auto, so an unconstrained container lets the
    SVG derive its own height from the viewBox ratio -- two octaves across a wide
@@ -1119,3 +1311,120 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
 .th__croman { font-size: 13px; font-weight: 700; color: var(--amber); }
 .th__csym { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink); }
 .th__cnotes { font-family: var(--font-mono); font-size: 10px; color: var(--ink-faint); }
+
+.toast--warn { border-left-color: var(--amber); }
+
+/* -- appearance, shortcuts and your data --------------------------------- */
+/* Each swatch carries its own data-theme, so it renders in the palette it is
+   selling. Nothing here lists a colour: the chips read the same tokens the app
+   does, and tuning a theme in the block above updates its own preview. */
+.themes { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.themecard {
+  display: flex; flex-direction: column; gap: 7px; align-items: stretch;
+  padding: 10px; cursor: pointer; text-align: left;
+  background: var(--panel-1); border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  transition: border-color 120ms var(--ease);
+}
+.themecard:hover { border-color: var(--hairline-hi); }
+.themecard.is-on { border-color: var(--amber); box-shadow: 0 0 0 1px var(--amber) inset; }
+.themecard__strip { display: flex; height: 22px; border-radius: 2px; overflow: hidden; }
+.themecard__strip i { flex: 1; }
+.themecard__name {
+  font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink);
+}
+.themecard__note { font-size: 10.5px; line-height: 1.35; color: var(--ink-faint); }
+
+.binds { display: flex; flex-direction: column; gap: 2px; }
+.binds__head {
+  font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink-faint); margin: 10px 0 3px;
+}
+.binds__head:first-child { margin-top: 0; }
+.bind {
+  display: flex; align-items: center; gap: 10px;
+  padding: 5px 8px; background: var(--wash); border-radius: var(--radius);
+}
+.bind__label { flex: 1; font-size: 12px; color: var(--ink-dim); }
+.bind__key {
+  min-width: 62px; padding: 4px 8px;
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--ink);
+  background: var(--panel-3); border: 1px solid var(--hairline-hi);
+  border-radius: var(--radius); cursor: pointer;
+  box-shadow: 0 1px 0 var(--gloss) inset, 0 2px 0 var(--shadow-soft);
+}
+.bind__key:hover { border-color: var(--amber-deep); }
+.bind__key.is-capturing {
+  color: var(--on-accent); background: var(--amber); border-color: var(--amber);
+  min-width: 92px;
+}
+
+.data__where {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  padding-bottom: 10px; margin-bottom: 8px; border-bottom: 1px solid var(--hairline);
+}
+.data__path { font-family: var(--font-mono); font-size: 11px; color: var(--ink-dim); }
+.data__size { font-size: 11px; color: var(--ink-faint); }
+.data__rows { display: flex; flex-direction: column; gap: 4px; }
+.datarow {
+  display: flex; align-items: center; gap: 14px;
+  padding: 8px 10px; background: var(--wash); border-radius: var(--radius);
+  border: 1px solid transparent;
+}
+/* Armed for deletion. The row itself changes, not just the button, so the thing
+   about to be destroyed is the thing that is highlighted. */
+.datarow.is-armed { border-color: var(--red); background: var(--red-fill); }
+.datarow__main { flex: 1; min-width: 0; }
+.datarow__label { display: block; font-size: 12.5px; color: var(--ink); }
+.datarow__note { display: block; font-size: 10.5px; color: var(--ink-faint); }
+.datarow__detail {
+  font-family: var(--font-mono); font-size: 11px; color: var(--ink-dim);
+  white-space: nowrap;
+}
+.datarow__act { display: flex; gap: 6px; }
+.datarow.is-armed .btn { border-color: var(--red); color: var(--red-ink); }
+.datarow.is-armed .btn + .btn { border-color: var(--hairline-hi); color: var(--ink); }
+.btn.is-disabled, .btn:disabled { opacity: .35; cursor: default; }
+
+/* -- tutorial ------------------------------------------------------------ */
+/* Two columns: the contents never leaves, because someone who opened this from
+   Settings to look up the pedal modes should not have to page through splits to
+   reach them. Collapses to one column when the window cannot hold both. */
+/* Wider than the single-column card it replaced, and its own padding removed --
+   the two columns each bring their own, and keeping the outer padding indented the
+   contents list away from its own edge while double-padding the prose. */
+.tour__card {
+  display: grid; grid-template-columns: 200px 1fr; gap: 0;
+  width: min(840px, calc(100vw - 48px));
+  padding: 0; overflow: hidden;
+}
+.tour__toc {
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 16px 10px 16px 16px; overflow-y: auto; max-height: 62vh;
+  border-right: 1px solid var(--hairline); background: var(--wash);
+}
+.tour__toclabel {
+  font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink-faint); margin-bottom: 6px;
+}
+.tour__tocitem {
+  padding: 5px 8px; text-align: left; font-size: 11.5px; color: var(--ink-dim);
+  background: none; border: 0; border-radius: var(--radius); cursor: pointer;
+  transition: color 110ms var(--ease), background 110ms var(--ease);
+}
+.tour__tocitem:hover { color: var(--ink); background: var(--wash-hi); }
+.tour__tocitem.is-on { color: var(--on-accent); background: var(--amber); font-weight: 600; }
+.tour__main { display: flex; flex-direction: column; padding: 20px 22px 18px; }
+.tour__main .tour__row { margin-top: auto; padding-top: 18px; }
+
+.tour__jump { display: flex; flex-wrap: wrap; gap: 5px; }
+.btn--sm { padding: 4px 8px; font-size: 10.5px; }
+
+@media (max-width: 780px) {
+  .tour__card { grid-template-columns: 1fr; }
+  .tour__toc {
+    flex-direction: row; flex-wrap: wrap; max-height: none;
+    border-right: 0; border-bottom: 1px solid var(--hairline); padding: 12px;
+  }
+  .tour__toclabel { width: 100%; }
+}

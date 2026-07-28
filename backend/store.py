@@ -293,6 +293,19 @@ class Store:
                     pass
                 self._conn = None
 
+    # ------------------------------------------------------- your data, your call
+    def inventory(self) -> dict[str, Any]:
+        from . import userdata
+        with self._lock:
+            return userdata.inventory(self._conn)
+
+    def wipe(self, what: str, settings: Any) -> dict[str, Any]:
+        """Delete one category of your data. Held under the same lock as every
+        other write, so a reset cannot land halfway through a note being logged."""
+        from . import userdata
+        with self._lock:
+            return userdata.reset(self._conn, what, settings)
+
     # ------------------------------------------------------------- plumbing
     def _rows(self, sql: str, params: Sequence[Any] = ()) -> list[sqlite3.Row]:
         with self._lock:
