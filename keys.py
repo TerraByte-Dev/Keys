@@ -19,6 +19,7 @@ import sys
 import threading
 import time
 import webbrowser
+from pathlib import Path
 
 # Importing the package is what sets sys.setswitchinterval(0.0008) and puts FluidSynth
 # on PATH. It has to happen before anything imports fluidsynth, which is why it is here
@@ -142,6 +143,17 @@ def open_when_ready(url: str, host: str, port: int) -> None:
         webbrowser.open(url)
 
 
+def window_icon() -> Path | None:
+    """The .ico for the window and the taskbar, wherever it happens to live.
+
+    config.BUNDLE is the checkout root in a source tree and the bundle when frozen,
+    so one path covers both. Returns None rather than raising: a missing icon is
+    cosmetic, and refusing to open the window over one would make it fatal.
+    """
+    candidate = config.BUNDLE / "packaging" / "keys.ico"
+    return candidate if candidate.exists() else None
+
+
 def run_window(url: str, dev: bool) -> bool:
     """Open Keys in a native window. Returns False if a window was not possible.
 
@@ -170,7 +182,13 @@ def run_window(url: str, dev: bool) -> bool:
         )
         # debug=True gives WebView2's devtools on F12, which is the browser half of
         # --dev: console, network, and the element inspector for the keyboard SVG.
-        webview.start(debug=dev)
+        #
+        # The icon has to be passed here even though the frozen exe already carries one
+        # in its resources: that embedded icon is what Explorer and the shortcut use,
+        # while the WINDOW asks its process for one at runtime. From a source checkout
+        # that process is python.exe, so without this the taskbar shows Python's logo.
+        icon = window_icon()
+        webview.start(debug=dev, **({"icon": str(icon)} if icon else {}))
         return True
     except Exception as exc:  # noqa: BLE001 -- a missing runtime must not be fatal
         print(f"  Could not open the app window ({exc}).")

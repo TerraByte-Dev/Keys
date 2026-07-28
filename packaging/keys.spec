@@ -28,6 +28,10 @@ datas = [
     (str(ROOT / "soundfonts" / "GeneralUser-GS.sf2"), "soundfonts"),
     (str(ROOT / "soundfonts" / "README.md"), "soundfonts"),
     (str(ROOT / "LICENSE"), "."),
+    # Not the same as EXE(icon=...) below. That one goes into the executable's
+    # resources for Explorer and the shortcut; this one is a file pywebview hands
+    # to the window at runtime for the title bar and the taskbar button.
+    (str(ROOT / "packaging" / "keys.ico"), "packaging"),
 ]
 
 a = Analysis(

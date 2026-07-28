@@ -98,6 +98,52 @@ def trim(im: Image.Image) -> Image.Image:
     return out
 
 
+# Above this, an entry is PNG-compressed; at or below it, an uncompressed DIB.
+#
+# Pillow will happily write PNG for every size, and Windows 10 and 11 read that
+# fine -- but PNG-compressed entries below 256px are outside what the format
+# conventionally carries, and older shell code paths and .NET's System.Drawing
+# render them as noise. Verified: `new Icon("keys.ico", 32, 32)` on an all-PNG
+# file returns garbage. Nothing Keys ships uses that API, but the icon is the
+# first thing anyone sees and it is cheap to make it unambiguous.
+PNG_ABOVE = 128
+
+
+def write_ico(master: Image.Image, path: Path) -> None:
+    """One .ico with DIB entries for the small sizes and PNG for the big one.
+
+    Pillow's `bitmap_format` is all-or-nothing, so each half is encoded by asking
+    Pillow for a single-size file and lifting the payload back out. That beats
+    hand-rolling a DIB writer with its upside-down rows and its AND mask.
+    """
+    import io
+    import struct
+
+    payloads: list[tuple[int, bytes]] = []
+    for size in ICO_SIZES:
+        frame = master.resize((size, size), Image.LANCZOS)
+        buf = io.BytesIO()
+        frame.save(buf, format="ICO", sizes=[(size, size)],
+                   bitmap_format="png" if size > PNG_ABOVE else "bmp")
+        blob = buf.getvalue()
+        # ICONDIR is 6 bytes, then one 16-byte ICONDIRENTRY whose last field is the
+        # offset of the payload we want.
+        (offset,) = struct.unpack("<I", blob[18:22])
+        (length,) = struct.unpack("<I", blob[14:18])
+        payloads.append((size, blob[offset:offset + length]))
+
+    out = bytearray(struct.pack("<HHH", 0, 1, len(payloads)))
+    cursor = 6 + 16 * len(payloads)
+    for size, data in payloads:
+        out += struct.pack("<BBBBHHII",
+                           0 if size == 256 else size, 0 if size == 256 else size,
+                           0, 0, 1, 32, len(data), cursor)
+        cursor += len(data)
+    for _, data in payloads:
+        out += data
+    path.write_bytes(bytes(out))
+
+
 def main() -> int:
     if len(sys.argv) > 1:
         src = Path(sys.argv[1])
@@ -125,10 +171,7 @@ def main() -> int:
 
     print("3. Windows icon")
     ICO_PATH.parent.mkdir(parents=True, exist_ok=True)
-    # Pillow builds every size into the one file; the 16px is what Explorer and the
-    # taskbar actually reach for, and letting Windows downscale a 256 instead is how
-    # an icon ends up a grey smudge.
-    master.save(ICO_PATH, sizes=[(s, s) for s in ICO_SIZES])
+    write_ico(master, ICO_PATH)
     print(f"  {len(ICO_SIZES)} sizes {ICO_SIZES} -> {ICO_PATH.relative_to(ROOT)}"
           f"  ({ICO_PATH.stat().st_size:,} B)")
 
