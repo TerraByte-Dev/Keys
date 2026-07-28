@@ -54,6 +54,7 @@ export default {
   frame(f, ctx) { current?.frame?.(f, ctx); },
 
   status(s, ctx) {
+    sheet?.status?.(s);
     paintHud(s.practice || {});
     paintTiming(s.timing);
     current?.status?.(s, ctx);

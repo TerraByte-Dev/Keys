@@ -37,6 +37,7 @@ from .metronome import Metronome
 from .midi_in import MidiInput
 from .practice import PracticeClock
 from .score import ScoreError
+from .scoreplay import ScorePlayer
 from .scores import Library
 from .sightread import SightReader
 from .store import Store
@@ -64,6 +65,7 @@ class App:
         self.loop = LoopStation(self.engine, self.metro, self.settings)
         self.backing = Backing(self.settings)
         self.scores = Library()
+        self.player = ScorePlayer(self.engine)
         self.store = Store(config.DB_PATH)
         self.practice = PracticeClock(self.store, self.settings)
         self.sight = SightReader(self.store, self.settings)
@@ -273,6 +275,7 @@ class App:
             "metronome": self.metro.status(),
             "loop": self.loop.status(),
             "pedal": self.engine.pedal_status(),
+            "transport": self.player.status(),
             "practice": self.practice.status(now),
             "sightread": {"active": self.sight.active, "index": self.sight.index},
             "exercise": (
@@ -298,6 +301,7 @@ class App:
             "metronome": self.metro.status(),
             "loop": self.loop.status(),
             "pedal": self.engine.pedal_status(),
+            "transport": self.player.status(),
             "saved_loops": self.loop.saved(),
             "practice": self.practice.status(),
             "sightread": self.sight.state(),
@@ -668,35 +672,41 @@ def score_notes(score_id: str) -> dict[str, Any]:
     return {"ok": True, **score.to_dict()}
 
 
-@api.post("/api/scores/{score_id}/play")
-def play_score(score_id: str, body: dict[str, Any] = Body(default=None)) -> dict[str, Any]:
-    """Hear the score, scheduled on FluidSynth's sequencer.
+@api.post("/api/scores/{score_id}/transport/{action}")
+def score_transport(score_id: str, action: str,
+                    body: dict[str, Any] = Body(default=None)) -> dict[str, Any]:
+    """The score transport. play / pause / stop / seek / tempo.
 
-    Not a Python loop with sleeps. The sequencer rides the audio clock, which is the
-    only clock in this process that cannot drift against the sound -- the same rule the
-    metronome and the loop station follow. A whole piece is queued in one go, which is
-    fine because it is a fixed list of events and nothing has to react to it.
+    One endpoint because they are one state machine, and splitting it would let the UI
+    call two of them in an order the player does not expect.
     """
-    score = app_state.scores.parsed(score_id)
-    if score is None:
-        raise HTTPException(404, "no such score, or it can no longer be read")
-    eng = app_state.engine
-    if eng.fs is None or eng.sequencer is None:
+    player = app_state.player
+    if app_state.engine.fs is None:
         raise HTTPException(503, "audio engine is not running")
 
-    bpm = float((body or {}).get("bpm") or score.tempo or 100.0)
-    bpm = max(20.0, min(300.0, bpm))
-    ms_per_quarter = 60000.0 / bpm
-    channel = eng.active_channels[0] if eng.active_channels else 0
-    at0 = eng.sequencer.get_tick() + 300      # a beat of lead-in, not an instant start
+    # Loading is idempotent and cheap after the first time, but it MUST happen before
+    # a transport command that assumes a loaded score -- pressing play on a score the
+    # player has never seen would otherwise start whatever was loaded last.
+    if player.score_id != score_id:
+        score = app_state.scores.parsed(score_id)
+        if score is None:
+            raise HTTPException(404, "no such score, or it can no longer be read")
+        meta = app_state.scores.get(score_id) or {}
+        player.load(score_id, score, str(meta.get("title", "")))
 
-    for n in score.notes[:8000]:              # a page-turner, not a symphony renderer
-        eng.sequencer.note(
-            int(round(at0 + n.onset * ms_per_quarter)), channel, n.midi, 80,
-            max(40, int(round(n.duration * ms_per_quarter))), dest=eng.seq_dest,
-        )
-    return {"ok": True, "notes": min(len(score.notes), 8000), "bpm": bpm,
-            "seconds": round(score.quarters * ms_per_quarter / 1000.0, 1)}
+    at = (body or {}).get("at")
+    bpm = (body or {}).get("bpm")
+    if action == "play":
+        return {"ok": True, "transport": player.play(at=at, bpm=bpm)}
+    if action == "pause":
+        return {"ok": True, "transport": player.pause()}
+    if action == "stop":
+        return {"ok": True, "transport": player.stop()}
+    if action == "seek":
+        return {"ok": True, "transport": player.seek(float(at or 0.0))}
+    if action == "tempo":
+        return {"ok": True, "transport": player.set_bpm(float(bpm or 100.0))}
+    raise HTTPException(404, f"unknown transport action '{action}'")
 
 
 @api.post("/api/scores/{score_id}")

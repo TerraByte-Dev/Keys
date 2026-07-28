@@ -15,7 +15,10 @@
  * backend's is the one a grader will eventually use.
  */
 
-import { $, api, h, hms, mod, toast } from './ui.js';
+// `paint` is imported under another name: this module already has a local paint()
+// for the library list, and the local declaration shadows the import -- so
+// paint(slider) would silently repaint the list and leave the slider unfilled.
+import { $, api, h, hms, mod, paint as paintSlider, slider, toast } from './ui.js';
 
 let toolkit = null;          // the Verovio instance, built once
 let loading = null;          // in-flight load, so two clicks make one download
@@ -60,6 +63,7 @@ export function createSheet(ctx) {
   let page = 1;
   let notes = null;          // the backend's timeline for the open score
   let listSig = null;
+  let transport = null;      // the server's transport state, never our own guess
 
   const el = mod('Sheet music', 'bring your own',
     h('div.note', null,
@@ -85,10 +89,30 @@ export function createSheet(ctx) {
         h('button.btn', { id: 'sheet-close' }, 'Close'),
         h('span.sheet__title', { id: 'sheet-title' }, ''),
         h('span.list__spacer'),
-        h('button.btn', { id: 'sheet-play' }, 'Play'),
         h('button.btn', { id: 'sheet-prev' }, '‹'),
         h('span.sheet__page', { id: 'sheet-page' }, ''),
         h('button.btn', { id: 'sheet-next' }, '›')),
+
+      h('div.transport', null,
+        h('div.transport__row', null,
+          h('button.btn', { id: 'tp-start', title: 'back to the beginning' }, '|‹'),
+          h('button.btn', { id: 'tp-back', title: 'back four bars' }, '‹‹'),
+          h('button.btn.btn--lg', { id: 'tp-play' }, 'Play'),
+          h('button.btn', { id: 'tp-fwd', title: 'forward four bars' }, '››'),
+          h('button.btn', { id: 'tp-stop' }, 'Stop'),
+          h('span.transport__time', { id: 'tp-time' }, '0:00 / 0:00'),
+          h('span.list__spacer'),
+          h('label.field.transport__tempo', null,
+            h('span.field__label', null, h('span', null, 'Tempo'),
+              h('span.field__value', { id: 'tp-bpm-v' }, '100')),
+            slider({
+              min: 20, max: 240, step: 1, value: 100,
+              oninput: (v) => { $('#tp-bpm-v').textContent = String(v); },
+              onchange: (v) => send('tempo', { bpm: v }),
+            }))),
+        h('div.transport__scrub', { id: 'tp-scrub' },
+          h('div.transport__fill', { id: 'tp-fill' }))),
+
       h('div.sheet__paper', { id: 'sheet-paper' })),
 
     h('div', { id: 'sheet-list' }));
@@ -197,6 +221,9 @@ export function createSheet(ctx) {
       page = 1;
       draw();
       notes = (await api.get(`/api/scores/${id}/notes`)).notes || [];
+      // Loads the score into the player and returns its length, so the transport shows
+      // "0:00 / 0:34" straight away instead of "0:00 / 0:00" until you press something.
+      await send('stop');
     } catch (err) {
       $('#sheet-paper').replaceChildren(h('div.empty', null, err.message));
     }
@@ -214,37 +241,87 @@ export function createSheet(ctx) {
   }
 
   function close() {
+    if (open) send('stop');     // a shut panel must not keep playing
     open = null;
     notes = null;
+    transport = null;
     listSig = null;
     const stage = $('#sheet-stage');
     if (stage) stage.style.display = 'none';
     paint();
   }
 
-  /* ── hearing it ─────────────────────────────────────────────────────────── */
-  /* Scheduled on FluidSynth's sequencer, from the backend's timeline. Nothing sleeps
-     and nothing loops in Python -- the same rule the metronome and loop station obey,
-     for the same reason: the audio clock is the only one that cannot drift. */
-  async function play() {
-    if (!open || !notes?.length) { toast('Nothing to play yet', 'bad'); return; }
-    const bpm = open.tempo || 100;
+  /* ── the transport ────────────────────────────────────────────── */
+  /* Every button is the same request, and the SERVER owns the transport state. This
+     panel never decides what playing means -- which is exactly why pressing Play twice
+     can no longer start a second copy of the piece on top of the first. */
+  async function send(action, body) {
+    if (!open) return;
     try {
-      const res = await api.post(`/api/scores/${open.id}/play`, { bpm });
-      toast(`Playing ${res.notes} notes at ${Math.round(res.bpm)} bpm`, 'good');
+      const res = await api.post(`/api/scores/${open.id}/transport/${action}`, body || {});
+      transport = res.transport;
+      paintTransport();
     } catch (err) { toast(err.message, 'bad'); }
+  }
+
+  function paintTransport() {
+    const t = transport;
+    if (!t || !$('#tp-play')) return;
+    const playing = t.state === 'playing';
+    $('#tp-play').textContent = playing ? 'Pause' : 'Play';
+    $('#tp-play').classList.toggle('is-on', playing);
+    $('#tp-time').textContent = `${hms(t.seconds)} / ${hms(t.total_seconds)}`;
+    $('#tp-fill').style.width =
+      (t.total ? Math.max(0, Math.min(100, (t.at / t.total) * 100)) : 0).toFixed(2) + '%';
+    // Left alone while you are dragging it, or the 1 Hz frame fights your hand.
+    const sl = document.querySelector('.transport__tempo input');
+    if (sl && document.activeElement !== sl) {
+      sl.value = Math.round(t.bpm);
+      paintSlider(sl);
+      $('#tp-bpm-v').textContent = String(Math.round(t.bpm));
+    }
   }
 
   function wire() {
     $('#sheet-close').onclick = close;
     $('#sheet-prev').onclick = () => { if (page > 1) { page--; draw(); } };
     $('#sheet-next').onclick = () => { if (page < pages) { page++; draw(); } };
-    $('#sheet-play').onclick = play;
+
+    $('#tp-play').onclick = () =>
+      send(transport?.state === 'playing' ? 'pause' : 'play');
+    $('#tp-stop').onclick = () => send('stop');
+    $('#tp-start').onclick = () => send('seek', { at: 0 });
+    // Four bars of four, which is what "back a bit" means at a piano.
+    $('#tp-back').onclick = () => send('seek', { at: Math.max(0, (transport?.at || 0) - 16) });
+    $('#tp-fwd').onclick = () => send('seek', { at: (transport?.at || 0) + 16 });
+
+    // Click the bar to go there. A scrub IS a seek and a seek is a reschedule, so
+    // there is nothing to drag against -- the events are already in the queue.
+    $('#tp-scrub').onclick = (e) => {
+      const r = e.currentTarget.getBoundingClientRect();
+      const frac = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+      send('seek', { at: frac * (transport?.total || 0) });
+    };
   }
 
   return {
     el,
     async init() { wire(); await load(); },
-    destroy() { open = null; notes = null; listSig = null; },
+
+    /* The playhead rides the 1 Hz status frame; nothing polls. */
+    status(s) {
+      if (!open || !s.transport) return;
+      // Only when it is OUR score: this panel can be open on one piece while the
+      // player still holds another.
+      if (s.transport.score_id === open.id) {
+        transport = s.transport;
+        paintTransport();
+      }
+    },
+
+    destroy() {
+      if (open) send('stop');
+      open = null; notes = null; listSig = null; transport = null;
+    },
   };
 }
