@@ -91,7 +91,9 @@ exe = EXE(
     # what gives --dev a log file in the data directory instead of a terminal.
     console=False,
     disable_windowed_traceback=False,
-    icon=None,
+    # Seven sizes from 16 to 256 -- Explorer and the taskbar reach for the 16,
+    # and letting Windows downscale a 256 instead is how an icon becomes a smudge.
+    icon=str(ROOT / 'packaging' / 'keys.ico'),
 )
 
 coll = COLLECT(

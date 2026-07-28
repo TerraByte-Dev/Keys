@@ -1,6 +1,8 @@
-<!-- A CRT wordmark belongs here; docs/assets/README.md carries the prompt. Text until it exists —
-     a README that opens with a broken-image icon is worse than one that opens with a word. -->
-<h1 align="center">K E Y S</h1>
+<p align="center">
+  <img src="docs/assets/keys-icon-256.png" alt="Keys" width="132" height="132" />
+</p>
+
+<h1 align="center">Keys</h1>
 
 <p align="center">
   <strong>A MIDI piano that answers in three milliseconds — without taking your speakers hostage.</strong><br/>
