@@ -190,7 +190,19 @@ bundler, no transpiler and no `node_modules` — editing `frontend/` and reloadi
 
 ## License
 
-[MIT](LICENSE) © TerraByte Solutions LLC.
+[MIT](LICENSE) © TerraByte Solutions LLC. That covers the code in this repository.
+
+A **release build** also ships work that is not ours, under its own terms:
+
+| Bundled | Licence | Notes |
+|---|---|---|
+| [FluidSynth](https://www.fluidsynth.org/) | LGPL-2.1 | Shipped as loose `.dll`s beside the executable, which is why the build is `--onedir` and not `--onefile` — the licence requires the libraries stay replaceable. |
+| [Verovio](https://www.verovio.org/) | LGPL-3.0 | `frontend/vendor/`, with [`COPYING.txt`](frontend/vendor/COPYING.txt) and [`COPYING.LESSER.txt`](frontend/vendor/COPYING.LESSER.txt) beside it. Engraves the sheet music. |
+| [GeneralUser GS](https://github.com/mrbumpy409/GeneralUser-GS) by S. Christian Collins | free to distribute, including inside an application; the SoundFont itself may not be sold | The 31 MB of sound. |
+
+Everything else the app depends on — FastAPI, uvicorn, pyfluidsynth, python-rtmidi,
+pywebview — is installed from PyPI under its own permissive licence and is not
+redistributed here in source form.
 
 <p align="center">
   <a href="https://github.com/TerraByte-Dev"><img src="docs/assets/terrabyte-logo.png" alt="TerraByte Solutions LLC" width="64" /></a><br/>

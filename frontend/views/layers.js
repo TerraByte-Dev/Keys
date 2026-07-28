@@ -361,22 +361,11 @@ async function apply(ctx, label) {
     ctx.state.engine = res.engine;
     for (const w of res.warnings || []) toast(w, 'bad', 8000);
     if (!res.warnings?.length) toast(label || 'Applied', 'good', 2200);
-    // Sound it. A split or a layer you have to go and play to hear is a setting; one
-    // that answers immediately is an instrument.
-    //
-    // One call PER ZONE, with an explicit channel: /api/preview sends every note to a
-    // single channel, so previewing a split as one chord would play the right hand's
-    // notes through the left hand's sound. Per zone, a split demonstrates both halves
-    // in their own registers and a layer stacks both sounds on the same notes, which
-    // is exactly the difference you are trying to hear.
-    if (label) {
-      for (const z of zones.filter((zz) => zz.enabled)) {
-        const root = Math.max(z.lo, Math.min(z.hi - 7, Math.round((z.lo + z.hi) / 2)));
-        api.post('/api/preview', {
-          notes: [root, root + 4, root + 7], velocity: 52, ms: 1100, channel: z.channel,
-        }).catch(() => {});
-      }
-    }
+    // No chord. This used to demonstrate the split by sounding each zone in its own
+    // register, which on a LAYER means both instruments firing at once on the same
+    // notes -- a blast you did not ask for, every time you press Apply. Same rule as
+    // the instrument browser: you are sitting at a piano, so the fastest and least
+    // startling way to hear what you just built is to play it.
   } catch (err) { toast(err.message, 'bad'); }
 }
 
