@@ -22,7 +22,7 @@ from collections import deque
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import Body, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import Body, FastAPI, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
 from . import config, engine as engine_mod, music, timing
@@ -36,6 +36,8 @@ from .looper import LoopStation
 from .metronome import Metronome
 from .midi_in import MidiInput
 from .practice import PracticeClock
+from .score import ScoreError
+from .scores import Library
 from .sightread import SightReader
 from .store import Store
 from .version import VERSION, check as check_update
@@ -61,6 +63,7 @@ class App:
         self.metro = Metronome(self.engine, self.settings)
         self.loop = LoopStation(self.engine, self.metro, self.settings)
         self.backing = Backing(self.settings)
+        self.scores = Library()
         self.store = Store(config.DB_PATH)
         self.practice = PracticeClock(self.store, self.settings)
         self.sight = SightReader(self.store, self.settings)
@@ -616,6 +619,99 @@ def _backing_reply(error: str = "") -> dict[str, Any]:
 @api.get("/api/backing")
 def backing_list() -> dict[str, Any]:
     return _backing_reply()
+
+
+# ------------------------------------------------------------------- scores
+@api.get("/api/scores")
+def list_scores() -> dict[str, Any]:
+    return {"ok": True, "scores": app_state.scores.all()}
+
+
+@api.post("/api/scores")
+async def import_score(request: Request) -> dict[str, Any]:
+    """Import a MusicXML file. The body is the raw bytes; the name is a header.
+
+    Raw bytes rather than multipart because there is exactly one file and no other
+    field, and multipart would mean a parser dependency to carry one filename.
+    """
+    name = request.headers.get("x-filename", "score.musicxml")
+    raw = await request.body()
+    meta = app_state.scores.add(name, raw)
+    if meta is None:
+        raise HTTPException(400, app_state.scores.last_error or "could not import that")
+    return {"ok": True, "score": meta, "scores": app_state.scores.all()}
+
+
+@api.get("/api/scores/{score_id}/file")
+def score_file(score_id: str) -> Response:
+    """The original bytes, for Verovio to render in the browser.
+
+    Untouched: Verovio reads MusicXML and .mxl directly, and re-serialising someone's
+    file on the way past is how an importer silently loses what made their copy theirs.
+    """
+    raw = app_state.scores.data(score_id)
+    if raw is None:
+        raise HTTPException(404, "no such score")
+    compressed = raw[:2] == b"PK"
+    return Response(
+        content=raw,
+        media_type="application/vnd.recordare.musicxml" + ("" if compressed else "+xml"),
+    )
+
+
+@api.get("/api/scores/{score_id}/notes")
+def score_notes(score_id: str) -> dict[str, Any]:
+    """The note timeline: what playback and, later, following are driven from."""
+    score = app_state.scores.parsed(score_id)
+    if score is None:
+        raise HTTPException(404, "no such score, or it can no longer be read")
+    return {"ok": True, **score.to_dict()}
+
+
+@api.post("/api/scores/{score_id}/play")
+def play_score(score_id: str, body: dict[str, Any] = Body(default=None)) -> dict[str, Any]:
+    """Hear the score, scheduled on FluidSynth's sequencer.
+
+    Not a Python loop with sleeps. The sequencer rides the audio clock, which is the
+    only clock in this process that cannot drift against the sound -- the same rule the
+    metronome and the loop station follow. A whole piece is queued in one go, which is
+    fine because it is a fixed list of events and nothing has to react to it.
+    """
+    score = app_state.scores.parsed(score_id)
+    if score is None:
+        raise HTTPException(404, "no such score, or it can no longer be read")
+    eng = app_state.engine
+    if eng.fs is None or eng.sequencer is None:
+        raise HTTPException(503, "audio engine is not running")
+
+    bpm = float((body or {}).get("bpm") or score.tempo or 100.0)
+    bpm = max(20.0, min(300.0, bpm))
+    ms_per_quarter = 60000.0 / bpm
+    channel = eng.active_channels[0] if eng.active_channels else 0
+    at0 = eng.sequencer.get_tick() + 300      # a beat of lead-in, not an instant start
+
+    for n in score.notes[:8000]:              # a page-turner, not a symphony renderer
+        eng.sequencer.note(
+            int(round(at0 + n.onset * ms_per_quarter)), channel, n.midi, 80,
+            max(40, int(round(n.duration * ms_per_quarter))), dest=eng.seq_dest,
+        )
+    return {"ok": True, "notes": min(len(score.notes), 8000), "bpm": bpm,
+            "seconds": round(score.quarters * ms_per_quarter / 1000.0, 1)}
+
+
+@api.post("/api/scores/{score_id}")
+def rename_score(score_id: str, body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    meta = app_state.scores.rename(score_id, str(body.get("title", "")))
+    if meta is None:
+        raise HTTPException(404, app_state.scores.last_error or "no such score")
+    return {"ok": True, "score": meta, "scores": app_state.scores.all()}
+
+
+@api.delete("/api/scores/{score_id}")
+def delete_score(score_id: str) -> dict[str, Any]:
+    if not app_state.scores.remove(score_id):
+        raise HTTPException(404, "no such score")
+    return {"ok": True, "scores": app_state.scores.all()}
 
 
 # ------------------------------------------------------------------- updates

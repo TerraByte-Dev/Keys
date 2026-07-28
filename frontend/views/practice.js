@@ -20,14 +20,17 @@
  * backend that stopped grading.
  */
 
+import { createSheet } from '../sheet.js';
 import { $, api, h, hms, mod, stat, toast } from '../ui.js';
 import { createRunner } from '../exercise-run.js';
 
 let shelf = null;      // last GET /api/exercises
 let current = null;    // the open runner, or null when the shelf is showing
+let sheet = null;      // the score library panel
 
 export default {
   async mount(root, ctx) {
+    sheet = createSheet(ctx);
     root.append(h('div.grid', null,
       h('div.col-6', null, mod('Now', null,
         h('div.stats', { id: 'practice-hud' },
@@ -41,9 +44,11 @@ export default {
           'Drift is the number to watch, not per-beat error. Players hold even spacing ',
           'while the whole tempo slides -- that is the failure mode the research found.'))),
       h('div.grid.col-12', { id: 'ex-host' },
-        h('div.col-12', null, h('div.empty', null, 'loading exercises...')))));
+        h('div.col-12', null, h('div.empty', null, 'loading exercises...'))),
+      h('div.col-12', null, sheet.el)));
 
     await load(ctx);
+    await sheet.init();
   },
 
   frame(f, ctx) { current?.frame?.(f, ctx); },
@@ -57,6 +62,8 @@ export default {
   unmount() {
     current?.destroy?.();
     current = null;
+    sheet?.destroy?.();
+    sheet = null;
   },
 };
 

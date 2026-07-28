@@ -198,6 +198,42 @@ step("both staves listed", info["staves"] == [1, 2], str(info["staves"]))
 step("tempo read from <sound>", info["tempo"] == 96.0, str(info["tempo"]))
 step("counts are counts", info["notes"] == 2 and info["measures"] == 1)
 
+print("12. the library keeps your file, not its idea of your file")
+import tempfile  # noqa: E402
+from backend import config  # noqa: E402
+config.DATA_DIR = Path(tempfile.mkdtemp(prefix="keys-scores-"))
+from backend.scores import Library  # noqa: E402
+
+lib = Library()
+step("starts empty", lib.all() == [])
+raw = xml(f'<measure number="1">{attrs()}' + note("C", 4, 4) + note("E", 4, 4) + "</measure>")
+meta = lib.add("My Piece.musicxml", raw)
+step("imports", meta is not None and meta["notes"] == 2, str(lib.last_error))
+step("title comes from the file, not the filename", meta["title"] == "Fixture")
+step("listed", len(lib.all()) == 1)
+
+stored = lib.data(meta["id"])
+step("THE BYTES ARE UNTOUCHED", stored == raw,
+     "Verovio renders the original; re-serialising it loses whatever made your copy yours")
+
+step("rejects a .mid", lib.add("song.mid", b"MThd") is None
+     and "not MusicXML" in lib.last_error, lib.last_error[:52])
+step("rejects an empty file", lib.add("x.musicxml", b"") is None)
+step("rejects rubbish before storing it, not after",
+     lib.add("bad.musicxml", b"<html/>") is None and len(lib.all()) == 1,
+     "a file that cannot be read must never enter the library")
+
+lib.rename(meta["id"], "Something Else")
+step("renamed", lib.get(meta["id"])["title"] == "Something Else")
+step("timeline still parses after a rename",
+     len(lib.parsed(meta["id"]).notes) == 2)
+
+step("removed", lib.remove(meta["id"]) and lib.all() == [])
+step("removing twice is harmless", lib.remove(meta["id"]) is False)
+step("the files went with it",
+     not list((config.DATA_DIR / "scores").glob("*")),
+     "a sidecar left behind would haunt the list forever")
+
 print()
 print("ALL CHECKS PASSED" if ok else "FAILURES ABOVE")
 sys.exit(0 if ok else 1)

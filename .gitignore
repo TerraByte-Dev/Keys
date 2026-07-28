@@ -10,6 +10,9 @@ recordings/
 
 # Local state
 keys.db
+# --dev writes this into the data dir, which IS the repo in a source checkout.
+keys-dev.log
+scores/
 *.db-journal
 # WAL mode leaves these two beside the database; they are as local as it is.
 *.db-wal
