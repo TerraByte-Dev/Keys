@@ -60,6 +60,9 @@
 <!-- ── the view ──────────────────────────────────────────────────────────── -->
 <main class="stage" id="stage" tabindex="-1"></main>
 
+<!-- ── note roll: collapsed to nothing until you open it ─────────────────── -->
+<section class="roll" id="roll" aria-hidden="true"></section>
+
 <!-- ── readout strip above the keys ──────────────────────────────────────── -->
 <section class="readout">
   <div class="readout__chord">
@@ -77,6 +80,10 @@
     </span>
     <span class="readout__label">VEL</span>
     <output class="readout__vel" id="last-vel">—</output>
+    <button class="rolltoggle" id="roll-toggle" title="Show the notes you play rising out of the keys (V)" aria-pressed="false">
+      <i class="rolltoggle__bars" aria-hidden="true"><i></i><i></i><i></i></i>
+      <span class="rolltoggle__label">ROLL</span>
+    </button>
   </div>
 </section>
 

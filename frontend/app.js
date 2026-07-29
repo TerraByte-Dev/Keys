@@ -12,6 +12,7 @@
  */
 
 import { createKeyboard } from './keyboard.js';
+import { createRoll } from './roll.js';
 import { attachLayout, primeLayout } from './layout.js';
 import { $, api, hms, toast } from './ui.js';
 import { startTour, tourOpen } from './tour.js';
@@ -133,6 +134,7 @@ function applyFrame(f) {
     els.chordName.textContent = c ? c.name : '';
   }
   if (f.names) els.notes.textContent = f.names.join('   ');
+  roll?.frame(f);
   current?.frame?.(f, ctx);
 }
 
@@ -155,6 +157,9 @@ function applyStatus(s) {
     .filter((z) => z.enabled).map((z) => [z.lo, z.hi]));
   if (zoneSig !== lastZoneSig) {
     lastZoneSig = zoneSig;
+    // The roll colours a bar by the zone that owns the note, so a split built
+    // while it is open has to reach it too.
+    roll?.setZones(s.engine?.zones || []);
     const live = new Set();
     for (const z of s.engine?.zones || []) {
       if (!z.enabled) continue;
@@ -253,6 +258,33 @@ async function refresh() {
 // the matching anchor in index.html.
 const ORDER = ['play', 'practice', 'layers', 'tools', 'stats', 'settings'];
 
+/* ── the note roll ────────────────────────────────────────────────────────── */
+let roll = null;
+let rollOpen = false;
+
+export function toggleRoll(on) {
+  rollOpen = on === undefined ? !rollOpen : !!on;
+  document.body.classList.toggle('is-rolling', rollOpen);
+  const btn = $('#roll-toggle');
+  btn?.setAttribute('aria-pressed', String(rollOpen));
+  $('#roll')?.setAttribute('aria-hidden', String(!rollOpen));
+
+  if (rollOpen) {
+    if (!roll) roll = createRoll($('#roll'));
+    roll.setZones(ctx.state?.engine?.zones || []);
+    // The panel has only just been given height, and the dock keyboard it aligns
+    // to has only just been squeezed -- both are wrong until layout settles.
+    requestAnimationFrame(() => roll?.remeasure());
+  } else {
+    roll?.clear();
+  }
+  api.post('/api/settings', { ui: { roll: rollOpen } }).catch(() => {});
+  if (ctx.state?.settings?.ui) ctx.state.settings.ui.roll = rollOpen;
+  return rollOpen;
+}
+
+$('#roll-toggle')?.addEventListener('click', () => toggleRoll());
+
 /* Every shortcut in the app, in one table. An action is a label, a default key and
    the thing it does; the keys are rebindable and the defaults are what ships.
    `always` means the binding still fires while a text field has focus -- true only
@@ -273,6 +305,10 @@ export const ACTIONS = [
   {
     id: 'metronome', label: 'Start / stop the metronome', group: 'Do', key: 'm',
     run: () => api.post('/api/metronome/toggle').catch(() => {}),
+  },
+  {
+    id: 'roll', label: 'Show / hide the note roll', group: 'Do', key: 'v',
+    run: () => toggleRoll(),
   },
 ];
 
@@ -325,6 +361,7 @@ window.addEventListener('beforeunload', () => { if (ws) { ws.onclose = null; ws.
   }
   applyTheme(ctx.state?.settings?.ui?.theme);
   setBinds(ctx.state?.settings?.keys);
+  if (ctx.state?.settings?.ui?.roll) toggleRoll(true);
   primeLayout(ctx.state);
   for (const problem of ctx.state.errors || []) toast(problem, 'bad', 12000);
   await route();

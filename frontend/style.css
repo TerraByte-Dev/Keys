@@ -46,6 +46,10 @@
      16:9 display that works out at 20vh -- this number is geometry, not taste. Capped,
      because a real 88-key board is 1225 mm and does not grow with your monitor. */
   --dock-h: clamp(104px, 20vh, 216px);
+  /* The note roll, zero until you open it. It takes its space from the stage
+     rather than from the keyboard -- the keys are the one thing that must never
+     shrink to make room for a decoration. */
+  --roll-h: 0px;
 
   --ease: cubic-bezier(.2, 0, 0, 1);
   --radius: 3px;
@@ -284,10 +288,11 @@ html, body {
 body {
   display: grid;
   grid-template-columns: var(--nav-w) 1fr;
-  grid-template-rows: var(--rail-h) 1fr var(--readout-h) var(--dock-h);
+  grid-template-rows: var(--rail-h) minmax(0, 1fr) var(--roll-h) var(--readout-h) var(--dock-h);
   grid-template-areas:
     "rail    rail"
     "nav     stage"
+    "roll    roll"
     "readout readout"
     "dock    dock";
   background: var(--panel-0);
@@ -1428,3 +1433,49 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
   }
   .tour__toclabel { width: 100%; }
 }
+
+/* -- the note roll -------------------------------------------------------- */
+.roll {
+  grid-area: roll;
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, var(--panel-0) 0%, transparent 22%),
+    linear-gradient(0deg, var(--stage-glow), transparent 60%),
+    var(--panel-1);
+  border-top: 1px solid var(--hairline);
+  /* Chromium animates grid tracks, which is the whole reason --roll-h is a
+     variable on body rather than a class that swaps a fixed height. */
+  transition: none;
+}
+body.is-rolling { --roll-h: clamp(150px, 30vh, 460px); }
+.roll__canvas { display: block; width: 100%; height: 100%; }
+/* The line the notes are born on. Reads as the top edge of the keybed, which is
+   exactly what it is. */
+.roll::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--amber-deep) 12%,
+                              var(--amber-deep) 88%, transparent);
+  opacity: .5; pointer-events: none;
+}
+body:not(.is-rolling) .roll { border-top: 0; }
+
+.rolltoggle {
+  display: flex; align-items: center; gap: 6px;
+  margin-left: 10px; padding: 3px 9px;
+  color: var(--ink-faint); background: var(--panel-1);
+  border: 1px solid var(--hairline); border-radius: var(--radius);
+  cursor: pointer; font-family: inherit;
+  font-size: 9.5px; letter-spacing: .16em;
+  transition: color 120ms var(--ease), border-color 120ms var(--ease);
+}
+.rolltoggle:hover { color: var(--ink-dim); border-color: var(--hairline-hi); }
+.rolltoggle[aria-pressed="true"] { color: var(--amber); border-color: var(--amber-deep); }
+/* Three rising bars -- the button shows what it does rather than naming it. */
+.rolltoggle__bars { display: flex; align-items: flex-end; gap: 2px; height: 11px; }
+.rolltoggle__bars i {
+  width: 2px; background: currentColor; border-radius: 1px; opacity: .75;
+}
+.rolltoggle__bars i:nth-child(1) { height: 5px; }
+.rolltoggle__bars i:nth-child(2) { height: 11px; }
+.rolltoggle__bars i:nth-child(3) { height: 8px; }

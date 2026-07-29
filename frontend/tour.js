@@ -86,6 +86,17 @@ export const CHAPTERS = [
     ],
   },
   {
+    id: 'roll', tab: null, title: 'The note roll',
+    body: [
+      'Press ', b('ROLL'), ' at the right of the strip above the keys, or ', b('V'), '. ',
+      'The notes you play rise out of the keyboard — the falling-notes videos, upside ',
+      'down.', h('br'), h('br'),
+      'A bar’s length is how long you held the note and the gap above it is how ',
+      'long you waited, so legato, staccato and a chord you rolled by accident all ',
+      'become things you can see. In a split or a layer each zone gets its own colour.',
+    ],
+  },
+  {
     id: 'metronome', tab: 'tools', title: 'Tools — the click',
     body: [
       'Scheduled on the audio clock rather than a software timer, so it cannot drift ',
