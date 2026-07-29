@@ -94,6 +94,9 @@ export const CHAPTERS = [
       'A bar’s length is how long you held the note and the gap above it is how ',
       'long you waited, so legato, staccato and a chord you rolled by accident all ',
       'become things you can see. In a split or a layer each zone gets its own colour.',
+      h('br'), h('br'),
+      b('F'), ' takes it full screen — the roll, the keyboard, a vignette and nothing ',
+      'else. ', b('Esc'), ' brings the app back.',
     ],
   },
   {

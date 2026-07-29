@@ -1479,3 +1479,58 @@ body:not(.is-rolling) .roll { border-top: 0; }
 .rolltoggle__bars i:nth-child(1) { height: 5px; }
 .rolltoggle__bars i:nth-child(2) { height: 11px; }
 .rolltoggle__bars i:nth-child(3) { height: 8px; }
+
+/* -- immersive: the roll, the keys, and nothing else ---------------------- */
+/* Everything but the roll and the keyboard is collapsed rather than restyled, so
+   there is exactly one layout in the sheet and immersive is a set of zeroed rows. */
+body.is-immersive {
+  --roll-h: minmax(0, 1fr);
+  --dock-h: clamp(120px, 22vh, 240px);
+  grid-template-columns: 0 1fr;
+  grid-template-rows: 0 0 minmax(0, 1fr) 0 var(--dock-h);
+}
+body.is-immersive .rail,
+body.is-immersive .nav,
+body.is-immersive .stage,
+body.is-immersive .readout { display: none; }
+body.is-immersive .roll { border-top: 0; }
+body.is-immersive .dock {
+  background: var(--panel-0);
+  box-shadow: 0 -30px 60px -30px var(--shadow-deep);
+}
+
+/* The vignette. On the container rather than in the canvas: a CSS gradient is
+   resolution-independent and costs the compositor nothing, where painting it per
+   frame would be the most expensive thing in the loop. */
+body.is-immersive .roll::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 2;
+  background:
+    radial-gradient(120% 92% at 50% 100%, transparent 42%, var(--panel-0) 100%),
+    linear-gradient(180deg, var(--panel-0) 0%, transparent 26%);
+}
+
+/* Leaves with the mouse. In a mode with no chrome, a control that never fades is
+   the only thing on screen that is not the instrument. */
+.roll__exit {
+  position: absolute; top: 14px; right: 16px; z-index: 3;
+  display: none; align-items: center; gap: 7px;
+  padding: 6px 11px; cursor: pointer;
+  font-family: var(--font-panel); font-size: 10px; letter-spacing: .16em;
+  color: var(--ink-faint); background: var(--wash);
+  border: 1px solid var(--hairline); border-radius: var(--radius);
+  opacity: 0; transition: opacity .5s var(--ease), color .15s var(--ease);
+}
+body.is-immersive .roll__exit { display: flex; }
+body.is-immersive.is-stirring .roll__exit { opacity: 1; }
+.roll__exit:hover { color: var(--amber); border-color: var(--amber-deep); opacity: 1; }
+
+/* The full-screen handle inside the strip. */
+.roll__grow {
+  position: absolute; top: 8px; right: 10px; z-index: 3;
+  width: 26px; height: 22px; display: grid; place-items: center; cursor: pointer;
+  color: var(--ink-faint); background: var(--wash);
+  border: 1px solid var(--hairline); border-radius: var(--radius);
+  transition: color .15s var(--ease), border-color .15s var(--ease);
+}
+.roll__grow:hover { color: var(--amber); border-color: var(--amber-deep); }
+body.is-immersive .roll__grow { display: none; }

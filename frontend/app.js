@@ -262,6 +262,45 @@ const ORDER = ['play', 'practice', 'layers', 'tools', 'stats', 'settings'];
 let roll = null;
 let rollOpen = false;
 
+/* Immersive: the roll fills the window, the keyboard stays, everything else goes.
+   Real fullscreen is requested too when the browser allows it -- in the packaged
+   window that is the difference between "a big panel" and "the room went dark". */
+let immersive = false;
+let stirTimer = 0;
+
+export function toggleImmersive(on) {
+  const want = on === undefined ? !immersive : !!on;
+  if (want && !rollOpen) toggleRoll(true);
+  immersive = want;
+  document.body.classList.toggle('is-immersive', immersive);
+  roll?.setImmersive(immersive);
+  // The grid tracks change, so the dock keyboard is a different size and every
+  // column the roll aligns to has moved.
+  requestAnimationFrame(() => roll?.remeasure());
+
+  if (immersive) {
+    document.documentElement.requestFullscreen?.().catch(() => {});
+    stir();
+  } else if (document.fullscreenElement) {
+    document.exitFullscreen?.().catch(() => {});
+  }
+  return immersive;
+}
+
+/* Show the way out for a moment whenever the mouse moves, then let it fade. */
+function stir() {
+  document.body.classList.add('is-stirring');
+  clearTimeout(stirTimer);
+  stirTimer = setTimeout(() => document.body.classList.remove('is-stirring'), 2400);
+}
+document.addEventListener('mousemove', () => { if (immersive) stir(); });
+
+// Leaving fullscreen by any route -- F11, the window button, Esc handled by the
+// browser -- has to bring the layout back with it, or the app is left pretending.
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement && immersive) toggleImmersive(false);
+});
+
 export function toggleRoll(on) {
   rollOpen = on === undefined ? !rollOpen : !!on;
   document.body.classList.toggle('is-rolling', rollOpen);
@@ -284,6 +323,8 @@ export function toggleRoll(on) {
 }
 
 $('#roll-toggle')?.addEventListener('click', () => toggleRoll());
+$('#roll-grow')?.addEventListener('click', () => toggleImmersive(true));
+$('#roll-exit')?.addEventListener('click', () => toggleImmersive(false));
 
 /* Every shortcut in the app, in one table. An action is a label, a default key and
    the thing it does; the keys are rebindable and the defaults are what ships.
@@ -300,7 +341,13 @@ export const ACTIONS = [
   })),
   {
     id: 'panic', label: 'All notes off', group: 'Do', key: 'Escape', always: true,
-    run: () => api.post('/api/panic').then(() => toast('All notes off', 'good')),
+    // The one exception to "panic always fires": in immersive there is no visible
+    // control to leave by, and Esc is what everyone will press. Panic keeps its
+    // meaning everywhere the button is on screen.
+    run: () => {
+      if (immersive) { toggleImmersive(false); return; }
+      api.post('/api/panic').then(() => toast('All notes off', 'good'));
+    },
   },
   {
     id: 'metronome', label: 'Start / stop the metronome', group: 'Do', key: 'm',
@@ -309,6 +356,11 @@ export const ACTIONS = [
   {
     id: 'roll', label: 'Show / hide the note roll', group: 'Do', key: 'v',
     run: () => toggleRoll(),
+  },
+  {
+    id: 'immersive', label: 'Full screen — just the roll and the keys',
+    group: 'Do', key: 'f',
+    run: () => toggleImmersive(),
   },
 ];
 

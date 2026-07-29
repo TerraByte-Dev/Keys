@@ -47,6 +47,13 @@ export function createRoll(container) {
   let last = 0;
   let running = false;
 
+  /* Immersive extras. All of this is off in the strip, where the panel is 150px
+     tall and every pixel of it should be note. */
+  let immersive = false;
+  let energy = 0;          // decaying loudness, drives the glow at the keybed
+  const motes = [];        // slow rising specks; a fixed pool, never grown per frame
+  const MOTES = 46;
+
   /* ---- geometry ------------------------------------------------------- */
   function measure() {
     const rect = container.getBoundingClientRect();
@@ -122,6 +129,9 @@ export function createRoll(container) {
     if (bars.length >= MAX_BARS) bars.shift();
     bars.push(bar);
     held.set(midi, bar);
+    // The keybed glow answers how hard and how much you are playing, not each note
+    // -- a bump that decays, so a run swells it and a single note barely moves it.
+    energy = Math.min(1, energy + 0.22 + 0.5 * (bar.vel / 127));
     wake();
   }
 
@@ -144,6 +154,14 @@ export function createRoll(container) {
     last = now;
     const speed = H / TRAVEL_SECONDS;
 
+    if (immersive) {
+      energy *= Math.pow(0.28, dt);          // ~1.3s to fall away
+      for (const m of motes) {
+        m.y -= m.v * dt;
+        if (m.y < -8) { m.y = H + 8; m.x = Math.random() * W; }
+      }
+    }
+
     let alive = 0;
     for (let i = 0; i < bars.length; i++) {
       const b = bars[i];
@@ -156,7 +174,11 @@ export function createRoll(container) {
     draw();
 
     // Nothing on screen and nothing held: stop burning frames until the next note.
-    if (!bars.length) { running = false; return; }
+    //
+    // Immersive is the exception and keeps drifting. Parking it when the glow fades
+    // freezes the motes in mid-air, which reads as a hung screen rather than a calm
+    // one -- and this is a mode you deliberately opened to leave running.
+    if (!bars.length && !immersive) { running = false; return; }
     raf = requestAnimationFrame(tick);
   }
 
@@ -172,6 +194,8 @@ export function createRoll(container) {
       ctx2d.lineTo(Math.round(x) + 0.5, H);
     }
     ctx2d.stroke();
+
+    if (immersive) drawAmbience();
 
     for (const b of bars) {
       const top = H - b.head;
@@ -205,6 +229,28 @@ export function createRoll(container) {
     ctx2d.globalAlpha = 1;
   }
 
+  /* The room the notes live in: a wash of light at the keybed that answers your
+     playing, and slow motes so the screen is never completely still. Drawn first,
+     so every note sits in front of it. */
+  function drawAmbience() {
+    const lift = 0.10 + 0.55 * energy;
+    const g = ctx2d.createRadialGradient(W / 2, H, 0, W / 2, H, H * (0.55 + 0.45 * energy));
+    g.addColorStop(0, palette.zone[0] || palette.amber);
+    g.addColorStop(1, 'transparent');
+    ctx2d.globalAlpha = lift * 0.22;
+    ctx2d.fillStyle = g;
+    ctx2d.fillRect(0, 0, W, H);
+
+    ctx2d.globalAlpha = 0.16 + 0.20 * energy;
+    ctx2d.fillStyle = palette.hot;
+    for (const m of motes) {
+      ctx2d.beginPath();
+      ctx2d.arc(m.x, m.y, m.r, 0, 6.283185);
+      ctx2d.fill();
+    }
+    ctx2d.globalAlpha = 1;
+  }
+
   /* ---- wiring --------------------------------------------------------- */
   const onResize = () => measure();      // measure() redraws
   window.addEventListener('resize', onResize);
@@ -227,6 +273,19 @@ export function createRoll(container) {
       if (f.off) for (const n of f.off) noteOff(n);
     },
     setZones(list) { zones = Array.isArray(list) ? list : []; },
+
+    setImmersive(on) {
+      immersive = !!on;
+      if (immersive && !motes.length) {
+        for (let i = 0; i < MOTES; i++) {
+          motes.push({ x: Math.random() * W, y: Math.random() * H,
+                       v: 6 + Math.random() * 16, r: 0.6 + Math.random() * 1.4 });
+        }
+      }
+      if (!immersive) energy = 0;
+      measure();
+      if (immersive) wake();
+    },
     /* The dock keyboard may not exist or may have resized when the panel opens. */
     remeasure() { measure(); },
     clear() { bars = []; held.clear(); ctx2d.clearRect(0, 0, W, H); },

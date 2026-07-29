@@ -61,7 +61,19 @@
 <main class="stage" id="stage" tabindex="-1"></main>
 
 <!-- ── note roll: collapsed to nothing until you open it ─────────────────── -->
-<section class="roll" id="roll" aria-hidden="true"></section>
+<section class="roll" id="roll" aria-hidden="true">
+  <button class="roll__grow" id="roll-grow" title="Full screen — just the roll and the keys (F)">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+      <path d="M1 4.2V1h3.2M7.8 1H11v3.2M11 7.8V11H7.8M4.2 11H1V7.8"/>
+    </svg>
+  </button>
+  <button class="roll__exit" id="roll-exit" title="Back to the app (Esc)">
+    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+      <path d="M4.2 1H1v3.2M11 4.2V1H7.8M7.8 11H11V7.8M1 7.8V11h3.2"/>
+    </svg>
+    EXIT
+  </button>
+</section>
 
 <!-- ── readout strip above the keys ──────────────────────────────────────── -->
 <section class="readout">
