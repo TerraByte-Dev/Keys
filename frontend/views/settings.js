@@ -1,4 +1,9 @@
-/* Setup -- audio, MIDI, effects, and the diagnostics you want when something is off.
+/* Sound -- the rig: MIDI in, audio out, effects, and the diagnostics you want when
+ * something is off.
+ *
+ * Everything about the APP rather than the instrument -- themes, shortcuts, updates,
+ * your data, the tutorial -- lives behind the gear in the top rail instead. This tab
+ * was sixteen panels deep and had become a drawer rather than a page.
  *
  * The latency panel is deliberately blunt about what it is not measuring. Nothing in
  * software can measure MIDI-to-ear latency: WASAPI loopback taps the post-mix engine,
@@ -7,9 +12,6 @@
  * reports the piece it can actually see and labels it. */
 
 import { $, api, h, mod, slider, stat, toast } from '../ui.js';
-import { resetLayout } from '../layout.js';
-import { CHAPTERS, startTutorial } from '../tour.js';
-import { clockPanel, dataPanel, keysPanel, themePanel } from '../prefs.js';
 
 export default {
   async mount(root, ctx) {
@@ -102,10 +104,6 @@ export default {
 
       
 
-      themePanel(ctx),
-      clockPanel(ctx),
-      keysPanel(ctx),
-
       h('div.col-6', null, mod('Reading key', null,
         h('label.field', null,
           h('span.field__label', null, h('span', null, 'Key signature')),
@@ -159,44 +157,6 @@ export default {
 
       
 
-      dataPanel(),
-
-      h('div.col-6', null, mod('About', `version ${st.version || '?'}`,
-        h('div.stats', null,
-          stat(st.version || '?', 'Version', st.frozen ? 'installed build' : 'source checkout'),
-          stat(st.frozen ? 'EXE' : 'PY', 'Running as',
-               st.frozen ? 'from the installer' : 'from keys.py')),
-        h('div.btnrow', { style: { marginTop: '12px' } },
-          h('button.btn.btn--lg', { id: 'upd-check', onclick: checkUpdate },
-            'Check for updates')),
-        h('div', { id: 'upd-result', style: { marginTop: '10px' } }),
-        h('div.note', { style: { marginTop: '10px' } },
-          'Keys checks only when you press that button -- never on launch, never on a ',
-          'timer, never in the background. The request sends nothing but a GET for the ',
-          'public release list.'))),
-
-      h('div.col-3', null, mod('Panel layout', null,
-        h('div.note', null,
-          'Every panel can be dragged by its header and resized with the arrows that ',
-          'appear when you hover it. The arrangement is per tab and saved as you go, ',
-          'so put the things you actually use at the top.'),
-        h('div.btnrow', { style: { marginTop: '12px' } },
-          h('button.btn', { onclick: () => resetLayout() },
-            'Put every tab back the way it shipped')))),
-
-      h('div.col-6', null, mod('Tutorial', `${CHAPTERS.length} chapters`,
-        h('div.note', null,
-          'The whole manual, and the same thing that runs on first launch. Every ',
-          'chapter is one click from every other, so it is also the place to look ',
-          'one thing up.'),
-        h('div.btnrow', { style: { marginTop: '12px' } },
-          h('button.btn.btn--lg', { onclick: () => startTutorial(ctx) },
-            'Start from the beginning')),
-        h('div.tour__jump', { style: { marginTop: '12px' } },
-          CHAPTERS.map((c) => h('button.btn.btn--sm', {
-            onclick: () => startTutorial(ctx, c.id),
-          }, c.title))))),
-
       h('div.col-12', null, mod('Events', 'engine to browser',
         h('div.stats', { id: 'hub-stats' }),
         h('div.note', { style: { marginTop: '12px' } },
@@ -230,34 +190,6 @@ export default {
   },
 };
 
-async function checkUpdate() {
-  const btn = $('#upd-check');
-  const host = $('#upd-result');
-  btn.disabled = true;
-  btn.textContent = 'Checking...';
-  host.replaceChildren();
-  try {
-    const r = await api.post('/api/update/check', {});
-    if (r.error) {
-      host.append(h('div.note.note--warn', null, r.error));
-    } else if (r.newer) {
-      host.append(h('div.note.note--warn', null,
-        h('strong', null, `${r.latest} is available.`), ` You are on ${r.current}. `,
-        h('a', { href: r.url, target: '_blank', rel: 'noreferrer' }, 'Open the release'),
-        r.download_name ? ` (${r.download_name}, ${(r.download_size / 1048576).toFixed(0)} MB)` : ''));
-      if (r.notes) host.append(h('div.note', { style: { marginTop: '8px' } }, r.notes));
-    } else {
-      host.append(h('div.note', null,
-        `Up to date -- ${r.current}`,
-        r.latest && r.latest !== r.current ? ` (latest published: ${r.latest})` : ''));
-    }
-  } catch (err) {
-    host.append(h('div.note.note--warn', null, err.message));
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Check for updates';
-  }
-}
 
 async function wireAudio(ctx) {
   try {

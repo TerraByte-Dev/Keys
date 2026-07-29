@@ -277,6 +277,485 @@
    just dirt on the screen. */
 html[data-theme="paper"] body::after { opacity: .018; }
 
+/* -- generated themes: tools/make_themes.py owns everything below ------- */
+
+/* Ultraviolet — Electric violet over midnight indigo. */
+[data-theme="ultraviolet"] {
+  --panel-0: #050316;
+  --panel-1: #17112e;
+  --panel-2: #1d1734;
+  --panel-3: #251f3d;
+  --panel-4: #2f2848;
+  --hairline: #352e50;
+  --hairline-hi: #494166;
+
+  --ink: #d3c4ff;
+  --ink-dim: #7c739d;
+  --ink-faint: #4b4565;
+
+  --amber: #a06bff;
+  --amber-hot: #dccbfb;
+  --amber-deep: #5f05ff;
+  --cyan: #5ad2ff;
+  --green: #6e77ff;
+  --red: #9475ff;
+
+  --wash: #d3c4ff08;
+  --wash-hi: #d3c4ff12;
+  --gloss: #d3c4ff17;
+  --shadow: #000000aa;
+  --shadow-soft: #00000055;
+  --shadow-deep: #000000cc;
+  --stage-glow: #a06bff0d;
+
+  --on-accent: #170f2f;
+  --amber-glow: #a06bff54;
+  --amber-wash: #a06bff1a;
+  --amber-faint: #a06bff0d;
+  --amber-fill-hi: #2d1e53;
+  --amber-fill-lo: #180f32;
+
+  --cyan-deep: #208cb5;
+  --green-deep: #2029b5;
+  --red-deep: #4622c3;
+  --red-ink: #fbfafe;
+  --red-fill: #1b143b;
+  --red-fill-hi: #2b2057;
+
+  --control: #675d86;
+  --control-lo: #251f3d;
+  --control-edge: #8176a3;
+  --led-off: #352e50;
+
+  --heat-1: #302057;
+  --heat-2: #5f3f9d;
+  --heat-3: #8a5cde;
+
+  --key-white: #c6c2d2;
+  --key-black: #131126;
+  --key-sustain: #5e1ed2;
+  --key-ghost: #224965;
+  --key-dead: #5c5478;
+  --key-label: #575073;
+  --key-label-black: #766d96;
+
+  --zone-1: #a06bff;
+  --zone-2: #5ad2ff;
+  --zone-3: #6e77ff;
+  --zone-4: #ff6bd6;
+  --zone-5: #6ba5ff;
+  --zone-6: #5affbe;
+}
+
+/* Synthwave — Magenta neon and cyan on deep violet. */
+[data-theme="synthwave"] {
+  --panel-0: #0a0320;
+  --panel-1: #230f34;
+  --panel-2: #29153a;
+  --panel-3: #321c42;
+  --panel-4: #3c264d;
+  --hairline: #442d55;
+  --hairline-hi: #5a406a;
+
+  --ink: #f0c8ff;
+  --ink-dim: #8f75a1;
+  --ink-faint: #58466c;
+
+  --amber: #ff3ac8;
+  --amber-hot: #f79ede;
+  --amber-deep: #d30098;
+  --cyan: #4fe3ff;
+  --green: #637fff;
+  --red: #ff44e4;
+
+  --wash: #f0c8ff08;
+  --wash-hi: #f0c8ff12;
+  --gloss: #f0c8ff17;
+  --shadow: #000000aa;
+  --shadow-soft: #00000055;
+  --shadow-deep: #000000cc;
+  --stage-glow: #ff3ac80d;
+
+  --on-accent: #25092f;
+  --amber-glow: #ff3ac854;
+  --amber-wash: #ff3ac81a;
+  --amber-faint: #ff3ac80d;
+  --amber-fill-hi: #4a114c;
+  --amber-fill-lo: #270a34;
+
+  --cyan-deep: #1e95ab;
+  --green-deep: #1e37ab;
+  --red-deep: #991b87;
+  --red-ink: #facef3;
+  --red-fill: #310c3f;
+  --red-fill-hi: #4f1256;
+
+  --control: #795d8a;
+  --control-lo: #321c42;
+  --control-edge: #9677a6;
+  --led-off: #442d55;
+
+  --heat-1: #4f124f;
+  --heat-2: #982381;
+  --heat-3: #dd32b0;
+
+  --key-white: #cfc5d4;
+  --key-black: #1a1130;
+  --key-sustain: #a7187f;
+  --key-ghost: #214f6c;
+  --key-dead: #6b567e;
+  --key-label: #665279;
+  --key-label-black: #896f9b;
+
+  --zone-1: #ff3ac8;
+  --zone-2: #4fe3ff;
+  --zone-3: #637fff;
+  --zone-4: #ff613a;
+  --zone-5: #a23aff;
+  --zone-6: #4fffa6;
+}
+
+/* Crimson — Red neon on charred maroon. */
+[data-theme="crimson"] {
+  --panel-0: #0b0305;
+  --panel-1: #240e11;
+  --panel-2: #2b1317;
+  --panel-3: #341a1e;
+  --panel-4: #402327;
+  --hairline: #48292e;
+  --hairline-hi: #5f3b40;
+
+  --ink: #ffb6c0;
+  --ink-dim: #996b71;
+  --ink-faint: #5e4045;
+
+  --amber: #ff2e4d;
+  --amber-hot: #f693a1;
+  --amber-deep: #c7001e;
+  --cyan: #ffb03a;
+  --green: #d0ff4e;
+  --red: #ff6857;
+
+  --wash: #ffb6c008;
+  --wash-hi: #ffb6c012;
+  --gloss: #ffb6c017;
+  --shadow: #000000aa;
+  --shadow-soft: #00000055;
+  --shadow-deep: #000000cc;
+  --stage-glow: #ff2e4d0d;
+
+  --on-accent: #24070c;
+  --amber-glow: #ff2e4d54;
+  --amber-wash: #ff2e4d1a;
+  --amber-faint: #ff2e4d0d;
+  --amber-fill-hi: #4a0e18;
+  --amber-fill-lo: #28080e;
+
+  --cyan-deep: #99671b;
+  --green-deep: #78991b;
+  --red-deep: #8f193b;
+  --red-ink: #f8c3d2;
+  --red-fill: #320a15;
+  --red-fill-hi: #4f0f21;
+
+  --control: #81555b;
+  --control-lo: #341a1e;
+  --control-edge: #a06c74;
+  --led-off: #48292e;
+
+  --heat-1: #4f0f19;
+  --heat-2: #991c2f;
+  --heat-3: #dd2843;
+
+  --key-white: #ccbbbd;
+  --key-black: #1c1012;
+  --key-sustain: #9c162a;
+  --key-ghost: #5e3e17;
+  --key-dead: #714e54;
+  --key-label: #6d4b50;
+  --key-label-black: #91656c;
+
+  --zone-1: #ff2e4d;
+  --zone-2: #ffb03a;
+  --zone-3: #d0ff4e;
+  --zone-4: #ffcf2e;
+  --zone-5: #ff2eea;
+  --zone-6: #ff3a47;
+}
+
+/* Tangerine — Hot orange on scorched black. */
+[data-theme="tangerine"] {
+  --panel-0: #0a0500;
+  --panel-1: #231508;
+  --panel-2: #2a1b0d;
+  --panel-3: #332214;
+  --panel-4: #3f2c1c;
+  --hairline: #473322;
+  --hairline-hi: #5e4632;
+
+  --ink: #ffcfa4;
+  --ink-dim: #987a5f;
+  --ink-faint: #5d4a38;
+
+  --amber: #ff7a18;
+  --amber-hot: #f5b07e;
+  --amber-deep: #b14b00;
+  --cyan: #ffd166;
+  --green: #ceff7a;
+  --red: #ff6222;
+
+  --wash: #ffcfa408;
+  --wash-hi: #ffcfa412;
+  --gloss: #ffcfa417;
+  --shadow: #000000aa;
+  --shadow-soft: #00000055;
+  --shadow-deep: #000000cc;
+  --stage-glow: #ff7a180d;
+
+  --on-accent: #221002;
+  --amber-glow: #ff7a1854;
+  --amber-wash: #ff7a181a;
+  --amber-faint: #ff7a180d;
+  --amber-fill-hi: #4a2306;
+  --amber-fill-lo: #271303;
+
+  --cyan-deep: #bf9022;
+  --green-deep: #85bf22;
+  --red-deep: #7c3416;
+  --red-ink: #f6c4b0;
+  --red-fill: #311304;
+  --red-fill-hi: #4f1d07;
+
+  --control: #80634a;
+  --control-lo: #332214;
+  --control-edge: #9f7e60;
+  --led-off: #473322;
+
+  --heat-1: #4f2607;
+  --heat-2: #98490e;
+  --heat-3: #dd6a15;
+
+  --key-white: #c7bbb0;
+  --key-black: #1b130b;
+  --key-sustain: #894514;
+  --key-ghost: #5d4a23;
+  --key-dead: #715a45;
+  --key-label: #6c5642;
+  --key-label-black: #91745a;
+
+  --zone-1: #ff7a18;
+  --zone-2: #ffd166;
+  --zone-3: #ceff7a;
+  --zone-4: #b0ff18;
+  --zone-5: #ff1863;
+  --zone-6: #ff6b66;
+}
+
+/* Ice — Cyan-white over deep navy. */
+[data-theme="ice"] {
+  --panel-0: #02060f;
+  --panel-1: #121d27;
+  --panel-2: #18232e;
+  --panel-3: #202c37;
+  --panel-4: #2a3742;
+  --hairline: #313f4a;
+  --hairline-hi: #445561;
+
+  --ink: #cfeeff;
+  --ink-dim: #798d9a;
+  --ink-faint: #485561;
+
+  --amber: #6fe6ff;
+  --amber-hot: #cff3fb;
+  --amber-deep: #09d4ff;
+  --cyan: #9db4ff;
+  --green: #d3b1ff;
+  --red: #79f9ff;
+
+  --wash: #cfeeff08;
+  --wash-hi: #cfeeff12;
+  --gloss: #cfeeff17;
+  --shadow: #000000aa;
+  --shadow-soft: #00000055;
+  --shadow-deep: #000000cc;
+  --stage-glow: #6fe6ff0d;
+
+  --on-accent: #0e1f29;
+  --amber-glow: #6fe6ff54;
+  --amber-wash: #6fe6ff1a;
+  --amber-faint: #6fe6ff0d;
+  --amber-fill-hi: #1e404d;
+  --amber-fill-lo: #0f212c;
+
+  --cyan-deep: #3b61dc;
+  --green-deep: #803bdc;
+  --red-deep: #23c0c6;
+  --red-ink: #feffff;
+  --red-fill: #132d35;
+  --red-fill-hi: #214a52;
+
+  --control: #627582;
+  --control-lo: #202c37;
+  --control-edge: #7d92a0;
+  --led-off: #313f4a;
+
+  --heat-1: #214552;
+  --heat-2: #41889a;
+  --heat-3: #60c7dd;
+
+  --key-white: #c8d0d4;
+  --key-black: #101620;
+  --key-sustain: #1eb5d5;
+  --key-ghost: #374161;
+  --key-dead: #586774;
+  --key-label: #54636f;
+  --key-label-black: #738693;
+
+  --zone-1: #6fe6ff;
+  --zone-2: #9db4ff;
+  --zone-3: #d3b1ff;
+  --zone-4: #7c6fff;
+  --zone-5: #6fffac;
+  --zone-6: #9df5ff;
+}
+
+/* Gold — Champagne gold. Quiet and expensive. */
+[data-theme="gold"] {
+  --panel-0: #080703;
+  --panel-1: #1f1b11;
+  --panel-2: #252217;
+  --panel-3: #2e2a1e;
+  --panel-4: #383427;
+  --hairline: #403c2e;
+  --hairline-hi: #565040;
+
+  --ink: #ece2c0;
+  --ink-dim: #8c8671;
+  --ink-faint: #565143;
+
+  --amber: #e8c46a;
+  --amber-hot: #f0e2be;
+  --amber-deep: #cc9b20;
+  --cyan: #9fd8c4;
+  --green: #aecfde;
+  --red: #e9b873;
+
+  --wash: #ece2c008;
+  --wash-hi: #ece2c012;
+  --gloss: #ece2c017;
+  --shadow: #000000aa;
+  --shadow-soft: #00000055;
+  --shadow-deep: #000000cc;
+  --stage-glow: #e8c46a0d;
+
+  --on-accent: #201b0e;
+  --amber-glow: #e8c46a54;
+  --amber-wash: #e8c46a1a;
+  --amber-faint: #e8c46a0d;
+  --amber-fill-hi: #42381e;
+  --amber-fill-lo: #231e0f;
+
+  --cyan-deep: #559d84;
+  --green-deep: #55869d;
+  --red-deep: #9b6f32;
+  --red-ink: #f9f2e8;
+  --red-fill: #2c2313;
+  --red-fill-hi: #473720;
+
+  --control: #756f5b;
+  --control-lo: #2e2a1e;
+  --control-edge: #928b74;
+  --led-off: #403c2e;
+
+  --heat-1: #473c20;
+  --heat-2: #8a753f;
+  --heat-3: #c9aa5c;
+
+  --key-white: #c5c2ba;
+  --key-black: #181610;
+  --key-sustain: #a78531;
+  --key-ghost: #3b4e45;
+  --key-dead: #686352;
+  --key-label: #635f4f;
+  --key-label-black: #857f6b;
+
+  --zone-1: #e8c46a;
+  --zone-2: #9fd8c4;
+  --zone-3: #aecfde;
+  --zone-4: #98e86a;
+  --zone-5: #e86a6e;
+  --zone-6: #a0d89f;
+}
+
+/* Slate — Steel blue. The flattest thing here. */
+[data-theme="slate"] {
+  --panel-0: #0b0e12;
+  --panel-1: #1b2127;
+  --panel-2: #21262d;
+  --panel-3: #282e35;
+  --panel-4: #32383f;
+  --hairline: #383e46;
+  --hairline-hi: #4a5159;
+
+  --ink: #ccd7e4;
+  --ink-dim: #7b838c;
+  --ink-faint: #4d5259;
+
+  --amber: #8fb4e0;
+  --amber-hot: #d9e4f2;
+  --amber-deep: #3f7fca;
+  --cyan: #7fd6c0;
+  --green: #8ebbdb;
+  --red: #97c4e2;
+
+  --wash: #ccd7e408;
+  --wash-hi: #ccd7e412;
+  --gloss: #ccd7e417;
+  --shadow: #000000aa;
+  --shadow-soft: #00000055;
+  --shadow-deep: #000000cc;
+  --stage-glow: #8fb4e00d;
+
+  --on-accent: #192029;
+  --amber-glow: #8fb4e054;
+  --amber-wash: #8fb4e01a;
+  --amber-faint: #8fb4e00d;
+  --amber-fill-hi: #2d3948;
+  --amber-fill-lo: #1b222b;
+
+  --cyan-deep: #438e7b;
+  --green-deep: #436f8e;
+  --red-deep: #477ea4;
+  --red-ink: #ffffff;
+  --red-fill: #202a33;
+  --red-fill-hi: #30404c;
+
+  --control: #666e77;
+  --control-lo: #282e35;
+  --control-edge: #7f8892;
+  --led-off: #383e46;
+
+  --heat-1: #303c4c;
+  --heat-2: #586e89;
+  --heat-3: #7d9dc3;
+
+  --key-white: #bfc2c5;
+  --key-black: #191c21;
+  --key-sustain: #4676ae;
+  --key-ghost: #32524d;
+  --key-dead: #5c626a;
+  --key-label: #585e66;
+  --key-label-black: #757d86;
+
+  --zone-1: #8fb4e0;
+  --zone-2: #7fd6c0;
+  --zone-3: #8ebbdb;
+  --zone-4: #b48fe0;
+  --zone-5: #8fe0cf;
+  --zone-6: #7fd686;
+}
+/* -- end generated themes ----------------------------------------------- */
+
 * { box-sizing: border-box; }
 
 html, body {
@@ -1534,3 +2013,63 @@ body.is-immersive.is-stirring .roll__exit { opacity: 1; }
 }
 .roll__grow:hover { color: var(--amber); border-color: var(--amber-deep); }
 body.is-immersive .roll__grow { display: none; }
+
+/* -- the gear, and the sheet it opens ------------------------------------- */
+.railbtn {
+  display: grid; place-items: center; width: 26px; height: 22px; margin-left: 8px;
+  color: var(--ink-faint); background: transparent;
+  border: 1px solid transparent; border-radius: var(--radius); cursor: pointer;
+  transition: color .15s var(--ease), border-color .15s var(--ease);
+}
+.railbtn:hover { color: var(--amber); border-color: var(--hairline-hi); }
+
+.prefs { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; }
+.prefs__scrim { position: absolute; inset: 0; background: var(--shadow); }
+.prefs__sheet {
+  position: relative;
+  width: min(1040px, calc(100vw - 56px));
+  height: min(720px, calc(100vh - 90px));
+  display: flex; flex-direction: column; overflow: hidden;
+  background: linear-gradient(180deg, var(--panel-2), var(--panel-1));
+  border: 1px solid var(--hairline-hi); border-radius: var(--radius);
+  box-shadow: 0 30px 80px var(--shadow-deep);
+}
+.prefs__head {
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+  border-bottom: 1px solid var(--hairline);
+}
+.prefs__title {
+  font-size: 12px; letter-spacing: .2em; text-transform: uppercase; color: var(--amber);
+}
+.prefs__close {
+  width: 26px; height: 24px; color: var(--ink-faint); background: transparent;
+  border: 1px solid var(--hairline); border-radius: var(--radius); cursor: pointer;
+}
+.prefs__close:hover { color: var(--red); border-color: var(--red-deep); }
+.prefs__body { flex: 1; display: grid; grid-template-columns: 190px 1fr; min-height: 0; }
+.prefs__nav {
+  display: flex; flex-direction: column; gap: 1px; padding: 12px 10px;
+  overflow-y: auto; background: var(--wash); border-right: 1px solid var(--hairline);
+}
+.prefs__item {
+  padding: 8px 10px; text-align: left; font-size: 12px; color: var(--ink-dim);
+  background: none; border: 0; border-radius: var(--radius); cursor: pointer;
+  transition: color .12s var(--ease), background .12s var(--ease);
+}
+.prefs__item:hover { color: var(--ink); background: var(--wash-hi); }
+.prefs__item.is-on { color: var(--on-accent); background: var(--amber); font-weight: 600; }
+/* The sheet scrolls, the page never does. */
+.prefs__panels { overflow-y: auto; padding: 14px; min-height: 0; }
+/* Panels are mounted outside #stage so they carry no drag grips; this keeps them
+   from reserving the space one would have taken. */
+.prefs__panels .mod__grip { display: none; }
+/* The builders return the widths the TAB wanted, where a panel shares a 1600px
+   row. The sheet is 1040px with a nav down one side, so everything takes the full
+   width instead -- which is also what gives the theme swatches four columns. */
+.prefs__panels .grid > [class*="col-"] { grid-column: span 12; }
+
+@media (max-width: 720px) {
+  .prefs__body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .prefs__nav { flex-direction: row; flex-wrap: wrap; border-right: 0;
+                border-bottom: 1px solid var(--hairline); }
+}

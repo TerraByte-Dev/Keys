@@ -17,13 +17,22 @@
 
 import { ACTIONS, applyTheme, defaultBinds, getBinds, normalKey, setBinds, THEMES }
   from './app.js';
-import { $, api, h, mod, slider, toast } from './ui.js';
+import { resetLayout } from './layout.js';
+import { CHAPTERS, startTutorial } from './tour.js';
+import { $, api, h, mod, slider, stat, toast } from './ui.js';
 
 const THEME_NOTE = {
   midnight: 'Anodized aluminium and a tungsten lamp. The default.',
   blueprint: 'The same instrument under drafting-table light.',
   phosphor: 'A P1 terminal tube. Green is the live colour here, not amber.',
   paper: 'Daylight. Print-dark ink on warm white, for a bright room.',
+  ultraviolet: 'Electric violet over midnight indigo.',
+  synthwave: 'Magenta neon and cyan on deep violet.',
+  crimson: 'Red neon on charred maroon.',
+  tangerine: 'Hot orange on scorched black.',
+  ice: 'Cyan-white over deep navy.',
+  gold: 'Champagne gold. Quiet and expensive.',
+  slate: 'Steel blue. The flattest thing here.',
 };
 
 /* ── appearance ─────────────────────────────────────────────────────────────── */
@@ -270,4 +279,79 @@ function arm(rowEl, item, btn) {
     }
   };
   btn.after(cancel);
+}
+
+
+/* ── about, and the only request Keys makes on its own behalf ──────────────── */
+export function aboutPanel(ctx) {
+  const st = ctx.state || {};
+  return h('div.col-6', null, mod('About', `version ${st.version || '?'}`,
+    h('div.stats', null,
+      stat(st.version || '?', 'Version', st.frozen ? 'installed build' : 'source checkout'),
+      stat(st.frozen ? 'EXE' : 'PY', 'Running as',
+           st.frozen ? 'from the installer' : 'from keys.py')),
+    h('div.btnrow', { style: { marginTop: '12px' } },
+      h('button.btn.btn--lg', { id: 'upd-check', onclick: checkUpdate },
+        'Check for updates')),
+    h('div', { id: 'upd-result', style: { marginTop: '10px' } }),
+    h('div.note', { style: { marginTop: '10px' } },
+      'Keys checks only when you press that button — never on launch, never on a ',
+      'timer, never in the background. The request sends nothing but a GET for the ',
+      'public release list.')));
+}
+
+async function checkUpdate() {
+  const btn = $('#upd-check');
+  const host = $('#upd-result');
+  btn.disabled = true;
+  btn.textContent = 'Checking...';
+  host.replaceChildren();
+  try {
+    const r = await api.post('/api/update/check', {});
+    if (r.error) {
+      host.append(h('div.note.note--warn', null, r.error));
+    } else if (r.newer) {
+      host.append(h('div.note.note--warn', null,
+        h('strong', null, `${r.latest} is available.`), ` You are on ${r.current}. `,
+        h('a', { href: r.url, target: '_blank', rel: 'noreferrer' }, 'Open the release'),
+        r.download_name ? ` (${r.download_name}, ${(r.download_size / 1048576).toFixed(0)} MB)` : ''));
+      if (r.notes) host.append(h('div.note', { style: { marginTop: '8px' } }, r.notes));
+    } else {
+      host.append(h('div.note', null,
+        `Up to date — ${r.current}`,
+        r.latest && r.latest !== r.current ? ` (latest published: ${r.latest})` : ''));
+    }
+  } catch (err) {
+    host.append(h('div.note.note--warn', null, err.message));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Check for updates';
+  }
+}
+
+/* ── panel layout ─────────────────────────────────────────────────────────── */
+export function layoutPanel() {
+  return h('div.col-6', null, mod('Panel layout', null,
+    h('div.note', null,
+      'Every panel drags by its header and resizes with the arrows that appear when ',
+      'you hover it, at a quarter, half or full width. The arrangement is per tab and ',
+      'saves as you go, so put what you actually use at the top.'),
+    h('div.btnrow', { style: { marginTop: '12px' } },
+      h('button.btn', { onclick: () => resetLayout() },
+        'Put every tab back the way it shipped'))));
+}
+
+/* ── the tutorial ─────────────────────────────────────────────────────────── */
+export function tutorialPanel(ctx) {
+  return h('div.col-12', null, mod('Tutorial', `${CHAPTERS.length} chapters`,
+    h('div.note', null,
+      'The whole manual, and the same thing that runs on first launch. Every chapter ',
+      'is one click from every other, so it is also the place to look one thing up.'),
+    h('div.btnrow', { style: { marginTop: '12px' } },
+      h('button.btn.btn--lg', { onclick: () => startTutorial(ctx) },
+        'Start from the beginning')),
+    h('div.tour__jump', { style: { marginTop: '12px' } },
+      CHAPTERS.map((c) => h('button.btn.btn--sm', {
+        onclick: () => startTutorial(ctx, c.id),
+      }, c.title)))));
 }

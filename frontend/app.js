@@ -16,6 +16,7 @@ import { createRoll } from './roll.js';
 import { attachLayout, primeLayout } from './layout.js';
 import { $, api, hms, toast } from './ui.js';
 import { startTour, tourOpen } from './tour.js';
+import { closeSettings, openSettings, settingsOpen } from './settings-overlay.js';
 
 import playView from './views/play.js';
 import practiceView from './views/practice.js';
@@ -61,7 +62,8 @@ export const ctx = {
    therefore needs no attribute. Applied before the first paint and again the moment
    you pick one, so nothing has to reload. "dark" is what shipped before the picker
    existed and still means midnight. */
-export const THEMES = ['midnight', 'blueprint', 'phosphor', 'paper'];
+export const THEMES = ['midnight', 'blueprint', 'phosphor', 'paper',
+  'ultraviolet', 'synthwave', 'crimson', 'tangerine', 'ice', 'gold', 'slate'];
 
 export function applyTheme(name) {
   const t = THEMES.includes(name) ? name : 'midnight';
@@ -279,6 +281,7 @@ export function toggleImmersive(on) {
   requestAnimationFrame(() => roll?.remeasure());
 
   if (immersive) {
+    closeSettings();               // the gear it was opened from is about to vanish
     document.documentElement.requestFullscreen?.().catch(() => {});
     stir();
   } else if (document.fullscreenElement) {
@@ -322,6 +325,7 @@ export function toggleRoll(on) {
   return rollOpen;
 }
 
+$('#gear')?.addEventListener('click', () => openSettings(ctx));
 $('#roll-toggle')?.addEventListener('click', () => toggleRoll());
 $('#roll-grow')?.addEventListener('click', () => toggleImmersive(true));
 $('#roll-exit')?.addEventListener('click', () => toggleImmersive(false));
@@ -362,6 +366,10 @@ export const ACTIONS = [
     group: 'Do', key: 'f',
     run: () => toggleImmersive(),
   },
+  {
+    id: 'settings', label: 'Open settings', group: 'Do', key: ',',
+    run: () => openSettings(ctx),
+  },
 ];
 
 const DEFAULT_BINDS = Object.fromEntries(ACTIONS.map((a) => [a.id, a.key]));
@@ -385,7 +393,7 @@ export const defaultBinds = () => ({ ...DEFAULT_BINDS });
 document.addEventListener('keydown', (e) => {
   // The tour owns the keyboard while it is up. Without this, Esc fires panic and
   // the number keys navigate the tab out from behind the card.
-  if (tourOpen()) return;
+  if (tourOpen() || settingsOpen()) return;
   const typing = /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName || '');
   const pressed = normalKey(e.key);
   for (const action of ACTIONS) {

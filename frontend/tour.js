@@ -175,8 +175,10 @@ export const CHAPTERS = [
       'Every panel in the app drags by its header and resizes with the arrows on ',
       'hover, at a quarter, half or full width. The arrangement is per tab and saves ',
       'as you go, so put what you use at the top.', h('br'), h('br'),
-      'Settings also holds four ', b('themes'), ', rebindable ', b('shortcuts'), ', and ',
-      'the session-clock timeout.',
+      'The ', b('gear'), ' in the top-right corner holds everything about the app: ',
+      'eleven ', b('themes'), ', rebindable ', b('shortcuts'), ', the session-clock ',
+      'timeout, your data and this tutorial. The ', b('Sound'), ' tab is the rig — ',
+      'MIDI in, audio out, effects and SoundFonts.',
     ],
   },
   {
