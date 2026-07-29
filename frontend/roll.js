@@ -26,7 +26,16 @@
  *    piano visualiser cannot do.
  */
 
-const TRAVEL_SECONDS = 4.0;   // how long a note takes to cross, at any panel height
+/* Pixels per second, NOT a traversal time.
+ *
+ * The first version fixed how long a note took to cross the panel, which sounds
+ * tidy and is wrong: the strip is 300px and full screen is 780, so the same rule
+ * made notes physically travel 2.6x faster the moment you opened it up. A roll
+ * scrolls at a speed; a taller window should show MORE HISTORY, not the same
+ * history in a hurry. */
+const DEFAULT_SPEED = 100;    // px/s -- about 3s of history in the strip, 8 full screen
+const MIN_SPEED = 40;
+const MAX_SPEED = 240;
 const MAX_BARS = 600;         // a hard ceiling; two hands cannot outrun it
 const MIN_HEAD = 2;           // a just-struck note is still worth a sliver
 
@@ -46,6 +55,7 @@ export function createRoll(container) {
   let raf = 0;
   let last = 0;
   let running = false;
+  let speed = DEFAULT_SPEED;
 
   /* Immersive extras. All of this is off in the strip, where the panel is 150px
      tall and every pixel of it should be note. */
@@ -152,7 +162,6 @@ export function createRoll(container) {
   function tick(now) {
     const dt = Math.min(0.1, (now - last) / 1000);   // a backgrounded tab must not leap
     last = now;
-    const speed = H / TRAVEL_SECONDS;
 
     if (immersive) {
       energy *= Math.pow(0.28, dt);          // ~1.3s to fall away
@@ -273,6 +282,15 @@ export function createRoll(container) {
       if (f.off) for (const n of f.off) noteOff(n);
     },
     setZones(list) { zones = Array.isArray(list) ? list : []; },
+
+    setSpeed(pxPerSecond) {
+      speed = Math.max(MIN_SPEED, Math.min(MAX_SPEED, Number(pxPerSecond) || DEFAULT_SPEED));
+      return speed;
+    },
+
+    /* How much of your playing fits on screen at the current size and speed. The
+       number people actually care about, and it changes when either does. */
+    secondsOnScreen() { return H / speed; },
 
     setImmersive(on) {
       immersive = !!on;

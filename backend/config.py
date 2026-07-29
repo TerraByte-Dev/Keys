@@ -170,7 +170,7 @@ DEFAULTS: dict[str, Any] = {
     # per-browser-profile and dies to "clear browsing data", which would resurrect the
     # first-run tour on a machine that has been played for months.
     "ui": {"key_signature": "C", "theme": "midnight", "show_note_names": True,
-           "tour_seen": False, "roll": False},
+           "tour_seen": False, "roll": False, "roll_speed": 100},
     # Keyboard shortcuts, action id -> key. Empty means "whatever app.js ships",
     # which is where the defaults actually live -- duplicating them here would give
     # the app two answers to the same question.

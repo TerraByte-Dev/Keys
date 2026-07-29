@@ -263,6 +263,15 @@ const ORDER = ['play', 'practice', 'layers', 'tools', 'stats', 'settings'];
 /* ── the note roll ────────────────────────────────────────────────────────── */
 let roll = null;
 let rollOpen = false;
+let rollPx = 100;
+
+export const rollSpeed = () => rollPx;
+
+export function setRollSpeed(px) {
+  rollPx = Math.max(40, Math.min(240, Number(px) || 100));
+  roll?.setSpeed(rollPx);
+  return rollPx;
+}
 
 /* Immersive: the roll fills the window, the keyboard stays, everything else goes.
    Real fullscreen is requested too when the browser allows it -- in the packaged
@@ -313,6 +322,7 @@ export function toggleRoll(on) {
 
   if (rollOpen) {
     if (!roll) roll = createRoll($('#roll'));
+    roll.setSpeed(rollPx);
     roll.setZones(ctx.state?.engine?.zones || []);
     // The panel has only just been given height, and the dock keyboard it aligns
     // to has only just been squeezed -- both are wrong until layout settles.
@@ -421,6 +431,7 @@ window.addEventListener('beforeunload', () => { if (ws) { ws.onclose = null; ws.
   }
   applyTheme(ctx.state?.settings?.ui?.theme);
   setBinds(ctx.state?.settings?.keys);
+  setRollSpeed(ctx.state?.settings?.ui?.roll_speed ?? 100);
   if (ctx.state?.settings?.ui?.roll) toggleRoll(true);
   primeLayout(ctx.state);
   for (const problem of ctx.state.errors || []) toast(problem, 'bad', 12000);

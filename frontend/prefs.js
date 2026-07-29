@@ -15,8 +15,8 @@
  *     note is sounding.
  */
 
-import { ACTIONS, applyTheme, defaultBinds, getBinds, normalKey, setBinds, THEMES }
-  from './app.js';
+import { ACTIONS, applyTheme, defaultBinds, getBinds, normalKey, rollSpeed, setBinds,
+         setRollSpeed, THEMES } from './app.js';
 import { resetLayout } from './layout.js';
 import { CHAPTERS, startTutorial } from './tour.js';
 import { $, api, h, mod, slider, stat, toast } from './ui.js';
@@ -354,4 +354,42 @@ export function tutorialPanel(ctx) {
       CHAPTERS.map((c) => h('button.btn.btn--sm', {
         onclick: () => startTutorial(ctx, c.id),
       }, c.title)))));
+}
+
+
+/* ── the note roll ────────────────────────────────────────────────────────── */
+export function rollPanel(ctx) {
+  const value = ctx.state?.settings?.ui?.roll_speed ?? rollSpeed();
+
+  return h('div.col-6', null, mod('Note roll', 'how fast it scrolls',
+    h('label.field', null,
+      h('span.field__label', null, h('span', null, 'Speed'),
+        h('span.field__value', { id: 'roll-speed-v' }, rate(value))),
+      slider({
+        min: 40, max: 240, step: 5, value,
+        oninput: (v) => {
+          setRollSpeed(v);                       // live, so you can hear... see it
+          $('#roll-speed-v').textContent = rate(v);
+        },
+        onchange: async (v) => {
+          try {
+            await api.post('/api/settings', { ui: { roll_speed: v } });
+            if (ctx.state?.settings?.ui) ctx.state.settings.ui.roll_speed = v;
+          } catch (err) { toast(err.message, 'bad'); }
+        },
+      })),
+    h('div.note', { style: { marginTop: '10px' } },
+      'Pixels per second, not a crossing time — so full screen shows ',
+      h('strong', null, 'more of your playing'), ' rather than the same amount going ',
+      'faster. Slower is easier to read back; faster keeps more of the keyboard clear.'),
+    h('div.note', { style: { marginTop: '8px' } },
+      h('strong', null, 'F'), ' takes the roll full screen with the lights down. ',
+      h('strong', null, 'Esc'), ' brings the app back.')));
+}
+
+/* Named `rate`, not `window`. A module-scoped `function window()` shadows the
+   global for the whole file, which is the kind of bug that shows up much later in
+   something unrelated. */
+function rate(px) {
+  return `${px} px/s`;
 }

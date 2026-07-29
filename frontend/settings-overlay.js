@@ -15,12 +15,13 @@
  * rearrange is a modal you can break.
  */
 
-import { aboutPanel, clockPanel, dataPanel, keysPanel, layoutPanel, themePanel,
-         tutorialPanel } from './prefs.js';
+import { aboutPanel, clockPanel, dataPanel, keysPanel, layoutPanel, rollPanel,
+         themePanel, tutorialPanel } from './prefs.js';
 import { $, h } from './ui.js';
 
 const SECTIONS = [
   { id: 'appearance', label: 'Appearance', build: (ctx) => [themePanel(ctx)] },
+  { id: 'roll', label: 'Note roll', build: (ctx) => [rollPanel(ctx)] },
   { id: 'shortcuts', label: 'Shortcuts', build: (ctx) => [keysPanel(ctx)] },
   { id: 'session', label: 'Session & layout', build: (ctx) => [clockPanel(ctx), layoutPanel()] },
   { id: 'data', label: 'Your data', build: () => [dataPanel()] },
