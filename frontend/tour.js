@@ -153,9 +153,9 @@ export const CHAPTERS = [
     id: 'sheet', tab: 'practice', title: 'Sheet music',
     body: [
       'Import a ', b('MusicXML'), ' file — .musicxml or .mxl — and Keys engraves and ',
-      'plays it. Every notation program exports it: MuseScore, Sibelius, Finale, ',
-      'Dorico, and most sites that sell you a PDF also sell the MusicXML.', h('br'),
-      h('br'),
+      'plays it. Every notation program exports it, and a ', b('.mid'), ' works too: ',
+      'one written by a notation program converts cleanly, which is most of the free ',
+      'scores on the internet.', h('br'), h('br'),
       'The transport has play, pause, rewind, a tempo you can drag and a bar you can ',
       'click to jump anywhere in the piece.',
     ],

@@ -216,8 +216,12 @@ stored = lib.data(meta["id"])
 step("THE BYTES ARE UNTOUCHED", stored == raw,
      "Verovio renders the original; re-serialising it loses whatever made your copy yours")
 
-step("rejects a .mid", lib.add("song.mid", b"MThd") is None
-     and "not MusicXML" in lib.last_error, lib.last_error[:52])
+# A .mid used to be refused outright. It is converted now, so what has to hold is
+# that a BROKEN one is still refused, with a sentence rather than a stack trace.
+step("rejects a .mid that is not a MIDI file", lib.add("song.mid", b"MThd") is None
+     and "MIDI" in lib.last_error, lib.last_error[:60])
+step("rejects a .wav outright", lib.add("song.wav", b"RIFF") is None
+     and "not a score Keys can read" in lib.last_error, lib.last_error[:60])
 step("rejects an empty file", lib.add("x.musicxml", b"") is None)
 step("rejects rubbish before storing it, not after",
      lib.add("bad.musicxml", b"<html/>") is None and len(lib.all()) == 1,

@@ -24,12 +24,17 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from . import config
+from . import config, midi_import
+from .midi_import import MidiError
 from .score import Score, ScoreError, parse, summarise
 
 # MusicXML is XML or a zip of it. A 40 MB score does not exist; a 40 MB upload does.
 MAX_BYTES = 40 * 1024 * 1024
 SUFFIXES = (".musicxml", ".mxl", ".xml")
+# Converted on the way in rather than stored as-is: everything downstream -- the
+# engraver, the transport, the follower -- speaks MusicXML, and a second internal
+# format would have to be handled in every one of them.
+MIDI_SUFFIXES = (".mid", ".midi")
 
 
 def _dir() -> Path:
@@ -92,10 +97,11 @@ class Library:
         """Import a file. Returns its metadata, or None with last_error set."""
         self.last_error = ""
         name = Path(filename or "score").name
-        if not name.lower().endswith(SUFFIXES):
+        lower = name.lower()
+        if not lower.endswith(SUFFIXES + MIDI_SUFFIXES):
             self.last_error = (
-                f"{name} is not MusicXML. Keys reads .musicxml and .mxl -- most "
-                "notation programs export one of them.")
+                f"{name} is not a score Keys can read. It takes .musicxml and .mxl, "
+                "and will convert a .mid that came out of a notation program.")
             return None
         if not raw:
             self.last_error = f"{name} is empty"
@@ -103,6 +109,20 @@ class Library:
         if len(raw) > MAX_BYTES:
             self.last_error = f"{name} is {len(raw) // 1048576} MB; the limit is {MAX_BYTES // 1048576} MB"
             return None
+
+        # MIDI becomes MusicXML here, before anything else looks at it, so the rest of
+        # this method cannot tell the difference. The report rides along in the
+        # metadata: how much had to be approximated is the one thing a converted score
+        # knows that an authored one does not.
+        converted: dict[str, Any] | None = None
+        suffix = Path(name).suffix.lower()
+        if lower.endswith(MIDI_SUFFIXES):
+            try:
+                raw, converted = midi_import.convert(raw, Path(name).stem)
+            except MidiError as exc:
+                self.last_error = f"{name}: {exc}"
+                return None
+            suffix = ".musicxml"
 
         # Parsed before it is stored, so a file that cannot be read never enters the
         # library and the error names the reason rather than appearing later as a
@@ -121,7 +141,7 @@ class Library:
             return None
 
         score_id = uuid.uuid4().hex[:10]
-        stored = f"{_slug(score.title or Path(name).stem)}-{score_id}{Path(name).suffix.lower()}"
+        stored = f"{_slug(score.title or Path(name).stem)}-{score_id}{suffix}"
         try:
             (root / stored).write_bytes(raw)
         except OSError as exc:
@@ -136,6 +156,9 @@ class Library:
             "imported_at": time.time(),
             **summarise(score),
         }
+        if converted is not None:
+            meta["from_midi"] = True
+            meta["snapped"] = converted["snapped"]
         try:
             (root / f"{score_id}.json").write_text(json.dumps(meta, indent=1), "utf-8")
         except OSError as exc:
