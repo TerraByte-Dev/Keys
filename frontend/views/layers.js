@@ -168,16 +168,30 @@ function instSelect(id, defaultProgram, label) {
 }
 
 function fillInstSelects() {
-  // Melodic sounds only. A drum kit in a split is a real thing, but it belongs on
-  // channel 9 with an explicit bank-128 select, which is the editor's job, not a
-  // one-click builder's.
-  const melodic = instruments.filter((i) => !i.drums);
+  /* Everything the Instruments browser has, grouped the same way.
+   *
+   * This used to hide the drum kits on the grounds that a kit "belongs on channel 9,
+   * which is the editor's job" -- while the same comment admitted a kit in a split is
+   * a real thing. It is: drums under the left hand with a piano over them is one of
+   * the better reasons to build a split at all. The bank carries through the option
+   * value already and the engine reads a zone as drums from bank 128, so nothing else
+   * had to change.
+   *
+   * Grouped by family, because a flat list of 287 is a scroll, not a choice. */
+  const byFamily = new Map();
+  for (const i of instruments) {
+    const fam = i.drums ? 'Drum kits' : (i.family || 'Other');
+    if (!byFamily.has(fam)) byFamily.set(fam, []);
+    byFamily.get(fam).push(i);
+  }
   for (const el of $$('.build select')) {
     const want = Number(el.dataset.default || 0);
-    el.replaceChildren(...melodic.map((i) => h('option', {
-      value: `${i.bank}:${i.program}`,
-      selected: i.bank === 0 && i.program === want,
-    }, i.name)));
+    el.replaceChildren(...[...byFamily.entries()].map(([fam, list]) =>
+      h('optgroup', { label: `${fam} (${list.length})` },
+        list.map((i) => h('option', {
+          value: `${i.bank}:${i.program}`,
+          selected: i.bank === 0 && i.program === want,
+        }, i.name)))));
   }
 }
 

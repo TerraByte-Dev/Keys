@@ -60,6 +60,14 @@ a = Analysis(
         "uvicorn.protocols.websockets.auto",
         "uvicorn.protocols.websockets.websockets_impl",
         "uvicorn.lifespan.on",
+        # The exercise generators register themselves when load_all() imports them BY
+        # NAME, so the import graph never reaches them -- and load_all deliberately
+        # swallows a failed import so one broken generator cannot take the Practice
+        # tab down with it. Together that means a missing module here is completely
+        # silent: the app starts, Practice opens, and the shelf is just empty.
+        # tools/build_exe.py asserts the frozen app reports a non-empty registry.
+        "backend.exercises.reading",
+        "backend.exercises.scales",
     ],
     hookspath=[],
     runtime_hooks=[],

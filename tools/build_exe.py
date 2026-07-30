@@ -189,6 +189,13 @@ def smoke() -> None:
         voices = get(SMOKE_PORT, "/api/state").get("engine", {}).get("voices", 0)
         step("IT MAKES A SOUND", voices >= 3, f"{voices} voices from a three-note chord")
 
+        # The generators are imported by name and their failure is swallowed on
+        # purpose, so a missing one is invisible: the app runs, Practice opens, and
+        # the shelf is simply empty. That shipped once.
+        shelf = get(SMOKE_PORT, "/api/exercises").get("exercises", [])
+        step("the exercise generators are in the bundle", len(shelf) >= 2,
+             ", ".join(e.get("id", "?") for e in shelf) or "THE SHELF IS EMPTY")
+
         step("frontend served from the bundle",
              len(urllib.request.urlopen(
                  f"http://127.0.0.1:{SMOKE_PORT}/app.js", timeout=10).read()) > 1000)
