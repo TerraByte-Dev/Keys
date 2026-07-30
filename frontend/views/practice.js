@@ -21,7 +21,7 @@
  */
 
 import { createSheet } from '../sheet.js';
-import { $, api, h, hms, mod, stat, toast } from '../ui.js';
+import { $, api, fill, h, hms, mod, stat, toast } from '../ui.js';
 import { createRunner } from '../exercise-run.js';
 
 let shelf = null;      // last GET /api/exercises
@@ -160,7 +160,7 @@ function paintShelf(ctx) {
   const list = shelf.exercises || [];
   const recent = shelf.recent || [];
 
-  host()?.replaceChildren(
+  fill(host(),
     recent.length ? h('div.col-12', null, mod('Pick up where you left off', null,
       h('div.list', null, recent.slice(0, 6).map((r) => recentRow(r, ctx))))) : null,
 

@@ -86,12 +86,30 @@ function setSpan(col, span) {
  * panel spans, so the height a span of N buys is N*ROW + (N-1)*GAP. */
 function pack(grid) {
   for (const el of grid.children) {
-    if (!el.dataset.panel || el.classList.contains('is-dragging')) continue;
-    const content = el.firstElementChild;
+    if (el.classList.contains('is-dragging')) continue;
+
+    /* EVERY child, not just the managed panels.
+     *
+     * A view is allowed to drop a plain container in the grid -- Practice puts the
+     * exercise shelf in one, a `div.grid.col-12` that isPanel() rightly refuses to
+     * make draggable. But "not a panel" was being read as "needs no row span", and
+     * under grid-auto-rows:8px an element with no span is EIGHT PIXELS TALL, not
+     * auto. The shelf was 183px of content occupying one 8px track and spilling
+     * 161px straight over Sheet music, which is the stacking that had to be dragged
+     * apart by hand.
+     *
+     * A managed panel is measured by its content (the .mod inside it); anything
+     * else is measured by itself. Neither feeds back, because align-items:start
+     * means an item's height is its content's height whatever span it is given. */
+    const content = el.dataset.panel ? el.firstElementChild : el;
     if (!content) continue;
     const h = content.getBoundingClientRect().height;
     if (!h) continue;                       // hidden panel; leave it alone
-    el.style.gridRowEnd = 'span ' + Math.max(1, Math.ceil((h + GAP_PX) / (ROW_PX + GAP_PX)));
+    const want = 'span ' + Math.max(1, Math.ceil((h + GAP_PX) / (ROW_PX + GAP_PX)));
+    // Written only when it changes. An unmanaged child is observed by ITSELF, so a
+    // style write on every pass is a standing invitation to a resize-observe loop;
+    // no write, no new observation, no loop.
+    if (el.style.gridRowEnd !== want) el.style.gridRowEnd = want;
   }
 }
 
@@ -111,7 +129,12 @@ function watch(grid) {
   grid._ro?.disconnect();
   grid._ro = new ResizeObserver(repack);
   for (const el of grid.children) {
-    if (el.dataset.panel && el.firstElementChild) grid._ro.observe(el.firstElementChild);
+    // Same rule as pack(): a managed panel is watched by its content, anything else
+    // by itself. Watching only the panels meant an unmanaged container that filled
+    // in later -- the exercise shelf, once /api/exercises answered -- grew without
+    // ever asking for its row span to be recomputed.
+    const target = el.dataset.panel ? el.firstElementChild : el;
+    if (target) grid._ro.observe(target);
   }
   if (!grid._onResize) {
     grid._onResize = () => grid.repack?.();

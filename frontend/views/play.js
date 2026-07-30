@@ -4,7 +4,7 @@
  * long: presets are one click, the instrument browser filters as you type, and the
  * scale highlighter paints straight onto the dock keyboard. */
 
-import { $, api, h, mod, noteName, paint, slider, stat, toast } from '../ui.js';
+import { $, api, fill, h, mod, noteName, paint, slider, stat, toast } from '../ui.js';
 import { ctx as appCtx, resetTouch } from '../app.js';
 
 /* Wire value -> what it means to someone with one pedal. The empty string is the
@@ -338,7 +338,7 @@ function paintPedal(pedal, force = false) {
   const note = $('#pedal-note');
   if (note) {
     const held = (pedal.holding || []).length;
-    note.replaceChildren(
+    fill(note,
       h('span', null, PEDAL_HELP[pedal.mode || ''] || ''),
       pedal.mode
         ? h('span', null, '  ',

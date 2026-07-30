@@ -24,6 +24,20 @@ export function h(spec, props = null, ...kids) {
   return el;
 }
 
+/* Replace a host's children the way h() adds them.
+ *
+ * `replaceChildren()` looks like the same thing and is not: it takes Nodes or
+ * STRINGS, so a conditional child that resolves to null is stringified and the
+ * word "null" appears on the page. That is exactly what Practice printed above
+ * its exercise shelf for anyone who had not run an exercise yet. h() has always
+ * skipped null children; this makes the same rule available when clearing. */
+export function fill(host, ...kids) {
+  if (!host) return host;
+  host.replaceChildren();
+  add(host, kids);
+  return host;
+}
+
 function add(el, kids) {
   for (const kid of kids) {
     if (kid === null || kid === undefined || kid === false) continue;
