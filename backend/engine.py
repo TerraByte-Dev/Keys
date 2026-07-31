@@ -281,7 +281,12 @@ class Engine:
         # silent. That is WASAPI working as designed, not a conflict. Shared mode gives
         # the device back at the cost of Windows choosing the buffer (~10 ms), and
         # pinning to a device Windows is not using for anything else gets you both.
-        fs.setting("audio.wasapi.exclusive-mode", 1 if audio.get("exclusive", True) else 0)
+        # The fallback is False to match config.HARDWARE. It used to be True, so a
+        # settings dict that merely LACKED the key came up holding the output device
+        # -- silencing Spotify, Discord and everything else on the machine. A default
+        # that only applies once something has already gone slightly wrong is exactly
+        # the one that must not be the destructive option.
+        fs.setting("audio.wasapi.exclusive-mode", 1 if audio.get("exclusive", False) else 0)
         device = str(audio.get("device", "default") or "default")
         if device != "default":
             fs.setting("audio.wasapi.device", device)
@@ -747,8 +752,8 @@ class Engine:
             "period_size": period,
             # In shared mode the period size is ignored, so quoting it as the buffer
             # would be a lie. Windows picks the engine period there (~10 ms at 48 kHz).
-            "buffer_ms": round(period / rate * 1000, 2) if audio.get("exclusive", True) else None,
-            "exclusive": bool(audio.get("exclusive", True)),
+            "buffer_ms": round(period / rate * 1000, 2) if audio.get("exclusive", False) else None,
+            "exclusive": bool(audio.get("exclusive", False)),
             "device": str(audio.get("device", "default") or "default"),
             "polyphony": int(audio.get("polyphony", 256)),
             "gain": float(audio.get("gain", 0.6)),

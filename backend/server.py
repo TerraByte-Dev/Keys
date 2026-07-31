@@ -467,7 +467,7 @@ def audio_devices() -> dict[str, Any]:
     return {
         "devices": engine_mod.list_audio_devices(),
         "current": str(audio.get("device", "default") or "default"),
-        "exclusive": bool(audio.get("exclusive", True)),
+        "exclusive": bool(audio.get("exclusive", False)),
     }
 
 
@@ -686,7 +686,7 @@ def _backing_reply(error: str = "") -> dict[str, Any]:
     return {
         "ok": not error, "error": error,
         "tracks": app_state.backing.all(),
-        "exclusive": bool(audio.get("exclusive", True)),
+        "exclusive": bool(audio.get("exclusive", False)),
     }
 
 
