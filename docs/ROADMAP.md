@@ -17,7 +17,7 @@ more to do at their own pace, or does it try to teach them? The first kind gets 
 | **M5a** | Practice timer | ✅ idle-gapped clock, streaks, heatmaps |
 | **M5b** | Metronome + tempo ramp | ✅ audio-clock driven, ramp, drift measured |
 | **M6** | Sight reading trainer | ✅ SVG grand staff, adaptive weighting |
-| **M7** | Play-along / falling notes | ⬜ **deliberately skipped** — see below |
+| **M7** | Play-along / falling notes | ✅ ghost mode — silent falling roll, wait-for-me, hands separate, songs drawer |
 | **M8** | Recording | 🟡 the loop station records and overdubs; no `.mid` / `.wav` export |
 | **M9** | Deeper stats | 🟡 timing histogram, activity calendar and key/chord heatmaps done; miss heatmap not started |
 | **M10** | Packaging | 🟡 `dist/Keys` builds and runs; no installer, no in-place update |
@@ -25,7 +25,46 @@ more to do at their own pace, or does it try to teach them? The first kind gets 
 | **M12** | Backing tracks | ✅ YouTube shelf with A/B loop points and a speed control |
 
 Everything above M1 is covered by `tools/pipeline_check.py`, which drives synthetic notes through the real
-engine, hub, drain loop and websocket — so the suite runs without a piano attached. Ten suites, 717 assertions.
+engine, hub, drain loop and websocket — so the suite runs without a piano attached. Eighteen scripts: fourteen
+need nothing plugged in at all and carry 869 assertions between them. `engine_check`, `looper_check` and
+`pipeline_check` want the audio device to themselves and refuse to run while Keys is open; `audio_check` also
+wants a piano actually connected, and fails its last step without one.
+
+## M7 got built, and the estimate that said not to was wrong
+
+This file used to say falling notes were "weeks of work for a worse version" of Synthesia and PianoBooster, and
+that if anything in the space was ever built here it would be the part they don't have — scoring against your
+own history. Both halves are worth correcting rather than quietly deleting.
+
+**The estimate was wrong because the expensive parts were already paid for.** MIDI import, MusicXML conversion,
+staff assignment, the score library and `GET /api/scores/{id}/notes` all shipped with M6 and M11 — that
+endpoint's docstring already said it was "what playback and, later, following are driven from". What was
+actually missing was a projection change in `frontend/roll.js` and a control bar — no new endpoint, no schema
+change, and no work anywhere in the note pipeline. The backend contributed two settings keys in `config.py` and
+one unrelated bit of insurance in `scores.py` (keeping the original `.mid` beside the conversion, because
+converting is a one-way door). An estimate that prices a feature without checking what it can reuse will be
+wrong by that much.
+
+**Ghost mode does NOT satisfy the escape clause, and must not be read as having done so.** Nothing is written
+to the database, nothing is measured across sessions, and there is no scoring. What shipped is a transport and
+a target: the piece falls, you play it, and the roll shows you the gap. That gap is *visible* — your bar and its
+ghost fall at the same rate, so the distance between them is your timing error and does not drift — but it is
+not *recorded*. The honest one-line summary is that Keys now has a better-integrated Synthesia, not something
+Synthesia cannot do.
+
+What the escape clause would still cost, so nobody re-derives it: a seventh SQLite table, plus registration in
+`userdata.TABLES`, `userdata.inventory`, `Store.discard_session`'s hand-written cascade and
+`tools/merge_history.py`'s `SESSION_CHILDREN` — and `tools/store_check.py` hard-asserts the current table and
+index counts, so it goes red the moment `SCHEMA` changes. A separate, arguable day of work. Still unbuilt.
+
+**Wait-for-me is a deliberate step toward tutor, and it is on by default.** It is Synthesia's core feature, it
+is the thing that makes "following a MIDI gets me there" true rather than aspirational, and it is the one named
+exception to "a workspace, not a tutor" at the top of this file. That line stands everywhere else — there are
+still no points, no streaks tied to it, and nothing that nags. One button turns waiting off.
+
+**On the sight-reading worry:** the claim that falling notes harm sight-reading has **no controlled evidence**
+either way. It was not the reason to skip this and it is not a reason to regret it. Sheet music is still what
+`Read` is for, and the two do not compete.
 
 ## Next
 
@@ -52,12 +91,6 @@ that onto the 88-key display would close the loop between "what I'm bad at" and 
 data directory and picking them per zone already works.
 
 ## Not being built, on purpose
-
-**Falling notes (M7).** Synthesia (one-time purchase) and PianoBooster (free, GPL) both ship this today with
-MIDI import and hands-separate practice. Rebuilding it is weeks of work for a worse version. The claim that
-falling-notes harms sight-reading has **no controlled evidence** either way — that isn't the reason to skip it.
-The reason is that it is already solved. If something in this space ever gets built here, it will be the part
-they don't have: scoring against *your own* history.
 
 **Content libraries.** Competing with flowkey or Piano Marvel on a 1,500-song catalogue is not a software
 problem, it's a licensing one.

@@ -44,6 +44,19 @@
       <i class="clock__dot" id="playing-dot" title="lit while you are playing"></i>
     </div>
     <button class="btn btn--panic" id="panic" title="All notes off (Esc)">PANIC</button>
+    <!-- Output volume. It is synth.gain, the one audio setting FluidSynth will take
+         live without renegotiating the stream, which is why it can sit out here
+         instead of behind the gear with the ones that need a restart. -->
+    <label class="vol" title="Output volume">
+      <svg class="vol__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 9v6h3.5L12 19V5L7.5 9H4z"/>
+        <path d="M15.6 8.6a4.5 4.5 0 0 1 0 6.8" class="vol__wave"/>
+        <path d="M18.2 6a8 8 0 0 1 0 12" class="vol__wave vol__wave--far"/>
+      </svg>
+      <input class="vol__slider" type="range" id="vol" min="0" max="150" step="1" value="60"
+             aria-label="Output volume">
+      <span class="vol__value" id="vol-value">60</span>
+    </label>
     <button class="railbtn" id="gear" title="Settings — themes, shortcuts, updates" aria-haspopup="dialog">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <circle cx="12" cy="12" r="3.1"/>
@@ -66,19 +79,68 @@
 <!-- ── the view ──────────────────────────────────────────────────────────── -->
 <main class="stage" id="stage" tabindex="-1"></main>
 
-<!-- ── note roll: collapsed to nothing until you open it ─────────────────── -->
+<!-- ── the roll. Full screen or not at all — there is no half. ───────────── -->
 <section class="roll" id="roll" aria-hidden="true">
-  <button class="roll__grow" id="roll-grow" title="Full screen — just the roll and the keys (F)">
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
-      <path d="M1 4.2V1h3.2M7.8 1H11v3.2M11 7.8V11H7.8M4.2 11H1V7.8"/>
-    </svg>
-  </button>
   <button class="roll__exit" id="roll-exit" title="Back to the app (Esc)">
     <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
       <path d="M4.2 1H1v3.2M11 4.2V1H7.8M7.8 11H11V7.8M1 7.8V11h3.2"/>
     </svg>
     EXIT
   </button>
+
+  <!-- The songs drawer. Importing music belongs where you play it, not three tabs
+       away behind an engraver — so this is the one place a .mid goes in, and it
+       lands on the roll rather than on a page of notation. -->
+  <button class="songs__tab" id="songs-tab" title="Your songs (S)" aria-expanded="false">
+    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+      <path d="M1.5 2.5h9M1.5 6h9M1.5 9.5h5.5"/>
+    </svg>
+    SONGS
+  </button>
+  <aside class="songs" id="songs" aria-label="Songs" hidden>
+    <div class="songs__head">
+      <span class="songs__heading">SONGS</span>
+      <button class="songs__x" id="songs-close" title="Close (S)">&times;</button>
+    </div>
+    <button class="btn btn--wide" id="songs-add">Import a MIDI&hellip;</button>
+    <input type="file" id="songs-file" accept=".mid,.midi,.musicxml,.mxl,.xml" hidden>
+    <div class="songs__list" id="songs-list"></div>
+    <p class="songs__note">
+      A <strong>.mid</strong> lands straight on the roll — silent, no engraving.
+      Drop one anywhere on this screen.
+    </p>
+  </aside>
+
+  <!-- The roll's own controls. Inside #roll rather than in a view, because immersive
+       collapses .stage to nothing — and immersive is now the only way the roll opens.
+       Speed and EXIT are always here; the song controls appear with a song. -->
+  <div class="rollbar" id="rollbar" hidden>
+    <span class="rollbar__title" id="ghost-title"></span>
+    <span class="rollbar__song" id="ghost-song" hidden>
+      <button class="btn" id="ghost-play">Play</button>
+      <button class="btn" id="ghost-restart" title="back to the beginning">|&lsaquo;</button>
+      <button class="btn" id="ghost-wait" aria-pressed="true"
+              title="Freeze at each chord until you have played it">Wait</button>
+      <span class="rollbar__hands" id="ghost-hands" role="group" aria-label="Which hand">
+        <button class="btn is-on" data-hands="both">Both</button>
+        <button class="btn" data-hands="R">R</button>
+        <button class="btn" data-hands="L">L</button>
+      </span>
+      <label class="field rollbar__knob">
+        <span class="field__label"><span>Tempo</span><span class="field__value" id="ghost-bpm-v">100</span></span>
+        <input type="range" id="ghost-bpm" min="20" max="240" step="1" value="100">
+      </label>
+    </span>
+    <label class="field rollbar__knob" title="How far ahead you can see. Nothing to do with the music.">
+      <span class="field__label"><span>Speed</span><span class="field__value" id="roll-speed-live">100</span></span>
+      <input type="range" id="roll-speed" min="40" max="240" step="5" value="100">
+    </label>
+    <span class="rollbar__read" id="ghost-read"></span>
+    <button class="btn" id="ghost-close" hidden>Close song</button>
+    <div class="transport__scrub rollbar__scrub" id="ghost-scrub" hidden>
+      <div class="transport__fill" id="ghost-fill"></div>
+    </div>
+  </div>
 </section>
 
 <!-- ── readout strip above the keys ──────────────────────────────────────── -->
@@ -98,7 +160,7 @@
     </span>
     <span class="readout__label">VEL</span>
     <output class="readout__vel" id="last-vel">—</output>
-    <button class="rolltoggle" id="roll-toggle" title="Show the notes you play rising out of the keys (V)" aria-pressed="false">
+    <button class="rolltoggle" id="roll-toggle" title="The roll, full screen — play along with a MIDI, or watch what you play (V)" aria-pressed="false">
       <i class="rolltoggle__bars" aria-hidden="true"><i></i><i></i><i></i></i>
       <span class="rolltoggle__label">ROLL</span>
     </button>

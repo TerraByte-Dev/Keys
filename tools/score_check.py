@@ -234,6 +234,25 @@ step("timeline still parses after a rename",
 
 step("removed", lib.remove(meta["id"]) and lib.all() == [])
 step("removing twice is harmless", lib.remove(meta["id"]) is False)
+
+# A .mid is the one import stored as TWO files -- the MusicXML everything downstream
+# reads, and the original beside it, because the conversion is a one-way door. Both
+# have to land and both have to go: a stranded .mid has no sidecar listing it, so
+# nothing can ever reach it again. One note, format 0, 384 ticks to the quarter.
+midi = (b"MThd\x00\x00\x00\x06\x00\x00\x00\x01\x01\x80"
+        b"MTrk\x00\x00\x00\x0d\x00\x90\x3c\x50\x83\x00\x80\x3c\x00\x00\xff\x2f\x00")
+mid_meta = lib.add("Tune.mid", midi) or {}
+step("a .mid imports, converted to MusicXML", mid_meta.get("from_midi") is True,
+     lib.last_error[:60])
+step("and the .mid you handed it is kept beside the conversion",
+     bool(mid_meta.get("source"))
+     and (config.DATA_DIR / "scores" / mid_meta["source"]).read_bytes() == midi,
+     "the conversion drops velocity and flattens the tempo map -- it cannot be undone")
+step("that is two files plus a sidecar",
+     len(list((config.DATA_DIR / "scores").glob("*"))) == 3,
+     str(sorted(p.name for p in (config.DATA_DIR / "scores").glob("*"))))
+step("the converted score removes", lib.remove(mid_meta["id"]) and lib.all() == [])
+
 step("the files went with it",
      not list((config.DATA_DIR / "scores").glob("*")),
      "a sidecar left behind would haunt the list forever")

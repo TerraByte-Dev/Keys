@@ -1927,7 +1927,10 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
      variable on body rather than a class that swaps a fixed height. */
   transition: none;
 }
-body.is-rolling { --roll-h: clamp(150px, 30vh, 460px); }
+/* No strip. `is-rolling` marks that the roll EXISTS; `is-immersive` gives it the
+   window. There is deliberately no size in between -- the old 150px preview held
+   about a second and a half of music, which is neither enough to read a song coming
+   nor enough to read one you played, and it took a third of the stage to say so. */
 .roll__canvas { display: block; width: 100%; height: 100%; }
 /* The line the notes are born on. Reads as the top edge of the keybed, which is
    exactly what it is. */
@@ -2003,16 +2006,152 @@ body.is-immersive .roll__exit { display: flex; }
 body.is-immersive.is-stirring .roll__exit { opacity: 1; }
 .roll__exit:hover { color: var(--amber); border-color: var(--amber-deep); opacity: 1; }
 
-/* The full-screen handle inside the strip. */
-.roll__grow {
-  position: absolute; top: 8px; right: 10px; z-index: 3;
-  width: 26px; height: 22px; display: grid; place-items: center; cursor: pointer;
+/* -- ghost mode: the control bar ------------------------------------------ */
+/* Sits above the vignette (z-index 2) and beside the exit button, and fades with
+   the mouse for the same reason it does: in a mode with no chrome, a control that
+   never leaves is the only thing on screen that is not the instrument. */
+/* NEVER pointer-events:auto on the bar itself. It spans the full width of the panel,
+   and its right-hand padding sits directly on top of the EXIT button -- padding
+   reserves layout room for the flex children but the box still covers what is under
+   it, so an auto bar swallows the only way out of full screen. The controls take
+   their own clicks; the strip between them stays transparent. */
+.rollbar {
+  position: absolute; left: 0; right: 0; top: 0; z-index: 3;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  /* Clear of both handles: SONGS sits at left 16, EXIT at right 16. */
+  padding: 10px 116px 12px 132px;
+  transition: opacity .5s var(--ease), padding-left .18s var(--ease);
+  background: linear-gradient(180deg, var(--panel-0) 40%, transparent);
+  font-family: var(--font-panel); font-size: 11px;
+  opacity: 0; transition: opacity .5s var(--ease);
+  pointer-events: none;
+}
+.rollbar > *, .rollbar__scrub, .rollbar__song > * { pointer-events: auto; }
+.rollbar[hidden], .rollbar__song[hidden], .rollbar__scrub[hidden] { display: none; }
+/* Fades with the mouse, like EXIT. Shown while the drawer is open regardless, because
+   you are demonstrably looking at controls. */
+.rollbar { opacity: 0; }
+body.is-immersive.is-stirring .rollbar,
+body.is-drawer .rollbar { opacity: 1; }
+.rollbar:hover { opacity: 1; }
+/* The drawer is z-index 5 and this is 3, so an open drawer sits ON TOP of the
+   controls. Step out from behind it rather than fighting over the stacking order --
+   the drawer wants that space and the bar does not need it. */
+body.is-drawer .rollbar { padding-left: calc(min(300px, 34vw) + 16px); }
+.rollbar__song { display: contents; }
+
+.rollbar__title {
+  color: var(--ink); font-size: 12px; letter-spacing: .04em;
+  max-width: 26ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rollbar__title:empty { display: none; }
+.rollbar__title.is-warn { color: var(--amber); cursor: help; }
+.rollbar__hands { display: flex; gap: 2px; }
+.rollbar__hands.is-off { opacity: .4; }
+.rollbar__knob { width: 132px; margin: 0; }
+.rollbar__read {
+  color: var(--ink-faint); font-size: 10px; letter-spacing: .06em;
+  font-variant-numeric: tabular-nums;
+}
+/* Pinned to the very top of the panel: a progress bar is orientation, not a
+   control, and it should not compete with the notes. */
+.rollbar__scrub {
+  position: absolute; left: 0; right: 0; top: 0; height: 3px; margin: 0;
+}
+/* Ghost mode draws its own now-line on the canvas, HIT_PAD above the keys. The
+   keybed rule would be a second, wrong one. */
+body.is-ghosting .roll::after { display: none; }
+
+/* Keep the edge vignette, drop the top-down wash.
+   That wash was written for free play, where the top of the panel is where notes
+   EXIT and dissolving them there is exactly right. Ghost mode reverses the roll and
+   makes the top the ENTRANCE, so the same gradient hides the first seconds of every
+   piece -- the earliest warning you get, blacked out. drawGhost fades notes in on its
+   own; this would be a second fade stacked on it. */
+body.is-ghosting.is-immersive .roll::before {
+  background: radial-gradient(120% 92% at 50% 100%, transparent 42%, var(--panel-0) 100%);
+}
+
+/* -- the songs drawer ----------------------------------------------------- */
+/* The handle. Sits on the left edge where nothing else lives, and stays reachable
+   with the mouse in the same way EXIT does. */
+.songs__tab {
+  position: absolute; top: 14px; left: 16px; z-index: 4;
+  display: none; align-items: center; gap: 7px;
+  padding: 6px 11px; cursor: pointer;
+  font-family: var(--font-panel); font-size: 10px; letter-spacing: .16em;
   color: var(--ink-faint); background: var(--wash);
   border: 1px solid var(--hairline); border-radius: var(--radius);
-  transition: color .15s var(--ease), border-color .15s var(--ease);
+  opacity: 0; transition: opacity .5s var(--ease), color .15s var(--ease);
 }
-.roll__grow:hover { color: var(--amber); border-color: var(--amber-deep); }
-body.is-immersive .roll__grow { display: none; }
+body.is-immersive .songs__tab { display: flex; }
+body.is-immersive.is-stirring .songs__tab,
+body.is-drawer .songs__tab { opacity: 1; }
+.songs__tab:hover { color: var(--amber); border-color: var(--amber-deep); opacity: 1; }
+.songs__tab[aria-expanded="true"] { color: var(--amber); border-color: var(--amber-deep); }
+
+.songs {
+  position: absolute; top: 0; left: 0; bottom: 0; z-index: 5;
+  width: min(300px, 34vw);
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 14px 14px 12px;
+  background: var(--panel-0);
+  border-right: 1px solid var(--hairline);
+  box-shadow: 20px 0 60px -30px var(--shadow-deep);
+}
+.songs[hidden] { display: none; }
+.songs__head { display: flex; align-items: center; justify-content: space-between; }
+.songs__heading { font-size: 10px; letter-spacing: .18em; color: var(--ink-faint); }
+.songs__x {
+  width: 22px; height: 22px; cursor: pointer; font-size: 15px; line-height: 1;
+  color: var(--ink-faint); background: transparent;
+  border: 1px solid var(--hairline); border-radius: var(--radius);
+}
+.songs__x:hover { color: var(--amber); border-color: var(--amber-deep); }
+.songs__list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.songs__note { font-size: 10.5px; line-height: 1.5; color: var(--ink-faint); margin: 0; }
+
+.song { display: flex; align-items: stretch; gap: 4px; }
+.song__go {
+  flex: 1; min-width: 0; text-align: left; cursor: pointer;
+  display: flex; flex-direction: column; gap: 2px; padding: 7px 9px;
+  color: var(--ink-dim); background: var(--panel-1); font-family: inherit;
+  border: 1px solid var(--hairline); border-radius: var(--radius);
+  transition: color .12s var(--ease), border-color .12s var(--ease);
+}
+.song__go:hover { color: var(--ink); border-color: var(--hairline-hi); }
+.song.is-on .song__go { color: var(--amber); border-color: var(--amber-deep); }
+.song__name { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.song__meta { font-size: 9.5px; letter-spacing: .08em; color: var(--ink-faint); }
+.song__x {
+  width: 24px; cursor: pointer; font-size: 14px; color: var(--ink-faint);
+  background: transparent; border: 1px solid var(--hairline); border-radius: var(--radius);
+}
+.song__x:hover { color: var(--red-ink); border-color: var(--red-deep); }
+
+/* Drop anywhere on the roll. The whole screen lights rather than a 300px target. */
+body.is-dropping .roll { outline: 1px dashed var(--amber-deep); outline-offset: -6px; }
+
+/* -- output volume, in the rail ------------------------------------------- */
+/* Out here rather than behind the gear because it is the one audio setting that takes
+   effect live -- everything else in that panel renegotiates the WASAPI stream and
+   needs a restart, which is not a thing you want two clicks from "that's too loud". */
+.vol {
+  display: flex; align-items: center; gap: 7px; margin-left: 10px;
+  color: var(--ink-faint);
+}
+.vol:hover { color: var(--ink-dim); }
+.vol__icon { flex: none; }
+.vol__slider { width: 86px; }
+.vol__value {
+  width: 3ch; text-align: right; font-size: 10px;
+  font-variant-numeric: tabular-nums; letter-spacing: .04em;
+}
+/* Silence should look like silence, not like a slider that happens to be far left. */
+.vol.is-muted { color: var(--red-ink); }
+.vol.is-muted .vol__wave { opacity: 0; }
+@media (max-width: 1100px) { .vol__slider { width: 60px; } .vol__value { display: none; } }
+@media (max-width: 860px) { .vol { display: none; } }
 
 /* -- the gear, and the sheet it opens ------------------------------------- */
 .railbtn {

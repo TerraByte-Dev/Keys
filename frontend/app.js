@@ -13,8 +13,10 @@
 
 import { createKeyboard } from './keyboard.js';
 import { createRoll } from './roll.js';
+import { createGhost } from './ghost.js';
+import { createSongs } from './songs.js';
 import { attachLayout, primeLayout } from './layout.js';
-import { $, api, hms, toast } from './ui.js';
+import { $, api, hms, paint as paintSlider, toast } from './ui.js';
 import { startTour, tourOpen } from './tour.js';
 import { closeSettings, openSettings, settingsOpen } from './settings-overlay.js';
 
@@ -137,12 +139,21 @@ function applyFrame(f) {
   }
   if (f.names) els.notes.textContent = f.names.join('   ');
   roll?.frame(f);
+  ghostModel?.frame(f);
   current?.frame?.(f, ctx);
 }
 
 function applyStatus(s) {
   ctx.status = s;
   ctx.kb.setHeld(s.held || []);
+  // The engine's own held set, once a second. In wait mode this is what un-sticks a
+  // gate the frame path got wrong -- and a stuck gate looks exactly like a hang.
+  if (ghostModel) {
+    ghostModel.resync(s.held || []);
+    // The bar number and the scrub ride the heartbeat, the same way the score
+    // transport does. The roll is the real-time display; the readout is not.
+    paintGhost();
+  }
   lamp('lamp-midi', s.midi?.connected ? 'on' : 'bad',
        s.midi?.connected ? (s.midi.port_name || 'ok').slice(0, 14) : 'none');
   // buffer_ms is null in shared mode on purpose -- Windows owns the period there, so
@@ -261,6 +272,10 @@ async function refresh() {
 const ORDER = ['play', 'practice', 'layers', 'tools', 'stats', 'settings'];
 
 /* ── the note roll ────────────────────────────────────────────────────────── */
+/* THE ROLL IS FULL SCREEN OR IT IS NOT OPEN. There used to be a 150px strip as well,
+   and it was the worst of both: at 100 px/s it holds about a second and a half, which
+   is too little to read a song coming and too little to read one you just played, and
+   it cost the stage a third of its height to say so. One mode, and it is the good one. */
 let roll = null;
 let rollOpen = false;
 let rollPx = 100;
@@ -270,6 +285,14 @@ export const rollSpeed = () => rollPx;
 export function setRollSpeed(px) {
   rollPx = Math.max(40, Math.min(240, Number(px) || 100));
   roll?.setSpeed(rollPx);
+  const live = $('#roll-speed-live');
+  if (live) live.textContent = String(rollPx);
+  const sl = $('#roll-speed');
+  if (sl && document.activeElement !== sl) {
+    sl.value = String(rollPx);
+    paintSlider(sl);
+  }
+  if (ghostModel) paintGhost();          // the lookahead sentence just changed
   return rollPx;
 }
 
@@ -281,10 +304,15 @@ let stirTimer = 0;
 
 export function toggleImmersive(on) {
   const want = on === undefined ? !immersive : !!on;
-  if (want && !rollOpen) toggleRoll(true);
+  if (want && !rollOpen) openRoll(true);
+  // Leaving full screen ends a play-along, by every route out -- Escape, F11, the
+  // window chrome. There is no smaller roll for it to fall back into.
+  if (!want && ghostModel) stopGhost();
+  if (!want) songs?.toggle(false);
   immersive = want;
   document.body.classList.toggle('is-immersive', immersive);
   roll?.setImmersive(immersive);
+  $('#rollbar')?.toggleAttribute('hidden', !immersive);
   // The grid tracks change, so the dock keyboard is a different size and every
   // column the roll aligns to has moved.
   requestAnimationFrame(() => roll?.remeasure());
@@ -292,9 +320,11 @@ export function toggleImmersive(on) {
   if (immersive) {
     closeSettings();               // the gear it was opened from is about to vanish
     document.documentElement.requestFullscreen?.().catch(() => {});
+    setRollSpeed(rollPx);          // paint the speed slider now the bar is visible
     stir();
-  } else if (document.fullscreenElement) {
-    document.exitFullscreen?.().catch(() => {});
+  } else {
+    openRoll(false);
+    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
   }
   return immersive;
 }
@@ -313,11 +343,12 @@ document.addEventListener('fullscreenchange', () => {
   if (!document.fullscreenElement && immersive) toggleImmersive(false);
 });
 
-export function toggleRoll(on) {
-  rollOpen = on === undefined ? !rollOpen : !!on;
+/* Build the roll and give it the panel. Internal: nothing opens the roll without
+   also going full screen, so this is never the whole of what a caller wants. */
+function openRoll(on) {
+  rollOpen = !!on;
   document.body.classList.toggle('is-rolling', rollOpen);
-  const btn = $('#roll-toggle');
-  btn?.setAttribute('aria-pressed', String(rollOpen));
+  $('#roll-toggle')?.setAttribute('aria-pressed', String(rollOpen));
   $('#roll')?.setAttribute('aria-hidden', String(!rollOpen));
 
   if (rollOpen) {
@@ -330,15 +361,211 @@ export function toggleRoll(on) {
   } else {
     roll?.clear();
   }
-  api.post('/api/settings', { ui: { roll: rollOpen } }).catch(() => {});
-  if (ctx.state?.settings?.ui) ctx.state.settings.ui.roll = rollOpen;
   return rollOpen;
 }
 
+/* The ROLL button and V. One door, and it leads to full screen. */
+export function toggleRoll(on) {
+  return toggleImmersive(on);
+}
+
+/* ── output volume ────────────────────────────────────────────────────────── */
+/* synth.gain, which is the one audio setting FluidSynth takes live -- sample rate and
+   buffer renegotiate the stream and need a restart, which is why they stay behind the
+   gear and this does not. Stored as a percentage in the UI because 0.6 means nothing
+   to anyone; the engine gets the fraction. */
+let volTimer = 0;
+
+export function setVolume(percent, { persist = true } = {}) {
+  const pct = Math.max(0, Math.min(150, Math.round(Number(percent))));
+  const sl = $('#vol');
+  if (sl && document.activeElement !== sl) { sl.value = String(pct); }
+  if (sl) paintSlider(sl);
+  const out = $('#vol-value');
+  if (out) out.textContent = String(pct);
+  document.querySelector('.vol')?.classList.toggle('is-muted', pct === 0);
+  if (!persist) return pct;
+  // Coalesced: dragging a slider fires input on every pixel, and each one of those is
+  // a settings write to disk.
+  clearTimeout(volTimer);
+  volTimer = setTimeout(() => {
+    api.post('/api/settings', { audio: { gain: pct / 100 } }).catch(() => {});
+    if (ctx.state?.settings?.audio) ctx.state.settings.audio.gain = pct / 100;
+  }, 120);
+  return pct;
+}
+
+/* ── ghost mode ───────────────────────────────────────────────────────────── */
+/* The piece falls, silently, and you supply the sound. Nothing here calls the
+   backend: the timeline was fetched once when the piece was opened, and from then on
+   this is arithmetic and pixels. That is what lets a play-along keep working with no
+   SoundFont and no audio device. */
+let ghostModel = null;
+
+export function ghostArmed() { return !!ghostModel; }
+
+/**
+ * Start a play-along. `payload` is the body of /api/scores/{id}/notes.
+ */
+export function startGhost(payload, meta = {}) {
+  if (!payload || !(payload.notes || []).length) {
+    toast('that piece has no notes to play along with', 'bad');
+    return null;
+  }
+  stopGhost();
+  ghostModel = createGhost(payload, {
+    title: meta.title || payload.title,
+    wait: ctx.state?.settings?.ui?.ghost_wait !== false,
+    onChange: paintGhost,
+  });
+  ghostModel.setTempo(meta.tempo || payload.tempo || 100);
+  ghostModel.setHands(ctx.state?.settings?.ui?.ghost_hands || 'both');
+
+  document.body.classList.add('is-ghosting');
+  for (const id of ['#ghost-song', '#ghost-close', '#ghost-scrub']) {
+    $(id)?.removeAttribute('hidden');
+  }
+  songs?.setPlaying(meta.id || '');
+  $('#ghost-title').textContent = ghostModel.title;
+  if ((ghostModel.warnings || []).length) {
+    $('#ghost-title').title = ghostModel.warnings.join('\n');
+    $('#ghost-title').classList.add('is-warn');
+  } else {
+    $('#ghost-title').removeAttribute('title');
+    $('#ghost-title').classList.remove('is-warn');
+  }
+  // One staff means there is no second hand to separate, and offering the control
+  // anyway would be pretending.
+  const solo = ghostModel.staves.length < 2;
+  $('#ghost-hands')?.classList.toggle('is-off', solo);
+  for (const b of document.querySelectorAll('#ghost-hands .btn')) b.disabled = solo;
+  if (solo) ghostModel.setHands('both');
+
+  // Full screen, and not as a preference: see the comment in toggleImmersive.
+  toggleImmersive(true);
+  roll?.setGhost(ghostModel);
+  paintGhost();
+  return ghostModel;
+}
+
+export function stopGhost() {
+  if (!ghostModel) return;
+  ghostModel.pause();
+  ghostModel = null;
+  roll?.setGhost(null);
+  ctx.kb.setGhost([]);
+  document.body.classList.remove('is-ghosting');
+  for (const id of ['#ghost-song', '#ghost-close', '#ghost-scrub']) {
+    $(id)?.setAttribute('hidden', '');
+  }
+  songs?.setPlaying('');
+  const title = $('#ghost-title');
+  if (title) { title.textContent = ''; title.classList.remove('is-warn'); }
+  const read = $('#ghost-read');
+  if (read) read.textContent = '';
+}
+
+function paintGhost() {
+  const g = ghostModel;
+  if (!g || !$('#ghost-play')) return;
+
+  $('#ghost-play').textContent = g.playing ? 'Pause' : 'Play';
+  $('#ghost-play').classList.toggle('is-on', g.playing);
+  $('#ghost-wait').setAttribute('aria-pressed', String(g.wait));
+  $('#ghost-wait').classList.toggle('is-on', g.wait);
+  for (const b of document.querySelectorAll('#ghost-hands .btn')) {
+    b.classList.toggle('is-on', b.dataset.hands === g.hands);
+  }
+  $('#ghost-fill').style.width =
+    (g.total ? Math.max(0, Math.min(100, (g.nowQ / g.total) * 100)) : 0).toFixed(2) + '%';
+
+  // Left alone while it has focus, or a repaint fights your hand mid-drag. Painted
+  // unconditionally otherwise: the fill is a CSS variable this sets, and skipping it
+  // when the value already matched left the track empty under a thumb sitting a third
+  // of the way along -- which is the common case, because an unmarked score falls back
+  // to the 100 the markup already ships.
+  const sl = $('#ghost-bpm');
+  if (sl && document.activeElement !== sl) {
+    sl.value = String(g.bpm);
+    paintSlider(sl);
+  }
+  $('#ghost-bpm-v').textContent = String(g.bpm);
+
+  /* The sentence that explains both knobs at once. Tempo decides how fast the music
+     goes; roll speed decides how much of it fits on the glass. Neither number means
+     anything alone, and their product is the only one you actually read by. */
+  const ahead = roll ? roll.secondsAhead() : 0;
+  // A bar's length is beats x (4 / beat-type) QUARTER notes, and bpm counts quarters --
+  // so dividing by `beats` alone reports 6/8 at half its true value and cut time at
+  // double. Same formula the drawn grid uses, so the sentence and the bar lines agree.
+  const m0 = g.measures[0];
+  const barQ = m0 ? m0.beats * (4 / m0.beat_type) : 4;
+  const barsAhead = ahead * (g.bpm / 60) / barQ;
+  $('#ghost-read').textContent =
+    `bar ${g.bar()} / ${g.bars()}  ·  ${ahead.toFixed(1)}s ahead`
+    + `  ·  about ${barsAhead.toFixed(1)} bars at ${g.bpm}`;
+
+  /* The notes you are being asked for, lit on the real keys. Only while the clock is
+     actually held -- a permanent highlight is wallpaper.
+
+     Pushed every paint rather than only on change. The keyboard's ghost layer is a
+     shared channel -- the router blanks it on any hash change, and three other views
+     write it -- so a cache of "what we last sent" goes stale the moment something else
+     stomps the layer, and the hints then never come back. keyboard.js already diffs
+     this against the live set and reuses a spare, so re-sending an unchanged array
+     costs a Set walk and touches no DOM. */
+  ctx.kb.setGhost(g.pending());
+}
+
+/* The songs drawer. Built once, and it owns the import path -- a file dropped on the
+   roll goes straight to startGhost rather than to the engraver. */
+const songs = createSongs((payload, meta) => startGhost(payload, meta));
+
 $('#gear')?.addEventListener('click', () => openSettings(ctx));
 $('#roll-toggle')?.addEventListener('click', () => toggleRoll());
-$('#roll-grow')?.addEventListener('click', () => toggleImmersive(true));
 $('#roll-exit')?.addEventListener('click', () => toggleImmersive(false));
+
+let speedTimer = 0;
+$('#vol')?.addEventListener('input', (e) => setVolume(e.target.value));
+$('#roll-speed')?.addEventListener('input', (e) => {
+  setRollSpeed(e.target.value);
+  clearTimeout(speedTimer);
+  speedTimer = setTimeout(() => {
+    api.post('/api/settings', { ui: { roll_speed: rollPx } }).catch(() => {});
+    if (ctx.state?.settings?.ui) ctx.state.settings.ui.roll_speed = rollPx;
+  }, 200);
+});
+
+$('#ghost-play')?.addEventListener('click', () => ghostModel?.toggle());
+$('#ghost-restart')?.addEventListener('click', () => ghostModel?.seek(0));
+// Closes the SONG, not the screen. You are usually done with a piece long before you
+// are done with the roll.
+$('#ghost-close')?.addEventListener('click', () => stopGhost());
+$('#ghost-wait')?.addEventListener('click', () => {
+  if (!ghostModel) return;
+  const on = ghostModel.setWait(!ghostModel.wait);
+  api.post('/api/settings', { ui: { ghost_wait: on } }).catch(() => {});
+  if (ctx.state?.settings?.ui) ctx.state.settings.ui.ghost_wait = on;
+});
+$('#ghost-hands')?.addEventListener('click', (e) => {
+  const which = e.target?.dataset?.hands;
+  if (!which || !ghostModel) return;
+  ghostModel.setHands(which);
+  api.post('/api/settings', { ui: { ghost_hands: which } }).catch(() => {});
+  if (ctx.state?.settings?.ui) ctx.state.settings.ui.ghost_hands = which;
+});
+$('#ghost-bpm')?.addEventListener('input', (e) => {
+  paintSlider(e.target);
+  ghostModel?.setTempo(e.target.value);
+});
+/* A scrub IS a seek here, and a seek is just a number -- there is no queue to
+   rebuild, unlike the score transport. */
+$('#ghost-scrub')?.addEventListener('click', (e) => {
+  if (!ghostModel) return;
+  const r = e.currentTarget.getBoundingClientRect();
+  const frac = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+  ghostModel.seek(frac * ghostModel.total);
+});
 
 /* Every shortcut in the app, in one table. An action is a label, a default key and
    the thing it does; the keys are rebindable and the defaults are what ships.
@@ -359,6 +586,9 @@ export const ACTIONS = [
     // control to leave by, and Esc is what everyone will press. Panic keeps its
     // meaning everywhere the button is on screen.
     run: () => {
+      // Peel one layer at a time. Escape with the drawer open means "close the
+      // drawer", not "throw me out of the piece I am halfway through".
+      if (songs.isOpen()) { songs.toggle(false); return; }
       if (immersive) { toggleImmersive(false); return; }
       api.post('/api/panic').then(() => toast('All notes off', 'good'));
     },
@@ -368,13 +598,19 @@ export const ACTIONS = [
     run: () => api.post('/api/metronome/toggle').catch(() => {}),
   },
   {
-    id: 'roll', label: 'Show / hide the note roll', group: 'Do', key: 'v',
-    run: () => toggleRoll(),
+    id: 'roll', label: 'The roll — full screen, just the notes and the keys',
+    group: 'Do', key: 'v',
+    run: () => toggleImmersive(),
   },
   {
-    id: 'immersive', label: 'Full screen — just the roll and the keys',
-    group: 'Do', key: 'f',
+    // Kept as its own binding because F is what people already press for full screen,
+    // and it has always meant this. V and F are two names for one door now.
+    id: 'immersive', label: 'The roll (same as V)', group: 'Do', key: 'f',
     run: () => toggleImmersive(),
+  },
+  {
+    id: 'songs', label: 'Your songs — import and pick', group: 'Do', key: 's',
+    run: () => { if (!immersive) toggleImmersive(true); songs.toggle(); },
   },
   {
     id: 'settings', label: 'Open settings', group: 'Do', key: ',',
@@ -432,7 +668,10 @@ window.addEventListener('beforeunload', () => { if (ws) { ws.onclose = null; ws.
   applyTheme(ctx.state?.settings?.ui?.theme);
   setBinds(ctx.state?.settings?.keys);
   setRollSpeed(ctx.state?.settings?.ui?.roll_speed ?? 100);
-  if (ctx.state?.settings?.ui?.roll) toggleRoll(true);
+  setVolume((ctx.state?.settings?.audio?.gain ?? 0.6) * 100, { persist: false });
+  // The roll is not restored on launch. It used to be a strip you could leave open;
+  // it is now the whole window, and an app that opens into full screen because of
+  // something you did last week is an app that has taken a decision off you.
   primeLayout(ctx.state);
   for (const problem of ctx.state.errors || []) toast(problem, 'bad', 12000);
   await route();

@@ -382,6 +382,19 @@ export function rollPanel(ctx) {
       'Pixels per second, not a crossing time — so full screen shows ',
       h('strong', null, 'more of your playing'), ' rather than the same amount going ',
       'faster. Slower is easier to read back; faster keeps more of the keyboard clear.'),
+    /* The one place both knobs are explained together. A play-along has two, they are
+       independent, and confusing them is the obvious mistake: this is where someone
+       looking for "make it slower" will arrive, and half the time they want the other
+       one. Deliberately NOT a third slider — seconds of lookahead is just height over
+       speed, and shipping a control that sets the same number twice is the confusion
+       itself. */
+    h('div.note', { style: { marginTop: '8px' } },
+      'In ', h('strong', null, 'ghost mode'), ' this is the ', h('strong', null, 'reading'),
+      ' knob and it changes nothing about the music — it decides how far ahead you can ',
+      'see. The ', h('strong', null, 'Tempo'), ' slider on the ghost bar is the ',
+      h('strong', null, 'practice'), ' knob: it decides how fast the piece actually goes. ',
+      'Slowing the tempo therefore buys reading time twice over, because fewer notes ',
+      'fall into the same stretch of screen.'),
     h('div.note', { style: { marginTop: '8px' } },
       h('strong', null, 'F'), ' takes the roll full screen with the lights down. ',
       h('strong', null, 'Esc'), ' brings the app back.')));

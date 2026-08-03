@@ -127,6 +127,42 @@ module and the page comes up empty. `tools/frontend_check.py` is the gate that r
 it parses every module with Node, verifies every import and asset reference resolves, and checks that every CSS
 custom property the keyboard reads is actually defined.
 
+### The roll is full screen or it is not open
+
+There used to be a 150px strip as well, and it was the worst of both ends: at 100 px/s
+it holds about a second and a half, which is neither enough to read a song coming nor
+enough to read one you just played — and it took a third of the stage to say so. One
+mode now, and it is the good one. `V`, `F` and the ROLL button are three names for the
+same door.
+
+That is also where music comes in. `frontend/songs.js` is a drawer inside the roll, and
+a `.mid` dropped anywhere on that screen lands on the roll rather than in the engraver —
+importing a file in order to learn a song should not hand you a page of notation you
+did not ask for, on a screen you have to leave before you can play. Sheet music still
+engraves; it is just no longer the front door.
+
+### The note roll has two directions, and they are modes rather than a mixture
+
+`roll.js` owns pixels; `ghost.js` owns the clock, the gates and the hand filter. The split is what lets the
+rules be checked without a canvas — `tools/ghost_check.py` drives the real module from Node with no DOM, no
+audio device and no piano.
+
+In free play a bar is born at the key you pressed and **rises**, so its length is how long you held the note. In
+ghost mode the whole paper **falls** instead: the printed piece and your own playing descend together past a
+now-line 56 px above the keys.
+
+The obvious alternative — keep your playing rising and let the piece fall to meet it — was measured and found
+wanting. Both bars would be anchored at the same edge, so they grow from it *together* rather than tessellating,
+and at the halfway point of a held note the target and the answer are exactly coincident. Running both downward
+instead buys the property the mode exists for: two edges descending at one rate, so the vertical gap between
+your bar and its ghost is your timing error and does not drift as the pair travels. `ghost_check` asserts that
+over four seconds of frames, not once.
+
+Ghost mode makes **no backend call and no sound**. The timeline is fetched once from
+`GET /api/scores/{id}/notes` and everything after that is arithmetic. That is deliberate, and it is why a
+play-along still works with no SoundFont, no audio device and the headphones unplugged — unlike the score
+transport, which 503s when the engine is down.
+
 ## Storage
 
 SQLite, WAL mode, `synchronous=NORMAL`, one connection behind one lock. A per-thread pool would be faster; on a
@@ -146,8 +182,11 @@ That framing decides features. A workspace owes you: instruments within reach, s
 in seconds, a metronome that cannot drift, material to work on when you want it, and a record of what you did.
 It does not owe you a lesson plan, and it must never nag.
 
-Synthesia and PianoBooster already do falling notes better than this ever will, so Keys deliberately doesn't
-build them. The failure mode to watch for is three weeks in with a gorgeous zone editor and no calluses.
+Falling notes were on that list for a long time, on the grounds that Synthesia and PianoBooster already do them.
+They got built anyway, because the estimate was wrong — see [`ROADMAP.md`](ROADMAP.md). The framing survives:
+ghost mode hands you a piece and gets out of the way. It does not pick the piece, score you, or keep a record.
+
+The failure mode to watch for is unchanged and is three weeks in with a gorgeous zone editor and no calluses.
 
 Some widely repeated practice advice did not survive checking, and the design reflects that:
 

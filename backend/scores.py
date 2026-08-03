@@ -6,6 +6,13 @@ imported and never rewritten: it is your file, Verovio renders it directly, and 
 "helpful" normalising pass is how an importer silently loses the thing that made your
 copy yours.
 
+A .mid is the one exception, and it is handled by keeping BOTH. The library stores the
+MusicXML it was converted into, because everything downstream speaks MusicXML, and the
+original .mid beside it, because the conversion is lossy in ways that only matter later
+-- velocity is dropped outright, a tempo map collapses to one number, and a single-track
+file has its hands guessed. Nothing reads the original yet. It is there so that the
+decision to convert stays reversible.
+
 Alongside each file is a small JSON sidecar with what backend/score.py read out of it
 -- title, composer, bar count, note count. That is what a library list needs, and
 re-parsing every score to draw a list of five would be absurd.
@@ -115,6 +122,7 @@ class Library:
         # metadata: how much had to be approximated is the one thing a converted score
         # knows that an authored one does not.
         converted: dict[str, Any] | None = None
+        original = raw                  # kept, because converting cannot be undone
         suffix = Path(name).suffix.lower()
         if lower.endswith(MIDI_SUFFIXES):
             try:
@@ -141,12 +149,33 @@ class Library:
             return None
 
         score_id = uuid.uuid4().hex[:10]
-        stored = f"{_slug(score.title or Path(name).stem)}-{score_id}{suffix}"
+        slug = _slug(score.title or Path(name).stem)
+        stored = f"{slug}-{score_id}{suffix}"
         try:
             (root / stored).write_bytes(raw)
         except OSError as exc:
             self.last_error = f"could not save it: {exc}"
             return None
+
+        # The .mid you actually imported, kept beside the conversion.
+        #
+        # Converting is a ONE-WAY DOOR, and a quiet one: the MusicXML that comes out
+        # carries no velocity at all, one tempo where the file may have had a map, and
+        # staves that were guessed when the file had a single track. None of that
+        # matters to an engraver and all of it matters to anything that ever wants to
+        # follow a performance. Throwing the source away costs nothing today and cannot
+        # be undone tomorrow, so it is kept. Nothing reads it yet; that is the point.
+        source = ""
+        if converted is not None:
+            source = f"{slug}-{score_id}{Path(name).suffix.lower()}"
+            try:
+                (root / source).write_bytes(original)
+            except OSError:
+                # Take the partial file with it. A half-written .mid that no sidecar
+                # names is one remove() can never reach, and it would sit in the data
+                # directory forever.
+                (root / source).unlink(missing_ok=True)
+                source = ""        # the score still imported; only the insurance failed
 
         meta = {
             "id": score_id,
@@ -159,6 +188,8 @@ class Library:
         if converted is not None:
             meta["from_midi"] = True
             meta["snapped"] = converted["snapped"]
+            if source:
+                meta["source"] = source
         try:
             (root / f"{score_id}.json").write_text(json.dumps(meta, indent=1), "utf-8")
         except OSError as exc:
@@ -173,6 +204,8 @@ class Library:
             return False
         root = _dir()
         (root / str(meta["file"])).unlink(missing_ok=True)
+        if meta.get("source"):
+            (root / str(meta["source"])).unlink(missing_ok=True)
         (root / f"{score_id}.json").unlink(missing_ok=True)
         return True
 

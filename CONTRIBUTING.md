@@ -30,20 +30,32 @@ SoundFont at `soundfonts/GeneralUser-GS.sf2`. Node is optional and only used by 
 
 ## Before you open a PR
 
-Run the suite locally. It is ten scripts, needs no test runner, and takes about two minutes:
+Run the suite locally. It is eighteen scripts, needs no test runner, and takes about two minutes. The first
+fourteen need nothing plugged in and carry 869 assertions between them; the last four want the audio device:
 
 ```bash
 .venv\Scripts\python tools\music_check.py       # theory: spelling, intervals, chords, scales
+.venv\Scripts\python tools\theory_check.py      # the theory surfaces the UI reads
 .venv\Scripts\python tools\store_check.py       # SQLite: sessions, streaks, local-day boundaries
+.venv\Scripts\python tools\userdata_check.py    # the data directory and what lives in it
 .venv\Scripts\python tools\timing_check.py      # onset analysis against synthetic signals
 .venv\Scripts\python tools\exercise_check.py    # fingering table, generators, grader, metrics
-.venv\Scripts\python toolsacking_check.py     # YouTube URL parsing and the track shelf
+.venv\Scripts\python tools\backing_check.py     # YouTube URL parsing and the track shelf
 .venv\Scripts\python tools\paths_check.py       # the bundle/data split -- runs frozen layouts in subprocesses
+.venv\Scripts\python tools\pedal_check.py       # sustain, decay, and what counts as held
+.venv\Scripts\python tools\score_check.py       # the score library: import, list, rename, remove
+.venv\Scripts\python tools\midi_check.py        # .mid to MusicXML, over a whole corpus if you have one
+.venv\Scripts\python tools\ghost_check.py       # ghost mode: gates, the re-strike rule, the falling projection
+.venv\Scripts\python tools\ui_check.py          # the DOM helpers the views are built from
+.venv\Scripts\python tools\frontend_check.py    # ES module syntax + asset wiring
+.venv\Scripts\python tools\audio_check.py       # the device, the buffer, and the port FluidSynth must not steal
 .venv\Scripts\python tools\engine_check.py      # zones, presets, drum banks, metronome timing
 .venv\Scripts\python tools\pipeline_check.py    # end-to-end above the MIDI port
 .venv\Scripts\python tools\looper_check.py      # loop transport, takes, the pedal, the seam
-.venv\Scripts\python tools\frontend_check.py    # ES module syntax + asset wiring
 ```
+
+`audio_check` wants a piano actually plugged in and will fail its last step without one; that is the check
+doing its job, not a broken suite.
 
 `engine_check`, `pipeline_check` and `looper_check` open the audio device **and make noise on purpose**, so they refuse to run
 while Keys is up rather than playing a metronome into whatever you were doing — close the app first (`--force`

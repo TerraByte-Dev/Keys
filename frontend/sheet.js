@@ -19,6 +19,7 @@
 // for the library list, and the local declaration shadows the import -- so
 // paint(slider) would silently repaint the list and leave the slider unfilled.
 import { $, api, h, hms, mod, paint as paintSlider, slider, toast } from './ui.js';
+import { startGhost } from './app.js';
 
 let toolkit = null;          // the Verovio instance, built once
 let loading = null;          // in-flight load, so two clicks make one download
@@ -77,6 +78,13 @@ export function createSheet(ctx) {
       'it comes through cleanly — which is most of the free scores on the ',
       'internet. A MIDI recorded from someone playing has no bar lines to find and ',
       'will look like it.'),
+    h('div.note', { style: { marginTop: '8px' } },
+      h('strong', null, 'Play along'), ' skips the engraving entirely and drops the piece ',
+      'onto the roll instead: it falls, silently, and you play it. Bar lines it got ',
+      'wrong do not matter there — a roll has no notation to be wrong about — so a ',
+      'performance MIDI that reads badly as sheet music can still be perfectly good to ',
+      'learn from. It waits at each chord until you have played it, one hand at a time ',
+      'if you want, and makes no sound of its own.'),
     h('div.note', { style: { marginTop: '8px' } },
       'Nothing is shipped with Keys and nothing leaves your machine. Scores live in ',
       h('strong', null, 'scores/'), ' beside your practice history, where an update ',
@@ -168,6 +176,10 @@ export function createSheet(ctx) {
     },
       h('div.track__head', null,
         h('button.btn', { onclick: () => openScore(s.id) }, 'Open'),
+        h('button.btn', {
+          title: 'Play it silently as a falling roll and play along (full screen)',
+          onclick: () => playAlong(s),
+        }, 'Play along'),
         h('input.track__title', {
           type: 'text', value: s.title || s.name,
           onchange: (e) => api.post(`/api/scores/${s.id}`, { title: e.target.value })
@@ -182,6 +194,20 @@ export function createSheet(ctx) {
           : null,
         h('span.list__spacer'),
         h('button.btn', { onclick: () => remove(s.id) }, 'Remove')))));
+  }
+
+  /* Play along: the same timeline openScore fetches, handed to the roll instead of to
+     the engraver. Deliberately does NOT touch verovio() -- someone learning a song by
+     following it has no reason to download 7 MB of notation engine, and this is the
+     one path in the panel that can stay cheap. It also makes no transport call, so it
+     works with the audio engine stopped. */
+  async function playAlong(meta) {
+    try {
+      const payload = await api.get(`/api/scores/${meta.id}/notes`);
+      startGhost(payload, meta);
+    } catch (err) {
+      toast(err.message, 'bad', 9000);
+    }
   }
 
   async function remove(id) {
