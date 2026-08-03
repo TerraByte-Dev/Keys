@@ -27,21 +27,42 @@
  * dropped batch -- and in wait mode a stale held set is indistinguishable from a
  * crashed app, so that resync is not optional.
  *
- * **Every gate can be escaped.** A ten-note gate, a doubled track or a note-off that
- * never arrived would otherwise freeze the clock forever with no way out but the
- * mouse. A gate blocked longer than ESCAPE_S releases itself. It is a code constant
- * and not a setting, because the number only exists to stop a hang.
+ * **Waiting means waiting.** There is no timer that gives up on you.
+ *
+ * There used to be one: a gate blocked longer than eight seconds released itself, on
+ * the theory that an unsatisfiable chord would otherwise freeze the clock forever.
+ * That reasoning was wrong twice over. It is wrong about the failure -- the app is
+ * fully responsive while it waits, the now-line brightens to say so, and Play, the
+ * scrub and Close song are all right there -- and it is catastrophically wrong about
+ * the normal case, because taking more than eight seconds to find a chord is not an
+ * error, it is *the entire activity*. Learning a piece you cannot play means sitting
+ * on one bar hunting for a note, and an app that walks off mid-hunt has stopped being
+ * a practice tool and gone back to being a video.
+ *
+ * The two things it was actually insuring against are handled where they belong:
+ *
+ *   * **A note you physically cannot play.** A file can ask for pitches off the end of
+ *     an 88-key board, and no amount of waiting produces one. Those are filtered out
+ *     of a gate's requirements below, so they cannot stall it.
+ *   * **A note-off that never arrived**, leaving a key stuck down. The 1 Hz heartbeat
+ *     re-asserts the engine's own held set, which un-sticks it within a second -- so
+ *     the timer was redundant for this one all along.
+ *
+ * Anything else, you skip on purpose.
  */
+
+/* The 88 keys. A file may name pitches outside them -- an orchestral reduction, a
+   bass line written an octave low, junk from a bad export -- and the roll already
+   cannot draw those because there is no column for them. Asking you to play a key
+   that does not exist is the one gate that can never open, so it is never asked. */
+const PLAYABLE_LO = 21;
+const PLAYABLE_HI = 108;
 
 /* Two notes this close together are one chord, not two gates. Engraved MIDI puts a
    chord's notes on the same tick; a performance MIDI spreads them by a few ms, and
    0.03 quarters is about 15 ms at 120 bpm -- wide enough to catch the spread, narrow
    enough that a real grace note stays its own event. */
 const GATE_EPS = 0.03;
-
-/* The hang escape. Long enough that it never fires while someone is hunting for a
-   note, short enough that a stuck note-off does not end the session. */
-const ESCAPE_S = 8;
 
 const DEFAULT_BPM = 100;
 const MIN_BPM = 20;
@@ -109,7 +130,6 @@ export function createGhost(payload, opts = {}) {
   };
 
   let gi = 0;                       // index of the gate the clock is walking toward
-  let blocked = 0;                  // seconds this gate has held the clock
   const held = new Set();           // keys physically down, from `f.held`
 
   /* Notes already cashed in by a gate that has passed. This is the re-strike rule,
@@ -137,6 +157,8 @@ export function createGhost(payload, opts = {}) {
   function required(gate) {
     const out = new Set();
     for (const n of gate.notes) {
+      // Off the end of the keyboard: not yours to play, so not yours to be held up by.
+      if (n.midi < PLAYABLE_LO || n.midi > PLAYABLE_HI) continue;
       if (model.hands === 'both'
         || (model.hands === 'R' ? n.staff === 1 : n.staff === 2)) out.add(n.midi);
     }
@@ -160,7 +182,6 @@ export function createGhost(payload, opts = {}) {
 
   function arm(index) {
     gi = index;
-    blocked = 0;
   }
 
   /* Everything currently down is treated as already used up. Called wherever the
@@ -210,16 +231,9 @@ export function createGhost(payload, opts = {}) {
           arm(gi + 1);
           continue;                     // the rest of the step carries on past it
         }
-        blocked += dt;
-        if (blocked >= ESCAPE_S) {
-          // Something is wrong -- an unplayable gate, a dropped note-off, a cable
-          // pulled. Move on rather than look hung.
-          arm(gi + 1);
-          if (model.waiting) { model.waiting = false; onChange(); }
-          continue;
-        }
-        // Genuinely frozen, so the remainder of the step is NOT spent. That is the one
-        // place dropping it is correct: the clock has stopped.
+        // Frozen, and it stays frozen. The remainder of the step is NOT spent -- the
+        // one place dropping it is correct, because the clock has genuinely stopped.
+        // Nothing here counts how long you have been here. Take all night.
         if (!model.waiting) { model.waiting = true; onChange(); }
         return;
       }
@@ -260,10 +274,25 @@ export function createGhost(payload, opts = {}) {
     seek,
     pending,
 
+    /* Move past the chord you are sitting on, deliberately. This is what replaced the
+       eight-second timer: the same escape, but you decide when, so it can never fire
+       in the middle of you working something out. */
+    skip() {
+      if (gi >= gates.length) return false;
+      consume(gates[gi]);            // treat it as played, so held keys do not re-open it
+      arm(gi + 1);
+      model.waiting = false;
+      // The playhead is NOT jumped to the next chord. Releasing the gate is enough:
+      // time resumes from here and flows through whatever rest comes next at the
+      // tempo you set, so a skipped bar still sounds like a bar. Jumping would edit
+      // the piece rather than let you past one moment of it.
+      onChange();
+      return true;
+    },
+
     play() {
       if (model.finished) seek(0);
       model.playing = true;
-      blocked = 0;
       spendHeld();
       onChange();
     },
@@ -280,7 +309,6 @@ export function createGhost(payload, opts = {}) {
     setHands(which) {
       model.hands = which === 'R' || which === 'L' ? which : 'both';
       // A gate the new hand does not own must not stay latched as "waiting".
-      blocked = 0;
       /* And the notes that hand is resting on must not cash in a gate for free.
          consume() only spends the notes the CURRENT hand was asked for, so a key the
          muted hand has been leaning on is held but unspent -- switching to that hand
@@ -294,7 +322,6 @@ export function createGhost(payload, opts = {}) {
       model.wait = !!on;
       if (!model.wait) model.waiting = false;
       else spendHeld();          // arriving at a gate mid-hold must not be free
-      blocked = 0;
       onChange();
       return model.wait;
     },

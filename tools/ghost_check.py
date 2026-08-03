@@ -180,15 +180,92 @@ const piece = (notes, measures) => ({
      `nowQ=${lean.nowQ.toFixed(3)}`);
 }
 
-/* -- 5. the escape ------------------------------------------------------- */
+/* -- 5. waiting means waiting -------------------------------------------- */
+/* There used to be an eight-second escape here, and it was a bug wearing a safety
+   jacket: hunting for a chord you cannot play yet takes longer than that, so it fired
+   during the exact activity the mode exists for and walked off mid-hunt. Nothing
+   auto-advances now. These assertions are the old ones inverted on purpose. */
 {
   const g = createGhost(piece([[0, 1, 60, 1], [1, 1, 62, 1]]));
   g.play();
-  for (let f = 0; f < 60 * 6; f++) g.advance(1 / 60);      // six seconds, nothing held
-  ok('a blocked gate is still blocked at six seconds', near(g.nowQ, 0));
-  for (let f = 0; f < 60 * 4; f++) g.advance(1 / 60);      // past the eight-second escape
-  ok('but it releases itself rather than hanging forever', g.nowQ > 0,
-     `nowQ=${g.nowQ.toFixed(3)} after ten seconds blocked`);
+  for (let f = 0; f < 60 * 10; f++) g.advance(1 / 60);     // ten seconds, nothing played
+  ok('ten seconds of hunting does not move the roll', near(g.nowQ, 0),
+     `nowQ=${g.nowQ.toFixed(3)}`);
+  for (let f = 0; f < 60 * 120; f++) g.advance(1 / 60);    // two more minutes
+  ok('and neither does two minutes', near(g.nowQ, 0), `nowQ=${g.nowQ.toFixed(3)}`);
+  ok('it is still saying it is waiting, not pretending to play', g.waiting === true);
+
+  // Playing the note is the only thing that moves it -- still true after the long wait.
+  g.frame({ held: [60] });
+  for (let f = 0; f < 30; f++) g.advance(1 / 60);
+  ok('and it picks up the moment you find the note', g.nowQ > 0,
+     `nowQ=${g.nowQ.toFixed(3)}`);
+}
+
+/* -- 5b. the two things the timer was actually insuring against ----------- */
+{
+  // A pitch off the end of an 88-key board can never be played, so it must never be
+  // asked for. Bottom A is 21; this file wants a C two octaves below it.
+  const g = createGhost(piece([[0, 1, 12, 2], [1, 1, 60, 1]]));
+  g.setTempo(120);
+  g.play();
+  for (let f = 0; f < 60; f++) g.advance(1 / 60);
+  ok('a note off the end of the keyboard cannot stall a gate', g.nowQ >= 1,
+     `nowQ=${g.nowQ.toFixed(3)}`);
+  // ...and the playable note in the same piece still gates normally.
+  for (let f = 0; f < 60; f++) g.advance(1 / 60);
+  ok('while the playable note still does', near(g.nowQ, 1), `nowQ=${g.nowQ.toFixed(3)}`);
+
+  // A gate of ONLY unplayable notes passes straight through rather than deadlocking.
+  const all = createGhost(piece([[0, 1, 5, 1], [0, 1, 120, 1], [2, 1, 60, 1]]));
+  all.setTempo(120);
+  all.play();
+  for (let f = 0; f < 120; f++) all.advance(1 / 60);
+  ok('a gate with nothing playable in it does not deadlock', all.nowQ >= 2,
+     `nowQ=${all.nowQ.toFixed(3)}`);
+}
+
+/* -- 5c. skipping, which is the deliberate escape ------------------------ */
+{
+  const g = createGhost(piece([[0, 1, 60, 1], [1, 1, 62, 1], [2, 1, 64, 1]]));
+  g.play();
+  for (let f = 0; f < 60; f++) g.advance(1 / 60);
+  ok('stuck at the first chord', near(g.nowQ, 0));
+  ok('skip reports that it did something', g.skip() === true);
+  for (let f = 0; f < 120; f++) g.advance(1 / 60);
+  ok('skipping walks on to the next chord and stops THERE', near(g.nowQ, 1),
+     `nowQ=${g.nowQ.toFixed(3)} -- one skip, not a free run to the end`);
+
+  // Skipping releases the gate; it does NOT jump the playhead. Time flows on from
+  // where it stopped, so the rest between two chords is still played rather than cut.
+  const t = createGhost(piece([[0, 1, 60, 1], [4, 1, 62, 1]]));
+  t.setTempo(120);
+  t.play();
+  for (let f = 0; f < 30; f++) t.advance(1 / 60);
+  t.skip();
+  for (let f = 0; f < 30; f++) t.advance(1 / 60);      // half a second = 1 quarter
+  ok('skipping resumes the clock rather than jumping the playhead',
+     t.nowQ > 0.5 && t.nowQ < 3, `nowQ=${t.nowQ.toFixed(3)} -- should be walking to bar 2`);
+
+  // A key you were holding while you gave up must not then open the gate you skipped
+  // TO -- otherwise Skip silently plays the next note for you.
+  const h = createGhost(piece([[0, 1, 60, 1], [1, 1, 60, 1], [2, 1, 60, 1]]));
+  h.setTempo(120);
+  h.play();
+  h.frame({ held: [60] });          // one press: clears gate 0, then blocks on gate 1
+  for (let f = 0; f < 90; f++) h.advance(1 / 60);
+  ok('...and it is blocked on the second C, still holding it', near(h.nowQ, 1),
+     `nowQ=${h.nowQ.toFixed(3)}`);
+  h.skip();
+  for (let f = 0; f < 180; f++) h.advance(1 / 60);
+  ok('skipping does not spend the held key on the NEXT gate too', near(h.nowQ, 2),
+     `nowQ=${h.nowQ.toFixed(3)} -- should stop at the third C, not run to the end`);
+
+  // Skipping off the end is harmless.
+  const e = createGhost(piece([[0, 1, 60, 1]]));
+  e.play();
+  e.skip();
+  ok('skipping the last chord is harmless', e.skip() === false);
 }
 
 /* -- 6. hands separate --------------------------------------------------- */

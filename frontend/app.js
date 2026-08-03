@@ -538,6 +538,16 @@ $('#roll-speed')?.addEventListener('input', (e) => {
 
 $('#ghost-play')?.addEventListener('click', () => ghostModel?.toggle());
 $('#ghost-restart')?.addEventListener('click', () => ghostModel?.seek(0));
+$('#ghost-skip')?.addEventListener('click', () => ghostModel?.skip());
+// Right arrow past a chord you have decided not to fight today. Not bound through
+// ACTIONS: it only means anything with a song loaded, and stealing an arrow key
+// app-wide to do nothing everywhere else is how a shortcut table rots.
+document.addEventListener('keydown', (e) => {
+  if (!ghostModel || e.key !== 'ArrowRight') return;
+  if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName || '')) return;
+  e.preventDefault();
+  ghostModel.skip();
+});
 // Closes the SONG, not the screen. You are usually done with a piece long before you
 // are done with the roll.
 $('#ghost-close')?.addEventListener('click', () => stopGhost());
