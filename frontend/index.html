@@ -117,6 +117,19 @@
   <div class="rollbar" id="rollbar" hidden>
     <span class="rollbar__title" id="ghost-title"></span>
     <span class="rollbar__song" id="ghost-song" hidden>
+      <!-- Falling notes or the printed page, for the same piece. Inside #ghost-song so
+           it arrives and leaves with a song, because neither view means anything
+           without one. -->
+      <span class="rollbar__mode" id="roll-mode" role="group" aria-label="How to show this song">
+        <button class="btn is-on" data-mode="roll" title="Falling notes">Roll</button>
+        <button class="btn" data-mode="sheet"
+                title="The printed score. Same piece, engraved — the clock keeps running underneath.">Sheet</button>
+      </span>
+      <span class="rollbar__pages" id="roll-pages" hidden>
+        <button class="btn" id="roll-page-prev" title="previous page">&lsaquo;</button>
+        <span class="rollbar__page" id="roll-page-n"></span>
+        <button class="btn" id="roll-page-next" title="next page">&rsaquo;</button>
+      </span>
       <button class="btn" id="ghost-play">Play</button>
       <button class="btn" id="ghost-restart" title="back to the beginning">|&lsaquo;</button>
       <button class="btn" id="ghost-wait" aria-pressed="true"
@@ -143,6 +156,11 @@
       <div class="transport__fill" id="ghost-fill"></div>
     </div>
   </div>
+
+  <!-- The printed page, over the roll rather than instead of it. The ghost clock keeps
+       running underneath: wait mode still waits for you, the bar count still counts,
+       and switching back puts you where the piece actually got to. -->
+  <div class="rollpaper paper" id="roll-paper" hidden></div>
 </section>
 
 <!-- ── readout strip above the keys ──────────────────────────────────────── -->

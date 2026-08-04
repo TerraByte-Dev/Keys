@@ -1189,6 +1189,15 @@ select:focus, input:focus { outline: none; border-color: var(--amber-deep); }
 
 /* ── preset / instrument pickers ────────────────────────────────────────── */
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Groups the shelf: the handful you saved, then the ones that ship. Sorting is by
+   file name, so before this a preset you made landed alphabetically in the middle of
+   sixty-eight strangers with nothing marking it as yours. Typography lifted from
+   .binds__head so the two grouped lists in the app look like each other. */
+.chips__head {
+  font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink-faint); margin: 12px 0 6px;
+}
+.chips__head:first-child { margin-top: 0; }
 .chip {
   font-family: var(--font-panel); font-size: 11.5px; letter-spacing: .04em;
   color: var(--ink-dim);
@@ -1627,7 +1636,6 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
   background: #f4f1e8; padding: 10px;
   max-height: 62vh; overflow: auto;
 }
-.sheet__paper svg { display: block; width: 100%; height: auto; }
 
 /* CLASS COLLISION. Verovio marks every musical note <g class="note">, and this app has
    a .note class for an explanatory paragraph -- so our rule was repainting every
@@ -1636,16 +1644,20 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
    as a rendering fault in the engraver rather than as our own stylesheet.
    Reset the utility classes we own, inside the score only.
    fill is deliberately NOT forced: Verovio draws slurs and ties as fill="none" strokes,
-   and a blanket fill:currentColor fills them in solid. */
-.sheet__paper svg { color: #000; }
-.sheet__paper svg .note,
-.sheet__paper svg .rest,
-.sheet__paper svg .tag,
-.sheet__paper svg .list,
-.sheet__paper svg .empty,
-.sheet__paper svg .chord,
-.sheet__paper svg .beam,
-.sheet__paper svg .staff {
+   and a blanket fill:currentColor fills them in solid.
+
+   Keyed to .paper rather than to .sheet__paper because there are two places a score
+   engraves now -- the Practice panel and the roll -- and a second copy of this list is
+   a second chance to forget one. Anything that shows Verovio output wears .paper. */
+.paper svg { display: block; width: 100%; height: auto; color: #000; }
+.paper svg .note,
+.paper svg .rest,
+.paper svg .tag,
+.paper svg .list,
+.paper svg .empty,
+.paper svg .chord,
+.paper svg .beam,
+.paper svg .staff {
   color: inherit;
   font-size: inherit;
   line-height: inherit;
@@ -1653,7 +1665,7 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
   padding: 0;
   text-align: initial;
 }
-.sheet__paper .empty { color: #6b675f; }
+.paper .empty { color: #6b675f; }
 
 /* -- score transport ----------------------------------------------------- */
 .transport { padding: 8px 10px; border-bottom: 1px solid var(--hairline); background: var(--panel-2); }
@@ -1991,20 +2003,26 @@ body.is-immersive .roll::before {
     linear-gradient(180deg, var(--panel-0) 0%, transparent 26%);
 }
 
-/* Leaves with the mouse. In a mode with no chrome, a control that never fades is
-   the only thing on screen that is not the instrument. */
+/* The one control that does NOT leave with the mouse.
+   It used to: it faded 2.4s after the last mousemove, it was painted in --ink-faint on
+   a 2%-white wash, and it shared z-index 3 with .rollbar -- which is later in the DOM,
+   so the bar's top-down gradient won the tie and painted over it. Three separate
+   reasons to be invisible stacked on the only way out of full screen, and a tester
+   reported exactly that: "I can barely see the bottom half of it behind a
+   semitransparent top bar." A door you cannot find is not a door. It sits above the
+   bar now, opaque, and it stays. */
 .roll__exit {
-  position: absolute; top: 14px; right: 16px; z-index: 3;
+  position: absolute; top: 14px; right: 16px; z-index: 6;
   display: none; align-items: center; gap: 7px;
-  padding: 6px 11px; cursor: pointer;
+  padding: 7px 12px; cursor: pointer;
   font-family: var(--font-panel); font-size: 10px; letter-spacing: .16em;
-  color: var(--ink-faint); background: var(--wash);
-  border: 1px solid var(--hairline); border-radius: var(--radius);
-  opacity: 0; transition: opacity .5s var(--ease), color .15s var(--ease);
+  color: var(--ink-dim); background: var(--panel-1);
+  border: 1px solid var(--hairline-hi); border-radius: var(--radius);
+  box-shadow: 0 2px 12px -4px var(--shadow-deep);
+  transition: color .15s var(--ease), border-color .15s var(--ease);
 }
 body.is-immersive .roll__exit { display: flex; }
-body.is-immersive.is-stirring .roll__exit { opacity: 1; }
-.roll__exit:hover { color: var(--amber); border-color: var(--amber-deep); opacity: 1; }
+.roll__exit:hover { color: var(--amber); border-color: var(--amber-deep); }
 
 /* -- ghost mode: the control bar ------------------------------------------ */
 /* Sits above the vignette (z-index 2) and beside the exit button, and fades with
@@ -2032,7 +2050,10 @@ body.is-immersive.is-stirring .roll__exit { opacity: 1; }
    you are demonstrably looking at controls. */
 .rollbar { opacity: 0; }
 body.is-immersive.is-stirring .rollbar,
-body.is-drawer .rollbar { opacity: 1; }
+body.is-drawer .rollbar,
+/* and while the sheet is up: the page turns and the way back to the roll are both in
+   here, and a page you are reading is not a mode that wants its chrome to leave. */
+body.is-sheeting .rollbar { opacity: 1; }
 .rollbar:hover { opacity: 1; }
 /* The drawer is z-index 5 and this is 3, so an open drawer sits ON TOP of the
    controls. Step out from behind it rather than fighting over the stacking order --
@@ -2070,6 +2091,40 @@ body.is-ghosting .roll::after { display: none; }
    own; this would be a second fade stacked on it. */
 body.is-ghosting.is-immersive .roll::before {
   background: radial-gradient(120% 92% at 50% 100%, transparent 42%, var(--panel-0) 100%);
+}
+
+/* -- the printed page, inside the roll ------------------------------------ */
+/* Sheet music used to be three tabs away, behind an engraver, on a screen you had to
+   leave before you could play. It is the same piece as the one falling down the roll
+   -- every score is stored as MusicXML whatever it was imported as, so both readings
+   exist for everything -- so it belongs on the same screen, one button apart.
+   z-index 2 puts it over the canvas and under the rollbar (3) and EXIT (6): the way
+   out and the way back stay on top of the music. */
+.rollpaper {
+  position: absolute; inset: 0; z-index: 2;
+  background: #f4f1e8; overflow: auto;
+  /* Top padding clears the rollbar, which floats over this and is NOT a fixed height:
+     it is flex-wrap, and loading a song adds six buttons, a hands group and a tempo
+     knob to it, so it goes from about 74px to about 126px the moment there is
+     anything to read. A hardcoded inset hides the first system exactly when the
+     feature is in use. app.js measures the bar into --rollbar-h; the fallback is the
+     two-line height, because being slightly too low is survivable and being too high
+     is not. */
+  padding: calc(var(--rollbar-h, 126px) + 10px) 16px 16px;
+}
+.rollpaper[hidden] { display: none; }
+/* Over the roll the bar fades into the notes, which is the point of it. Over paper a
+   gradient to transparent just looks like a smudge on the page, and the controls at
+   the faded end stop reading -- so on the sheet it becomes a plain toolbar with an
+   edge. */
+body.is-sheeting .rollbar {
+  background: var(--panel-0);
+  border-bottom: 1px solid var(--hairline);
+}
+.rollbar__mode, .rollbar__pages { display: flex; align-items: center; gap: 2px; }
+.rollbar__page {
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-dim);
+  min-width: 5ch; text-align: center; font-variant-numeric: tabular-nums;
 }
 
 /* -- the songs drawer ----------------------------------------------------- */

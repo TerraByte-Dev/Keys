@@ -16,7 +16,7 @@ import { createRoll } from './roll.js';
 import { createGhost } from './ghost.js';
 import { createSongs } from './songs.js';
 import { attachLayout, primeLayout } from './layout.js';
-import { $, api, hms, paint as paintSlider, toast } from './ui.js';
+import { $, api, h, hms, paint as paintSlider, toast } from './ui.js';
 import { startTour, tourOpen } from './tour.js';
 import { closeSettings, openSettings, settingsOpen } from './settings-overlay.js';
 
@@ -426,6 +426,11 @@ export function startGhost(payload, meta = {}) {
     $(id)?.removeAttribute('hidden');
   }
   songs?.setPlaying(meta.id || '');
+  // Which piece the Sheet button would engrave. Set after stopGhost() above cleared
+  // it, and only ever from the library metadata -- the timeline payload has no id.
+  sheetScoreId = meta.id || '';
+  $('#roll-mode')?.toggleAttribute('hidden', !sheetScoreId);
+  paintSheetControls();
   $('#ghost-title').textContent = ghostModel.title;
   if ((ghostModel.warnings || []).length) {
     $('#ghost-title').title = ghostModel.warnings.join('\n');
@@ -448,6 +453,84 @@ export function startGhost(payload, meta = {}) {
   return ghostModel;
 }
 
+/* ── the same piece, printed ──────────────────────────────────────────────── */
+/* Every score is stored as MusicXML whatever it arrived as -- a .mid is converted on
+   the way in -- so both readings exist for everything in the library, and swapping
+   between them is a toggle rather than a conversion.
+ *
+ * The roll's clock keeps running under the paper, and that is the design rather than
+ * an oversight. There is ONE clock here: the ghost model's. The score transport in
+ * Practice is a different thing that makes sound through FluidSynth, and wiring it to
+ * this screen would give you two playheads at two tempos with one of them audible --
+ * see the standing note at the top of ghost.js. In the roll the sheet is a rendering,
+ * not a player. Wait mode still waits, the bar count still counts, and switching back
+ * lands you where the piece actually got to.
+ *
+ * The engraver is 7 MB of WebAssembly and is fetched on the first press of Sheet,
+ * never on opening a song. Someone who only plays along never downloads it. */
+let sheetMode = false;
+let sheetScoreId = '';
+let sheetPage = 1;
+let sheetPages = 1;
+
+function paintSheetControls() {
+  for (const b of document.querySelectorAll('#roll-mode .btn')) {
+    b.classList.toggle('is-on', (b.dataset.mode === 'sheet') === sheetMode);
+  }
+  $('#roll-pages')?.toggleAttribute('hidden', !sheetMode || sheetPages < 2);
+  const n = $('#roll-page-n');
+  if (n) n.textContent = `${sheetPage}/${sheetPages}`;
+  const prev = $('#roll-page-prev');
+  const next = $('#roll-page-next');
+  if (prev) prev.disabled = sheetPage <= 1;
+  if (next) next.disabled = sheetPage >= sheetPages;
+}
+
+async function setSheetMode(on) {
+  if (!ghostModel || !sheetScoreId) return;
+  sheetMode = !!on;
+  const paper = $('#roll-paper');
+  paper?.toggleAttribute('hidden', !sheetMode);
+  // The bar fades with the mouse, which is right over falling notes -- the point of
+  // that mode is that there is nothing on screen but the instrument. It is wrong over
+  // a page: reading is not watching, the page turns live in that bar, and so does the
+  // way back to the roll.
+  document.body.classList.toggle('is-sheeting', sheetMode);
+  paintSheetControls();
+  if (!sheetMode || !paper) return;
+
+  paper.replaceChildren(h('div.empty', null, 'engraving…'));
+  const wanted = sheetScoreId;
+  try {
+    const { loadScore, renderPage } = await import('./engrave.js');
+    sheetPages = await loadScore(wanted);
+    sheetPage = 1;
+    const svg = await renderPage(wanted, sheetPage);
+    // The song can have been closed, or swapped, while 7 MB was downloading.
+    if (!sheetMode || sheetScoreId !== wanted) return;
+    paper.innerHTML = svg;
+    paintSheetControls();
+  } catch (err) {
+    if (sheetMode && sheetScoreId === wanted) {
+      paper.replaceChildren(h('div.empty', null, 'could not engrave that: ' + err.message));
+    }
+  }
+}
+
+async function turnPage(step) {
+  const want = Math.max(1, Math.min(sheetPages, sheetPage + step));
+  if (want === sheetPage || !sheetMode) return;
+  sheetPage = want;
+  paintSheetControls();
+  const paper = $('#roll-paper');
+  const wanted = sheetScoreId;
+  const { renderPage } = await import('./engrave.js');
+  const svg = await renderPage(wanted, want);
+  if (!paper || !sheetMode || sheetScoreId !== wanted || sheetPage !== want) return;
+  paper.innerHTML = svg;
+  paper.scrollTop = 0;      // a page turn starts at the top of the page
+}
+
 export function stopGhost() {
   if (!ghostModel) return;
   ghostModel.pause();
@@ -458,6 +541,14 @@ export function stopGhost() {
   for (const id of ['#ghost-song', '#ghost-close', '#ghost-scrub']) {
     $(id)?.setAttribute('hidden', '');
   }
+  // The paper belongs to the song, not to the screen: closing one closes the other.
+  sheetMode = false;
+  sheetScoreId = '';
+  sheetPage = sheetPages = 1;
+  document.body.classList.remove('is-sheeting');
+  $('#roll-paper')?.setAttribute('hidden', '');
+  $('#roll-paper')?.replaceChildren();
+  paintSheetControls();
   songs?.setPlaying('');
   const title = $('#ghost-title');
   if (title) { title.textContent = ''; title.classList.remove('is-warn'); }
@@ -576,6 +667,24 @@ $('#ghost-scrub')?.addEventListener('click', (e) => {
   const frac = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
   ghostModel.seek(frac * ghostModel.total);
 });
+
+/* The paper starts below the rollbar, and the rollbar's height is not a constant --
+   it wraps, and loading a song puts six more controls in it. Measured rather than
+   assumed, because the case where it is tallest is exactly the case where the paper
+   is on screen. */
+if (window.ResizeObserver && $('#rollbar')) {
+  new ResizeObserver(([entry]) => {
+    const px = Math.round(entry.contentRect.height + 22);   // + the bar's own padding
+    $('#roll')?.style.setProperty('--rollbar-h', `${px}px`);
+  }).observe($('#rollbar'));
+}
+
+$('#roll-mode')?.addEventListener('click', (e) => {
+  const want = e.target?.closest('.btn')?.dataset?.mode;
+  if (want) setSheetMode(want === 'sheet');
+});
+$('#roll-page-prev')?.addEventListener('click', () => turnPage(-1));
+$('#roll-page-next')?.addEventListener('click', () => turnPage(1));
 
 /* Every shortcut in the app, in one table. An action is a label, a default key and
    the thing it does; the keys are rebindable and the defaults are what ships.

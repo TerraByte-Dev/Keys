@@ -1,7 +1,7 @@
 {
-  "id": "grand-piano",
-  "name": "Acoustic Grand",
-  "description": "The default. One instrument, A0 to C8.",
+  "id": "close-piano",
+  "name": "Close Piano",
+  "description": "Soft, and almost no room. Like the lid is down and your ear is on it.",
   "zones": [
     {
       "id": "z1",
@@ -13,19 +13,19 @@
       "bank": 0,
       "program": 0,
       "transpose": 0,
-      "gain": 1.0,
+      "gain": 0.75,
       "pan": 0.5,
-      "reverb": 0.3,
+      "reverb": 0.1,
       "chorus": 0.0,
-      "curve": "linear",
+      "curve": "whisper",
       "fixed_velocity": 100,
       "enabled": true
     }
   ],
   "space": {
-    "room": 0.3,
-    "damping": 0.4,
-    "width": 6.0,
-    "level": 0.55
+    "room": 0.15,
+    "damping": 0.6,
+    "width": 2.0,
+    "level": 0.3
   }
 }

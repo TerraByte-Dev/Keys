@@ -138,8 +138,36 @@ same door.
 That is also where music comes in. `frontend/songs.js` is a drawer inside the roll, and
 a `.mid` dropped anywhere on that screen lands on the roll rather than in the engraver —
 importing a file in order to learn a song should not hand you a page of notation you
-did not ask for, on a screen you have to leave before you can play. Sheet music still
-engraves; it is just no longer the front door.
+did not ask for, on a screen you have to leave before you can play.
+
+### The printed page is a view of the roll, not another room
+
+Sheet music used to be a panel at the bottom of Practice. It is now also a toggle in the
+rollbar, because the two things were never different pieces of music: `backend/midi_import.py`
+converts a `.mid` to MusicXML **before storage**, so `/api/scores/{id}/file` and
+`/api/scores/{id}/notes` are two projections of one stored artifact and **every** score has
+both, whatever it was imported as. Swapping between them is a render, not a conversion.
+
+One rule makes it work: **there is one clock, and it is the ghost clock.** The sheet in the
+roll is a *rendering*, never a player. The score transport in Practice is a different thing
+that makes sound through FluidSynth, and wiring it to this screen would give you two
+playheads at two independently-set tempos with one of them audible. `ghost.js` says so at
+the top and this is what it is protecting: ghost mode makes no backend call and no sound,
+which is why a play-along still works with the audio engine down.
+
+What is deliberately *not* built is a moving cursor on the page. Verovio's timemap is
+milliseconds against Verovio's reading of the file; the ghost clock is quarter notes against
+`backend/score.py`'s reading. Two readers of one file, agreeing on clean engravings and
+diverging on repeats, pickups and grace notes — the exact disagreement the engraver was kept
+out of the timeline to avoid. If following is ever wanted, the honest route is measure-level
+only: `ghost.bar()` returns a written measure number, and both sides agree on bar numbers by
+construction.
+
+`frontend/engrave.js` owns the toolkit because there are two callers now, `loadData` mutates
+the single instance, and the symptom of a clash is the wrong music on screen rather than an
+error. Rendering therefore takes a score id rather than trusting whatever was loaded last.
+The 7 MB of WebAssembly is still fetched on demand — on the first press of **Sheet**, never
+on opening a song — so someone who only plays along never downloads it.
 
 ### The note roll has two directions, and they are modes rather than a mixture
 
@@ -162,6 +190,26 @@ Ghost mode makes **no backend call and no sound**. The timeline is fetched once 
 `GET /api/scores/{id}/notes` and everything after that is arithmetic. That is deliberate, and it is why a
 play-along still works with no SoundFont, no audio device and the headphones unplugged — unlike the score
 transport, which 503s when the engine is down.
+
+## A preset carries its room, and two different things are called reverb
+
+A zone's `reverb` is a **send** — CC91, how much of that channel goes to the room. A preset's
+`space` is the **room** — FluidSynth's global reverb unit, its size, damping, width and
+level, which is the same unit the sliders in Settings drive. Neither substitutes for the
+other: send with no room is a louder cupboard, and a cathedral with the send at zero is
+silence in a cathedral. That is why turning the send up never produced a concert hall, and
+why every shipped preset now states its room even when that room is the default. Loading one
+moves the Settings sliders with it, because they are that unit and showing a room you are not
+in would make them lie.
+
+`whisper` is the other half. The SoundFont's grand is sampled in eight velocity layers with
+the softly-struck recording at 0–49, and nothing shipped ever reached it: a normal keystroke
+is around 80. The curve is a **ceiling at 74**, so an ordinary keystroke lands in layer 1 and
+all the force you have only reaches layer 3. `soft` and `softer` do the opposite of what their
+names suggest here — they are named for the touch they *reward*, and they lift quiet notes, so
+a light hand sounds louder. Turning `synth.gain` down does not work either: that makes a
+hard-struck sample quiet, which sounds like a loud piano far away. Changing the velocity
+changes which sample plays.
 
 ## Storage
 

@@ -387,6 +387,25 @@ def load_preset(pid: str) -> dict[str, Any]:
     preset = app_state.presets.get(pid)
     if preset is None:
         raise HTTPException(404, f"no preset '{pid}'")
+    # The room is part of the sound. A concert hall is not a piano with the send
+    # turned up -- it is FluidSynth's reverb unit at a different room size, and that
+    # unit is global, so it has to travel with the preset or "Concert Grand" is just
+    # "Grand Piano, wetter". The setting moves with it because the Settings sliders
+    # ARE that unit; leaving them showing a room you are not in would make them lie.
+    #
+    # A preset with no `space` inherits the room you are in. Every shipped preset
+    # carries one (tools/make_presets.py), and so does every preset you save, so in
+    # practice that only happens to a JSON someone hand-wrote.
+    #
+    # Guarded on an actual change because Settings.update writes config.local.json,
+    # and browsing the shelf is a normal thing to do -- sixty-eight clicks should not
+    # be sixty-eight disk writes when sixty-two of those rooms are identical.
+    if preset.space:
+        now = app_state.settings.get("reverb", default={}) or {}
+        want = {**now, **preset.space}
+        if want != now:
+            app_state.settings.update({"reverb": preset.space})
+            app_state.engine.apply_reverb(want)
     warnings = app_state.engine.set_zones(preset.zones, preset.id, preset.name)
     # Deliberately does NOT become the startup sound. Trying a split out of curiosity
     # used to pin it forever, so every launch afterwards came up with the keyboard cut
@@ -415,6 +434,9 @@ def save_preset(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
         name=str(body.get("name") or pid.replace("-", " ").title()),
         description=str(body.get("description") or ""),
         zones=[Zone.from_dict(z) for z in body.get("zones", [])],
+        # The room you built it in, kept with it. Otherwise saving a sound you dialled
+        # in inside a cathedral hands it back to you in a broom cupboard.
+        space=app_state.settings.get("reverb", default=None),
     )
     engine_mod.save_preset(preset)
     app_state.presets = engine_mod.load_presets()

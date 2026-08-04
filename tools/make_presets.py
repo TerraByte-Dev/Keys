@@ -44,7 +44,8 @@ from backend.engine import Engine  # noqa: E402
 
 LOW, HIGH = config.LOW_KEY, config.HIGH_KEY
 
-# (id, name, description, [zone, ...])
+# (id, name, description, [zone, ...])           -- space defaults to "room"
+# (id, name, description, [zone, ...], "hall")   -- or name one
 # A zone is (instrument-name, lo, hi, transpose, gain, pan, reverb, chorus, curve).
 # Defaults fill the rest; only the first two are required.
 Z = dict
@@ -56,12 +57,59 @@ def z(name, lo=LOW, hi=HIGH, transpose=0, gain=1.0, pan=0.5,
              reverb=reverb, chorus=chorus, curve=curve)
 
 
+# The rooms. A zone's `reverb` is how much of it you SEND to the room; this is which
+# room it is -- FluidSynth's global reverb unit, the same one the Settings sliders
+# drive. Both are needed and neither substitutes for the other: send with no room
+# gives you a louder cupboard, and a cathedral with the send at zero is silence in a
+# cathedral. "room" is the historic default, byte for byte, so every preset that does
+# not ask for something else sounds exactly as it did before spaces existed.
+#
+# roomsize and damping are 0..1, width is 0..100, level is 0..1. Damping is high
+# frequencies dying first, which is what makes a big space sound like stone (low
+# damping, long bright tail) or like a room with people and carpet in it.
+SPACES: dict[str, dict] = {
+    "dry":       {"room": 0.15, "damping": 0.60, "width":  2.0, "level": 0.30},
+    "room":      {"room": 0.30, "damping": 0.40, "width":  6.0, "level": 0.55},
+    "chamber":   {"room": 0.55, "damping": 0.42, "width": 14.0, "level": 0.65},
+    "hall":      {"room": 0.78, "damping": 0.30, "width": 24.0, "level": 0.75},
+    "cathedral": {"room": 0.94, "damping": 0.15, "width": 45.0, "level": 0.85},
+}
+
+
 RECIPES = [
     # ── keys ────────────────────────────────────────────────────────────────
     ("grand-piano", "Acoustic Grand", "The default. One instrument, A0 to C8.",
      [z("Grand Piano")]),
     ("bright-piano", "Bright Piano", "Forward and present; cuts through a mix.",
      [z("Bright Grand Piano", reverb=0.22)]),
+
+    # ── soft keys and big rooms ─────────────────────────────────────────────
+    # Five presets that came out of one tester's session: a piano that "sounded as
+    # if it were gently whispering", and others that "sounded like a concert hall".
+    # Both are here, and they are made of different things -- the whisper is the
+    # `whisper` velocity curve reaching only the felt sample layers, the hall is the
+    # reverb unit at a bigger room size. Turning one up does not produce the other.
+    ("soft-piano", "Soft Piano",
+     "The quiet one. Plays under your hands rather than at them.",
+     [z("Grand Piano", gain=0.72, reverb=0.46, curve="whisper")], "chamber"),
+    ("felt-piano", "Felt Piano",
+     "Soft piano with a pad breathing under it. For playing at midnight.",
+     [z("Grand Piano", gain=0.70, reverb=0.50, curve="whisper"),
+      z("Warm Pad", gain=0.26, reverb=0.70, curve="softer")], "chamber"),
+    ("close-piano", "Close Piano",
+     "Soft, and almost no room. Like the lid is down and your ear is on it.",
+     [z("Grand Piano", gain=0.75, reverb=0.10, curve="whisper")], "dry"),
+    ("concert-grand", "Concert Grand",
+     "Full-sized piano at the front of a hall. Let the pedal ring.",
+     [z("Grand Piano", gain=0.95, reverb=0.62)], "hall"),
+    ("cathedral-keys", "Cathedral Keys",
+     "Soft piano and distant voices in a stone room with a long memory.",
+     [z("Grand Piano", gain=0.72, reverb=0.78, curve="whisper"),
+      z("Voice Oohs", gain=0.22, reverb=0.85, curve="softer")], "cathedral"),
+    ("soft-rhodes", "Soft Rhodes",
+     "Electric piano at a whisper, with a pad. Ballads and late takes.",
+     [z("Tine Electric Piano", gain=0.78, reverb=0.42, chorus=0.22, curve="whisper"),
+      z("Warm Pad", gain=0.22, reverb=0.65, curve="softer")], "chamber"),
     ("piano-strings", "Piano + Strings", "Strings under the piano, felt more than heard.",
      [z("Grand Piano", reverb=0.25),
       z("Slow Strings", gain=0.42, reverb=0.55, curve="soft")]),
@@ -240,7 +288,12 @@ def build() -> tuple[list[dict], list[str]]:
 
     out: list[dict] = []
     errors: list[str] = []
-    for pid, name, desc, zones in RECIPES:
+    for recipe in RECIPES:
+        pid, name, desc, zones = recipe[:4]
+        space_name = recipe[4] if len(recipe) > 4 else "room"
+        if space_name not in SPACES:
+            errors.append(f"{pid}: no space called {space_name!r}")
+            continue
         built = []
         for i, spec in enumerate(zones):
             inst_name = spec["name"]
@@ -260,7 +313,11 @@ def build() -> tuple[list[dict], list[str]]:
                 "curve": spec["curve"], "fixed_velocity": 100, "enabled": True,
             })
         if len(built) == len(zones):
-            out.append({"id": pid, "name": name, "description": desc, "zones": built})
+            # Every shipped preset states its room, even the ones whose room is the
+            # default -- so loading any preset puts you somewhere definite, rather
+            # than leaving you in whatever room the last preset happened to build.
+            out.append({"id": pid, "name": name, "description": desc,
+                        "zones": built, "space": dict(SPACES[space_name])})
     return out, errors
 
 

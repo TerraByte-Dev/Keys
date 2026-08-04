@@ -1,49 +1,49 @@
 {
-  "id": "organ-bass-split",
-  "name": "Organ / Bass Split",
-  "description": "Pedal bass left, manual right.",
+  "id": "cathedral-keys",
+  "name": "Cathedral Keys",
+  "description": "Soft piano and distant voices in a stone room with a long memory.",
   "zones": [
     {
       "id": "z1",
-      "name": "Acoustic Bass",
+      "name": "Grand Piano",
       "lo": 21,
-      "hi": 47,
+      "hi": 108,
       "channel": 0,
       "soundfont": "GeneralUser-GS.sf2",
       "bank": 0,
-      "program": 32,
+      "program": 0,
       "transpose": 0,
-      "gain": 0.9,
+      "gain": 0.72,
       "pan": 0.5,
-      "reverb": 0.15,
+      "reverb": 0.78,
       "chorus": 0.0,
-      "curve": "linear",
+      "curve": "whisper",
       "fixed_velocity": 100,
       "enabled": true
     },
     {
       "id": "z2",
-      "name": "Percussive Organ",
-      "lo": 48,
+      "name": "Voice Oohs",
+      "lo": 21,
       "hi": 108,
       "channel": 1,
       "soundfont": "GeneralUser-GS.sf2",
       "bank": 0,
-      "program": 17,
+      "program": 53,
       "transpose": 0,
-      "gain": 1.0,
+      "gain": 0.22,
       "pan": 0.5,
-      "reverb": 0.3,
+      "reverb": 0.85,
       "chorus": 0.0,
-      "curve": "fixed",
+      "curve": "softer",
       "fixed_velocity": 100,
       "enabled": true
     }
   ],
   "space": {
-    "room": 0.3,
-    "damping": 0.4,
-    "width": 6.0,
-    "level": 0.55
+    "room": 0.94,
+    "damping": 0.15,
+    "width": 45.0,
+    "level": 0.85
   }
 }

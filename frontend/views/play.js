@@ -6,6 +6,7 @@
 
 import { $, api, fill, h, mod, noteName, paint, slider, stat, toast } from '../ui.js';
 import { ctx as appCtx, resetTouch } from '../app.js';
+import { createLibrary } from '../library.js';
 
 /* Wire value -> what it means to someone with one pedal. The empty string is the
    damper, i.e. what the pedal is already for, and it is first because it is the
@@ -52,20 +53,43 @@ let instrumentsSf = '';   // which SoundFont /api/instruments enumerated
 let filter = '';
 let family = '';          // '' = every family
 let scaleOn = false;
+let library = null;
 
 export default {
   async mount(root, ctx) {
     const st = ctx.state;
     const eng = st.engine || {};
+    // Yours first, and only when there are any -- a first run sees exactly what it
+    // always saw plus one heading. `saved` is stamped by the backend when it writes
+    // the file, which is the only test that works the same in a source checkout and
+    // in the packaged app.
+    const mine = (st.presets || []).filter((p) => p.saved);
+    const shipped = (st.presets || []).filter((p) => !p.saved);
+    library = createLibrary();
 
     root.append(h('div.grid', null,
       h('div.col-12', null, mod('Presets',
-        h('span', { id: 'preset-state' }, `${(st.presets || []).length} on file`),
-        h('div.chips', { id: 'preset-chips' },
-          (st.presets || []).map((p) => chip(p, eng.preset_id, ctx))),
+        h('span', { id: 'preset-state' }, presetTally(mine, shipped)),
+        // One wrapper, two groups inside it. The wrapper keeps #preset-chips as the
+        // single query root for the live is-active sync below.
+        h('div', { id: 'preset-chips' },
+          mine.length ? h('div.chips__head', null, 'Yours') : null,
+          mine.length
+            ? h('div.chips', null, mine.map((p) => chip(p, eng.preset_id, ctx)))
+            : null,
+          h('div.chips__head', null, 'Shipped with Keys'),
+          h('div.chips', null, shipped.map((p) => chip(p, eng.preset_id, ctx)))),
         h('div.note', { style: { marginTop: '12px' } },
           'Overlap is the layering mechanism. A preset with two zones over the same keys ',
-          'sounds both -- see ', h('strong', null, 'Layers'), ' to build your own.'))),
+          'sounds both -- see ', h('strong', null, 'Layers'), ' to build your own. ',
+          'A preset also carries its room, so loading one moves the reverb in ',
+          h('strong', null, 'Sound'), ' with it.'))),
+
+      // The shelf, directly under the sounds. It was at the bottom for one draft and
+      // that put it under sixty-eight chips and five panels -- which is where the old
+      // one already was, three tabs away in Practice, and the reason nobody found it.
+      // A library you have to go looking for is the bug being fixed.
+      h('div.col-12', null, library.el),
 
       h('div.col-3', null, mod('Sound', null,
         h('div.stats', { id: 'play-stats' },
@@ -233,6 +257,8 @@ export default {
     } catch (err) {
       $('#inst-list').replaceChildren(h('div.empty', null, 'could not load: ' + err.message));
     }
+
+    await library.init();
   },
 
   frame() { paintTouch(); },
@@ -247,21 +273,35 @@ export default {
     // the aside says what you are actually hearing.
     const chips = $('#preset-chips');
     if (chips) {
-      for (const c of chips.children) {
+      // querySelectorAll, not .children: the chips live in two groups under this
+      // wrapper now, with headings between them.
+      for (const c of chips.querySelectorAll('.chip')) {
         c.classList.toggle('is-active', c.dataset.id === s.engine.preset_id);
       }
     }
     const aside = $('#preset-state');
     if (aside) {
+      const all = ctx.state.presets || [];
       aside.textContent = s.engine.preset_id
-        ? `${(ctx.state.presets || []).length} on file`
+        ? presetTally(all.filter((p) => p.saved), all.filter((p) => !p.saved))
         : `unsaved -- ${s.engine.preset_name || 'custom'}`;
     }
     paintPedal(s.pedal);
   },
 
-  unmount() { scaleOn = false; showTouchKeys = false; },
+  unmount() {
+    scaleOn = false;
+    showTouchKeys = false;
+    library?.destroy();
+    library = null;
+  },
 };
+
+/* "3 yours · 68 shipped", or just the count before you have saved anything. */
+function presetTally(mine, shipped) {
+  return mine.length ? `${mine.length} yours · ${shipped.length} shipped`
+                     : `${shipped.length} on file`;
+}
 
 let labelMode = 'c-only';
 
@@ -405,10 +445,17 @@ function chip(preset, activeId, ctx) {
     onclick: async (e) => {
       try {
         const res = await api.post(`/api/presets/${preset.id}/load`);
-        for (const c of e.target.closest('.chips').children) c.classList.remove('is-active');
+        // Every chip under the wrapper, not just this one's group -- there are two
+        // groups now, and clearing only the clicked one leaves the other lit.
+        for (const c of document.querySelectorAll('#preset-chips .chip')) {
+          c.classList.remove('is-active');
+        }
         e.target.closest('.chip').classList.add('is-active');
         for (const w of res.warnings || []) toast(w, 'bad', 7000);
         ctx.state.engine = res.engine;
+        // The preset moved the room with it, so the settings the Sound tab reads
+        // are stale until the next full refresh.
+        if (preset.space && ctx.state.settings) ctx.state.settings.reverb = preset.space;
       } catch (err) { toast(err.message, 'bad'); }
     },
   },

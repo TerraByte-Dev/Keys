@@ -1,13 +1,8 @@
 /* Sheet music: import a score, look at it, hear it.
  *
- * Verovio does the engraving. It is the one renderer that reads MusicXML and .mxl
- * natively AND hands back a machine-readable onset table, and it draws its glyphs as
- * SVG paths rather than webfont characters -- so a score renders with the wifi off,
- * which was a hard requirement rather than a preference. It is LGPL-3.0 and vendored
- * unmodified in vendor/; see vendor/README.md.
- *
- * The 7 MB WASM module is loaded ON DEMAND, the first time you open a score, and
- * never on app start. Someone who never touches sheet music never pays for it.
+ * Verovio does the engraving, and lives in engrave.js -- the roll engraves too now,
+ * and there is only one toolkit to share. Loading it on demand, the first time you
+ * open a score and never on app start, is that module's promise to keep.
  *
  * Playback goes through the same FluidSynth sequencer the metronome and the loop
  * station use, from the note timeline the BACKEND parsed -- not from anything Verovio
@@ -20,42 +15,7 @@
 // paint(slider) would silently repaint the list and leave the slider unfilled.
 import { $, api, h, hms, mod, paint as paintSlider, slider, toast } from './ui.js';
 import { startGhost } from './app.js';
-
-let toolkit = null;          // the Verovio instance, built once
-let loading = null;          // in-flight load, so two clicks make one download
-
-/* Verovio's own options. Page width/height are in tenths of a staff space -- its unit,
-   not pixels -- and the SVG then scales to whatever box we put it in. */
-const VEROVIO_OPTS = {
-  pageWidth: 2100,
-  pageHeight: 2970,
-  scale: 40,
-  adjustPageHeight: true,
-  breaks: 'auto',
-  footer: 'none',
-  header: 'none',
-  spacingStaff: 8,
-  svgViewBox: true,          // makes the SVG scale to its container instead of overflowing
-  svgHtml5: true,
-};
-
-async function verovio() {
-  if (toolkit) return toolkit;
-  if (loading) return loading;
-  loading = (async () => {
-    const { VerovioToolkit } = await import('./vendor/verovio.mjs');
-    const createModule = (await import('./vendor/verovio-module.mjs')).default;
-    const module = await createModule();
-    toolkit = new VerovioToolkit(module);
-    toolkit.setOptions(VEROVIO_OPTS);
-    return toolkit;
-  })();
-  try {
-    return await loading;
-  } finally {
-    loading = null;
-  }
-}
+import { loadScore, renderPage, verovio } from './engrave.js';
 
 export function createSheet(ctx) {
   let scores = [];
@@ -126,7 +86,7 @@ export function createSheet(ctx) {
         h('div.transport__scrub', { id: 'tp-scrub' },
           h('div.transport__fill', { id: 'tp-fill' }))),
 
-      h('div.sheet__paper', { id: 'sheet-paper' })),
+      h('div.sheet__paper.paper', { id: 'sheet-paper' })),
 
     h('div', { id: 'sheet-list' }));
 
@@ -230,9 +190,8 @@ export function createSheet(ctx) {
     $('#sheet-title').textContent = meta.title + (meta.composer ? ` -- ${meta.composer}` : '');
     $('#sheet-paper').replaceChildren(h('div.empty', null, 'engraving...'));
 
-    let tk;
     try {
-      tk = await verovio();
+      await verovio();
     } catch (err) {
       $('#sheet-paper').replaceChildren(h('div.empty', null,
         'the notation engine did not load: ' + err.message));
@@ -240,17 +199,9 @@ export function createSheet(ctx) {
     }
 
     try {
-      // .mxl is a zip, so the bytes go in as-is and Verovio sniffs the container.
-      const raw = await (await fetch(`/api/scores/${id}/file`)).arrayBuffer();
-      const bytes = new Uint8Array(raw);
-      const isZip = bytes[0] === 0x50 && bytes[1] === 0x4b;
-      const ok = isZip
-        ? tk.loadZipDataBuffer(raw)
-        : tk.loadData(new TextDecoder().decode(bytes));
-      if (!ok) throw new Error('Verovio could not read that file');
-      pages = tk.getPageCount() || 1;
+      pages = await loadScore(id);
       page = 1;
-      draw();
+      await draw();
       notes = (await api.get(`/api/scores/${id}/notes`)).notes || [];
       // Loads the score into the player and returns its length, so the transport shows
       // "0:00 / 0:34" straight away instead of "0:00 / 0:00" until you press something.
@@ -260,11 +211,17 @@ export function createSheet(ctx) {
     }
   }
 
-  function draw() {
-    if (!toolkit || !open) return;
+  async function draw() {
+    if (!open) return;
     const paper = $('#sheet-paper');
     if (!paper) return;
-    paper.innerHTML = toolkit.renderToSVG(page);
+    // By id, not "whatever is loaded": the roll shares this toolkit and may have put
+    // another piece in it since. See engrave.js.
+    const svg = await renderPage(open.id, page);
+    // Re-checked after the await -- the panel can be closed, or moved to another
+    // score, while an engrave is in flight.
+    if (!open || $('#sheet-paper') !== paper) return;
+    paper.innerHTML = svg;
     const label = $('#sheet-page');
     if (label) label.textContent = `${page} / ${pages}`;
     $('#sheet-prev').disabled = page <= 1;
