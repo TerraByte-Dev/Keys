@@ -106,6 +106,18 @@ Four things learned doing it, so nobody re-learns them:
   reads off the end of a buffer and takes the process with it. 0.05 (129 KB) is fine. The exact threshold is inside
   FluidSynth. This is why `make_osiris.py` verifies **in a subprocess**: a font that crashes the synth has to be a
   failed build, not a written file and exit 0.
+- **FluidSynth peak-normalises every Ogg sample in an SF3, and that silently sets the font's note-to-note
+  balance.** A player reported three notes that "do not carry that sound" (D4, D#4, F4/F#4). They were real:
+  Osiris was cut at very low dynamics and D4 landed 12.2 dB under C4 in the source. The first fix -- scale the
+  PCM -- did nothing at all, and the identical change in an uncompressed SF2 landed to within 0.1 dB. Rendered
+  level tracks **rms/peak**, confirmed across six keys with a spread of 1.00x. So in an SF3 the balance between
+  notes is not the recording's; it is whatever each sample's rms-to-peak ratio happens to be. The correction has
+  to be the **initialAttenuation generator**, which the voice applies after the loader. Two further measured
+  facts: FluidSynth's attenuation scale is **0.04 dB per unit**, not the 0.1 the spec implies (200 units rendered
+  exactly -8.0 dB), and **negative attenuation is honoured** and boosts, which the spec's 0..1440 range does not
+  promise. `--level-match` pulls each sample toward a 9-sample running median of its neighbours, capped at 6 dB:
+  the worst step between adjacent keys went 5.6 dB -> 1.4 dB, and D4 went from 5.3 dB under its neighbours to
+  within 3.
 - **Osiris names an octave below scientific pitch** — its `C3` is MIDI 60. Comparing a rendered middle C against the
   file called `C4` will convince you the mapping is broken when it is not.
 

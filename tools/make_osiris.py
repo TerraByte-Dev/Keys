@@ -72,6 +72,7 @@ class Region:
     root: int
     release: float
     velocity: int          # which layer this region belongs to: 1 or 2
+    one_shot: bool = False
 
     @property
     def name(self) -> str:
@@ -129,9 +130,18 @@ def _region(base: Path, d: dict[str, str], velocity: int) -> Region:
         sample=(base / rel).resolve(),
         lokey=int(d.get("lokey", 0)),
         hikey=int(d.get("hikey", 127)),
-        root=int(d.get("pitch_keycenter", d.get("lokey", 60))),
+        # One region (middle C) omits pitch_keycenter entirely. SFZ's default for a
+        # missing keycenter is 60, and lokey is also 60 there, so both readings agree
+        # -- but only by luck, so be explicit rather than rely on it.
+        root=int(d["pitch_keycenter"]) if "pitch_keycenter" in d
+        else int(d.get("lokey", 60)),
         release=float(d.get("ampeg_release", 0.6)),
         velocity=velocity,
+        # The top twelve regions are one_shot: they play to the end whatever the key
+        # does, because at that end of the piano the whole note is shorter than a
+        # release envelope and gating it just truncates it. Dropping this opcode is
+        # inaudible in a file listing and audible on the top octave.
+        one_shot=d.get("loop_mode") == "one_shot",
     )
 
 
@@ -169,6 +179,98 @@ def load_sample(path: Path, mono: bool, rate: int, tail: float) -> tuple[np.ndar
     return (data * 32767.0).astype("<i2"), sr
 
 
+# --- levelling -----------------------------------------------------------------
+def loudness(pcm: np.ndarray) -> float:
+    """RMS of the first second, which tracks what you hear better than the peak.
+
+    A piano note's peak is one hammer transient and can be several dB out from how
+    loud the note actually seems; the body of the note is what the ear averages.
+    """
+    x = pcm.astype("float64") / 32768.0
+    if x.ndim > 1:
+        x = x.mean(axis=1)
+    n = min(len(x), 48000)
+    return float(np.sqrt(np.mean(x[:n] ** 2))) if n else 0.0
+
+
+def level_trend(keys: list[int], levels: list[float], window: int = 9) -> list[float]:
+    """A running median of loudness across the keyboard.
+
+    The median is the point: it follows the real slope of the instrument (a piano is
+    genuinely louder in the middle than at the top) while ignoring the one note that
+    was struck differently, which is what a mean would smear across its neighbours.
+
+    Nine diatonic samples, chosen by measuring rather than taste. What a listener
+    notices is the STEP BETWEEN ADJACENT KEYS, not a slow slope across the keyboard,
+    and the 90th-percentile step between neighbours came out: uncorrected 5.6 dB,
+    window 5 -> 2.3 dB, window 9 -> 1.4 dB, window 13 -> 1.6 dB. Wider than 9 starts
+    fitting the keyboard's own slope into the correction and gets worse again.
+    """
+    out = []
+    for i in range(len(levels)):
+        lo = max(0, i - window // 2)
+        hi = min(len(levels), i + window // 2 + 1)
+        out.append(float(np.median(levels[lo:hi])))
+    return out
+
+
+# FluidSynth's own scale for initialAttenuation, measured against this build rather
+# than taken from the spec: 200 units rendered exactly -8.0 dB and 600 units exactly
+# -24.0 dB, so it is 0.04 dB per unit, not the 0.1 the SF2 spec implies. Negative
+# values are honoured and boost, which the spec's 0..1440 range does not promise.
+ATTEN_DB_PER_UNIT = 0.04
+
+
+def attenuation_units(gain_db: float) -> int:
+    return int(round(-gain_db / ATTEN_DB_PER_UNIT))
+
+
+def match_levels(samples: list[tuple[int, np.ndarray]], limit_db: float,
+                 normalised: bool) -> dict[int, float]:
+    """Per-sample gain, in dB, so no note jumps out of its neighbours.
+
+    Two separate things are being corrected here and only one of them is Osiris's
+    fault.
+
+    **The recording's own inconsistency.** It was cut at deliberately very low
+    dynamics, where the difference between one strike and the next is a large
+    fraction of the signal. On the quiet layer around middle C, D4 came out 12.2 dB
+    below C4 -- reported by a player as notes that "do not carry that sound", which
+    is exactly what that is. What gets corrected is deviation from a SMOOTH TREND,
+    never deviation from a flat line: a piano is genuinely not flat across 88 keys
+    and must not be made so. What it also is not is 12 dB down on one note.
+
+    **FluidSynth peak-normalises every Ogg sample in an SF3.** Verified: rendered
+    level tracked rms/peak across six keys with a spread of 1.00x, and scaling the
+    PCM changed nothing at all while the identical change in an uncompressed SF2
+    landed to within 0.1 dB. So in an SF3 the note-to-note balance is not the
+    recording's -- it is whatever each sample's rms-to-peak ratio happens to be,
+    which is arbitrary. `normalised` says to undo that.
+
+    Which is why this returns dB for the ATTENUATION GENERATOR rather than a factor
+    to multiply the samples by. Attenuation is applied by the voice, after the
+    loader has had its way with the sample data. Scaling the PCM is normalised
+    straight back out.
+    """
+    keys = [k for k, _ in samples]
+    rms = [loudness(p) for _, p in samples]
+    peak = [float(np.max(np.abs(p.astype("float64") / 32768.0)) or 1.0) for _, p in samples]
+    # What the synth will actually render at, up to a constant.
+    natural = [r / pk if normalised else r for r, pk in zip(rms, peak)]
+    target = level_trend(keys, rms)
+
+    raw = []
+    for nat, tgt in zip(natural, target):
+        raw.append(20 * np.log10(tgt / nat) if nat > 0 and tgt > 0 else 0.0)
+    # Centre on the median so the font's overall loudness is left alone and only the
+    # spread between notes changes.
+    mid = float(np.median(raw))
+    out: dict[int, float] = {}
+    for k, db in zip(keys, raw):
+        out[k] = float(max(-limit_db, min(limit_db, db - mid)))
+    return out
+
+
 # --- writing the SF2 -----------------------------------------------------------
 # Generator operators used here.
 GEN_KEYRANGE, GEN_VELRANGE = 43, 44
@@ -177,6 +279,13 @@ GEN_SAMPLEMODES, GEN_ROOTKEY, GEN_SAMPLEID = 54, 58, 53
 GEN_ATTENUATION = 48
 
 MONO, RIGHT, LEFT = 1, 2, 4
+
+
+NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+
+
+def note_name(midi: int) -> str:
+    return f"{NOTE_NAMES[midi % 12]}{midi // 12 - 1}"
 
 
 def timecents(seconds: float) -> int:
@@ -378,6 +487,11 @@ def main() -> int:
                     help="output sample rate; 0 keeps the native 48000")
     ap.add_argument("--tail", type=float, default=6.0,
                     help="seconds of decay to keep; 0 keeps everything")
+    ap.add_argument("--level-match", type=float, default=6.0, metavar="DB",
+                    help="pull any sample that sits more than DB away from the smooth "
+                         "trend of its neighbours back toward it, capped at DB. "
+                         "Osiris was recorded at very low dynamics and a few notes "
+                         "landed several dB out. 0 disables it.")
     ap.add_argument("--sf3", nargs="?", type=float, const=0.3, default=None,
                     metavar="COMPRESSION",
                     help="write SF3 (Ogg Vorbis samples) instead of SF2 -- about 10x "
@@ -404,9 +518,36 @@ def main() -> int:
     writer = SF2Writer("Osiris Una Corda")
     zones: list[dict] = []
     src_bytes = 0
-    for r in sorted(regions, key=lambda r: (r.velocity, r.lokey)):
-        pcm, rate = load_sample(r.sample, not args.stereo, args.rate, args.tail)
+
+    # Decode everything first: levelling needs to see the whole layer before it can
+    # tell an outlier from the instrument's own slope.
+    decoded: dict[int, tuple[np.ndarray, int]] = {}
+    for r in regions:
+        decoded[id(r)] = load_sample(r.sample, not args.stereo, args.rate, args.tail)
         src_bytes += r.sample.stat().st_size
+
+    gains: dict[int, float] = {}          # region id -> dB of correction
+    if args.level_match:
+        for vel in (1, 2):
+            layer = sorted((r for r in regions if r.velocity == vel), key=lambda r: r.root)
+            per_key = [(r.root, decoded[id(r)][0]) for r in layer]
+            got = match_levels(per_key, args.level_match, normalised=args.sf3 is not None)
+            for r in layer:
+                gains[id(r)] = got.get(r.root, 0.0)
+        moved = [(r, gains[id(r)]) for r in regions if abs(gains[id(r)]) > 1.5]
+        if moved:
+            print(f"  levelled {len(moved)} of {len(regions)} samples "
+                  f"(limit +/-{args.level_match:g} dB"
+                  f"{', also undoing SF3 peak normalisation' if args.sf3 is not None else ''}):")
+            for r, db in sorted(moved, key=lambda t: t[0].root)[:10]:
+                print(f"      {note_name(r.root):5} v{r.velocity}  {db:+5.1f} dB")
+            if len(moved) > 10:
+                print(f"      ... and {len(moved) - 10} more")
+
+    for r in sorted(regions, key=lambda r: (r.velocity, r.lokey)):
+        pcm, rate = decoded[id(r)]
+        # As an attenuation generator, never by scaling the PCM -- see match_levels.
+        atten = attenuation_units(gains.get(id(r), 0.0))
         lovel, hivel = (0, 63) if r.velocity == 1 else (64, 127)
         if args.stereo:
             left = np.ascontiguousarray(pcm[:, 0])
@@ -417,12 +558,17 @@ def main() -> int:
             writer.samples[ri] = writer.samples[ri][:5] + (li,)
             for idx, pan in ((li, -500), (ri, 500)):
                 zones.append(dict(lokey=r.lokey, hikey=r.hikey, lovel=lovel, hivel=hivel,
-                                  root=r.root, release=r.release, sample=idx, pan=pan))
+                                  root=r.root, sample=idx, pan=pan, attenuation=atten,
+                                  release=20.0 if r.one_shot else r.release))
         else:
             i, _ = writer.add_sample(r.name, np.ascontiguousarray(pcm[:, 0]),
                                      rate, r.root)
             zones.append(dict(lokey=r.lokey, hikey=r.hikey, lovel=lovel, hivel=hivel,
-                              root=r.root, release=r.release, sample=i))
+                              root=r.root, sample=i, attenuation=atten,
+                              # SF2 has no one_shot. The nearest honest equivalent is
+                              # a release long enough that the sample always finishes
+                              # first, which is what one_shot means here.
+                              release=20.0 if r.one_shot else r.release))
 
     blob = writer.build(zones, "Osiris Una Corda", sf3=args.sf3)
     args.out.parent.mkdir(parents=True, exist_ok=True)

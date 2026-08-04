@@ -232,6 +232,12 @@ converter. The trade is decode time rather than disk: ~170 ms per MB, which is w
 preset that loads it on demand and not in the boot path. Zones carry their own `soundfont`, so *Soft Grand + Halo*
 layers this piano under a pad from GeneralUser with both fonts resident at once.
 
+The one thing to know before building another SF3: **FluidSynth peak-normalises each Ogg sample as it loads it**,
+so the balance between notes is not the recording's — it is whatever each sample's rms-to-peak ratio happens to
+be. Scaling the sample data cannot change it; only the `initialAttenuation` generator can, because the voice
+applies that after the loader. `tools/make_osiris.py` levels the font that way, against a running median of each
+sample's neighbours, which is what fixed the handful of notes that stood out of an otherwise even keyboard.
+
 ## Storage
 
 SQLite, WAL mode, `synchronous=NORMAL`, one connection behind one lock. A per-thread pool would be faster; on a
