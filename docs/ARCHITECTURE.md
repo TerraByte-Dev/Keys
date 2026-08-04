@@ -202,14 +202,28 @@ why every shipped preset now states its room even when that room is the default.
 moves the Settings sliders with it, because they are that unit and showing a room you are not
 in would make them lie.
 
-`whisper` is the other half. The SoundFont's grand is sampled in eight velocity layers with
-the softly-struck recording at 0–49, and nothing shipped ever reached it: a normal keystroke
-is around 80. The curve is a **ceiling at 74**, so an ordinary keystroke lands in layer 1 and
-all the force you have only reaches layer 3. `soft` and `softer` do the opposite of what their
-names suggest here — they are named for the touch they *reward*, and they lift quiet notes, so
-a light hand sounds louder. Turning `synth.gain` down does not work either: that makes a
-hard-struck sample quiet, which sounds like a loud piano far away. Changing the velocity
-changes which sample plays.
+`whisper` is the other half, and it is worth being precise about what it is, because the first
+version of this section was wrong.
+
+The curve is a **ceiling at velocity 74**. `soft` and `softer` do the opposite of what their
+names suggest — they are named for the touch they *reward*, and they lift quiet notes, so a
+light hand sounds louder.
+
+It was claimed here that the ceiling reaches a softly-struck *recording*. It does not.
+GeneralUser-GS's `Grand Piano` has eight velocity bands, and all eight point at one instrument
+(`Stereo Grand Mellow`), which has no velocity splits and 17 samples mapped by key alone.
+There is a single recording of each note. The bands vary attenuation and filter cutoff, with a
+velocity→cutoff modulator on the softest one. So `whisper` is **an attenuator and a low-pass**
+— which is real and measurable (rendered C4 rises in 3.9 ms at velocity 80 and 18.3 ms at 49,
+with the spectral centroid down to 0.83×), and is genuinely more than turning `synth.gain`
+down, but it is not a different instrument.
+
+**A felt piano is a different instrument.** Felt between the hammer and the string lengthens
+the contact time and suppresses the upper partials at the source, before anything is recorded.
+A real felt upright measures a ~31 ms rise at *every* velocity, and the hammer noise a filter
+would need to remove was never there to begin with. No filter reproduces a different
+excitation. That requires different samples, which is a shipping decision — see
+[`ROADMAP.md`](ROADMAP.md).
 
 ## Storage
 

@@ -84,16 +84,22 @@ RECIPES = [
      [z("Bright Grand Piano", reverb=0.22)]),
 
     # ── soft keys and big rooms ─────────────────────────────────────────────
-    # Five presets that came out of one tester's session: a piano that "sounded as
-    # if it were gently whispering", and others that "sounded like a concert hall".
-    # Both are here, and they are made of different things -- the whisper is the
-    # `whisper` velocity curve reaching only the felt sample layers, the hall is the
-    # reverb unit at a bigger room size. Turning one up does not produce the other.
+    # From one tester's session: a piano that "sounded as if it were gently
+    # whispering", and others that "sounded like a concert hall". The hall is real --
+    # it is the reverb unit at a bigger room size, which is what `space` is for.
+    #
+    # The quiet end is HONEST BUT LIMITED, and the names below say so. `whisper` caps
+    # velocity and low-passes; it cannot make this SoundFont into a felt piano,
+    # because GeneralUser-GS holds one recording of each note and felt is a property
+    # of the recording (see the curve's comment in backend/engine.py). None of these
+    # is called "Felt Piano" for that reason -- an earlier draft was, and it was
+    # claiming something the samples cannot do. A real felt piano needs a real felt
+    # SoundFont; see docs/ROADMAP.md.
     ("soft-piano", "Soft Piano",
      "The quiet one. Plays under your hands rather than at them.",
      [z("Grand Piano", gain=0.72, reverb=0.46, curve="whisper")], "chamber"),
-    ("felt-piano", "Felt Piano",
-     "Soft piano with a pad breathing under it. For playing at midnight.",
+    ("midnight-piano", "Midnight Piano",
+     "Soft piano with a pad breathing under it. For playing late.",
      [z("Grand Piano", gain=0.70, reverb=0.50, curve="whisper"),
       z("Warm Pad", gain=0.26, reverb=0.70, curve="softer")], "chamber"),
     ("close-piano", "Close Piano",

@@ -1,7 +1,7 @@
 {
-  "id": "felt-piano",
-  "name": "Felt Piano",
-  "description": "Soft piano with a pad breathing under it. For playing at midnight.",
+  "id": "midnight-piano",
+  "name": "Midnight Piano",
+  "description": "Soft piano with a pad breathing under it. For playing late.",
   "zones": [
     {
       "id": "z1",

@@ -90,6 +90,25 @@ that onto the 88-key display would close the loop between "what I'm bad at" and 
 (keys / organs / strings / brass / synths / mallets / world) and favourites. Dropping extra SoundFonts into the
 data directory and picking them per zone already works.
 
+**M13 — a real soft piano, which means a real SoundFont.** The `whisper` curve is an attenuator and a low-pass
+on a font that holds one recording of each note, and it cannot be anything more (see
+[`ARCHITECTURE.md`](ARCHITECTURE.md)). Felt is a property of the recording. Researched and measured; the shortlist,
+with licences read at source:
+
+| Candidate | Format | Licence | Notes |
+|---|---|---|---|
+| [Osiris Piano](https://github.com/sfzinstruments/Osiris_Piano) (Versilian × Karoryfer) | SFZ + FLAC, 437 MB repo, ~25 MB per mic | **CC0-1.0**, confirmed by GitHub licence detection and the repo's own `LICENSE` | A worn Yamaha C2 at half-stick, **soft pedal down, very low dynamics**, three mic positions incl. one inside the lid. Two *recorded* velocity layers, no round robins. Needs SFZ→SF2 authoring. The cleanest licence of anything found. |
+| [Fuchs & Möhr Felt Piano](https://www.polyphone.io/en/soundfonts/pianos/683-fuchs-mohr-felt-piano) V10 | SF2, 1.01 GB | Author's own "public domain" declaration | Genuinely felt: measured 3.7× lower spectral rolloff at C4 than the shipped grand, ~31 ms rise at every velocity. Best timbre found. Needs our own reduction — the circulating 33 MB build is a **third party's derivative with no licence grant of its own**, and is one velocity layer with a modulator faking the rest. Do not ship that one. |
+| [MuseScore_General.sf3](https://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/) | SF3, 39.9 MB | **MIT** | Not felt — but its grand genuinely switches between recorded MF and FF layers, 144 samples at 44.1 kHz, and it would lift the whole GM set. The cheap orthogonal win. |
+| [Upright Piano KW](https://freepats.zenvoid.org/Piano/acoustic-grand-piano.html) | SF2, 5.8 / 27.5 MB | **CC0-1.0** | Drop-in, no work. Intimate, not felt. |
+
+Two facts that shape the decision. **SF3 works in the shipped binary** — verified: FluidSynth 2.5.7 against
+`sndfile.dll` with Vorbis, loading and rendering `MuseScore_General.sf3`; `Engine.load_soundfont` already accepts
+the extension. It buys 4–7× on disk and costs ~125 ms per MB to decode at load (5.0 s for 39.9 MB, versus 40 ms
+for a 32 MB SF2), so it belongs on a font loaded lazily rather than at boot. And **beware the licence laundering**:
+the top search hits for "felt piano soundfont" are auto-sampled rips of Spitfire LABS and Spectrasonics Keyscape,
+tagged with open-source licences their uploaders had no right to apply.
+
 ## Not being built, on purpose
 
 **Content libraries.** Competing with flowkey or Piano Marvel on a 1,500-song catalogue is not a software

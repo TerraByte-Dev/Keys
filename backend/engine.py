@@ -123,28 +123,32 @@ CURVES: dict[str, tuple[int, ...]] = {
     "harder": _build_curve(lambda v: 127 * (v / 127) ** 2.10),
     # squeeze everything into a mezzo band -- useful for pads and organ
     "compress": _build_curve(lambda v: 45 + (v / 127) * 70),
-    # A ceiling, not a slope -- and the one curve here that is aimed at a measurement
-    # rather than at a feel.
+    # A ceiling, not a slope. "soft" and "softer" are named for the TOUCH they reward:
+    # they lift quiet notes, so a light hand still sounds loud, which is the opposite
+    # of a quiet instrument. This one caps the whole keyboard at velocity 74, with an
+    # almost-straight 0.9 exponent so a pianissimo note still speaks.
     #
-    # "soft" and "softer" are named for the TOUCH they reward: they lift quiet notes,
-    # so a light hand still sounds loud. That is the exact opposite of a quiet
-    # instrument, which is why no amount of them ever produced one.
+    # BE HONEST ABOUT WHAT THIS IS. An earlier version of this comment claimed the
+    # cap reaches a softly-struck RECORDING. It does not, and the file says so.
+    # Parsing GeneralUser-GS.sf2's preset->instrument->sample graph: bank 0 program 0
+    # "Grand Piano" has 49 preset zones across eight velocity bands (0-49, 50-65,
+    # 66-79, 80-91, 92-101, 102-110, 111-119, 120-127) -- and every one of them points
+    # at the SAME instrument, #257 "Stereo Grand Mellow", which contains no velRange
+    # generators at all and 17 samples mapped purely by key. There is one recording of
+    # each note. The eight bands vary initialAttenuation and initialFilterFc; the
+    # softest band adds a velocity->cutoff modulator. (34 other instruments in the same
+    # font DO split by velocity, so this is the font's design, not a parser artifact.)
     #
-    # GeneralUser-GS's Grand Piano is multi-sampled by velocity in eight layers, and
-    # the split points are in the file: 0-49, 50-65, 66-79, 80-91, 92-101, 102-110,
-    # 111-119, 120-127. Layer 1 is the softly-struck recording -- felt, round, no
-    # hammer noise. Nothing shipped ever reached it, because a normal keystroke is
-    # around 80 and lands in layer 4.
+    # So this curve is an attenuator plus a low-pass. That is more than synth.gain --
+    # it does change the timbre, and measurably: rendered C4 goes from a 3.9 ms rise at
+    # velocity 80 to 18.3 ms at 49, and the spectral centroid drops to 0.83x. It is a
+    # legitimate thing to do to any piano.
     #
-    # Ceiling 74 puts the whole keyboard in the bottom three layers: an ordinary
-    # keystroke (80) maps to 49 and lands in layer 1, a firm one (110) to 65, and all
-    # the force you have (127) only reaches 74. The exponent 0.9 is almost straight,
-    # lifting the very bottom just enough that a pianissimo note still speaks.
-    #
-    # This is why it cannot be done with synth.gain: turning the output down makes a
-    # hard-struck sample quiet, which sounds like a loud piano heard from far away.
-    # Changing the velocity changes which sample plays. That is the difference between
-    # a quiet piano and a piano played quietly, and it is the whole preset.
+    # What it is NOT is a felt piano. Felt between hammer and string lengthens the
+    # contact and kills the upper partials at the source; a real felt upright measures
+    # a ~31 ms rise at EVERY velocity. You cannot filter your way to a different
+    # excitation, and you cannot synthesise mechanical noise that was never recorded.
+    # That needs different samples. See docs/ARCHITECTURE.md.
     "whisper": _build_curve(lambda v: 74 * (v / 127) ** 0.9),
 }
 _FIXED_CACHE: dict[int, tuple[int, ...]] = {}
