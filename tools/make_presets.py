@@ -52,9 +52,20 @@ Z = dict
 
 
 def z(name, lo=LOW, hi=HIGH, transpose=0, gain=1.0, pan=0.5,
-      reverb=0.30, chorus=0.0, curve="linear"):
+      reverb=0.30, chorus=0.0, curve="linear", soundfont=None, bank=0, program=0):
+    """One zone.
+
+    `name` is looked up against the DEFAULT SoundFont, which is how a typo becomes a
+    build error instead of a preset that mysteriously sounds like a piano.
+
+    Pass `soundfont` to point a zone at a different file, and then bank/program are
+    taken literally rather than looked up -- a second font is not enumerated here, and
+    a preset that names one is asserting it knows what is in it. Zones are per-zone
+    all the way down in the engine, so a split or a layer can span two fonts.
+    """
     return Z(name=name, lo=lo, hi=hi, transpose=transpose, gain=gain, pan=pan,
-             reverb=reverb, chorus=chorus, curve=curve)
+             reverb=reverb, chorus=chorus, curve=curve,
+             soundfont=soundfont, bank=bank, program=program)
 
 
 # The rooms. A zone's `reverb` is how much of it you SEND to the room; this is which
@@ -95,6 +106,26 @@ RECIPES = [
     # is called "Felt Piano" for that reason -- an earlier draft was, and it was
     # claiming something the samples cannot do. A real felt piano needs a real felt
     # SoundFont; see docs/ROADMAP.md.
+    # THE REAL ONE. A different instrument, not a filtered GM grand: a worn Yamaha C2
+    # recorded at half-stick with the soft pedal down and very low dynamics, which is
+    # the same physics as felt -- the hammers meet un-grooved, softer felt, the
+    # contact lengthens, and the upper partials never happen. Measured against the GM
+    # grand at middle C: it rises in 32 ms rather than 4, and its spectral centre sits
+    # at 266 Hz rather than 504.
+    #
+    # No `whisper` curve here, deliberately. The curve exists to drag a bright piano
+    # somewhere it does not want to go; this piano is already there, and capping its
+    # velocity would only throw away the two layers it actually recorded.
+    ("osiris-soft", "Soft Grand",
+     "A real one, recorded soft: half-stick, soft pedal down. CC0, by Versilian & Karoryfer.",
+     [z("Osiris Una Corda", gain=1.0, reverb=0.42,
+        soundfont="OsirisUnaCorda.sf3", bank=0, program=0)], "chamber"),
+    ("osiris-halo", "Soft Grand + Halo",
+     "The soft grand with a pad under it. Two SoundFonts, one keyboard.",
+     [z("Osiris Una Corda", gain=1.0, reverb=0.48,
+        soundfont="OsirisUnaCorda.sf3", bank=0, program=0),
+      z("Halo Pad", gain=0.22, reverb=0.68, curve="softer")], "hall"),
+
     ("soft-piano", "Soft Piano",
      "The quiet one. Plays under your hands rather than at them.",
      [z("Grand Piano", gain=0.72, reverb=0.46, curve="whisper")], "chamber"),
@@ -303,16 +334,27 @@ def build() -> tuple[list[dict], list[str]]:
         built = []
         for i, spec in enumerate(zones):
             inst_name = spec["name"]
-            found = by_name.get(inst_name)
-            if found is None:
-                errors.append(f"{pid}: no instrument called {inst_name!r} in the SoundFont")
-                continue
+            if spec.get("soundfont"):
+                # A named font: bank/program are taken as given, and the only thing
+                # that can be checked here is that the file is actually present.
+                if config.find_asset("soundfonts", spec["soundfont"]) is None:
+                    errors.append(f"{pid}: soundfont {spec['soundfont']!r} is not in "
+                                  f"soundfonts/ -- run tools/make_osiris.py?")
+                    continue
+                found = {"bank": spec["bank"], "program": spec["program"], "drums": False}
+                font = spec["soundfont"]
+            else:
+                found = by_name.get(inst_name)
+                if found is None:
+                    errors.append(f"{pid}: no instrument called {inst_name!r} in the SoundFont")
+                    continue
+                font = config.DEFAULT_SOUNDFONT
             built.append({
                 "id": f"z{i + 1}", "name": inst_name,
                 "lo": spec["lo"], "hi": spec["hi"],
                 # Channel 9 is the GM drum channel and 15 is the metronome's.
                 "channel": 9 if found["drums"] else (i if i < 9 else i + 1),
-                "soundfont": config.DEFAULT_SOUNDFONT,
+                "soundfont": font,
                 "bank": found["bank"], "program": found["program"],
                 "transpose": spec["transpose"], "gain": spec["gain"], "pan": spec["pan"],
                 "reverb": spec["reverb"], "chorus": spec["chorus"],

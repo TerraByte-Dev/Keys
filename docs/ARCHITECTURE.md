@@ -218,12 +218,19 @@ velocity→cutoff modulator on the softest one. So `whisper` is **an attenuator 
 with the spectral centroid down to 0.83×), and is genuinely more than turning `synth.gain`
 down, but it is not a different instrument.
 
-**A felt piano is a different instrument.** Felt between the hammer and the string lengthens
-the contact time and suppresses the upper partials at the source, before anything is recorded.
-A real felt upright measures a ~31 ms rise at *every* velocity, and the hammer noise a filter
-would need to remove was never there to begin with. No filter reproduces a different
-excitation. That requires different samples, which is a shipping decision — see
-[`ROADMAP.md`](ROADMAP.md).
+**A soft piano is a different instrument**, so the app now ships one. The soft pedal moves the action so the
+strings meet un-grooved, softer felt; the contact lengthens and the upper partials never happen. That is in the
+recording, before a microphone is involved, and no filter reaches back for it. `soundfonts/OsirisUnaCorda.sf3` is a
+Yamaha C2 recorded that way — at middle C it rises in 32 ms against the GM grand's 4, with its spectral centre at
+266 Hz against 504 — and *Soft Grand* uses no velocity curve at all, because the curve exists to drag a bright
+piano somewhere it does not want to go and this one is already there.
+
+It is 5.8 MB because it is **SF3**: the same structure as SF2 with each sample stored as its own Ogg Vorbis stream.
+FluidSynth 2.5.7 reads it, `Engine.load_soundfont` already accepted the extension, and the same libsndfile that
+decodes the source FLAC encodes the Vorbis — so `tools/make_osiris.py` writes it directly with no external
+converter. The trade is decode time rather than disk: ~170 ms per MB, which is why a second font belongs behind a
+preset that loads it on demand and not in the boot path. Zones carry their own `soundfont`, so *Soft Grand + Halo*
+layers this piano under a pad from GeneralUser with both fonts resident at once.
 
 ## Storage
 

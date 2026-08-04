@@ -90,22 +90,29 @@ that onto the 88-key display would close the loop between "what I'm bad at" and 
 (keys / organs / strings / brass / synths / mallets / world) and favourites. Dropping extra SoundFonts into the
 data directory and picking them per zone already works.
 
-**M13 — a real soft piano, which means a real SoundFont.** The `whisper` curve is an attenuator and a low-pass
-on a font that holds one recording of each note, and it cannot be anything more (see
-[`ARCHITECTURE.md`](ARCHITECTURE.md)). Felt is a property of the recording. Researched and measured; the shortlist,
-with licences read at source:
+**M13 — a real soft piano. SHIPPED.** `soundfonts/OsirisUnaCorda.sf3`, built by
+[`tools/make_osiris.py`](../tools/make_osiris.py) from [Osiris Piano](https://github.com/sfzinstruments/Osiris_Piano)
+(Versilian Studios × Karoryfer, **CC0-1.0**) — a worn Yamaha C2 recorded at half-stick with the soft pedal down and
+very low dynamics. Two recorded velocity layers, no round robins. Presets: *Soft Grand* and *Soft Grand + Halo*.
 
-| Candidate | Format | Licence | Notes |
-|---|---|---|---|
-| [Osiris Piano](https://github.com/sfzinstruments/Osiris_Piano) (Versilian × Karoryfer) | SFZ + FLAC, 437 MB repo, ~25 MB per mic | **CC0-1.0**, confirmed by GitHub licence detection and the repo's own `LICENSE` | A worn Yamaha C2 at half-stick, **soft pedal down, very low dynamics**, three mic positions incl. one inside the lid. Two *recorded* velocity layers, no round robins. Needs SFZ→SF2 authoring. The cleanest licence of anything found. |
-| [Fuchs & Möhr Felt Piano](https://www.polyphone.io/en/soundfonts/pianos/683-fuchs-mohr-felt-piano) V10 | SF2, 1.01 GB | Author's own "public domain" declaration | Genuinely felt: measured 3.7× lower spectral rolloff at C4 than the shipped grand, ~31 ms rise at every velocity. Best timbre found. Needs our own reduction — the circulating 33 MB build is a **third party's derivative with no licence grant of its own**, and is one velocity layer with a modulator faking the rest. Do not ship that one. |
-| [MuseScore_General.sf3](https://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/) | SF3, 39.9 MB | **MIT** | Not felt — but its grand genuinely switches between recorded MF and FF layers, 144 samples at 44.1 kHz, and it would lift the whole GM set. The cheap orthogonal win. |
-| [Upright Piano KW](https://freepats.zenvoid.org/Piano/acoustic-grand-piano.html) | SF2, 5.8 / 27.5 MB | **CC0-1.0** | Drop-in, no work. Intimate, not felt. |
+Four things learned doing it, so nobody re-learns them:
 
-Two facts that shape the decision. **SF3 works in the shipped binary** — verified: FluidSynth 2.5.7 against
-`sndfile.dll` with Vorbis, loading and rendering `MuseScore_General.sf3`; `Engine.load_soundfont` already accepts
-the extension. It buys 4–7× on disk and costs ~125 ms per MB to decode at load (5.0 s for 39.9 MB, versus 40 ms
-for a 32 MB SF2), so it belongs on a font loaded lazily rather than at boot. And **beware the licence laundering**:
+- **FLAC's compression does not survive into SF2.** 26.6 MB of source FLAC is 206 MB of raw PCM stereo. The format
+  stores PCM; that is the whole size problem.
+- **SF3 solves it, in-process.** libsndfile is already linked in to decode the FLAC and it encodes Vorbis too, so the
+  build writes SF3 directly — no `sf3convert`, no Polyphone, no GUI step. 52.7 MB of SF2 becomes **5.8 MB**. The cost
+  is decode-at-load: ~170 ms per MB, so 880 ms for this font, paid once when a preset that names it is chosen.
+- **A malformed SF3 does not error, it faults.** `--sf3 0.0` produces ~141 KB per-sample Ogg streams and FluidSynth
+  reads off the end of a buffer and takes the process with it. 0.05 (129 KB) is fine. The exact threshold is inside
+  FluidSynth. This is why `make_osiris.py` verifies **in a subprocess**: a font that crashes the synth has to be a
+  failed build, not a written file and exit 0.
+- **Osiris names an octave below scientific pitch** — its `C3` is MIDI 60. Comparing a rendered middle C against the
+  file called `C4` will convince you the mapping is broken when it is not.
+
+Still open, if the felt timbre specifically is wanted: Osiris is *soft-pedal* soft, not felt-hammer soft. The best
+felt recording found was [Fuchs & Möhr](https://www.polyphone.io/en/soundfonts/pianos/683-fuchs-mohr-felt-piano)
+(3.7× lower spectral rolloff than the GM grand), but the only circulating small build is a third party's derivative
+with no licence grant of its own, and the author's clean 1 GB original would need its own reduction. And beware:
 the top search hits for "felt piano soundfont" are auto-sampled rips of Spitfire LABS and Spectrasonics Keyscape,
 tagged with open-source licences their uploaders had no right to apply.
 

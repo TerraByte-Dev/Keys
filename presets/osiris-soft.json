@@ -1,0 +1,31 @@
+{
+  "id": "osiris-soft",
+  "name": "Soft Grand",
+  "description": "A real one, recorded soft: half-stick, soft pedal down. CC0, by Versilian & Karoryfer.",
+  "zones": [
+    {
+      "id": "z1",
+      "name": "Osiris Una Corda",
+      "lo": 21,
+      "hi": 108,
+      "channel": 0,
+      "soundfont": "OsirisUnaCorda.sf3",
+      "bank": 0,
+      "program": 0,
+      "transpose": 0,
+      "gain": 1.0,
+      "pan": 0.5,
+      "reverb": 0.42,
+      "chorus": 0.0,
+      "curve": "linear",
+      "fixed_velocity": 100,
+      "enabled": true
+    }
+  ],
+  "space": {
+    "room": 0.55,
+    "damping": 0.42,
+    "width": 14.0,
+    "level": 0.65
+  }
+}

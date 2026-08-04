@@ -26,6 +26,11 @@ datas = [
     (str(ROOT / "frontend"), "frontend"),
     (str(ROOT / "presets"), "presets"),
     (str(ROOT / "soundfonts" / "GeneralUser-GS.sf2"), "soundfonts"),
+    # The soft piano. SF3 (Ogg Vorbis samples) so 53 MB of PCM ships as 5.8 MB;
+    # FluidSynth 2.5.7 reads it, and it is loaded on demand by the presets that name
+    # it rather than at boot, which is where the decode time would show.
+    # Built by tools/make_osiris.py from the CC0 Osiris Piano sample set.
+    (str(ROOT / "soundfonts" / "OsirisUnaCorda.sf3"), "soundfonts"),
     (str(ROOT / "soundfonts" / "README.md"), "soundfonts"),
     (str(ROOT / "LICENSE"), "."),
     # Not the same as EXE(icon=...) below. That one goes into the executable's
