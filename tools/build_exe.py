@@ -3,9 +3,12 @@
     .venv\\Scripts\\python.exe tools\\build_exe.py            # build
     .venv\\Scripts\\python.exe tools\\build_exe.py --verify   # verify an existing build
 
-Produces `dist/Keys/`, a directory you can zip, hand to someone, and have work. It is
-not an installer -- Velopack turns this directory into one, and its whole model is
-"replace the directory", which is why backend/config.py keeps your database elsewhere.
+Produces `dist/Keys/` and, beside it, the two files a release is made of:
+`Keys-<version>-win-x64.zip` and its `.sha256` sidecar. The zip is the application
+directory with nothing above it, because that is what the in-app updater extracts
+straight over an existing install -- and the reason backend/config.py keeps your
+database somewhere else entirely. Nothing here uploads anything; publishing stays
+`gh release create`, typed by a person.
 
 PyInstaller reports success in every one of the ways this build can be broken:
 
@@ -23,6 +26,8 @@ So this script builds, then opens the result and asserts against it.
 
 from __future__ import annotations
 
+import hashlib
+import importlib.util
 import json
 import os
 import shutil
@@ -33,11 +38,35 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SPEC = ROOT / "packaging" / "keys.spec"
 DIST = ROOT / "dist" / "Keys"
+
+
+def _version() -> str:
+    """Read VERSION out of backend/version.py without importing the package.
+
+    `from backend.version import VERSION` would run backend/__init__.py, which prepends
+    a FluidSynth bin directory to this process's PATH -- and smoke() hands this
+    process's environment to the built app. A developer's C:\\tools\\fluidsynth\\bin
+    arriving on the PATH of the application under test is exactly how "IT MAKES A
+    SOUND" passes for the wrong reason.
+    """
+    spec = importlib.util.spec_from_file_location(
+        "keys_version", ROOT / "backend" / "version.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.VERSION
+
+
+# The release asset, named the way the published ones are. The version is read rather
+# than typed, so the zip, the About panel and the update check cannot disagree about
+# which build this is -- a mismatch there tells someone they are up to date when the
+# file they downloaded is not the one they are running.
+ZIP = ROOT / "dist" / f"Keys-{_version()}-win-x64.zip"
 # Not 8770: the whole point is to test the build, and colliding with the app you have
 # open would either fail confusingly or -- worse -- test the app instead of the build.
 SMOKE_PORT = 8791
@@ -263,20 +292,80 @@ def smoke() -> None:
         shutil.rmtree(data, ignore_errors=True)
 
 
+def package() -> None:
+    """Zip the directory into the release asset and write its SHA-256 beside it.
+
+    Entries are relative to `dist/Keys`, so the archive expands to `Keys.exe` and
+    `_internal/` with nothing above them. That is the shape every published release
+    already has and the shape the in-app updater extracts over an application
+    directory -- a `Keys/` level in here installs an empty tree, and it would install
+    it successfully.
+
+    GitHub serves a per-asset digest of its own, so the sidecar is not the only hash an
+    updater can reach -- but that one arrives in the same response as the URL it
+    describes. A hash published as its own asset is at least a separate thing to
+    compare, and unlike an API field it can be checked by hand.
+    """
+    print("7. the release archive")
+    sidecar = ZIP.with_name(ZIP.name + ".sha256")
+    # `step` records a failure; it does not stop anything. The shape assertion used to
+    # run AFTER both files were written, so a wrapped zip left a zip and a checksum on
+    # disk, named exactly like a release and ready to upload, while main() returned 1.
+    # So: nothing is written until the tree is the right shape, and any earlier run's
+    # artefacts go first -- --verify does not rebuild dist/, so one can still be sitting
+    # here from before.
+    ZIP.unlink(missing_ok=True)
+    sidecar.unlink(missing_ok=True)
+    tops = sorted(p.name for p in DIST.iterdir())
+    step("expands with no wrapper folder", tops == ["Keys.exe", "_internal"],
+         ", ".join(tops) or "nothing in it")
+    if tops != ["Keys.exe", "_internal"]:
+        return
+
+    with zipfile.ZipFile(ZIP, "w", zipfile.ZIP_DEFLATED) as zf:
+        for path in sorted(DIST.rglob("*")):
+            zf.write(path, path.relative_to(DIST).as_posix())
+
+    # Read the finished file back rather than trusting what was just written to it --
+    # the same rule the rest of this script follows about builds.
+    with zipfile.ZipFile(ZIP) as zf:
+        packed = sorted({name.split("/")[0] for name in zf.namelist()})
+    if packed != tops:
+        ZIP.unlink(missing_ok=True)
+        step("the archive reads back as the tree it was made from", False,
+             ", ".join(packed) or "nothing in it")
+        return
+    step("archive written", ZIP.exists(), f"{ZIP.name} -- {human(ZIP.stat().st_size)}")
+
+    with ZIP.open("rb") as handle:
+        digest = hashlib.file_digest(handle, "sha256").hexdigest()
+    # sha256sum's own format: hash, two spaces, bare filename. LF and not CRLF, because
+    # a trailing CR ends up inside the filename `sha256sum -c` then goes looking for.
+    sidecar.write_text(f"{digest}  {ZIP.name}\n", encoding="ascii", newline="\n")
+    step("SHA-256 written beside it", sidecar.exists(), sidecar.name)
+    print(f"         {digest}")
+
+
 def main() -> int:
     if "--verify" not in sys.argv and not build():
         return 1
     verify()
     if "--no-smoke" not in sys.argv:
         smoke()
+    # Only a build that passed everything above gets packaged. A zip named like a
+    # release, with a checksum beside it, made from a build that came up silent is
+    # worse than no zip: the hash makes it look like something was checked.
+    if ok:
+        package()
     print()
     if ok:
         print("  BUILD GOOD")
         print(f"  Run it:  {DIST / 'Keys.exe'}")
         print("  Its data will land in %LOCALAPPDATA%\\Keys, not in the build.")
         print()
-        print("  This is still a directory, not an installer. Velopack turns it into")
-        print("  one; see docs/PACKAGING.md.")
+        print(f"  Ship it: {ZIP.name}")
+        print(f"           {ZIP.name}.sha256")
+        print("  Upload both to the release yourself -- nothing here publishes.")
     else:
         print("  FAILURES ABOVE")
     return 0 if ok else 1

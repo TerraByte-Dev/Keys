@@ -23,7 +23,7 @@ import ctypes
 import json
 import threading
 import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -123,33 +123,6 @@ CURVES: dict[str, tuple[int, ...]] = {
     "harder": _build_curve(lambda v: 127 * (v / 127) ** 2.10),
     # squeeze everything into a mezzo band -- useful for pads and organ
     "compress": _build_curve(lambda v: 45 + (v / 127) * 70),
-    # A ceiling, not a slope. "soft" and "softer" are named for the TOUCH they reward:
-    # they lift quiet notes, so a light hand still sounds loud, which is the opposite
-    # of a quiet instrument. This one caps the whole keyboard at velocity 74, with an
-    # almost-straight 0.9 exponent so a pianissimo note still speaks.
-    #
-    # BE HONEST ABOUT WHAT THIS IS. An earlier version of this comment claimed the
-    # cap reaches a softly-struck RECORDING. It does not, and the file says so.
-    # Parsing GeneralUser-GS.sf2's preset->instrument->sample graph: bank 0 program 0
-    # "Grand Piano" has 49 preset zones across eight velocity bands (0-49, 50-65,
-    # 66-79, 80-91, 92-101, 102-110, 111-119, 120-127) -- and every one of them points
-    # at the SAME instrument, #257 "Stereo Grand Mellow", which contains no velRange
-    # generators at all and 17 samples mapped purely by key. There is one recording of
-    # each note. The eight bands vary initialAttenuation and initialFilterFc; the
-    # softest band adds a velocity->cutoff modulator. (34 other instruments in the same
-    # font DO split by velocity, so this is the font's design, not a parser artifact.)
-    #
-    # So this curve is an attenuator plus a low-pass. That is more than synth.gain --
-    # it does change the timbre, and measurably: rendered C4 goes from a 3.9 ms rise at
-    # velocity 80 to 18.3 ms at 49, and the spectral centroid drops to 0.83x. It is a
-    # legitimate thing to do to any piano.
-    #
-    # What it is NOT is a felt piano. Felt between hammer and string lengthens the
-    # contact and kills the upper partials at the source; a real felt upright measures
-    # a ~31 ms rise at EVERY velocity. You cannot filter your way to a different
-    # excitation, and you cannot synthesise mechanical noise that was never recorded.
-    # That needs different samples. See docs/ARCHITECTURE.md.
-    "whisper": _build_curve(lambda v: 74 * (v / 127) ** 0.9),
 }
 _FIXED_CACHE: dict[int, tuple[int, ...]] = {}
 
@@ -227,28 +200,19 @@ class Preset:
     name: str
     zones: list[Zone] = field(default_factory=list)
     description: str = ""
-    # What room this sound is in: FluidSynth's global reverb unit, not the per-zone
-    # send. A zone's `reverb` is HOW MUCH of it goes to the room; this is WHICH room.
-    # None means "leave the room as the user set it" -- only presets whose whole point
-    # is the space carry one, so clicking through the shelf does not silently rewrite
-    # a reverb you tuned in Settings.
-    space: dict[str, Any] | None = None
     # Stamped by save_preset, so "did Keys write this?" has the same answer from a
     # source checkout as it does frozen. A directory test cannot: in a checkout
     # DATA_DIR, BUNDLE and the repo's presets/ are all the same folder.
     saved: bool = False
 
     def to_dict(self) -> dict[str, Any]:
-        d: dict[str, Any] = {
+        return {
             "id": self.id,
             "name": self.name,
             "description": self.description,
             "zones": [z.to_dict() for z in self.zones],
             "saved": self.saved,
         }
-        if self.space:
-            d["space"] = dict(self.space)
-        return d
 
 
 EMPTY_ROUTES: tuple[tuple, ...] = tuple(() for _ in range(128))
@@ -496,10 +460,48 @@ class Engine:
             type=int(c.get("type", 0)),
         )
 
+    def set_send(self, kind: str, value: float) -> float:
+        """How much of what you are playing goes to the room. CC 91 / CC 93.
+
+        The two units above are global and belong to Settings; this is the per-channel
+        send into them, which is the one knob that changes the instrument rather than
+        the room it is in. Live, on every enabled zone at once -- the per-zone sends in
+        Layers are the same controllers, reached one zone at a time behind Apply.
+        (CC 71/72/73/74/75 are not an option here: FluidSynth installs only the SF2.04
+        default modulators and none of those CCs is among them. Rendered output is
+        byte-identical at 0, 64 and 127, so a brightness knob would be a placebo.)
+
+        Written back onto the Zone as well as down the wire, because set_zones() re-sends
+        every zone's stored send -- without that the next zone edit would silently undo
+        this. The Zone written is the engine's own copy: set_zones() clones what it is
+        handed, so this never reaches the preset on the shelf. Safe from the hot path's
+        point of view too -- the routing table carries channel, note and curve, never the
+        sends, so nothing the callback thread reads moves here.
+        """
+        value = max(0.0, min(1.0, float(value)))
+        if self.fs is None:
+            return value
+        reverb = kind == "reverb"
+        for z in self.zones:
+            if not z.enabled:
+                continue
+            if reverb:
+                z.reverb = value
+            else:
+                z.chorus = value
+            self.fs.cc(z.channel, 91 if reverb else 93, int(round(value * 127)))
+        return value
+
     # ------------------------------------------------------------------ zones
     def set_zones(self, zones: Iterable[Zone], preset_id: str = "", preset_name: str = "") -> list[str]:
         """Apply a new zone set. Returns any warnings worth showing the user."""
-        zones = list(zones)
+        # replace(), not list(): what we are handed is usually a Preset's own Zone
+        # objects, and set_send() writes the live send back onto every enabled zone.
+        # A shallow copy shared them, so dragging the Effects reverb to 0.95 edited the
+        # shipped preset in app_state.presets -- re-picking Acoustic Grand came back at
+        # 0.95 instead of the 0.30 in its JSON, until a restart. The engine owns a
+        # working copy; the catalog keeps the file's values.
+        zones = [replace(z) for z in zones]
         warnings: list[str] = []
         if self.fs is None:
             return ["engine not started"]
@@ -811,13 +813,11 @@ class Engine:
 def load_preset_file(path: Path) -> Preset:
     data = json.loads(path.read_text("utf-8"))
     zones = [Zone.from_dict(z) for z in data.get("zones", [])]
-    space = data.get("space")
     return Preset(
         id=data.get("id", path.stem),
         name=data.get("name", path.stem.replace("-", " ").title()),
         description=data.get("description", ""),
         zones=zones,
-        space=dict(space) if isinstance(space, dict) else None,
         # Absent means shipped. The 62 generated by tools/make_presets.py never carry
         # the key, so they read as factory forever without touching any of them.
         saved=bool(data.get("saved", False)),

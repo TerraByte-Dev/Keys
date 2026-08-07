@@ -19,7 +19,7 @@ import { ACTIONS, applyTheme, defaultBinds, getBinds, normalKey, rollSpeed, setB
          setRollSpeed, THEMES } from './app.js';
 import { resetLayout } from './layout.js';
 import { CHAPTERS, startTutorial } from './tour.js';
-import { $, api, h, mod, slider, stat, toast } from './ui.js';
+import { $, api, fill, h, mod, slider, stat, toast } from './ui.js';
 
 const THEME_NOTE = {
   midnight: 'Anodized aluminium and a tungsten lamp. The default.',
@@ -283,24 +283,50 @@ function arm(rowEl, item, btn) {
 
 
 /* ── about, and the only request Keys makes on its own behalf ──────────────── */
+/* Three buttons, and none of them presses the next one: Check, then Download, then
+ * Restart and install. Each step happens because you asked for it in so many words,
+ * which is why this is a sequence rather than an "Update now" that does all three.
+ *
+ * The download lives in the backend and outlives this panel — close the overlay
+ * mid-transfer and it keeps going. So the panel asks the server what is happening
+ * instead of assuming it started whatever it is showing. That question goes to our
+ * own process on localhost; the promise at the bottom of the panel is about GitHub
+ * and is untouched by it. */
+
+let poll = null;                       // interval id, and only while one is running
+
 export function aboutPanel(ctx) {
   const st = ctx.state || {};
-  return h('div.col-6', null, mod('About', `version ${st.version || '?'}`,
+  // The overlay rebuilds a section by replacing its children, so a poll left over
+  // from the last time About was open would be painting into a detached node.
+  stopPoll();
+
+  const el = h('div.col-6', null, mod('About', `version ${st.version || '?'}`,
     h('div.stats', null,
       stat(st.version || '?', 'Version', st.frozen ? 'installed build' : 'source checkout'),
       stat(st.frozen ? 'EXE' : 'PY', 'Running as',
            st.frozen ? 'from the installer' : 'from keys.py')),
     h('div.btnrow', { style: { marginTop: '12px' } },
-      h('button.btn.btn--lg', { id: 'upd-check', onclick: checkUpdate },
+      h('button.btn.btn--lg', { id: 'upd-check', onclick: () => checkUpdate(!!st.frozen) },
         'Check for updates')),
     h('div', { id: 'upd-result', style: { marginTop: '10px' } }),
+    // Said before you press anything rather than after the backend has refused: a
+    // checkout has no installed copy to replace, and offering a Download button that
+    // can only fail is the panel discovering that on your behalf.
+    st.frozen ? null : h('div.note', { style: { marginTop: '10px' } },
+      'You are running from source, so an update here is a ', h('strong', null, 'git pull'),
+      ' rather than a download — there is no installed copy for Keys to replace. ',
+      'Checking still works, and the result links to the release.'),
     h('div.note', { style: { marginTop: '10px' } },
       'Keys checks only when you press that button — never on launch, never on a ',
       'timer, never in the background. The request sends nothing but a GET for the ',
       'public release list.')));
+
+  if (st.frozen) resume();
+  return el;
 }
 
-async function checkUpdate() {
+async function checkUpdate(frozen) {
   const btn = $('#upd-check');
   const host = $('#upd-result');
   btn.disabled = true;
@@ -314,7 +340,13 @@ async function checkUpdate() {
       host.append(h('div.note.note--warn', null,
         h('strong', null, `${r.latest} is available.`), ` You are on ${r.current}. `,
         h('a', { href: r.url, target: '_blank', rel: 'noreferrer' }, 'Open the release'),
-        r.download_name ? ` (${r.download_name}, ${(r.download_size / 1048576).toFixed(0)} MB)` : ''));
+        r.download_name ? ` (${r.download_name}, ${mb(r.download_size)} MB)` : ''));
+      // Above the release notes, which can be two thousand characters of changelog.
+      if (frozen && r.download) {
+        host.append(h('div.btnrow', { style: { marginTop: '10px' } },
+          h('button.btn.btn--lg', { onclick: (e) => startDownload(e.target, r) },
+            `Download ${mb(r.download_size)} MB`)));
+      }
       if (r.notes) host.append(h('div.note', { style: { marginTop: '8px' } }, r.notes));
     } else {
       host.append(h('div.note', null,
@@ -328,6 +360,153 @@ async function checkUpdate() {
     btn.textContent = 'Check for updates';
   }
 }
+
+/* Step two. The backend hands the transfer to a worker thread and answers at once, so
+   this returns long before the 55 MB does — the progress comes from the poll. */
+async function startDownload(btn, r) {
+  btn.disabled = true;
+  try {
+    await api.post('/api/update/download', {});
+  } catch (err) {
+    // The refusal names itself -- a source checkout, an application directory this
+    // account cannot write, or one already running. All three are worth reading and
+    // none of them is a bug, so the message goes on screen as it arrived.
+    btn.disabled = false;
+    warn(err.message);
+    return;
+  }
+  showProgress({ received: 0, total: r.download_size || 0 });
+  startPoll();
+}
+
+async function cancelDownload(btn) {
+  btn.disabled = true;
+  try {
+    await api.post('/api/update/cancel', {});
+  } catch (err) {
+    btn.disabled = false;
+    warn(err.message);
+  }
+  // Nothing is repainted here on purpose. The poll sees the state leave `downloading`
+  // and decides what the panel says, so there is one writer whoever caused the change.
+}
+
+/* Step three, and the last thing this page does. */
+async function applyUpdate() {
+  stopPoll();
+  fill($('#upd-result'), h('div.note', null,
+    h('strong', null, 'Installing.'), ' Keys will close and reopen in a moment. The ',
+    'window going away — and this page going dead with it — is the swap working, not ',
+    'a crash.'));
+  try {
+    await api.post('/api/update/apply', {});
+  } catch (err) {
+    // The server is meant to vanish mid-request, so a dropped connection is the
+    // success signal: fetch rejects with a TypeError and nothing else here does. A
+    // thrown HTTP status came from a server still alive enough to refuse, and that is
+    // a real failure that has to give the button back.
+    if (err instanceof TypeError) return;
+    showStaged();
+    warn(err.message);
+  }
+}
+
+/* A download you started before closing the overlay is still going. Only the two
+   states with something left to do are restored — a stale error from an attempt you
+   already walked away from should not be sitting there waiting to greet you. */
+async function resume() {
+  let s;
+  try { s = await api.get('/api/update/status'); } catch { return; }
+  if (s.state === 'downloading' || s.state === 'cancelling') { showProgress(s); startPoll(); }
+  else if (s.state === 'staged') showStaged();
+}
+
+function startPoll() {
+  stopPoll();
+  // 1 Hz, which is the rate every other moving number in this app already runs at --
+  // the status heartbeat. On a 55 MB asset that is a couple of dozen updates, and a
+  // download bar is nothing like musical timing.
+  poll = setInterval(tick, 1000);
+  // Checking again would rebuild #upd-result and take the readout with it.
+  const btn = $('#upd-check');
+  if (btn) btn.disabled = true;
+}
+
+function stopPoll() {
+  if (poll) clearInterval(poll);
+  poll = null;
+  const btn = $('#upd-check');
+  if (btn) btn.disabled = false;
+}
+
+async function tick() {
+  let s;
+  try {
+    s = await api.get('/api/update/status');
+  } catch (err) {
+    stopPoll();
+    warn(err.message);
+    return;
+  }
+  // Checked after the await rather than before, because nothing clears this interval
+  // when the overlay closes or another section paints over us: the readout having
+  // gone is the only signal there is, and an interval that outlives its panel runs
+  // until the tab does.
+  const label = $('#upd-pct');
+  if (!label) { stopPoll(); return; }
+
+  if (s.state === 'downloading') {
+    label.textContent = progressText(s);
+    $('#upd-bar').style.width = pct(s) + '%';
+    return;
+  }
+  // The backend publishes this the instant you press Cancel. The worker itself cannot
+  // notice until the in-flight read returns — up to the 30 s socket timeout — and for
+  // that whole time the old panel went on counting up over a transfer already told to
+  // stop, with the button disabled and nothing saying why.
+  if (s.state === 'cancelling') {
+    label.textContent = 'Cancelling — waiting for the transfer to stop.';
+    return;
+  }
+  stopPoll();
+  if (s.state === 'staged') showStaged();
+  else if (s.state === 'error') fill($('#upd-result'),
+    h('div.note.note--warn', null, s.error || 'the download did not finish'));
+  else fill($('#upd-result'),
+    h('div.note', null, 'Download cancelled. Nothing on disk was changed.'));
+}
+
+function showProgress(s) {
+  fill($('#upd-result'),
+    h('div.note', { id: 'upd-pct' }, progressText(s)),
+    h('div.bar', { style: { marginTop: '8px' } },
+      h('div.bar__fill', { id: 'upd-bar', style: { width: pct(s) + '%' } })),
+    h('div.btnrow', { style: { marginTop: '10px' } },
+      h('button.btn', { onclick: (e) => cancelDownload(e.target) }, 'Cancel')));
+}
+
+function showStaged() {
+  fill($('#upd-result'),
+    h('div.note', null,
+      h('strong', null, 'Downloaded and ready.'), ' Installing closes Keys and reopens ',
+      'it on the new version — a few seconds with the window gone. Your practice ',
+      'history, settings and recordings are untouched: they live in a different folder ',
+      'from the application, which is why that is a fact rather than a hope.'),
+    h('div.btnrow', { style: { marginTop: '10px' } },
+      h('button.btn.btn--lg', { onclick: applyUpdate }, 'Restart and install')));
+}
+
+/* Update trouble stays in the panel instead of going to a toast. You are reading it
+   after a decision you made on purpose, and a toast is gone before you have finished. */
+function warn(message) {
+  const host = $('#upd-result');
+  if (host) host.append(h('div.note.note--warn', { style: { marginTop: '8px' } }, message));
+}
+
+const mb = (bytes) => ((bytes || 0) / 1048576).toFixed(1);
+const pct = (s) => (s.total ? Math.round((s.received / s.total) * 100) : 0);
+const progressText = (s) =>
+  `Downloading — ${pct(s)}%, ${mb(s.received)} of ${mb(s.total)} MB`;
 
 /* ── panel layout ─────────────────────────────────────────────────────────── */
 export function layoutPanel() {

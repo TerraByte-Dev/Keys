@@ -5,10 +5,9 @@ in the background, and the check sends nothing but an HTTP GET for a public rele
 list. An app that quietly contacts a server every time you open it is not local-first
 regardless of what its README says.
 
-There is deliberately no auto-install here. Applying an update means replacing the
-application directory while it is running, which is an installer's job -- Velopack's,
-in this case -- and writing half of one that cannot be tested against a real release
-would be worse than an honest link. See docs/PACKAGING.md.
+There is deliberately no auto-install here either. This module only answers "is there
+a newer one, and where are its bytes"; downloading and installing them is
+`backend/updater.py`, and it too moves only when a button is pressed.
 """
 
 from __future__ import annotations
@@ -77,11 +76,21 @@ def check() -> dict[str, Any]:
     result["newer"] = bool(tag) and is_newer(tag)
     result["url"] = str(data.get("html_url") or RELEASES_PAGE)
     result["notes"] = str(data.get("body") or "")[:2000]
-    for asset in data.get("assets") or []:
+    assets = data.get("assets") or []
+    for asset in assets:
         name = str(asset.get("name", ""))
         if name.lower().endswith((".exe", ".msi", ".zip")):
             result["download"] = str(asset.get("browser_download_url", ""))
             result["download_name"] = name
             result["download_size"] = int(asset.get("size", 0) or 0)
+            # "sha256:<hex>", computed by GitHub itself -- so it is there on releases
+            # cut long before Keys published a checksum of its own.
+            result["download_digest"] = str(asset.get("digest") or "")
+            # And the sidecar tools/build_exe.py publishes for new releases. There is
+            # only ever one payload asset, so the first .sha256 is unambiguous.
+            # Absent on everything up to 0.5.1; updater.py verifies when present.
+            result["download_sha256_url"] = next(
+                (str(a.get("browser_download_url", "")) for a in assets
+                 if str(a.get("name", "")).lower().endswith(".sha256")), "")
             break
     return result

@@ -400,6 +400,7 @@ export function createRoll(container) {
     while (gHi < notes.length && notes[gHi].onset < nowQ + aheadQ) gHi++;
 
     drawGrid(yOf, nowQ - pastQ, nowQ + aheadQ);
+    if (ghost.looping) drawSection(yOf);
 
     const hands = ghost.hands;
     for (let i = gLo; i < gHi; i++) {
@@ -443,6 +444,27 @@ export function createRoll(container) {
     }
     ctx2d.globalAlpha = 1;
     drawNowLine();
+  }
+
+  /* The two ends of the looping section, on the paper. The scrub band says WHERE in
+     the piece you are grinding; these say when the wrap is coming, which is the one
+     you need while you are reading. Dashed and hot, because a solid hairline here
+     would be a bar line that lies. */
+  function drawSection(yOf) {
+    ctx2d.setLineDash([6, 5]);
+    ctx2d.strokeStyle = palette.hot;
+    ctx2d.globalAlpha = 0.7;
+    ctx2d.lineWidth = 1;
+    ctx2d.beginPath();
+    for (const q of [ghost.loopA, ghost.loopB]) {
+      const y = Math.round(yOf(q)) + 0.5;
+      if (y < -2 || y > H + 2) continue;
+      ctx2d.moveTo(0, y);
+      ctx2d.lineTo(W, y);
+    }
+    ctx2d.stroke();
+    ctx2d.setLineDash([]);
+    ctx2d.globalAlpha = 1;
   }
 
   /* Bar lines and beats. Without them a roll is confetti: you can see WHICH notes

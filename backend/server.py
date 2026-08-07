@@ -41,6 +41,7 @@ from .scoreplay import ScorePlayer
 from .scores import Library
 from .sightread import SightReader
 from .store import Store
+from .updater import UpdateBusy, UpdateError, Updater
 from .version import VERSION, check as check_update
 
 FRAME_HZ = 60
@@ -67,6 +68,7 @@ class App:
         self.scores = Library()
         self.player = ScorePlayer(self.engine)
         self.store = Store(config.DB_PATH)
+        self.updater = Updater()
         self.practice = PracticeClock(self.store, self.settings)
         self.sight = SightReader(self.store, self.settings)
         # The exercise engine. Rebound in one atomic assignment when a run starts, so
@@ -93,6 +95,10 @@ class App:
 
     # ------------------------------------------------------------- lifecycle
     def startup(self) -> None:
+        # First, and before the engine: an update that failed or was interrupted left
+        # up to 143 MB beside the application directory, and this start is the earliest
+        # moment anything is allowed to delete it. No-op in a source checkout.
+        self.updater.sweep()
         self.presets = engine_mod.load_presets()
         try:
             self.engine.start()
@@ -387,25 +393,9 @@ def load_preset(pid: str) -> dict[str, Any]:
     preset = app_state.presets.get(pid)
     if preset is None:
         raise HTTPException(404, f"no preset '{pid}'")
-    # The room is part of the sound. A concert hall is not a piano with the send
-    # turned up -- it is FluidSynth's reverb unit at a different room size, and that
-    # unit is global, so it has to travel with the preset or "Concert Grand" is just
-    # "Grand Piano, wetter". The setting moves with it because the Settings sliders
-    # ARE that unit; leaving them showing a room you are not in would make them lie.
-    #
-    # A preset with no `space` inherits the room you are in. Every shipped preset
-    # carries one (tools/make_presets.py), and so does every preset you save, so in
-    # practice that only happens to a JSON someone hand-wrote.
-    #
-    # Guarded on an actual change because Settings.update writes config.local.json,
-    # and browsing the shelf is a normal thing to do -- sixty-eight clicks should not
-    # be sixty-eight disk writes when sixty-two of those rooms are identical.
-    if preset.space:
-        now = app_state.settings.get("reverb", default={}) or {}
-        want = {**now, **preset.space}
-        if want != now:
-            app_state.settings.update({"reverb": preset.space})
-            app_state.engine.apply_reverb(want)
+    # Loading a preset does not touch the reverb unit. Presets used to carry a room and
+    # push it onto the Settings sliders, and the effect of that was that browsing the
+    # shelf silently rewrote a reverb you had tuned. Settings is the only writer now.
     warnings = app_state.engine.set_zones(preset.zones, preset.id, preset.name)
     # Deliberately does NOT become the startup sound. Trying a split out of curiosity
     # used to pin it forever, so every launch afterwards came up with the keyboard cut
@@ -434,9 +424,6 @@ def save_preset(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
         name=str(body.get("name") or pid.replace("-", " ").title()),
         description=str(body.get("description") or ""),
         zones=[Zone.from_dict(z) for z in body.get("zones", [])],
-        # The room you built it in, kept with it. Otherwise saving a sound you dialled
-        # in inside a cathedral hands it back to you in a broom cupboard.
-        space=app_state.settings.get("reverb", default=None),
     )
     engine_mod.save_preset(preset)
     app_state.presets = engine_mod.load_presets()
@@ -563,6 +550,23 @@ def preview(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
         for n in notes:
             eng.fs.noteon(channel, n, velocity)
     return {"ok": True, "notes": notes}
+
+
+@api.post("/api/fx/send")
+def fx_send(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """How much of the sound under your hands goes to the reverb and chorus units.
+
+    Not the units themselves -- those are global and are set through /api/settings. This
+    takes no zone id on purpose: it is the whole instrument you are playing, which is the
+    thing a knob you reach for mid-phrase has to be. Layers still edits a single zone's
+    send behind Apply, and this writes through to those same fields so the two agree.
+    """
+    if app_state.engine.fs is None:
+        raise HTTPException(503, "engine not started")
+    for kind in ("reverb", "chorus"):
+        if kind in body:
+            app_state.engine.set_send(kind, float(body[kind]))
+    return {"ok": True, "engine": app_state.engine.status()}
 
 
 # ----------------------------------------------------------------- your data
@@ -823,6 +827,41 @@ def delete_score(score_id: str) -> dict[str, Any]:
 @api.post("/api/update/check")
 def update_check() -> dict[str, Any]:
     return {"ok": True, **check_update()}
+
+
+# Three presses, not one: check, then download, then restart. The download is the only
+# one that takes a while, so it starts a worker thread and answers immediately -- the
+# same contract as metro.start() and loop.arm(). Status is polled rather than pushed on
+# the heartbeat because the About panel lives in the settings overlay, which receives no
+# status frames at all.
+@api.get("/api/update/status")
+def update_status() -> dict[str, Any]:
+    return app_state.updater.status()
+
+
+@api.post("/api/update/download")
+def update_download() -> dict[str, Any]:
+    try:
+        return app_state.updater.start()
+    except UpdateBusy as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except UpdateError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@api.post("/api/update/cancel")
+def update_cancel() -> dict[str, Any]:
+    return app_state.updater.cancel()
+
+
+@api.post("/api/update/apply")
+def update_apply() -> dict[str, Any]:
+    # Answers, then closes Keys a moment later. Consent to download is not consent to
+    # restart, which is why this is its own press and not the tail of the last one.
+    try:
+        return app_state.updater.apply()
+    except UpdateError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 
 @api.post("/api/backing")

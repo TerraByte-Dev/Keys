@@ -17,20 +17,22 @@
  * cost is opted into, on purpose.
  */
 
-import { $, api, h, hms, mod, toast } from './ui.js';
+import { $, api, fill, h, hms, mod, toast } from './ui.js';
 import { startGhost } from './app.js';
+import { failureNote, importScores } from './import-scores.js';
 
 export function createLibrary() {
   let scores = [];
   let sig = null;
+  let failed = [];
 
   const el = mod('Songs', h('span', { id: 'lib-count' }, ''),
     h('div.btnrow', { style: { marginBottom: '10px' } },
       h('button.btn', { id: 'lib-add' }, 'Import a MIDI or score…'),
       h('input', {
-        type: 'file', id: 'lib-file', hidden: true,
+        type: 'file', id: 'lib-file', hidden: true, multiple: true,
         accept: '.mid,.midi,.musicxml,.mxl,.xml',
-        onchange: (e) => importFile(e.target.files?.[0]),
+        onchange: (e) => importFiles(e.target.files),
       })),
     h('div.scroller', null, h('div.list', { id: 'lib-list' },
       h('div.empty', null, 'loading…'))),
@@ -43,6 +45,10 @@ export function createLibrary() {
   async function load() {
     try {
       scores = (await api.get('/api/scores')).scores || [];
+      // The reasons belong to the import run that produced them, not to whatever
+      // reopened the panel an hour later. Dropping them has to move the signature too,
+      // or paint() early-returns and the block they were drawn in stays on screen.
+      if (failed.length) { failed = []; sig = null; }
       paint();
     } catch { /* the panel still explains itself with an empty shelf */ }
   }
@@ -55,9 +61,9 @@ export function createLibrary() {
     sig = next;
     const count = $('#lib-count');
     if (count) count.textContent = scores.length ? `${scores.length} imported` : '';
-    host.replaceChildren(...(scores.length
-      ? scores.map(row)
-      : [h('div.empty', null, 'nothing imported yet')]));
+    fill(host,
+      failureNote(failed),
+      scores.length ? scores.map(row) : h('div.empty', null, 'nothing imported yet'));
   }
 
   function row(s) {
@@ -101,31 +107,33 @@ export function createLibrary() {
     } catch (err) { toast(err.message, 'bad'); }
   }
 
-  async function importFile(file) {
-    if (!file) return;
+  async function importFiles(files) {
+    const picked = [...(files || [])];
+    if (!picked.length) return;
+    const solo = picked.length === 1;
     const busy = $('#lib-add');
-    if (busy) { busy.disabled = true; busy.textContent = 'Reading…'; }
-    try {
-      const res = await fetch('/api/scores', {
-        method: 'POST',
-        headers: { 'x-filename': file.name, 'content-type': 'application/octet-stream' },
-        body: await file.arrayBuffer(),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.detail || res.statusText);
-      scores = body.scores || [];
-      sig = null;
-      paint();
-      // Straight onto the roll, the same as the drawer: importing a song IS asking
-      // to play it.
-      if (body.score) await play(body.score);
-    } catch (err) {
-      toast(err.message, 'bad', 9000);
-    } finally {
-      if (busy) { busy.disabled = false; busy.textContent = 'Import a MIDI or score…'; }
-      const input = $('#lib-file');
-      if (input) input.value = '';        // so the same file can be picked again
+    if (busy) busy.disabled = true;
+    const run = await importScores(picked, (n, total) => {
+      if (busy) busy.textContent = solo ? 'Reading…' : `Reading ${n}/${total}…`;
+    });
+    if (run.scores) scores = run.scores;
+    failed = run.failed;
+    if (busy) { busy.disabled = false; busy.textContent = 'Import a MIDI or score…'; }
+    const input = $('#lib-file');
+    if (input) input.value = '';          // so the same file can be picked again
+    // A run where every file failed leaves `scores` byte-identical, so paint()'s
+    // signature memo would early-return and the summary would never be drawn.
+    sig = null;
+    paint();
+    // One toast for the run however big it is; the per-file reasons are in the block
+    // at the top of the shelf.
+    if (failed.length) {
+      toast(solo ? failed[0] : `${failed.length} of ${picked.length} could not be imported`, 'bad', 9000);
     }
+    // Straight onto the roll, the same as the drawer: importing a song IS asking to
+    // play it. Picking forty is the opposite intent -- you are stocking the shelf --
+    // so a batch plays nothing and leaves you looking at what landed.
+    if (solo && run.landed) await play(run.landed);
   }
 
   return {
@@ -135,6 +143,6 @@ export function createLibrary() {
       await load();
     },
     refresh: load,
-    destroy() { scores = []; sig = null; },
+    destroy() { scores = []; sig = null; failed = []; },
   };
 }

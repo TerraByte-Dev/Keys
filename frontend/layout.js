@@ -192,23 +192,35 @@ export function attachLayout(grid, viewId) {
   mo.observe(grid, { childList: true });
 }
 
-/* Order and width from settings. Panels the saved layout has never heard of keep the
-   position their author gave them, which is what makes adding a panel safe. */
+/* Order and width from settings. A panel the saved layout has never heard of goes back
+   beside the panel its author wrote it after, which is what makes adding a panel safe. */
 function applySaved(grid, viewId) {
   const layout = saved[viewId];
   if (!Array.isArray(layout) || !layout.length) return;
-  const byId = new Map([...grid.children]
-    .filter((el) => el.dataset.panel)
-    .map((el) => [el.dataset.panel, el]));
+  // The order mount() built, read before the appends below start shuffling grid.children.
+  const authored = [...grid.children].filter((el) => el.dataset.panel);
+  const byId = new Map(authored.map((el) => [el.dataset.panel, el]));
 
+  const placed = new Set();
   for (const entry of layout) {
     const col = byId.get(entry.id);
     if (!col) continue;                       // a panel that no longer exists
     if (SPANS.includes(entry.span)) setSpan(col, entry.span);
     grid.append(col);                         // saved panels first, in saved order
+    placed.add(col);
   }
-  // Anything not in the saved layout is new since it was written, and lands after --
-  // visible rather than silently hidden or wedged into a stale slot.
+  // Appending every saved panel has just swept the unsaved ones to the FRONT -- they are
+  // the only children nothing moved. That is how Effects, added to Play after this layout
+  // was written, came out above Presets instead of under Touch response where Play puts
+  // it. So each one is threaded back in after the saved panel it was authored after; only
+  // a panel with no saved panel before it at all stays at the front.
+  let anchor = null;
+  for (const col of authored) {
+    if (placed.has(col)) { anchor = col; continue; }
+    if (anchor) anchor.after(col);
+    else grid.prepend(col);
+    anchor = col;
+  }
 }
 
 function readLayout(grid) {

@@ -64,6 +64,14 @@ const PLAYABLE_HI = 108;
    enough that a real grace note stays its own event. */
 const GATE_EPS = 0.03;
 
+/* The shortest section the loop will take seriously, in quarter notes.
+   This is a guard rather than a taste: the wrap below subtracts the distance from A to
+   B out of the frame's remaining music, so a section of length zero subtracts nothing,
+   `left` never falls, and the while loop hangs the tab. roll.js's dt clamp does not
+   save you -- it bounds the step, not the number of laps. A quarter note is shorter
+   than any section worth grinding and far enough above zero to bound the laps. */
+const MIN_LOOP_Q = 0.25;
+
 const DEFAULT_BPM = 100;
 const MIN_BPM = 20;
 const MAX_BPM = 240;
@@ -121,6 +129,13 @@ export function createGhost(payload, opts = {}) {
     hands: 'both',
     waiting: false,
     seq: 0,              // bumped on every seek, so the roll rebuilds its cursors
+
+    /* The section, in quarter notes, and whether there is one. `looping` is the only
+       field that means "there is a section": both ends can be stamped and still be too
+       close together to be one. */
+    loopA: 0,
+    loopB: 0,
+    looping: false,
 
     // --- read by the control bar ---
     bpm: DEFAULT_BPM,
@@ -199,6 +214,66 @@ export function createGhost(payload, opts = {}) {
     return [...required(gates[gi])];
   }
 
+  /* Where A and B actually land, and they land in OPPOSITE directions: A on the bar
+     line at or before the playhead, B on the first one strictly after it. Stamping A a
+     beat late gives a loop that lurches on every lap, and a section that begins on a
+     bar line is also the only one the readout can name honestly.
+
+     Both ends used to snap to the NEAREST line, and that is wrong in a way only the
+     clock can see. You decide a phrase has ended just AFTER its bar line has gone past
+     -- hearing the end is what tells you where it was -- and nearest then stamps B
+     BEHIND the playhead. advance() refuses to wrap when the playhead is already past B
+     on purpose (locating outside the section plays on, the way a DAW does), so the
+     section was armed, banded and named while the clock ignored it, and whether the
+     feature worked at all came down to about 20 ms of click timing. Nearest also
+     collapsed A onto B whenever both were stamped inside one bar, which is exactly how
+     you ask for "loop this bar" -- so that asked for nothing. Ceiling B cures both, and
+     turns the readout's "bars 2-3" from approximately true into literally true.
+
+     `total` is the ceiling's fallback and also its cap: it is max(onset + duration), so
+     it can sit past the last bar line -- the end of the piece has to be reachable as B
+     -- and equally a B past it is a section the playhead can never get to. */
+  function barFloor(q) {
+    if (!measures.length) return q;          // nothing to snap to
+    // Before the first bar line there is no earlier line to name, so A lands on it.
+    let best = measures[0].onset;
+    for (const m of measures) {
+      if (m.onset <= q && m.onset > best) best = m.onset;
+    }
+    return best;
+  }
+
+  function barCeil(q) {
+    if (!measures.length) return q;
+    let best = total;
+    for (const m of measures) {
+      if (m.onset > q && m.onset < best) best = m.onset;
+    }
+    return best;
+  }
+
+  /* Setting A past B is a mistake rather than an instruction to play backwards, so
+     each end pushes the other out of its way -- the same rule backing.js uses for a
+     video. It pushes to the far side of the bar you stamped in rather than onto the
+     line you stamped, so the pair comes out one bar apart instead of collapsed: two
+     presses inside one bar are an instruction, not something markLoop has to refuse.
+
+     A only pushes B when a section already exists, and that guard is not cosmetic. B
+     starts at 0, so an unguarded push fired on the FIRST press of Set A -- one press,
+     and the piece was suddenly wrapping the bar you happened to be standing in. "Set
+     the start" has to mean set the start; the section arms when you say where it ends. */
+  function markLoop(which, q) {
+    const lo = barFloor(q);
+    const hi = barCeil(q);
+    if (which === 'A') {
+      model.loopA = lo;
+      if (model.looping && model.loopB <= lo) model.loopB = hi;
+    } else { model.loopB = hi; if (model.loopA >= hi) model.loopA = lo; }
+    model.looping = model.loopB - model.loopA >= MIN_LOOP_Q;
+    onChange();
+    return model.looping;
+  }
+
   function advance(dt) {
     if (!model.playing) {
       if (model.waiting) { model.waiting = false; onChange(); }
@@ -219,6 +294,26 @@ export function createGhost(payload, opts = {}) {
     while (left > 0) {
       const gate = model.wait && gi < gates.length ? gates[gi] : null;
       const room = gate ? Math.max(0, gate.at - model.nowQ) : Infinity;
+      /* The section's end, and only while the playhead is still under it. Locating
+         PAST B has to be allowed to stay past it, which is what a DAW does: outside
+         the loop you play on, inside it you wrap. Without that guard a scrub click
+         past B is silently undone on the very next frame. */
+      const roomB = model.looping && model.nowQ < model.loopB
+        ? model.loopB - model.nowQ
+        : Infinity;
+
+      /* Ties go to B. A gate written exactly on the section's end belongs to the next
+         lap; wait for it here instead and the loop deadlocks with no way out but
+         Clear. */
+      if (roomB <= room && left >= roomB) {
+        left -= roomB;
+        /* seek() IS the wrap. It re-arms the gate index, bumps `seq` so the roll's
+           forward-only cursors rebuild, and spends what is held -- which is what stops
+           a section that begins and ends on the same pitch from having its first gate
+           opened for free by the hand you finished the last lap with. */
+        seek(model.loopA);
+        continue;                     // and the rest of the step is played from A
+      }
 
       if (gate && left >= room) {
         // Land exactly on the gate rather than overshooting it, or the first note of
@@ -288,6 +383,18 @@ export function createGhost(payload, opts = {}) {
       // the piece rather than let you past one moment of it.
       onChange();
       return true;
+    },
+
+    /* The section, stamped from wherever the playhead is. Stamping B is enough to
+       start it wrapping; there is no arm button, because setting an end you then have
+       to switch on is a step that exists only to be forgotten. */
+    setLoopA() { return markLoop('A', model.nowQ); },
+    setLoopB() { return markLoop('B', model.nowQ); },
+    clearLoop() {
+      model.loopA = 0;
+      model.loopB = 0;
+      model.looping = false;
+      onChange();
     },
 
     play() {
@@ -361,14 +468,15 @@ export function createGhost(payload, opts = {}) {
       this.frame({ held: Array.isArray(list) ? list : [] });
     },
 
-    /* Which bar the playhead is in, 1-based, for the readout. */
-    bar() {
+    /* Which bar a position is in, 1-based, for the readout. Defaults to the playhead;
+       the argument is what lets the same readout name A and B. */
+    bar(q = model.nowQ) {
       if (!measures.length) return 0;
       let lo = 0;
       let hi = measures.length - 1;
       while (lo < hi) {
         const mid = (lo + hi + 1) >> 1;
-        if (measures[mid].onset <= model.nowQ) lo = mid; else hi = mid - 1;
+        if (measures[mid].onset <= q) lo = mid; else hi = mid - 1;
       }
       return measures[lo].number;
     },

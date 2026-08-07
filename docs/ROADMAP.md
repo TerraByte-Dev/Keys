@@ -20,7 +20,7 @@ more to do at their own pace, or does it try to teach them? The first kind gets 
 | **M7** | Play-along / falling notes | ✅ ghost mode — silent falling roll, wait-for-me, hands separate, songs drawer |
 | **M8** | Recording | 🟡 the loop station records and overdubs; no `.mid` / `.wav` export |
 | **M9** | Deeper stats | 🟡 timing histogram, activity calendar and key/chord heatmaps done; miss heatmap not started |
-| **M10** | Packaging | 🟡 `dist/Keys` builds and runs; no installer, no in-place update |
+| **M10** | Packaging | 🟡 `dist/Keys` builds, zips with a checksum, and updates itself in place; no installer, unsigned |
 | **M11** | Practice shelf | ✅ scales, arpeggios, sight reading; one file + one registry line adds a type |
 | **M12** | Backing tracks | ✅ YouTube shelf with A/B loop points and a speed control |
 
@@ -68,10 +68,16 @@ either way. It was not the reason to skip this and it is not a reason to regret 
 
 ## Next
 
-**The installer, and updating in place.** `tools/build_exe.py` produces a runnable `dist/Keys` and
-**Settings → About** checks GitHub for a newer release. What is missing is applying one, which means replacing
-the application directory while it runs — an installer's job. The path, and the two things to settle first
-(code signing, and Velopack's Python side), are in [`PACKAGING.md`](PACKAGING.md).
+**Code signing, and an installer.** Updating in place shipped: **Settings → About** checks GitHub,
+downloads the release zip on your say-so, and a detached `.cmd` renames the entries the release ships —
+`Keys.exe` and `_internal` — aside and moves the new ones in once the app has closed. Three separate presses,
+nothing on a timer, nothing else in the folder touched, and `%LOCALAPPDATA%\Keys` not in the blast radius.
+`tools/build_exe.py` now emits the zip and a SHA-256 sidecar so a download is checkable at all. What is left
+costs money or bytes rather than thought: the binary is **unsigned**, so a first-time browser download still
+gets "Windows protected your PC"; there is **no installer**, just a zip you extract; and every update is the
+full ~55 MB because nothing diffs anything. Velopack answers the last two and was deliberately not taken —
+that reasoning, and the swap mechanic in enough detail to debug it at 2am, are in
+[`PACKAGING.md`](PACKAGING.md).
 
 **Two-hand exercises with real independence.** Scales and arpeggios take `hands: R | L | Both` and
 `motion: parallel | contrary` today, and hands-together steps carry both notes so onset spread falls straight out
@@ -90,12 +96,25 @@ that onto the 88-key display would close the loop between "what I'm bad at" and 
 (keys / organs / strings / brass / synths / mallets / world) and favourites. Dropping extra SoundFonts into the
 data directory and picking them per zone already works.
 
-**M13 — a real soft piano. SHIPPED.** `soundfonts/OsirisUnaCorda.sf3`, built by
-[`tools/make_osiris.py`](../tools/make_osiris.py) from [Osiris Piano](https://github.com/sfzinstruments/Osiris_Piano)
+**M13 — a real soft piano. BUILT, SHIPPED, THEN REMOVED.** `soundfonts/OsirisUnaCorda.sf3`, built by
+`tools/make_osiris.py` from [Osiris Piano](https://github.com/sfzinstruments/Osiris_Piano)
 (Versilian Studios × Karoryfer, **CC0-1.0**) — a worn Yamaha C2 recorded at half-stick with the soft pedal down and
-very low dynamics. Two recorded velocity layers, no round robins. Presets: *Soft Grand* and *Soft Grand + Halo*.
+very low dynamics. Two recorded velocity layers, no round robins. It shipped as *Soft Grand* and *Soft Grand +
+Halo*, next to a `whisper` velocity curve and a set of per-preset reverb rooms aimed at the same complaint.
 
-Four things learned doing it, so nobody re-learns them:
+**All of it is gone**, at the request of the person it was built for: *"the new soundfonts/instruments are not
+good. I wanted a gentle piano, I think you manually tried to recreate it. Same with the concert hall. I dont think
+all of that was necessary. We maybe just have a panel of audio effects/knobs to change the sound of whatever
+instrument you are playing."* Removed: the font, its build script, the `whisper` curve, the per-preset rooms, and
+the eight presets that existed for nothing but those three. What replaced it is
+`POST /api/fx/send` and a live effects panel — the reverb and chorus sends on whatever is under your hands,
+moving while you play, instead of a shelf of pre-baked opinions about what "soft" means.
+
+The lesson sitting above the technical ones: **a sound is not a feature you can specify from a spectrogram.** The
+measurements were right — that piano really does rise in 32 ms where the GM grand strikes in 4 — and it still was
+not what was wanted. A knob the player turns beat a font the developer picked.
+
+Five things learned building it, so nobody re-learns them:
 
 - **FLAC's compression does not survive into SF2.** 26.6 MB of source FLAC is 206 MB of raw PCM stereo. The format
   stores PCM; that is the whole size problem.

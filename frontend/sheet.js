@@ -13,9 +13,10 @@
 // `paint` is imported under another name: this module already has a local paint()
 // for the library list, and the local declaration shadows the import -- so
 // paint(slider) would silently repaint the list and leave the slider unfilled.
-import { $, api, h, hms, mod, paint as paintSlider, slider, toast } from './ui.js';
+import { $, api, fill, h, hms, mod, paint as paintSlider, slider, toast } from './ui.js';
 import { startGhost } from './app.js';
 import { loadScore, renderPage, verovio } from './engrave.js';
+import { failureNote, importScores } from './import-scores.js';
 
 export function createSheet(ctx) {
   let scores = [];
@@ -24,6 +25,7 @@ export function createSheet(ctx) {
   let page = 1;
   let notes = null;          // the backend's timeline for the open score
   let listSig = null;
+  let failed = [];
   let transport = null;      // the server's transport state, never our own guess
 
   const el = mod('Sheet music', 'bring your own',
@@ -53,8 +55,9 @@ export function createSheet(ctx) {
     h('div.btnrow', { style: { margin: '12px 0' } },
       h('input', {
         type: 'file', id: 'sheet-file', accept: '.musicxml,.mxl,.xml,.mid,.midi',
+        multiple: true,
         style: { flex: '1', minWidth: '200px' },
-        onchange: (e) => importFile(e.target.files?.[0]),
+        onchange: (e) => importFiles(e.target.files),
       })),
 
     h('div.sheet', { id: 'sheet-stage', style: { display: 'none' } },
@@ -94,30 +97,40 @@ export function createSheet(ctx) {
   async function load() {
     try {
       scores = (await api.get('/api/scores')).scores || [];
+      // The reasons belong to the import run that produced them, not to a later
+      // reopening of the panel. Dropping them has to move the signature too, or
+      // paint() early-returns and the block they were drawn in stays on screen.
+      if (failed.length) { failed = []; listSig = null; }
       paint();
     } catch { /* the panel still explains itself with an empty library */ }
   }
 
-  async function importFile(file) {
-    if (!file) return;
+  async function importFiles(files) {
+    const picked = [...(files || [])];
+    if (!picked.length) return;
+    const solo = picked.length === 1;
     const input = $('#sheet-file');
-    try {
-      const res = await fetch('/api/scores', {
-        method: 'POST',
-        headers: { 'x-filename': file.name, 'content-type': 'application/octet-stream' },
-        body: await file.arrayBuffer(),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.detail || res.statusText);
-      scores = body.scores || [];
-      listSig = null;
-      paint();
-      toast(`Imported ${body.score?.title || file.name}`, 'good');
-      openScore(body.score.id);
-    } catch (err) {
-      toast(err.message, 'bad', 9000);
-    } finally {
-      if (input) input.value = '';       // so the same file can be picked again
+    // The only import surface in the app with no button of its own to say "Reading
+    // 3/40…" in -- so the picker itself goes dead for the duration, which at least
+    // means a forty-file run does not look like nothing happened.
+    if (input) input.disabled = true;
+    const run = await importScores(picked);
+    if (run.scores) scores = run.scores;
+    failed = run.failed;
+    if (input) { input.disabled = false; input.value = ''; }  // so the same file can be picked again
+    // A run where every file failed leaves `scores` byte-identical, so paint()'s
+    // signature memo would early-return and the summary would never be drawn.
+    listSig = null;
+    paint();
+    if (failed.length) {
+      toast(solo ? failed[0] : `${failed.length} of ${picked.length} could not be imported`, 'bad', 9000);
+    }
+    // One file is a request to read that file. Forty is a request to have forty, and
+    // engraving is 7 MB of Verovio plus a page you did not ask for -- so a batch just
+    // leaves them on the list.
+    if (solo && run.landed) {
+      toast(`Imported ${run.landed.title || picked[0].name}`, 'good');
+      openScore(run.landed.id);
     }
   }
 
@@ -127,33 +140,32 @@ export function createSheet(ctx) {
     const sig = scores.map((s) => `${s.id}:${s.title}`).join('|');
     if (sig === listSig) return;
     listSig = sig;
-    if (!scores.length) {
-      host.replaceChildren(h('div.empty', null, 'no scores imported yet'));
-      return;
-    }
-    host.replaceChildren(...scores.map((s) => h('div.track', {
-      class: s.id === open?.id ? 'is-on' : '',
-    },
-      h('div.track__head', null,
-        h('button.btn', { onclick: () => openScore(s.id) }, 'Open'),
-        h('button.btn', {
-          title: 'Play it silently as a falling roll and play along (full screen)',
-          onclick: () => playAlong(s),
-        }, 'Play along'),
-        h('input.track__title', {
-          type: 'text', value: s.title || s.name,
-          onchange: (e) => api.post(`/api/scores/${s.id}`, { title: e.target.value })
-            .then((r) => { scores = r.scores; listSig = null; paint(); })
-            .catch((err) => toast(err.message, 'bad')),
-        }),
-        s.composer ? h('span.tag', null, s.composer) : null,
-        h('span.tag.tag--cyan', null, `${s.measures} bars`),
-        h('span.tag', null, `${s.notes} notes`),
-        (s.warnings || []).length
-          ? h('span.tag.tag--amber', { title: s.warnings.join('\n') }, 'note')
-          : null,
-        h('span.list__spacer'),
-        h('button.btn', { onclick: () => remove(s.id) }, 'Remove')))));
+    fill(host,
+      failureNote(failed),
+      scores.length ? scores.map((s) => h('div.track', {
+        class: s.id === open?.id ? 'is-on' : '',
+      },
+        h('div.track__head', null,
+          h('button.btn', { onclick: () => openScore(s.id) }, 'Open'),
+          h('button.btn', {
+            title: 'Play it silently as a falling roll and play along (full screen)',
+            onclick: () => playAlong(s),
+          }, 'Play along'),
+          h('input.track__title', {
+            type: 'text', value: s.title || s.name,
+            onchange: (e) => api.post(`/api/scores/${s.id}`, { title: e.target.value })
+              .then((r) => { scores = r.scores; listSig = null; paint(); })
+              .catch((err) => toast(err.message, 'bad')),
+          }),
+          s.composer ? h('span.tag', null, s.composer) : null,
+          h('span.tag.tag--cyan', null, `${s.measures} bars`),
+          h('span.tag', null, `${s.notes} notes`),
+          (s.warnings || []).length
+            ? h('span.tag.tag--amber', { title: s.warnings.join('\n') }, 'note')
+            : null,
+          h('span.list__spacer'),
+          h('button.btn', { onclick: () => remove(s.id) }, 'Remove'))))
+        : h('div.empty', null, 'no scores imported yet'));
   }
 
   /* Play along: the same timeline openScore fetches, handed to the roll instead of to
@@ -309,7 +321,7 @@ export function createSheet(ctx) {
 
     destroy() {
       if (open) send('stop');
-      open = null; notes = null; listSig = null; transport = null;
+      open = null; notes = null; listSig = null; transport = null; failed = [];
     },
   };
 }

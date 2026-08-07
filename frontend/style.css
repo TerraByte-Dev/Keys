@@ -2079,6 +2079,13 @@ body.is-drawer .rollbar { padding-left: calc(min(300px, 34vw) + 16px); }
 .rollbar__scrub {
   position: absolute; left: 0; right: 0; top: 0; height: 3px; margin: 0;
 }
+/* The looping section, over the fill rather than under it: you want to see the
+   playhead crossing the band, not the band disappearing behind it. Width 0 is how
+   "no section" is drawn. */
+.rollbar__section {
+  position: absolute; top: 0; bottom: 0; width: 0;
+  background: var(--amber-hot); opacity: .45;
+}
 /* Ghost mode draws its own now-line on the canvas, HIT_PAD above the keys. The
    keybed rule would be a second, wrong one. */
 body.is-ghosting .roll::after { display: none; }
@@ -2104,13 +2111,13 @@ body.is-ghosting.is-immersive .roll::before {
   position: absolute; inset: 0; z-index: 2;
   background: #f4f1e8; overflow: auto;
   /* Top padding clears the rollbar, which floats over this and is NOT a fixed height:
-     it is flex-wrap, and loading a song adds six buttons, a hands group and a tempo
-     knob to it, so it goes from about 74px to about 126px the moment there is
-     anything to read. A hardcoded inset hides the first system exactly when the
-     feature is in use. app.js measures the bar into --rollbar-h; the fallback is the
-     two-line height, because being slightly too low is survivable and being too high
-     is not. */
-  padding: calc(var(--rollbar-h, 126px) + 10px) 16px 16px;
+     it is flex-wrap, and loading a song adds nine buttons, a hands group and a tempo
+     knob to it. Measured headless across 800-2560px wide: 66px with no song, and 66px
+     to 171px with one, the tall end being a narrow window wrapping it to four rows.
+     A hardcoded inset hides the first system exactly when the feature is in use.
+     app.js measures the bar into --rollbar-h; the fallback is that tallest case,
+     because being slightly too low is survivable and being too high is not. */
+  padding: calc(var(--rollbar-h, 172px) + 10px) 16px 16px;
 }
 .rollpaper[hidden] { display: none; }
 /* Over the roll the bar fades into the notes, which is the point of it. Over paper a

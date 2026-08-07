@@ -191,52 +191,63 @@ Ghost mode makes **no backend call and no sound**. The timeline is fetched once 
 play-along still works with no SoundFont, no audio device and the headphones unplugged — unlike the score
 transport, which 503s when the engine is down.
 
-## A preset carries its room, and two different things are called reverb
+## Two different things are called reverb, and only one of them is a knob
 
-A zone's `reverb` is a **send** — CC91, how much of that channel goes to the room. A preset's
-`space` is the **room** — FluidSynth's global reverb unit, its size, damping, width and
-level, which is the same unit the sliders in Settings drive. Neither substitutes for the
-other: send with no room is a louder cupboard, and a cathedral with the send at zero is
-silence in a cathedral. That is why turning the send up never produced a concert hall, and
-why every shipped preset now states its room even when that room is the default. Loading one
-moves the Settings sliders with it, because they are that unit and showing a room you are not
-in would make them lie.
+A zone's `reverb` is a **send** — CC 91, how much of that channel goes to the room. The room
+itself is FluidSynth's global reverb unit: size, damping, width and level, which is what the
+sliders in **Play → Effects** drive. Neither substitutes for the other — send with no room is a louder
+cupboard, a cathedral with the send at zero is silence in a cathedral — which is why turning the
+send up never produced a concert hall.
 
-`whisper` is the other half, and it is worth being precise about what it is, because the first
-version of this section was wrong.
+Presets used to carry a room of their own and push it onto those sliders when loaded. It is
+gone: browsing the shelf silently rewrote a reverb somebody had tuned, which is a bad price for
+a room nobody asked to be moved into. **The settings store is the sole writer of the reverb
+unit** — those knobs post to `/api/settings`, which is the only route into `apply_reverb`.
+`POST /api/fx/send` writes the sends instead — live, on every enabled zone at once, and back
+onto the Zone as well as down the wire, because `set_zones()` re-sends each zone's stored send
+and would otherwise undo it at the next zone edit.
 
-The curve is a **ceiling at velocity 74**. `soft` and `softer` do the opposite of what their
-names suggest — they are named for the touch they *reward*, and they lift quiet notes, so a
-light hand sounds louder.
+**The sends are the only per-instrument tone control there is, and that is a measured limit
+rather than a gap nobody has got to yet.** MIDI CC 71 (resonance), 72 (release), 73 (attack),
+74 (brightness/cutoff) and 75 (decay) do **nothing** in FluidSynth 2.5.7: rendered output is
+byte-identical at 0, 64 and 127 across Grand Piano, Warm Pad and Strings, and the GS NRPNs
+(1:32, 1:33, 1:99, 1:102) are just as dead. FluidSynth installs the ten default modulators the
+SF2.04 spec requires and none of those CCs is among them. So there is no brightness knob and no
+attack knob — they would be placebos with a number beside them. What is real, and measured:
+`set_reverb`, `set_chorus`, `synth.gain`, and the two sends — CC 91 lengthens the tail by ~140%,
+CC 93 widens the stereo image by ~604%.
 
-It was claimed here that the ceiling reaches a softly-struck *recording*. It does not.
-GeneralUser-GS's `Grand Piano` has eight velocity bands, and all eight point at one instrument
-(`Stereo Grand Mellow`), which has no velocity splits and 17 samples mapped by key alone.
-There is a single recording of each note. The bands vary attenuation and filter cutoff, with a
-velocity→cutoff modulator on the softest one. So `whisper` is **an attenuator and a low-pass**
-— which is real and measurable (rendered C4 rises in 3.9 ms at velocity 80 and 18.3 ms at 49,
-with the spectral centroid down to 0.83×), and is genuinely more than turning `synth.gain`
-down, but it is not a different instrument.
+Two traps in the same corner. `Synth.get_chorus_level()` in pyfluidsynth 1.4.0 is a copy-paste
+bug whose body calls `fluid_synth_get_reverb_level`, so the chorus level must never be read back
+from the synth. And nothing in FluidSynth clamps any of these values — the UI's slider bounds
+are the only guard, which is why `Engine.set_send` clamps as well.
 
-**A soft piano is a different instrument**, so the app now ships one. The soft pedal moves the action so the
-strings meet un-grooved, softer felt; the contact lengthens and the upper partials never happen. That is in the
-recording, before a microphone is involved, and no filter reaches back for it. `soundfonts/OsirisUnaCorda.sf3` is a
-Yamaha C2 recorded that way — at middle C it rises in 32 ms against the GM grand's 4, with its spectral centre at
-266 Hz against 504 — and *Soft Grand* uses no velocity curve at all, because the curve exists to drag a bright
-piano somewhere it does not want to go and this one is already there.
+### The quiet end: what was tried, and what it actually proved
 
-It is 5.8 MB because it is **SF3**: the same structure as SF2 with each sample stored as its own Ogg Vorbis stream.
-FluidSynth 2.5.7 reads it, `Engine.load_soundfont` already accepted the extension, and the same libsndfile that
-decodes the source FLAC encodes the Vorbis — so `tools/make_osiris.py` writes it directly with no external
-converter. The trade is decode time rather than disk: ~170 ms per MB, which is why a second font belongs behind a
-preset that loads it on demand and not in the boot path. Zones carry their own `soundfont`, so *Soft Grand + Halo*
-layers this piano under a pad from GeneralUser with both fonts resident at once.
+Two attempts at a soft piano shipped and were then removed, because the person they were for
+tried them and did not want them. What they measured is still true, and is the reason not to
+reach for either again.
 
-The one thing to know before building another SF3: **FluidSynth peak-normalises each Ogg sample as it loads it**,
-so the balance between notes is not the recording's — it is whatever each sample's rms-to-peak ratio happens to
-be. Scaling the sample data cannot change it; only the `initialAttenuation` generator can, because the voice
-applies that after the loader. `tools/make_osiris.py` levels the font that way, against a running median of each
-sample's neighbours, which is what fixed the handful of notes that stood out of an otherwise even keyboard.
+**GeneralUser-GS's grand has one recording, not eight.** Bank 0 program 0 has 49 preset zones
+across eight velocity bands, and every one of them points at the *same* instrument, #257
+`Stereo Grand Mellow`, which has no velocity splits at all and 17 samples mapped by key alone.
+The bands vary attenuation and filter cutoff, with a velocity→cutoff modulator on the softest.
+(34 other instruments in the same font *do* split by velocity, so this is the font's design and
+not a parser artifact.) A velocity curve that caps the keyboard is therefore **an attenuator and
+a low-pass** — real and measurable, rendered C4 rising in 3.9 ms at velocity 80 against 18.3 ms
+at 49 with the spectral centroid down to 0.83× — and genuinely more than turning `synth.gain`
+down. It is still not a different instrument, and a real felt upright measures a ~31 ms rise at
+*every* velocity. You cannot filter your way to a different excitation.
+
+**A different instrument was not the answer either.** A CC0 Yamaha C2 recorded at half-stick
+with the soft pedal down does have the physics — 32 ms rise at middle C against the GM grand's
+4, spectral centre 266 Hz against 504 — and shipped as a 5.8 MB SF3. It went out along with the
+two presets that were its only reason to exist. The finding worth keeping is about SF3 rather
+than about pianos: **FluidSynth peak-normalises each Ogg sample as it loads it**, so the balance
+between notes is not the recording's — it is whatever each sample's rms-to-peak ratio happens to
+be. Scaling the sample data cannot change it; only the `initialAttenuation` generator can,
+because the voice applies that after the loader. Anyone building an SF3 for this app meets that
+on day one; the rest of what it cost is in [`ROADMAP.md`](ROADMAP.md).
 
 ## Storage
 

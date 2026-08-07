@@ -57,11 +57,5 @@
       "fixed_velocity": 100,
       "enabled": true
     }
-  ],
-  "space": {
-    "room": 0.3,
-    "damping": 0.4,
-    "width": 6.0,
-    "level": 0.55
-  }
+  ]
 }

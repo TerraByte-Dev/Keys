@@ -180,7 +180,8 @@ export const CHAPTERS = [
       'The ', b('gear'), ' in the top-right corner holds everything about the app: ',
       'eleven ', b('themes'), ', rebindable ', b('shortcuts'), ', the session-clock ',
       'timeout, your data and this tutorial. The ', b('Sound'), ' tab is the rig — ',
-      'MIDI in, audio out, effects and SoundFonts.',
+      'MIDI in, audio out and SoundFonts. Reverb and chorus are in ', b('Play'),
+      ', with the instrument they colour.',
     ],
   },
   {

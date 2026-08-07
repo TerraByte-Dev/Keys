@@ -570,6 +570,15 @@ function paintGhost() {
   $('#ghost-fill').style.width =
     (g.total ? Math.max(0, Math.min(100, (g.nowQ / g.total) * 100)) : 0).toFixed(2) + '%';
 
+  // The section, as a band across the same bar. Width 0 is how "no section" is drawn,
+  // so there is nothing to hide and nothing to show.
+  const band = $('#ghost-section');
+  if (band) {
+    const on = g.looping && g.total;
+    band.style.left = (on ? (g.loopA / g.total) * 100 : 0).toFixed(2) + '%';
+    band.style.width = (on ? ((g.loopB - g.loopA) / g.total) * 100 : 0).toFixed(2) + '%';
+  }
+
   // Left alone while it has focus, or a repaint fights your hand mid-drag. Painted
   // unconditionally otherwise: the fill is a CSS variable this sets, and skipping it
   // when the value already matched left the track empty under a thumb sitting a third
@@ -592,9 +601,16 @@ function paintGhost() {
   const m0 = g.measures[0];
   const barQ = m0 ? m0.beats * (4 / m0.beat_type) : 4;
   const barsAhead = ahead * (g.bpm / 60) / barQ;
+  /* B is stamped ON a bar line, which is the line AFTER the last bar of the section --
+     naming bar(loopB) would name a bar the loop never plays. A hair back from it is
+     the last bar you actually hear, and it stays right when B is the end of the piece
+     and lands mid-bar instead. */
+  const loop = g.looping
+    ? `  ·  looping bars ${g.bar(g.loopA)}-${g.bar(g.loopB - 1e-4)}`
+    : '';
   $('#ghost-read').textContent =
     `bar ${g.bar()} / ${g.bars()}  ·  ${ahead.toFixed(1)}s ahead`
-    + `  ·  about ${barsAhead.toFixed(1)} bars at ${g.bpm}`;
+    + `  ·  about ${barsAhead.toFixed(1)} bars at ${g.bpm}` + loop;
 
   /* The notes you are being asked for, lit on the real keys. Only while the clock is
      actually held -- a permanent highlight is wallpaper.
@@ -627,17 +643,49 @@ $('#roll-speed')?.addEventListener('input', (e) => {
   }, 200);
 });
 
+/* Restart, and it plays. A piece that has run out leaves the playhead parked at the
+   end, so a bare seek would put you at bar 1 needing a second click on Play -- and
+   "play it again" is one intention, not two. With a section armed it restarts THAT:
+   grinding four bars and pressing Restart means those four bars. */
+function restartGhost() {
+  if (!ghostModel) return;
+  ghostModel.seek(ghostModel.looping ? ghostModel.loopA : 0);
+  if (!ghostModel.playing) ghostModel.play();
+}
+
 $('#ghost-play')?.addEventListener('click', () => ghostModel?.toggle());
-$('#ghost-restart')?.addEventListener('click', () => ghostModel?.seek(0));
+$('#ghost-restart')?.addEventListener('click', restartGhost);
 $('#ghost-skip')?.addEventListener('click', () => ghostModel?.skip());
-// Right arrow past a chord you have decided not to fight today. Not bound through
-// ACTIONS: it only means anything with a song loaded, and stealing an arrow key
-// app-wide to do nothing everywhere else is how a shortcut table rots.
+/* markLoop refuses a section shorter than its hang guard, which the bar-ceiling rule
+   leaves only one way to reach: stamping on the last bar line when that line is also
+   the end of the piece, where there is no later one for B to take. Swallowing the false
+   it returns is what made two presses look like a dead button. */
+function stampLoop(end) {
+  if (!ghostModel) return;
+  const armed = end === 'A' ? ghostModel.setLoopA() : ghostModel.setLoopB();
+  if (armed) return;
+  // A on its own leaves the section open, which is the normal half-way state and not a
+  // failure -- but nothing is drawn until both ends exist, so it needs saying out loud
+  // or the button reads as dead.
+  if (end === 'A') toast(`section starts at bar ${ghostModel.bar(ghostModel.loopA)} -- now Set B`, 'good', 2600);
+  else toast('there is no bar left to loop there', 'bad');
+}
+
+$('#ghost-loop-a')?.addEventListener('click', () => stampLoop('A'));
+$('#ghost-loop-b')?.addEventListener('click', () => stampLoop('B'));
+$('#ghost-loop-clear')?.addEventListener('click', () => ghostModel?.clearLoop());
+// Right arrow past a chord you have decided not to fight today, Home back to the top.
+// Not bound through ACTIONS: they only mean anything with a song loaded, and stealing
+// keys app-wide to do nothing everywhere else is how a shortcut table rots.
 document.addEventListener('keydown', (e) => {
-  if (!ghostModel || e.key !== 'ArrowRight') return;
+  if (!ghostModel || (e.key !== 'ArrowRight' && e.key !== 'Home')) return;
   if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName || '')) return;
+  // On the paper Home already means something: the page scrolls, and a page is taller
+  // than the panel. Restarting the piece is not worth taking that away.
+  if (sheetMode && e.key === 'Home') return;
   e.preventDefault();
-  ghostModel.skip();
+  if (e.key === 'Home') restartGhost();
+  else ghostModel.skip();
 });
 // Closes the SONG, not the screen. You are usually done with a piece long before you
 // are done with the roll.

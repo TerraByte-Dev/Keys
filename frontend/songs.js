@@ -21,15 +21,15 @@
  * else a drop could mean.
  */
 
-import { $, api, h, toast } from './ui.js';
-
-const ACCEPT = /\.(mid|midi|musicxml|mxl|xml)$/i;
+import { $, api, fill, h, toast } from './ui.js';
+import { failureNote, importScores } from './import-scores.js';
 
 export function createSongs(onPlay) {
   let scores = [];
   let open = false;
   let sig = null;
   let playingId = '';
+  let failed = [];
 
   const panel = $('#songs');
   const tab = $('#songs-tab');
@@ -38,6 +38,11 @@ export function createSongs(onPlay) {
   async function load() {
     try {
       scores = (await api.get('/api/scores')).scores || [];
+      // The reasons belong to the import run that produced them. Left standing they are
+      // redrawn by the next repaint that moves the signature -- clicking a song, removing
+      // one -- and the drawer opens on the failures of an hour ago. Clearing them has to
+      // move the signature too, or the block they were drawn in stays on screen.
+      if (failed.length) { failed = []; sig = null; }
       paint();
     } catch { /* the drawer still explains itself with an empty list */ }
   }
@@ -47,22 +52,21 @@ export function createSongs(onPlay) {
     const next = scores.map((s) => `${s.id}:${s.title}:${s.id === playingId}`).join('|');
     if (next === sig) return;
     sig = next;
-    if (!scores.length) {
-      list.replaceChildren(h('div.empty', null, 'nothing imported yet'));
-      return;
-    }
-    list.replaceChildren(...scores.map((s) => h('div.song', {
-      class: s.id === playingId ? 'is-on' : '',
-    },
-      h('button.song__go', { onclick: () => play(s) },
-        h('span.song__name', null, s.title || s.name),
-        h('span.song__meta', null,
-          `${s.measures} bars`,
-          s.staves && s.staves.length > 1 ? ' · 2 hands' : ' · 1 staff',
-          s.from_midi ? ' · MIDI' : '')),
-      h('button.song__x', {
-        title: 'Remove from the library', onclick: (e) => { e.stopPropagation(); remove(s.id); },
-      }, '×'))));
+    fill(list,
+      failureNote(failed),
+      scores.length ? scores.map((s) => h('div.song', {
+        class: s.id === playingId ? 'is-on' : '',
+      },
+        h('button.song__go', { onclick: () => play(s) },
+          h('span.song__name', null, s.title || s.name),
+          h('span.song__meta', null,
+            `${s.measures} bars`,
+            s.staves && s.staves.length > 1 ? ' · 2 hands' : ' · 1 staff',
+            s.from_midi ? ' · MIDI' : '')),
+        h('button.song__x', {
+          title: 'Remove from the library', onclick: (e) => { e.stopPropagation(); remove(s.id); },
+        }, '×')))
+        : h('div.empty', null, 'nothing imported yet'));
   }
 
   async function play(meta) {
@@ -87,35 +91,35 @@ export function createSongs(onPlay) {
     } catch (err) { toast(err.message, 'bad'); }
   }
 
-  async function importFile(file) {
-    if (!file) return;
-    if (!ACCEPT.test(file.name)) {
-      toast(`${file.name} is not a MIDI or a score`, 'bad');
-      return;
-    }
+  async function importFiles(files) {
+    const picked = [...(files || [])];
+    if (!picked.length) return;
+    const solo = picked.length === 1;
     const busy = $('#songs-add');
-    if (busy) { busy.disabled = true; busy.textContent = 'Reading…'; }
-    try {
-      const res = await fetch('/api/scores', {
-        method: 'POST',
-        headers: { 'x-filename': file.name, 'content-type': 'application/octet-stream' },
-        body: await file.arrayBuffer(),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.detail || res.statusText);
-      scores = body.scores || [];
-      sig = null;
-      paint();
-      // Straight onto the roll. Importing a song IS asking to play it; making you
-      // find it in a list you just watched it appear in is a step for nobody.
-      if (body.score) await play(body.score);
-    } catch (err) {
-      toast(err.message, 'bad', 9000);
-    } finally {
-      if (busy) { busy.disabled = false; busy.innerHTML = 'Import a MIDI&hellip;'; }
-      const input = $('#songs-file');
-      if (input) input.value = '';        // so the same file can be picked again
+    if (busy) busy.disabled = true;
+    const run = await importScores(picked, (n, total) => {
+      if (busy) busy.textContent = solo ? 'Reading…' : `Reading ${n}/${total}…`;
+    });
+    if (run.scores) scores = run.scores;
+    failed = run.failed;
+    if (busy) { busy.disabled = false; busy.innerHTML = 'Import a MIDI&hellip;'; }
+    const input = $('#songs-file');
+    if (input) input.value = '';          // so the same file can be picked again
+    // A run where every file failed leaves `scores` byte-identical, so paint()'s
+    // signature memo would early-return and the summary would never be drawn.
+    sig = null;
+    paint();
+    // One toast for the run however big it is -- a toast per bad file buries the stack
+    // under itself. The per-file reasons are in the block at the top of the list.
+    if (failed.length) {
+      toast(solo ? failed[0] : `${failed.length} of ${picked.length} could not be imported`, 'bad', 9000);
     }
+    // Straight onto the roll. Importing a song IS asking to play it; making you
+    // find it in a list you just watched it appear in is a step for nobody. A batch
+    // is the opposite intent -- you are stocking the shelf, not choosing tonight's
+    // piece -- so it plays nothing and shows you what landed instead.
+    if (solo && run.landed) await play(run.landed);
+    else if (!solo) setOpen(true);
   }
 
   function setOpen(want) {
@@ -131,7 +135,7 @@ export function createSongs(onPlay) {
   tab?.addEventListener('click', () => setOpen());
   $('#songs-close')?.addEventListener('click', () => setOpen(false));
   $('#songs-add')?.addEventListener('click', () => $('#songs-file')?.click());
-  $('#songs-file')?.addEventListener('change', (e) => importFile(e.target.files?.[0]));
+  $('#songs-file')?.addEventListener('change', (e) => importFiles(e.target.files));
 
   // Drop anywhere on the roll. dragover must be cancelled or the browser navigates
   // to the file instead, which looks exactly like the app crashing.
@@ -142,7 +146,7 @@ export function createSongs(onPlay) {
   roll?.addEventListener('drop', (e) => {
     stop(e);
     document.body.classList.remove('is-dropping');
-    importFile(e.dataTransfer?.files?.[0]);
+    importFiles(e.dataTransfer?.files);
   });
 
   return {

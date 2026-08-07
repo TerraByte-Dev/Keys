@@ -468,6 +468,254 @@ const piece = (notes, measures) => ({
   ok('a zero-length note is given a floor', zero.notes[0].duration > 0);
 }
 
+/* -- 13. the A/B section ------------------------------------------------- */
+/* The wrap lives in advance(), not in roll.js's frame loop, and this block is the
+   whole payoff of that: a loop implemented in the drawing code could not be checked
+   without a canvas, and the "move to the boundary and return" shape it would invite
+   is the same bug section 9b exists to catch. */
+{
+  // Four bars of 4/4, one note on each downbeat, and a fifth bar that only the piece's
+  // total reaches -- so `total` is 20 and the last bar line is at 16.
+  const bars4 = [1, 2, 3, 4, 5].map((n) => (
+    { number: n, onset: (n - 1) * 4, beats: 4, beat_type: 4 }));
+  const song = () => createGhost(piece(
+    [[0, 1, 60, 1], [4, 1, 62, 1], [8, 1, 64, 1], [12, 1, 65, 1], [16, 4, 67, 1]], bars4));
+
+  const g = song();
+  g.setWait(false);
+  // Both stamps sit where the NEAREST bar line is bar 3's, so a nearest-snap build puts
+  // A and B on the same line and calls the section empty.
+  g.seek(6.5);                      // most of the way through bar 2
+  g.setLoopA();
+  ok('A floors to the top of the bar the playhead is in', near(g.loopA, 4), `A=${g.loopA}`);
+  g.seek(9.5);                      // and just into bar 3
+  g.setLoopB();
+  ok('B ceils to the end of the bar the playhead is in', near(g.loopB, 12), `B=${g.loopB}`);
+  ok('and a section of two bar lines is a section', g.looping === true);
+  ok('bar() names a position other than the playhead, which is what the readout needs',
+     g.bar(g.loopA) === 2 && g.bar() === 3, `bar(A)=${g.bar(g.loopA)}, bar()=${g.bar()}`);
+
+  // B must be able to reach the end of the piece. `total` is 20 and the last bar line
+  // is at 16, so snapping to bar onsets alone would leave the final bar unloopable.
+  const e = song();
+  e.seek(e.total);
+  e.setLoopB();
+  ok('B can reach the end of the piece, not just the last bar line',
+     near(e.loopB, e.total), `B=${e.loopB}, total=${e.total}`);
+}
+
+/* -- 13b. the wrap carries the remainder --------------------------------- */
+{
+  const bars4 = [1, 2, 3].map((n) => ({ number: n, onset: (n - 1) * 4, beats: 4, beat_type: 4 }));
+  const g = createGhost(piece([[0, 1, 60, 1], [4, 1, 62, 1], [8, 1, 64, 1]], bars4));
+  g.setWait(false);
+  g.setTempo(120);                  // 2 quarters a second
+  g.seek(0); g.setLoopA();
+  g.seek(3); g.setLoopB();          // in bar 1, so B ceils to the bar line at 4
+  g.seek(3.9);
+  g.play();
+  const seq0 = g.seq;
+  g.advance(0.15);                  // 0.3 quarters: 0.1 to B, 0.2 more from A
+  ok('the clock wraps B back to A', g.seq > seq0 && g.nowQ < 4, `nowQ=${g.nowQ.toFixed(4)}`);
+  ok('and the rest of the step is carried across the wrap, not thrown away',
+     near(g.nowQ, 0.2, 1e-9), `nowQ=${g.nowQ.toFixed(6)} -- should be 0.2`);
+}
+
+/* -- 13c. the same laps at any frame rate -------------------------------- */
+/* Same sweep as 9b, for the same reason: a wrap that loses the remainder quantises to
+   the frame, so it is invisible at 60fps and only shows as a different lap count on a
+   different monitor. */
+{
+  const bars4 = [1, 2, 3].map((n) => ({ number: n, onset: (n - 1) * 4, beats: 4, beat_type: 4 }));
+  const laps = [];
+  for (const fps of [30, 60, 100, 144]) {
+    const g = createGhost(piece([[0, 1, 60, 1], [4, 1, 62, 1], [8, 1, 64, 1]], bars4));
+    g.setWait(false);
+    g.setTempo(120);
+    g.seek(0); g.setLoopA();
+    g.seek(3); g.setLoopB();        // in bar 1, so B ceils to the bar line at 4
+    g.seek(0);
+    g.play();
+    let seen = 0;
+    let last = g.seq;
+    // Ten and a half seconds of a two-second lap. Not ten: the fifth wrap would land
+    // on the last frame, and whether it lands at all would come down to how the fps
+    // rounds -- which is the accumulated-float question, not the one being asked.
+    for (let f = 0; f < Math.round(fps * 10.5); f++) {
+      g.advance(1 / fps);
+      if (g.seq !== last) { seen++; last = g.seq; }
+    }
+    laps.push(seen);
+  }
+  ok('the lap count agrees at 30/60/100/144 fps', laps.every((n) => n === laps[0]),
+     `laps ${laps.join(', ')}`);
+  ok('and it is the five a two-second lap fits in ten and a half', laps[0] === 5,
+     `${laps[0]} laps`);
+}
+
+/* -- 13d. the lap does not open its own first gate ----------------------- */
+/* A section that begins and ends on the same pitch is the normal case -- it is a
+   phrase -- and the hand you finished the lap with is still down when the wrap lands.
+   seek() spends what is held, which is what stops that from being a free pass. */
+{
+  const bars2 = [1, 2].map((n) => ({ number: n, onset: (n - 1) * 4, beats: 4, beat_type: 4 }));
+  const g = createGhost(piece([[0, 1, 60, 1], [2, 1, 60, 1]], bars2));
+  g.setTempo(240);
+  g.seek(0); g.setLoopA();
+  g.seek(4); g.setLoopB();
+  g.seek(0);
+  g.play();
+  g.frame({ held: [60] });                  // opens the gate at A, then blocks on the next
+  for (let f = 0; f < 60; f++) g.advance(1 / 60);
+  ok('the section plays until its second C, still holding the first', near(g.nowQ, 2),
+     `nowQ=${g.nowQ.toFixed(3)}`);
+
+  const seq0 = g.seq;
+  g.frame({ held: [] });
+  g.frame({ held: [60] });                  // struck again: the section runs out and wraps
+  for (let f = 0; f < 120; f++) g.advance(1 / 60);
+  ok('the lap wraps with the last note of the section still down',
+     g.seq > seq0 && near(g.nowQ, 0), `nowQ=${g.nowQ.toFixed(3)}, seq ${seq0}->${g.seq}`);
+  ok('and that key does not open the new lap for free', g.waiting === true);
+
+  g.frame({ held: [] });
+  g.frame({ held: [60] });
+  for (let f = 0; f < 60; f++) g.advance(1 / 60);
+  ok('striking it afresh does', g.nowQ > 0, `nowQ=${g.nowQ.toFixed(3)}`);
+}
+
+/* -- 13e. wait mode inside a section ------------------------------------- */
+{
+  const bars2 = [1, 2].map((n) => ({ number: n, onset: (n - 1) * 4, beats: 4, beat_type: 4 }));
+  const g = createGhost(piece([[0, 1, 60, 1], [2, 1, 62, 1], [4, 1, 64, 1]], bars2));
+  g.setTempo(120);
+  g.seek(0); g.setLoopA();
+  g.seek(4); g.setLoopB();
+  g.seek(0);
+  g.play();
+  g.frame({ held: [60] });
+  for (let f = 0; f < 600; f++) g.advance(1 / 60);
+  ok('a gate inside the section still freezes the clock', near(g.nowQ, 2),
+     `nowQ=${g.nowQ.toFixed(3)}`);
+  ok('and says it is waiting rather than looping in silence', g.waiting === true);
+}
+
+/* -- 13f. the degenerate section ----------------------------------------- */
+/* A and B on one bar line makes the distance from A to B zero, and the wrap subtracts
+   that distance out of the frame's remaining music -- so an unguarded version never
+   reduces `left` and hangs the tab. MIN_LOOP_Q is why `looping` stays false here.
+   Ceiling B leaves exactly one way to reach that: the last bar line IS the end of the
+   piece, so there is no later line and no remainder for B to take. */
+{
+  const bars2 = [1, 2].map((n) => ({ number: n, onset: (n - 1) * 4, beats: 4, beat_type: 4 }));
+  const g = createGhost(piece([[0, 1, 60, 1], [3, 1, 62, 1]], bars2));   // total = 4
+  g.setWait(false);
+  g.seek(4); g.setLoopA(); g.setLoopB();      // the last bar line, which is also the end
+  ok('a zero-length section is not a section', g.looping === false,
+     `A=${g.loopA} B=${g.loopB}`);
+  ok('and it says no rather than arming silently', g.setLoopB() === false);
+  g.seek(3.5);
+  g.play();
+  const t0 = Date.now();
+  for (let f = 0; f < 300; f++) g.advance(1 / 60);
+  ok('and driving through it terminates rather than hanging',
+     Date.now() - t0 < 2000 && g.nowQ > 3.5, `nowQ=${g.nowQ.toFixed(3)}`);
+}
+
+/* -- 13g. locating past B stays past B ----------------------------------- */
+{
+  const bars4 = [1, 2, 3, 4].map((n) => (
+    { number: n, onset: (n - 1) * 4, beats: 4, beat_type: 4 }));
+  const g = createGhost(piece(
+    [[0, 1, 60, 1], [4, 1, 62, 1], [8, 1, 64, 1], [12, 1, 65, 1]], bars4));
+  g.setWait(false);
+  g.setTempo(120);
+  g.seek(0); g.setLoopA();
+  g.seek(7); g.setLoopB();           // in bar 2, so B ceils to the bar line at 8
+  g.seek(10);                        // a scrub click past the section's end
+  g.play();
+  for (let f = 0; f < 60; f++) g.advance(1 / 60);
+  ok('scrubbing past B plays on rather than teleporting back to A', g.nowQ > 10,
+     `nowQ=${g.nowQ.toFixed(3)}`);
+  // ...and locating BEFORE A plays in and then loops, which is the other half of it.
+  g.seek(0);
+  for (let f = 0; f < 60 * 6; f++) g.advance(1 / 60);
+  ok('while landing before A plays in and then wraps', g.nowQ < 8,
+     `nowQ=${g.nowQ.toFixed(3)}`);
+  g.clearLoop();
+  ok('clearing puts the whole piece back', g.looping === false);
+  for (let f = 0; f < 60 * 6; f++) g.advance(1 / 60);
+  ok('and the playhead runs past the old B', g.nowQ > 8, `nowQ=${g.nowQ.toFixed(3)}`);
+}
+
+/* -- 13h. Set B where the bar line has just gone past -------------------- */
+/* The way the section actually died, and the reason these three positions are 20 ms
+   apart. You decide a phrase has ended by HEARING it end, so the click lands a hair
+   AFTER the bar line -- and nearest-snap then stamped B behind the playhead, where
+   advance()'s deliberate "past B plays on" rule means the clock never wraps. The band
+   was drawn and the readout said "looping" while nothing looped. Two of these three
+   fail against nearest-snap; which one you got was a matter of milliseconds. */
+{
+  const bars5 = [1, 2, 3, 4, 5].map((n) => (
+    { number: n, onset: (n - 1) * 4, beats: 4, beat_type: 4 }));
+  const notes = [[0, 1, 60, 1], [4, 1, 62, 1], [8, 1, 64, 1], [12, 1, 65, 1], [16, 4, 67, 1]];
+  const lapsIn = (g, seconds) => {
+    let seen = 0;
+    let last = g.seq;
+    for (let f = 0; f < Math.round(60 * seconds); f++) {
+      g.advance(1 / 60);
+      if (g.seq !== last) { seen++; last = g.seq; }
+    }
+    return seen;
+  };
+
+  for (const at of [7.98, 8, 8.05]) {
+    const g = createGhost(piece(notes, bars5));
+    g.setWait(false);
+    g.setTempo(240);
+    g.seek(4); g.setLoopA();
+    g.seek(at); g.setLoopB();
+    g.play();
+    const laps = lapsIn(g, 10);
+    ok(`Set B at ${at} arms a section the clock really loops`, laps > 0,
+       `A=${g.loopA} B=${g.loopB} laps=${laps} nowQ=${g.nowQ.toFixed(2)}`);
+  }
+
+  // Both stamps inside one bar mean that one bar. Nearest-snap collapsed them onto the
+  // same line, markLoop refused, and two presses did nothing and said nothing.
+  const one = createGhost(piece(notes, bars5));
+  one.setWait(false);
+  one.setTempo(240);
+  one.seek(9.5);
+  one.setLoopA();
+  one.setLoopB();
+  ok('Set A then Set B inside one bar is that one bar',
+     near(one.loopA, 8) && near(one.loopB, 12) && one.looping === true,
+     `A=${one.loopA} B=${one.loopB} looping=${one.looping}`);
+  one.play();
+  const laps = lapsIn(one, 10);
+  ok('and the one-bar section laps rather than sitting there', laps > 0, `laps=${laps}`);
+
+  // Set A on its own marks the start and NOTHING else. B starts at 0, so the rule that
+  // pushes B out of A's way used to fire on the very first press -- one click on "set
+  // the start" and the piece began wrapping the bar you were standing in.
+  const solo = createGhost(piece(notes, bars5));
+  solo.setWait(false);
+  solo.setTempo(240);
+  solo.seek(6.5);
+  ok('Set A alone does not arm a loop', solo.setLoopA() === false,
+     `A=${solo.loopA} B=${solo.loopB} looping=${solo.looping}`);
+  solo.play();
+  ok('and the clock runs straight past the bar it marked',
+     lapsIn(solo, 10) === 0 && solo.nowQ > 8, `nowQ=${solo.nowQ.toFixed(3)}`);
+  // ...and Set B still closes it, from the A that was already stamped.
+  solo.seek(13);
+  solo.setLoopB();
+  ok('Set B then closes the section A opened',
+     near(solo.loopA, 4) && near(solo.loopB, 16) && solo.looping === true,
+     `A=${solo.loopA} B=${solo.loopB}`);
+}
+
 console.log(JSON.stringify(out));
 """
 

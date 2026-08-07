@@ -1,5 +1,6 @@
-/* Sound -- the rig: MIDI in, audio out, effects, and the diagnostics you want when
- * something is off.
+/* Sound -- the rig: MIDI in, audio out, SoundFonts, and the diagnostics you want when
+ * something is off. The reverb and chorus knobs moved to Play, because they change the
+ * instrument rather than the rig and two unsynced copies of one slider is a bug.
  *
  * Everything about the APP rather than the instrument -- themes, shortcuts, updates,
  * your data, the tutorial -- lives behind the gear in the top rail instead. This tab
@@ -11,7 +12,7 @@
  * output is exclusive-mode. Any app claiming a round-trip number is lying, so this one
  * reports the piece it can actually see and labels it. */
 
-import { $, api, h, mod, slider, stat, toast } from '../ui.js';
+import { $, api, h, mod, stat, toast } from '../ui.js';
 
 export default {
   async mount(root, ctx) {
@@ -116,18 +117,6 @@ export default {
         h('div.note', null,
           'Sets how notes are spelled everywhere: in E flat major, MIDI 63 reads ',
           h('strong', null, 'Eb4'), ', not D#4.'))),
-
-      h('div.col-6', null, mod('Reverb', null,
-        fx('reverb', 'room', 0, 1, 0.01, s.reverb?.room ?? 0.3),
-        fx('reverb', 'damping', 0, 1, 0.01, s.reverb?.damping ?? 0.4),
-        fx('reverb', 'width', 0, 100, 1, s.reverb?.width ?? 6),
-        fx('reverb', 'level', 0, 1, 0.01, s.reverb?.level ?? 0.55))),
-
-      h('div.col-6', null, mod('Chorus', null,
-        fx('chorus', 'level', 0, 10, 0.1, s.chorus?.level ?? 1.2),
-        fx('chorus', 'speed', 0.29, 5, 0.01, s.chorus?.speed ?? 0.4),
-        fx('chorus', 'depth', 0, 21, 0.1, s.chorus?.depth ?? 6),
-        fx('chorus', 'nr', 0, 20, 1, s.chorus?.nr ?? 3))),
 
       h('div.col-6', null, mod('Startup sound', 'what Keys opens with',
         h('label.field', null,
@@ -234,16 +223,4 @@ async function wireAudio(ctx) {
     { exclusive: false }, 'Shared mode -- other apps can use this device again');
   $('#audio-lowlat').onclick = () => apply(
     { exclusive: true, period_size: 144 }, 'Exclusive, 144 samples -- 3.00 ms');
-}
-
-function fx(group, key, min, max, step, value) {
-  const id = `fx-${group}-${key}`;
-  return h('label.field', null,
-    h('span.field__label', null, h('span', null, key),
-      h('span.field__value', { id }, String(value))),
-    slider({
-      min, max, step, value,
-      oninput: (v) => { $('#' + id).textContent = String(v); },
-      onchange: (v) => api.post('/api/settings', { [group]: { [key]: v } }),
-    }));
 }

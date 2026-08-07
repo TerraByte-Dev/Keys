@@ -44,8 +44,7 @@ from backend.engine import Engine  # noqa: E402
 
 LOW, HIGH = config.LOW_KEY, config.HIGH_KEY
 
-# (id, name, description, [zone, ...])           -- space defaults to "room"
-# (id, name, description, [zone, ...], "hall")   -- or name one
+# (id, name, description, [zone, ...])
 # A zone is (instrument-name, lo, hi, transpose, gain, pan, reverb, chorus, curve).
 # Defaults fill the rest; only the first two are required.
 Z = dict
@@ -68,25 +67,6 @@ def z(name, lo=LOW, hi=HIGH, transpose=0, gain=1.0, pan=0.5,
              soundfont=soundfont, bank=bank, program=program)
 
 
-# The rooms. A zone's `reverb` is how much of it you SEND to the room; this is which
-# room it is -- FluidSynth's global reverb unit, the same one the Settings sliders
-# drive. Both are needed and neither substitutes for the other: send with no room
-# gives you a louder cupboard, and a cathedral with the send at zero is silence in a
-# cathedral. "room" is the historic default, byte for byte, so every preset that does
-# not ask for something else sounds exactly as it did before spaces existed.
-#
-# roomsize and damping are 0..1, width is 0..100, level is 0..1. Damping is high
-# frequencies dying first, which is what makes a big space sound like stone (low
-# damping, long bright tail) or like a room with people and carpet in it.
-SPACES: dict[str, dict] = {
-    "dry":       {"room": 0.15, "damping": 0.60, "width":  2.0, "level": 0.30},
-    "room":      {"room": 0.30, "damping": 0.40, "width":  6.0, "level": 0.55},
-    "chamber":   {"room": 0.55, "damping": 0.42, "width": 14.0, "level": 0.65},
-    "hall":      {"room": 0.78, "damping": 0.30, "width": 24.0, "level": 0.75},
-    "cathedral": {"room": 0.94, "damping": 0.15, "width": 45.0, "level": 0.85},
-}
-
-
 RECIPES = [
     # ── keys ────────────────────────────────────────────────────────────────
     ("grand-piano", "Acoustic Grand", "The default. One instrument, A0 to C8.",
@@ -94,59 +74,6 @@ RECIPES = [
     ("bright-piano", "Bright Piano", "Forward and present; cuts through a mix.",
      [z("Bright Grand Piano", reverb=0.22)]),
 
-    # ── soft keys and big rooms ─────────────────────────────────────────────
-    # From one tester's session: a piano that "sounded as if it were gently
-    # whispering", and others that "sounded like a concert hall". The hall is real --
-    # it is the reverb unit at a bigger room size, which is what `space` is for.
-    #
-    # The quiet end is HONEST BUT LIMITED, and the names below say so. `whisper` caps
-    # velocity and low-passes; it cannot make this SoundFont into a felt piano,
-    # because GeneralUser-GS holds one recording of each note and felt is a property
-    # of the recording (see the curve's comment in backend/engine.py). None of these
-    # is called "Felt Piano" for that reason -- an earlier draft was, and it was
-    # claiming something the samples cannot do. A real felt piano needs a real felt
-    # SoundFont; see docs/ROADMAP.md.
-    # THE REAL ONE. A different instrument, not a filtered GM grand: a worn Yamaha C2
-    # recorded at half-stick with the soft pedal down and very low dynamics, which is
-    # the same physics as felt -- the hammers meet un-grooved, softer felt, the
-    # contact lengthens, and the upper partials never happen. Measured against the GM
-    # grand at middle C: it rises in 32 ms rather than 4, and its spectral centre sits
-    # at 266 Hz rather than 504.
-    #
-    # No `whisper` curve here, deliberately. The curve exists to drag a bright piano
-    # somewhere it does not want to go; this piano is already there, and capping its
-    # velocity would only throw away the two layers it actually recorded.
-    ("osiris-soft", "Soft Grand",
-     "A real one, recorded soft: half-stick, soft pedal down. CC0, by Versilian & Karoryfer.",
-     [z("Osiris Una Corda", gain=1.0, reverb=0.42,
-        soundfont="OsirisUnaCorda.sf3", bank=0, program=0)], "chamber"),
-    ("osiris-halo", "Soft Grand + Halo",
-     "The soft grand with a pad under it. Two SoundFonts, one keyboard.",
-     [z("Osiris Una Corda", gain=1.0, reverb=0.48,
-        soundfont="OsirisUnaCorda.sf3", bank=0, program=0),
-      z("Halo Pad", gain=0.22, reverb=0.68, curve="softer")], "hall"),
-
-    ("soft-piano", "Soft Piano",
-     "The quiet one. Plays under your hands rather than at them.",
-     [z("Grand Piano", gain=0.72, reverb=0.46, curve="whisper")], "chamber"),
-    ("midnight-piano", "Midnight Piano",
-     "Soft piano with a pad breathing under it. For playing late.",
-     [z("Grand Piano", gain=0.70, reverb=0.50, curve="whisper"),
-      z("Warm Pad", gain=0.26, reverb=0.70, curve="softer")], "chamber"),
-    ("close-piano", "Close Piano",
-     "Soft, and almost no room. Like the lid is down and your ear is on it.",
-     [z("Grand Piano", gain=0.75, reverb=0.10, curve="whisper")], "dry"),
-    ("concert-grand", "Concert Grand",
-     "Full-sized piano at the front of a hall. Let the pedal ring.",
-     [z("Grand Piano", gain=0.95, reverb=0.62)], "hall"),
-    ("cathedral-keys", "Cathedral Keys",
-     "Soft piano and distant voices in a stone room with a long memory.",
-     [z("Grand Piano", gain=0.72, reverb=0.78, curve="whisper"),
-      z("Voice Oohs", gain=0.22, reverb=0.85, curve="softer")], "cathedral"),
-    ("soft-rhodes", "Soft Rhodes",
-     "Electric piano at a whisper, with a pad. Ballads and late takes.",
-     [z("Tine Electric Piano", gain=0.78, reverb=0.42, chorus=0.22, curve="whisper"),
-      z("Warm Pad", gain=0.22, reverb=0.65, curve="softer")], "chamber"),
     ("piano-strings", "Piano + Strings", "Strings under the piano, felt more than heard.",
      [z("Grand Piano", reverb=0.25),
       z("Slow Strings", gain=0.42, reverb=0.55, curve="soft")]),
@@ -325,12 +252,7 @@ def build() -> tuple[list[dict], list[str]]:
 
     out: list[dict] = []
     errors: list[str] = []
-    for recipe in RECIPES:
-        pid, name, desc, zones = recipe[:4]
-        space_name = recipe[4] if len(recipe) > 4 else "room"
-        if space_name not in SPACES:
-            errors.append(f"{pid}: no space called {space_name!r}")
-            continue
+    for pid, name, desc, zones in RECIPES:
         built = []
         for i, spec in enumerate(zones):
             inst_name = spec["name"]
@@ -338,8 +260,7 @@ def build() -> tuple[list[dict], list[str]]:
                 # A named font: bank/program are taken as given, and the only thing
                 # that can be checked here is that the file is actually present.
                 if config.find_asset("soundfonts", spec["soundfont"]) is None:
-                    errors.append(f"{pid}: soundfont {spec['soundfont']!r} is not in "
-                                  f"soundfonts/ -- run tools/make_osiris.py?")
+                    errors.append(f"{pid}: soundfont {spec['soundfont']!r} is not in soundfonts/")
                     continue
                 found = {"bank": spec["bank"], "program": spec["program"], "drums": False}
                 font = spec["soundfont"]
@@ -361,11 +282,7 @@ def build() -> tuple[list[dict], list[str]]:
                 "curve": spec["curve"], "fixed_velocity": 100, "enabled": True,
             })
         if len(built) == len(zones):
-            # Every shipped preset states its room, even the ones whose room is the
-            # default -- so loading any preset puts you somewhere definite, rather
-            # than leaving you in whatever room the last preset happened to build.
-            out.append({"id": pid, "name": name, "description": desc,
-                        "zones": built, "space": dict(SPACES[space_name])})
+            out.append({"id": pid, "name": name, "description": desc, "zones": built})
     return out, errors
 
 

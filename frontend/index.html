@@ -103,7 +103,7 @@
       <button class="songs__x" id="songs-close" title="Close (S)">&times;</button>
     </div>
     <button class="btn btn--wide" id="songs-add">Import a MIDI&hellip;</button>
-    <input type="file" id="songs-file" accept=".mid,.midi,.musicxml,.mxl,.xml" hidden>
+    <input type="file" id="songs-file" accept=".mid,.midi,.musicxml,.mxl,.xml" multiple hidden>
     <div class="songs__list" id="songs-list"></div>
     <p class="songs__note">
       A <strong>.mid</strong> lands straight on the roll — silent, no engraving.
@@ -131,11 +131,17 @@
         <button class="btn" id="roll-page-next" title="next page">&rsaquo;</button>
       </span>
       <button class="btn" id="ghost-play">Play</button>
-      <button class="btn" id="ghost-restart" title="back to the beginning">|&lsaquo;</button>
+      <button class="btn" id="ghost-restart"
+              title="Play it again from the top, or from A when a section is set (Home).">Restart</button>
       <button class="btn" id="ghost-wait" aria-pressed="true"
               title="Freeze at each chord until you have played it. It waits as long as you need.">Wait</button>
       <button class="btn" id="ghost-skip"
               title="Move past this chord (→). Nothing skips on its own.">Skip</button>
+      <button class="btn" id="ghost-loop-a"
+              title="Start the section at the top of the bar you are in. Nothing loops until you Set B.">Set A</button>
+      <button class="btn" id="ghost-loop-b"
+              title="End the section at the end of the bar you are in. From then on it wraps back to A.">Set B</button>
+      <button class="btn" id="ghost-loop-clear" title="Back to the whole piece">Clear loop</button>
       <span class="rollbar__hands" id="ghost-hands" role="group" aria-label="Which hand">
         <button class="btn is-on" data-hands="both">Both</button>
         <button class="btn" data-hands="R">R</button>
@@ -154,6 +160,9 @@
     <button class="btn" id="ghost-close" hidden>Close song</button>
     <div class="transport__scrub rollbar__scrub" id="ghost-scrub" hidden>
       <div class="transport__fill" id="ghost-fill"></div>
+      <!-- Where the looping section sits in the whole piece. After the fill so it
+           reads over it, translucent so the fill still shows through. -->
+      <div class="rollbar__section" id="ghost-section"></div>
     </div>
   </div>
 

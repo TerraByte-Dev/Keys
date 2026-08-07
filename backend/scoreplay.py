@@ -117,6 +117,15 @@ class ScorePlayer:
             if bpm:
                 self.bpm = max(20.0, min(300.0, float(bpm)))
             start = self._from if at is None else max(0.0, min(self.total, float(at)))
+            # Play at the end means play again. status() parks `_from` at `total` when
+            # the piece runs out, so a bare play() would schedule nothing -- every onset
+            # is behind the start -- and the next status() would flip PLAYING straight
+            # back to PAUSED. Silence, and no way out but reloading the score. This is
+            # the same guard ghost.js spells `if (model.finished) seek(0)`. Only when the
+            # caller named no position: an explicit seek to the end is a seek, not a
+            # rewind.
+            if at is None and self.total and start >= self.total:
+                start = 0.0
             # Unconditional, and the fix for the doubling: whatever is queued goes,
             # whether we think we are playing or not. State can be wrong; the queue
             # is the truth.

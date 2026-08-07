@@ -59,6 +59,11 @@ export default {
   async mount(root, ctx) {
     const st = ctx.state;
     const eng = st.engine || {};
+    const s = st.settings || {};
+    // The sends are per-channel, so they are read off a zone rather than the config.
+    // The first enabled one is the instrument you are playing; with the engine down
+    // there is none, and the sliders seed from the shipped values instead.
+    const zone = (eng.zones || []).find((z) => z.enabled);
     // Yours first, and only when there are any -- a first run sees exactly what it
     // always saw plus one heading. `saved` is stamped by the backend when it writes
     // the file, which is the only test that works the same in a source checkout and
@@ -81,9 +86,7 @@ export default {
           h('div.chips', null, shipped.map((p) => chip(p, eng.preset_id, ctx)))),
         h('div.note', { style: { marginTop: '12px' } },
           'Overlap is the layering mechanism. A preset with two zones over the same keys ',
-          'sounds both -- see ', h('strong', null, 'Layers'), ' to build your own. ',
-          'A preset also carries its room, so loading one moves the reverb in ',
-          h('strong', null, 'Sound'), ' with it.'))),
+          'sounds both -- see ', h('strong', null, 'Layers'), ' to build your own.'))),
 
       // The shelf, directly under the sounds. It was at the bottom for one draft and
       // that put it under sixty-eight chips and five panels -- which is where the old
@@ -156,6 +159,40 @@ export default {
             },
           }, 'Show me the setting keys')),
         h('div.note', { id: 'touch-note', style: { marginTop: '10px' } }))),
+
+      // With the instrument, because the instrument is what these change. They were two
+      // panels in Settings, beside the MIDI ports and the buffer size, which is the rig
+      // -- and two unsynced copies of one slider is a bug, so there is one copy now.
+      h('div.col-12', null, mod('Effects', 'the two units FluidSynth has',
+        h('div.chips__head', null, 'Reverb -- the room'),
+        h('div', { style: FX_GRID },
+          fxKnobs('reverb', s),
+          fxField('fx-send-reverb', 'Reverb send', 0, 1, 0.01, zone?.reverb ?? 0.3,
+                  pushSend('reverb', ctx))),
+        h('div.chips__head', null, 'Chorus -- movement and thickness'),
+        h('div', { style: FX_GRID },
+          fxKnobs('chorus', s),
+          h('label.field', null,
+            h('span.field__label', null, h('span', null, 'Shape')),
+            h('select', {
+              id: 'fx-chorus-type',
+              onchange: (e) => api.post('/api/settings', { chorus: { type: Number(e.target.value) } })
+                .catch((err) => toast(err.message, 'bad')),
+            },
+              h('option', { value: '0', selected: (s.chorus?.type ?? 0) === 0 }, 'Sine'),
+              h('option', { value: '1', selected: (s.chorus?.type ?? 0) === 1 }, 'Triangle'))),
+          fxField('fx-send-chorus', 'Chorus send', 0, 1, 0.01, zone?.chorus ?? 0,
+                  pushSend('chorus', ctx))),
+        h('div.btnrow', null,
+          h('button.btn', { onclick: () => resetFx() }, 'Reset both units')),
+        h('div.note', { style: { marginTop: '12px' } },
+          'Both units are global -- they colour every zone at once -- and a ',
+          h('strong', null, 'send'), ' is how much of what you are playing goes into one. ',
+          'The sends belong to the instrument rather than to the room, so they travel ',
+          'with it: pick another preset and you get that preset\'s sends, and Reset ',
+          'leaves them alone. ',
+          'FluidSynth has exactly two effect units, so there is no tone or brightness ',
+          'knob to offer: the CCs that would drive one render byte-identical at 0 and 127.'))),
 
       h('div.col-6', null, mod('Pedal', 'you have one; a grand has three',
         h('div.note', null,
@@ -388,6 +425,82 @@ function paintPedal(pedal, force = false) {
   }
 }
 
+/* ── effects ──────────────────────────────────────────────────────────────── */
+/* group, key, label, min, max, step, shipped default.
+ *
+ * Every knob in here was rendered offline against the real SoundFonts and moves the
+ * output. The ones you would expect beside them -- brightness, tone, attack, release --
+ * were rendered too and came back byte-identical at 0, 64 and 127, because FluidSynth
+ * installs only the SF2.04 spec's ten default modulators and CC 71-75 are not among
+ * them. A knob that does nothing is worse than a knob that is missing. */
+const FX_KNOBS = [
+  ['reverb', 'room',    'Room',       0,   1,   0.01, 0.3],
+  ['reverb', 'damping', 'Damping',    0,   1,   0.01, 0.4],
+  ['reverb', 'width',   'Width',      0,   100, 1,    6],
+  ['reverb', 'level',   'Room level', 0,   1,   0.01, 0.55],
+  ['chorus', 'level',   'Chorus',     0,   10,  0.1,  1.2],
+  ['chorus', 'nr',      'Voices',     0,   20,  1,    3],
+  // 0.1, not the 0.29 these shipped with: FluidSynth's own warning names 0.100000 as
+  // the floor, so the old minimum threw away a third of the travel for nothing.
+  ['chorus', 'speed',   'Speed',      0.1, 5,   0.01, 0.4],
+  ['chorus', 'depth',   'Depth',      0,   21,  0.1,  6],
+];
+
+const FX_GRID = {
+  display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0 12px',
+};
+
+function fxKnobs(group, s) {
+  return FX_KNOBS.filter(([g]) => g === group).map(([g, key, label, min, max, step, dflt]) =>
+    fxField(`fx-${g}-${key}`, label, min, max, step, s[g]?.[key] ?? dflt,
+            (v) => api.post('/api/settings', { [g]: { [key]: v } })
+              .catch((err) => toast(err.message, 'bad'))));
+}
+
+/* One knob. The post is on onchange and never on oninput, which is not a style
+   preference: writing a setting rewrites the whole config file, 1.60 ms a go, on the
+   same asyncio loop that drains notes at 60 Hz. Once when you let go of the slider is
+   free; sixty a second is 96 ms of that loop every second, and the note display is
+   what pays for it. oninput moves the readout and nothing else. */
+function fxField(id, label, min, max, step, value, push) {
+  return h('label.field', null,
+    h('span.field__label', null, h('span', null, label),
+      h('span.field__value', { id }, String(value))),
+    slider({
+      min, max, step, value,
+      oninput: (v) => { $('#' + id).textContent = String(v); },
+      onchange: push,
+    }));
+}
+
+/* The one control here that is not global: a send is CC91/CC93 on every enabled zone's
+   channel, so the engine answers with the zones it just rewrote and we take them. */
+function pushSend(kind, ctx) {
+  return (v) => api.post('/api/fx/send', { [kind]: v })
+    .then((res) => { ctx.state.engine = res.engine; })
+    .catch((err) => toast(err.message, 'bad'));
+}
+
+/* Presets no longer carry a room, so this is the only way back to the sound Keys
+   shipped with -- and an effects panel you cannot undo is one you play with once. One
+   post for both units, then the sliders are moved to match rather than re-read. */
+async function resetFx() {
+  const body = { reverb: {}, chorus: { type: 0 } };
+  for (const [group, key, , , , , dflt] of FX_KNOBS) body[group][key] = dflt;
+  try {
+    await api.post('/api/settings', body);
+  } catch (err) { toast(err.message, 'bad'); return; }
+  for (const [group, key, , , , , dflt] of FX_KNOBS) {
+    const readout = $(`#fx-${group}-${key}`);
+    readout.textContent = String(dflt);
+    const input = readout.closest('.field').querySelector('input');
+    input.value = dflt;
+    paint(input);
+  }
+  $('#fx-chorus-type').value = '0';
+  toast('Reverb and chorus back to the shipped sound', 'good', 2200);
+}
+
 /* buffer_ms is null in shared mode, where Windows owns the period -- quoting a number
    we did not choose would be a lie, and "sys" was worse: it was a lie nobody could
    read. About 10 ms is the standard Windows engine period at 48 kHz. */
@@ -453,9 +566,6 @@ function chip(preset, activeId, ctx) {
         e.target.closest('.chip').classList.add('is-active');
         for (const w of res.warnings || []) toast(w, 'bad', 7000);
         ctx.state.engine = res.engine;
-        // The preset moved the room with it, so the settings the Sound tab reads
-        // are stale until the next full refresh.
-        if (preset.space && ctx.state.settings) ctx.state.settings.reverb = preset.space;
       } catch (err) { toast(err.message, 'bad'); }
     },
   },

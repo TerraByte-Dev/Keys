@@ -49,7 +49,21 @@ records everything** so you can look back and see which keys, chords and scales 
 
 ## Get started
 
-**Prerequisites**
+**Install the release** — Windows, no Python and nothing else to install.
+
+Download `Keys-<version>-win-x64.zip` from
+[Releases](https://github.com/TerraByte-Dev/Keys/releases/latest), extract it **into a folder of its
+own**, and run `Keys.exe`. The folder matters: the zip's root *is* the application — `Keys.exe` and
+`_internal/` with no wrapper folder above them — so "Extract Here" empties it into whatever folder
+you were standing in, and that folder is the one an in-app update rewrites. The build is unsigned,
+so SmartScreen says "Windows protected your PC" the first time: *More info → Run anyway*.
+
+After that, Keys updates itself in place: **Settings → About → Check for updates**, then **Download**,
+then **Restart and install**. Three separate presses, nothing on launch and nothing on a timer, and
+your practice history, settings and recordings — which live in `%LOCALAPPDATA%\Keys`, not in the
+application folder — are not touched by any of it.
+
+**Prerequisites** — for running from source instead.
 
 - **Python 3.11 or 3.12** — `python-rtmidi` publishes no wheel for 3.13+.
 - **[FluidSynth 2.x](https://github.com/FluidSynth/fluidsynth/releases)** — download the `-cpp11` zip, extract it,
@@ -57,18 +71,6 @@ records everything** so you can look back and see which keys, chords and scales 
   the binding you want is `pyfluidsynth`, which bundles no native library.)*
 - **A SoundFont** — [GeneralUser GS 2.0.3](https://github.com/mrbumpy409/GeneralUser-GS) saved to
   `soundfonts/GeneralUser-GS.sf2`.
-- **The soft piano** (optional; the *Soft Grand* presets need it). `soundfonts/` is gitignored, so it is
-  built rather than committed — one command, about a minute:
-
-  ```bash
-  git clone --depth 1 --filter=blob:none --sparse https://github.com/sfzinstruments/Osiris_Piano.git
-  cd Osiris_Piano && git sparse-checkout set --no-cone Programs UC/A LICENSE && cd ..
-  .venv\Scripts\pip install soundfile
-  .venv\Scripts\python tools\make_osiris.py --src Osiris_Piano
-  ```
-
-  It writes `soundfonts/OsirisUnaCorda.sf3` (5.8 MB) and then plays all 88 keys to prove the file works.
-  Without it the two *Soft Grand* presets warn and fall back; everything else is unaffected.
 - A class-compliant USB MIDI keyboard. Developed and measured against a **Yamaha P-71B**; the 88-key display
   assumes the standard MIDI range 21–108.
 
@@ -99,9 +101,8 @@ plugging it back in needs no restart. `1`–`6` switch views, `M` toggles the me
 - **Layers: splits and layers on one keybed** — a *split* puts bass in your left hand and piano in your right; a *layer* puts piano and strings on the same keys. Both are one idea: a zone is a range of keys pointed at a sound, and **overlapping two zones *is* the layer**. One click each, with a full editor underneath for transpose, gain, pan, sends and velocity curves.
 - **A loop station — be your own band** — record a few bars, they start looping, then play over the top and record that too. Bass, chords, melody, up to five layers, each keeping the instrument you played it with. Takes are locked to the bar and end themselves on the bar line, so a loop never drifts the way a hand-stopped one does; the pedal is captured as note length, so a sustained part sustains.
 - **Backing tracks** — paste a YouTube link, set loop points, and grind eight bars of a solo without hunting the scrubber. Slow it down to learn it, and keep the key and tempo written next to it. (It tells you when exclusive mode has the speakers, instead of playing silently and looking broken.)
-- **68 presets, ~190 instruments** — presets are plain JSON you can edit by hand, and the ones you save get their own group at the top of the shelf rather than being filed alphabetically among the shipped ones. The instrument browser enumerates every preset the SoundFont actually contains — including all 13 drum kits — rather than trusting the GM chart.
-- **A piano that was actually recorded soft** — *Soft Grand* is not the GM piano filtered down; it is a **different instrument**, a worn Yamaha C2 recorded at half-stick with the soft pedal down and very low dynamics ([Osiris Piano](https://github.com/sfzinstruments/Osiris_Piano), CC0). At middle C it rises in 32 ms where the GM grand strikes in 4, and its spectral centre sits at 266 Hz against 504. That difference is in the recording and no filter reaches it — the soft pedal moves the action so the strings meet un-grooved felt, and the upper partials never happen. It ships as **5.8 MB**: SF3 stores its samples as Ogg Vorbis, and [`tools/make_osiris.py`](tools/make_osiris.py) builds it from the source SFZ in one command.
-- **Rooms to put them in** — a preset carries **the room it is in**, not just how much it sends there, so *Concert Grand* is the reverb unit at a hall's size rather than a piano with the knob turned up. Plus a `whisper` velocity curve for the GM piano, which is honestly an attenuator and a low-pass — darker and slower to speak, and not a substitute for the real thing. See [`ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+- **62 presets, ~190 instruments** — presets are plain JSON you can edit by hand, and the ones you save get their own group at the top of the shelf rather than being filed alphabetically among the shipped ones. The instrument browser enumerates every preset the SoundFont actually contains — including all 13 drum kits — rather than trusting the GM chart.
+- **An effects panel, not a shelf of opinions** — reverb and chorus, and how much of the instrument you are playing goes into each, on knobs that move while you play rather than baked into a preset somebody named *Cathedral*. Deliberately only the controls that are real: MIDI’s tone CCs — 71 resonance, 72 release, 73 attack, 74 brightness, 75 decay — do **nothing** in FluidSynth, rendering byte-identical output at 0, 64 and 127, so a brightness knob here would be a placebo with a number beside it. See [`ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 - **Exercises you can pick up** — scales in any key and mode, one hand or both, parallel or contrary; arpeggios with inversions; sight reading. Hands-together steps carry both notes, so the spread between your hands is measured directly — the thing most people plateau on and nobody else surfaces.
 - **A practice clock that doesn't flatter you** — time is credited *between consecutive notes*, capped at a grace window, so "34 minutes" means minutes with your hands on the keys and not minutes with the app open. Streaks, a 90-day calendar, and a per-key heatmap of what you actually use.
 - **A metronome on the audio clock** — clicks are scheduled on FluidSynth's sequencer, driven by the render thread, so they cannot drift against the sound. Tempo ramp with a one-key setback when you miss. It measures **drift**, not just per-beat error — players hold even spacing while the whole tempo slides, and that's the failure mode worth seeing.
@@ -169,7 +170,8 @@ engine's own held-note set puts the display back in sync.
 Deeper notes: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (the invariants and why they exist),
 [`docs/HARDWARE.md`](docs/HARDWARE.md) (every measured number, and the settings that fail silently),
 [`docs/ROADMAP.md`](docs/ROADMAP.md) (what's built and what's deliberately skipped),
-[`docs/PACKAGING.md`](docs/PACKAGING.md) (building the Windows app, and the three ways PyInstaller lies to you).
+[`docs/PACKAGING.md`](docs/PACKAGING.md) (building the Windows app, the three ways PyInstaller lies to you,
+and how an update replaces it without touching your data).
 
 ## Troubleshooting
 
@@ -219,7 +221,6 @@ A **release build** also ships work that is not ours, under its own terms:
 | [FluidSynth](https://www.fluidsynth.org/) | LGPL-2.1 | Shipped as loose `.dll`s beside the executable, which is why the build is `--onedir` and not `--onefile` — the licence requires the libraries stay replaceable. |
 | [Verovio](https://www.verovio.org/) | LGPL-3.0 | `frontend/vendor/`, with [`COPYING.txt`](frontend/vendor/COPYING.txt) and [`COPYING.LESSER.txt`](frontend/vendor/COPYING.LESSER.txt) beside it. Engraves the sheet music. |
 | [GeneralUser GS](https://github.com/mrbumpy409/GeneralUser-GS) by S. Christian Collins | free to distribute, including inside an application; the SoundFont itself may not be sold | The 31 MB of sound. |
-| [Osiris Piano](https://github.com/sfzinstruments/Osiris_Piano) by Versilian Studios & Karoryfer Samples | **CC0-1.0** — a public-domain dedication, so no permission is needed and none is implied to be owed | The soft piano. Converted from SFZ + FLAC to SF3 by [`tools/make_osiris.py`](tools/make_osiris.py); the credit is here because it is deserved, not because CC0 requires it. |
 
 Everything else the app depends on — FastAPI, uvicorn, pyfluidsynth, python-rtmidi,
 pywebview — is installed from PyPI under its own permissive licence and is not
