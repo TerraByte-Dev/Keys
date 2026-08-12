@@ -248,8 +248,27 @@ function applyFrame(f) {
   current?.frame?.(f, ctx);
 }
 
+/* The dot on the gear. Painted from the heartbeat rather than once at boot, because
+   the launch check runs on a thread and lands a second or two after the page does --
+   the badge has to be able to arrive late. */
+function paintUpdateBadge(u) {
+  const want = !!u?.available;
+  document.body.classList.toggle('has-update', want);
+  const gear = $('#gear');
+  if (gear) {
+    gear.title = want
+      ? `Settings — ${u.latest} is available`
+      : 'Settings — themes, shortcuts, updates';
+  }
+  // The overlay is rebuilt on open, so its own dot is set there; this only has to
+  // reach it while it happens to be open.
+  const nav = document.querySelector('.prefs__item[data-id="about"]');
+  nav?.classList.toggle('has-update', want);
+}
+
 function applyStatus(s) {
   ctx.status = s;
+  paintUpdateBadge(s.update);
   // Before the held set: setRange rebuilds the SVG and drops every layer with it, so
   // pushing held keys into the old drawing first would paint them and throw them away.
   applyRange(s.range);
@@ -1006,6 +1025,7 @@ window.addEventListener('beforeunload', () => { if (ws) { ws.onclose = null; ws.
   // Before the first route: a view that draws a range slider wants the real numbers,
   // not the 88 the dock was seeded with.
   applyRange(ctx.state?.range);
+  paintUpdateBadge(ctx.state?.update);
   setBinds(ctx.state?.settings?.keys);
   setRollSpeed(ctx.state?.settings?.ui?.roll_speed ?? 100);
   setVolume((ctx.state?.settings?.audio?.gain ?? 0.6) * 100, { persist: false });

@@ -76,9 +76,14 @@ function paint(ctx) {
   const host = $('#prefs-panels');
   if (!nav || !host) return;
 
+  // The same dot the gear carries, on the row that leads to the button. A badge that
+  // only says "somewhere in here" makes you hunt; this one says where.
+  const updating = !!ctx?.status?.update?.available;
   nav.replaceChildren(...SECTIONS.map((s) => h(
-    'button.prefs__item' + (s.id === section ? '.is-on' : ''),
-    { onclick: () => { section = s.id; paint(ctx); } }, s.label)));
+    'button.prefs__item'
+      + (s.id === section ? '.is-on' : '')
+      + (s.id === 'about' && updating ? '.has-update' : ''),
+    { onclick: () => { section = s.id; paint(ctx); }, 'data-id': s.id }, s.label)));
 
   const current = SECTIONS.find((s) => s.id === section) || SECTIONS[0];
   host.replaceChildren(h('div.grid', null, ...current.build(ctx)));

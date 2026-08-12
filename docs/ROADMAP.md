@@ -69,6 +69,17 @@ either way. It was not the reason to skip this and it is not a reason to regret 
 
 ## Next
 
+**Updates are manual, and the badge is how you find out.** Keys asks GitHub for the public release list once
+when it opens, and if there is something newer the gear grows a small amber dot — repeated on the
+**About & updates** row so the badge says *where* rather than only *that*. Nothing downloads and nothing
+installs: those are still two separate button presses, and the swap still happens on close because you asked
+for it. `ui.update_check_on_launch` turns the launch request off, and then Keys touches the network only when
+you press the button.
+
+This did change a promise. The app used to say it never contacted the network at startup, and that is what made
+a badge impossible — you cannot show a dot for news you refused to hear. The promise moved rather than the badge
+quietly breaking it, and every place that stated the old one (About, Your data) now states the new one.
+
 **Code signing, and an installer.** Updating in place shipped: **Settings → About** checks GitHub,
 downloads the release zip on your say-so, and a detached `.cmd` renames the entries the release ships —
 `Keys.exe` and `_internal` — aside and moves the new ones in once the app has closed. Three separate presses,

@@ -264,9 +264,15 @@ DEFAULTS: dict[str, Any] = {
     # ghost_wait defaults ON: without it you get four bars into a new piece, fall
     # behind, and are watching a video. It is the one place this app steps toward being
     # a tutor, and it is deliberate -- see docs/ROADMAP.md.
+    # update_check_on_launch is the ONLY thing here that reaches the network without a
+    # button press: one GET for the public release list, once per launch, so the gear
+    # can carry a dot when there is something newer. Nothing downloads and nothing
+    # installs -- both of those are still buttons you press. Turn it off and the dot
+    # only ever appears after you press Check for updates yourself.
     "ui": {"key_signature": "C", "theme": "midnight", "show_note_names": True,
            "tour_seen": False, "roll": False, "roll_speed": 100,
-           "ghost_wait": True, "ghost_hands": "both"},
+           "ghost_wait": True, "ghost_hands": "both",
+           "update_check_on_launch": True},
     # Keyboard shortcuts, action id -> key. Empty means "whatever app.js ships",
     # which is where the defaults actually live -- duplicating them here would give
     # the app two answers to the same question.

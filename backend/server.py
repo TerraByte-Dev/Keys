@@ -17,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import json
 import random
+import threading
 import time
 from collections import deque
 from contextlib import asynccontextmanager
@@ -110,6 +111,10 @@ class App:
         self._chord_candidate: str | None = None
         self._chord_since = 0.0
         self._chord_logged: str | None = None
+        # Written once by the launch check's thread and read by the status frame. One
+        # writer, one assignment of a whole dict, so no lock: a reader sees None or a
+        # finished dict and never a half-built one.
+        self._update_available: dict[str, Any] | None = None
 
     # ------------------------------------------------------------- lifecycle
     def startup(self) -> None:
@@ -117,6 +122,7 @@ class App:
         # up to 143 MB beside the application directory, and this start is the earliest
         # moment anything is allowed to delete it. No-op in a source checkout.
         self.updater.sweep()
+        self._start_update_check()
         self.presets = engine_mod.load_presets()
         try:
             self.engine.start()
@@ -299,6 +305,9 @@ class App:
             # somewhere else, corrects itself within a second instead of drawing keys
             # that are not there until someone reloads.
             "range": _range_state(),
+            # On the heartbeat because the launch check finishes a second or two after
+            # the page has loaded -- the badge has to be able to appear late.
+            "update": self.update_badge(),
             "engine": self.engine.status(),
             "midi": self.midi.status(),
             "metronome": self.metro.status(),
@@ -317,6 +326,43 @@ class App:
             "timing": self.timing_snapshot(),
             "errors": self._boot_errors,
         }
+
+    # ---------------------------------------------------------------- updates
+    def _start_update_check(self) -> None:
+        """Ask GitHub once, on a thread, if you have asked to be told.
+
+        This is the ONLY thing Keys does on the network without a button press, it
+        happens once per launch, it sends nothing but a GET for the public release
+        list, and `ui.update_check_on_launch` turns it off. The app used to promise it
+        never touched the network at startup at all; a badge that tells you an update
+        exists cannot be built on that promise, so the promise changed rather than the
+        badge quietly breaking it. README and ARCHITECTURE say so.
+
+        On a thread because startup is in front of the audio engine and the window:
+        GitHub being slow, captive-portalled or down must cost the app nothing. Nothing
+        waits on this and nothing retries -- a failed check leaves no badge, which is
+        the same state as no update, and pressing Check for updates still works.
+        """
+        if not self.settings.get("ui", "update_check_on_launch", default=True):
+            return
+
+        def run() -> None:
+            try:
+                result = check_update()
+            except Exception:  # noqa: BLE001 -- a badge is never worth a traceback
+                return
+            if result.get("newer"):
+                self._update_available = {
+                    "latest": result.get("latest", ""),
+                    "url": result.get("url", ""),
+                }
+
+        threading.Thread(target=run, name="update-check", daemon=True).start()
+
+    def update_badge(self) -> dict[str, Any]:
+        """What the dot on the gear knows. Empty until a check has found something."""
+        found = self._update_available
+        return {"available": bool(found), **(found or {})}
 
     def silence(self) -> list[str]:
         """Stop everything that is making a sound. Returns what was actually stopped.
@@ -379,6 +425,7 @@ class App:
             "curves": engine_mod.CURVE_NAMES,
             "keys": music.KEYS,
             "range": _range_state(),
+            "update": self.update_badge(),
             "hub": self.hub.stats(),
             "errors": self._boot_errors,
         }

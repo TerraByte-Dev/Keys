@@ -203,8 +203,10 @@ export function dataPanel() {
     h('div.data__rows', { id: 'data-rows' }),
     h('div.note', { style: { marginTop: '12px' } },
       'None of this has ever left your computer. Keys has no account, no server and ',
-      'no telemetry — the only thing it ever fetches is the release list, and only ',
-      'when you press Check for updates.')));
+      'no telemetry — the only thing it ever fetches is the public release list, to ',
+      'see whether there is a newer version. That happens when Keys opens and when you ',
+      'press Check for updates, it sends nothing about you, and the first of the two ',
+      'can be switched off in ', h('strong', null, 'About & updates'), '.')));
 
   load();
   return el;
@@ -317,10 +319,31 @@ export function aboutPanel(ctx) {
       'You are running from source, so an update here is a ', h('strong', null, 'git pull'),
       ' rather than a download — there is no installed copy for Keys to replace. ',
       'Checking still works, and the result links to the release.'),
+    h('label.toggle', { style: { marginTop: '12px' } },
+      h('input', {
+        type: 'checkbox',
+        checked: ctx.state?.settings?.ui?.update_check_on_launch !== false,
+        onchange: async (e) => {
+          const on = e.target.checked;
+          try {
+            await api.post('/api/settings', { ui: { update_check_on_launch: on } });
+            if (ctx.state?.settings?.ui) ctx.state.settings.ui.update_check_on_launch = on;
+            toast(on ? 'Keys will look for updates when it opens'
+                     : 'Keys will only look when you press the button', 'good', 2600);
+          } catch (err) { toast(err.message, 'bad'); }
+        },
+      }),
+      h('span.toggle__track'), 'Look for updates when Keys opens'),
     h('div.note', { style: { marginTop: '10px' } },
-      'Keys checks only when you press that button — never on launch, never on a ',
-      'timer, never in the background. The request sends nothing but a GET for the ',
-      'public release list.')));
+      'That is the only thing Keys does on the network without you pressing something: ',
+      'one request for the public release list, once, when it opens. If there is a ',
+      'newer version the gear grows a dot and so does this row — nothing downloads and ',
+      'nothing installs. Turn it off and Keys touches the network only when you press ',
+      h('strong', null, 'Check for updates'), '.'),
+    h('div.note', { style: { marginTop: '8px' } },
+      h('strong', null, 'Nothing here updates on its own.'), ' Downloading is a button, ',
+      'installing is a second button, and the swap happens when you close the app ',
+      'because you told it to. There is no timer and no background install.')));
 
   if (st.frozen) resume();
   return el;

@@ -2307,6 +2307,29 @@ body.is-dropping .roll { outline: 1px dashed var(--amber-deep); outline-offset: 
 }
 .railbtn:hover { color: var(--amber); border-color: var(--hairline-hi); }
 
+/* ── "there is an update" ───────────────────────────────────────────────────
+   One dot, in two places, and both are the same dot: on the gear so you know at
+   all, and on the About row inside so you know where. A badge that only says
+   "somewhere in here" makes you hunt.
+
+   Deliberately small and un-animated. This is a piano; a pulsing notification in
+   the corner while you are playing is the app asking for attention it has not
+   earned. It waits, and it is still there tomorrow. */
+.railbtn { position: relative; }
+body.has-update #gear::after,
+.prefs__item.has-update::after {
+  content: ""; position: absolute;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 0 2px var(--panel-0), 0 0 6px var(--amber-glow);
+}
+body.has-update #gear::after { top: 2px; right: 1px; }
+.prefs__item { position: relative; }
+.prefs__item.has-update::after { top: 50%; right: 9px; margin-top: -3px; }
+/* Selected, the row IS amber -- an amber dot with a dark ring reads as a hollow
+   circle on it. Invert instead: a dark dot on the amber row. */
+.prefs__item.has-update.is-on::after { background: var(--panel-0); box-shadow: none; }
+
 .prefs { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; }
 .prefs__scrim { position: absolute; inset: 0; background: var(--shadow); }
 .prefs__sheet {
