@@ -176,6 +176,37 @@ export function listenNotes(fn) {
   return () => noteListeners.delete(fn);
 }
 
+/* Things that make sound the BACKEND cannot reach. Today that is the backing-track
+   video, which is a YouTube iframe running in someone else's process -- /api/panic can
+   silence every synth voice in the building and that video plays merrily on.
+   Panic is supposed to mean silence, so it has to be able to ask.
+   A silencer returns true if it actually stopped something. */
+const silencers = new Set();
+
+export function onPanic(fn) {
+  silencers.add(fn);
+  return () => silencers.delete(fn);
+}
+
+/* The one door. Both the button and Esc come here, so they cannot drift apart. */
+export async function panic() {
+  const quieted = [];
+  for (const fn of silencers) {
+    // One broken silencer must not stop the rest of the room going quiet.
+    try { if (fn()) quieted.push('video'); } catch (err) { /* not panic's problem */ }
+  }
+  try {
+    const res = await api.post('/api/panic');
+    const all = [...(res.stopped || []), ...quieted];
+    // Naming what stopped is the point: when you cannot tell where a sound is coming
+    // from, "stopped metronome, loop" answers the question, and "nothing was playing"
+    // tells you to look outside Keys -- which is just as useful and used to be silence.
+    toast(all.length ? `Stopped ${all.join(', ')}` : 'Nothing was playing', 'good');
+  } catch (err) {
+    toast(err.message, 'bad');
+  }
+}
+
 function applyFrame(f) {
   if (f.on && noteListeners.size) {
     for (const fn of noteListeners) {
@@ -876,7 +907,7 @@ export const ACTIONS = [
     run: () => { location.hash = view; },
   })),
   {
-    id: 'panic', label: 'All notes off', group: 'Do', key: 'Escape', always: true,
+    id: 'panic', label: 'Stop everything', group: 'Do', key: 'Escape', always: true,
     // The one exception to "panic always fires": in immersive there is no visible
     // control to leave by, and Esc is what everyone will press. Panic keeps its
     // meaning everywhere the button is on screen.
@@ -885,7 +916,7 @@ export const ACTIONS = [
       // drawer", not "throw me out of the piece I am halfway through".
       if (songs.isOpen()) { songs.toggle(false); return; }
       if (immersive) { toggleImmersive(false); return; }
-      api.post('/api/panic').then(() => toast('All notes off', 'good'));
+      panic();
     },
   },
   {
@@ -957,7 +988,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 $('#panic').addEventListener('click', () => {
-  api.post('/api/panic').then(() => toast('All notes off', 'good'));
+  panic();
 });
 
 window.addEventListener('hashchange', route);

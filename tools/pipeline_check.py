@@ -312,7 +312,45 @@ async def main() -> int:
          f"{app.hub.stats()['dropped']} dropped after overfilling a {hub_mod.QUEUE_LIMIT} deep queue")
     app.hub.drain()
 
-    print("11. shutdown")
+    print("11. PANIC stops everything, and says what it stopped")
+    # It used to send all-notes-off and nothing else, which left the metronome clicking
+    # and the loop going round -- the two things most likely to BE the noise you wanted
+    # stopped. "All notes off" is a MIDI operation; "make it stop" is the button.
+    step("a quiet room reports nothing", app.silence() == [], "no false claims")
+
+    app.metro.start()
+    await asyncio.sleep(0.6)
+    step("the click is running", app.metro.status()["running"])
+    app.loop.start()
+    await asyncio.sleep(0.8)
+    loop_state = app.loop.status()["state"]
+    for n in (60, 64, 67):
+        strike(app, n, 100)
+    await asyncio.sleep(0.2)
+    voices_before = app.engine.voice_count()
+
+    stopped = app.silence()
+    await asyncio.sleep(0.2)
+    step("it named the click", "metronome" in stopped, str(stopped))
+    step("it named the loop", "loop" in stopped, f"loop was {loop_state}")
+    step("it counted the notes", any("note" in s for s in stopped), str(stopped))
+    step("the click really stopped", not app.metro.status()["running"])
+    step("the loop really stopped", app.loop.status()["state"] == "stopped")
+    step("nothing is sounding", app.engine.voice_count() == 0,
+         f"{voices_before} voices -> {app.engine.voice_count()}")
+    step("and the app's own held set is clear", not app.held and not app.sustain)
+
+    # It stops; it does not clear. Every one of these can be started again from where
+    # you left it -- panic is an emergency brake, not a reset.
+    step("your tempo survived", app.metro.cfg()["bpm"] > 0, f"bpm={app.metro.cfg()['bpm']}")
+    step("the loop kept its layers", isinstance(app.loop.status()["layers"], list))
+    app.metro.start()
+    await asyncio.sleep(0.3)
+    step("and it all starts again", app.metro.status()["running"])
+    app.silence()
+    step("pressed twice, still quiet", not app.metro.status()["running"])
+
+    print("12. shutdown")
     task.cancel()
     try:
         await task

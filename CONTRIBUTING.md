@@ -31,7 +31,7 @@ SoundFont at `soundfonts/GeneralUser-GS.sf2`. Node is optional and only used by 
 ## Before you open a PR
 
 Run the suite locally. It is eighteen scripts, needs no test runner, and takes about two minutes. Thirteen of
-them need nothing plugged in and no browser, and carry 946 assertions between them; `ui_check` also wants
+them need nothing plugged in and no browser, and carry 947 assertions between them; `ui_check` also wants
 Playwright, and the last four want the audio device:
 
 ```bash

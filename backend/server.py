@@ -318,6 +318,43 @@ class App:
             "errors": self._boot_errors,
         }
 
+    def silence(self) -> list[str]:
+        """Stop everything that is making a sound. Returns what was actually stopped.
+
+        On App rather than in the endpoint because it spans four subsystems and is the
+        one operation that has to be right when everything else has gone wrong -- which
+        means it has to be reachable from a check without an HTTP server in the way.
+        """
+        stopped: list[str] = []
+
+        # The metronome first: it is the one that carries on when everything else has
+        # been stopped, and it is the reason this exists.
+        if self.metro.status().get("running"):
+            self.metro.stop()
+            stopped.append("metronome")
+        # An exercise that borrowed the tempo has to give it back, or the next click you
+        # start comes up at the exercise's bpm with nothing on screen explaining why.
+        self.metro.release()
+
+        # `state`, not a `running` key -- LoopStation.status() computes one internally
+        # and does not publish it, and asking for the wrong key here would fail silently
+        # and leave the loop going round, which is exactly the bug this is fixing.
+        if self.loop.status().get("state") != "stopped":
+            self.loop.stop()
+            stopped.append("loop")
+
+        if self.player.status().get("state") == "playing":
+            self.player.stop()
+            stopped.append("score")
+
+        notes = len(self.held)
+        self.engine.panic()
+        self.held.clear()
+        self.sustain = False
+        if notes:
+            stopped.append(f"{notes} note{'s' if notes != 1 else ''}")
+        return stopped
+
     def timing_snapshot(self) -> dict[str, Any]:
         onsets = self.practice.onsets()[-96:]
         offsets = list(self.click_offsets)[-96:] if self.metro.status()["running"] else None
@@ -541,10 +578,25 @@ def set_audio(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
 # --------------------------------------------------------------------- sound
 @api.post("/api/panic")
 def panic() -> dict[str, Any]:
-    app_state.engine.panic()
-    app_state.held.clear()
-    app_state.sustain = False
-    return {"ok": True}
+    """Silence. The button you press when you do not know what is wrong.
+
+    It used to send all-notes-off and nothing else, which left the metronome clicking,
+    a loop going round and a score still playing -- the three things most likely to be
+    the noise you wanted stopped. "All notes off" is a MIDI operation; this is meant to
+    be the answer to "make it stop", and those are not the same request.
+
+    It STOPS things and destroys nothing. Every transport here can be started again
+    from where you left it, the loop keeps its layers, and a take that was recording is
+    kept rather than thrown away -- the same call LoopStation.stop() already makes,
+    because a take you played is a take you played. Nothing here clears your work.
+
+    Reports what it actually silenced, so the button can say so. Pressing it when the
+    room is already quiet is a no-op that says nothing was running, which is itself
+    worth knowing when you cannot tell where a sound is coming from.
+
+    The work is App.silence(); this is the door onto it.
+    """
+    return {"ok": True, "stopped": app_state.silence()}
 
 
 @api.post("/api/octave")

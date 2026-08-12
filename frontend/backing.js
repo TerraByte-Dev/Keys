@@ -17,6 +17,7 @@
  * makes no network request until you ask it to, and this is the only place it can.
  */
 
+import { onPanic } from './app.js';
 import { $, api, h, hms, mod, slider, toast } from './ui.js';
 
 const API_SRC = 'https://www.youtube.com/iframe_api';
@@ -41,6 +42,7 @@ function loadApi() {
 }
 
 export function createBacking() {
+  let offPanic = null;          // unsubscribes this player from PANIC
   let tracks = [];
   let exclusive = true;
   let player = null;
@@ -368,6 +370,15 @@ export function createBacking() {
     el,
     async init() {
       wire();
+      /* PANIC has to reach this. Everything else Keys can silence goes through the
+         synth; a video does not, and "make it stop" that leaves a backing track
+         playing is not what the button says. Returns whether it stopped anything so
+         the toast can name it. */
+      offPanic = onPanic(() => {
+        if (player?.getPlayerState?.() !== 1) return false;
+        player.pauseVideo();
+        return true;
+      });
       try { apply(await api.get('/api/backing')); }
       catch { /* the shelf is a preference list; the app works without it */ }
     },
@@ -377,6 +388,8 @@ export function createBacking() {
     },
     destroy() {
       stopWatch();
+      offPanic?.();
+      offPanic = null;
       // Leaving Tools throws the iframe away with the rest of the view, so the video
       // is gone whether or not you meant it to be -- do not leave the audio device in
       // shared mode paying 7 ms for a player that no longer exists.

@@ -27,7 +27,7 @@ more to do at their own pace, or does it try to teach them? The first kind gets 
 
 Everything above M1 is covered by `tools/pipeline_check.py`, which drives synthetic notes through the real
 engine, hub, drain loop and websocket — so the suite runs without a piano attached. Eighteen scripts: thirteen
-need nothing plugged in and no browser, and carry 946 assertions between them. `engine_check`, `looper_check` and
+need nothing plugged in and no browser, and carry 947 assertions between them. `engine_check`, `looper_check` and
 `pipeline_check` want the audio device to themselves and refuse to run while Keys is open; `audio_check` also
 wants a piano actually connected, and fails its last step without one.
 

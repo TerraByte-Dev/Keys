@@ -119,7 +119,7 @@ export function keysPanel(ctx) {
     h('div.btnrow', { style: { marginTop: '12px' } },
       h('button.btn', { onclick: () => restore(ctx) }, 'Back to the defaults')),
     h('div.note', { style: { marginTop: '10px' } },
-      h('strong', null, 'All notes off'), ' fires even while you are typing in a ',
+      h('strong', null, 'Stop everything'), ' fires even while you are typing in a ',
       'box — it is the one shortcut you need most at the moment you are least ',
       'able to reach for the mouse. The rest stand aside for text fields.')));
 
