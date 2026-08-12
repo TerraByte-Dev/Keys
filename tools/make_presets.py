@@ -42,7 +42,15 @@ sys.path.insert(0, str(ROOT))
 from backend import config  # noqa: E402
 from backend.engine import Engine  # noqa: E402
 
-LOW, HIGH = config.LOW_KEY, config.HIGH_KEY
+# The 88 keys, as literals, and NOT the running user's declared range.
+#
+# These sixty-odd files ship with the app and are loaded on every machine, so a preset
+# is instrument-agnostic by definition: a zone spanning A0..C8 covers whatever keyboard
+# it lands on, and a zone cut down to somebody's 61 would leave everyone else's bottom
+# two octaves silent. Reading config.LOW_KEY/HIGH_KEY here was safe only while they were
+# constants; now that the range is a setting, generating on a 61-key machine would bake
+# that machine into what every user gets.
+LOW, HIGH = 21, 108
 
 # (id, name, description, [zone, ...])
 # A zone is (instrument-name, lo, hi, transpose, gain, pan, reverb, chorus, curve).

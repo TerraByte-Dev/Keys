@@ -36,6 +36,15 @@ REAL_BEFORE = (REAL_DB.exists(), REAL_DB.stat().st_mtime_ns if REAL_DB.exists() 
                REAL_DB.stat().st_size if REAL_DB.exists() else 0)
 
 TODAY = date.today()
+
+# Pinned to the 88 keys in a scratch settings file. store.range_used() reads the live
+# instrument range for its denominator, so without this the expectations below would be
+# computed from the developer's own config.local.json -- the check would pass on any
+# keyboard and assert nothing about any of them. CONTRIBUTING.md names this failure
+# twice already; this is the third place it could have happened.
+config.settings = config.Settings(TMP / "settings.json")
+config.settings.update({"instrument": {"low": 21, "high": 108, "octave": 0}})
+
 ok = True
 stores: list[Store] = []
 
@@ -274,16 +283,24 @@ step("under 60 s does not count as a day",
 step("but the time itself is still counted", st["total_active_seconds"] == 75,
      "45 s + 30 s of playing that earned no streak day")
 
-print("5. note_heatmap() clamps to the 88 keys")
+print("5. note_heatmap() reports what was played, not what fits the current keyboard")
 heat = fresh("heat")
 hid = heat.start_session("grand-piano")
 heat.log_notes(hid, [(0, 20, 64), (1, 21, 64), (2, 21, 64), (3, 60, 64),
                      (4, 108, 64), (5, 109, 64), (6, 127, 64)])
 hm = heat.note_heatmap(30)
-step("only 21..108 returned", all(config.LOW_KEY <= n <= config.HIGH_KEY for n in hm),
-     str(sorted(hm)))
-step("out-of-range notes dropped", 20 not in hm and 109 not in hm and 127 not in hm)
-step("counts correct", hm == {21: 2, 60: 1, 108: 1}, str(hm))
+# This used to clamp to the 88 keys, which was right while the instrument was a constant
+# and became data loss the moment it was not: declaring a 61-key controller would have
+# deleted a year of A0s out of your own history, in a chart, with nothing to say so.
+step("every key struck is returned", hm == {20: 1, 21: 2, 60: 1, 108: 1, 109: 1, 127: 1},
+     str(hm))
+step("counts are per key", hm[21] == 2 and hm[60] == 1, str(hm))
+# Declare a 25-key controller and ask again. The answer must not move: what the chart
+# draws is the renderer's business, but what the store REPORTS is what was played.
+config.settings.update({"instrument": {"low": 48, "high": 72}})
+step("and declaring a narrower keyboard does not un-play them",
+     heat.note_heatmap(30) == hm, str(heat.note_heatmap(30)))
+config.settings.update({"instrument": {"low": 21, "high": 108}})
 
 print("6. velocity: the Fixed-touch detector")
 fixed = fresh("vel-fixed")
@@ -486,12 +503,25 @@ step("octaves are scientific -- 60 is C4",
 rng = what.range_used(1)
 step("range endpoints and their names", rng["low"] == 36 and rng["high"] == 96
      and rng["low_name"] == "C2" and rng["high_name"] == "C7", str(rng))
+# 87, not 88: A0 to C8 is 88 keys but 87 steps between them. Literal, not derived from
+# the function under test.
 step("span and coverage arithmetic",
      rng["span"] == 60 and rng["coverage"] == round(60 / 87, 3),
-     f"coverage={rng['coverage']} = 60/87 of the 88 keys")
+     f"coverage={rng['coverage']} = 60/87")
+step("and it says what it measured against",
+     rng["of_low"] == 21 and rng["of_high"] == 108, str(rng))
+# The denominator really does follow the keyboard: declare a 61 and the same 60-semitone
+# span becomes a bigger fraction of it.
+config.settings.update({"instrument": {"low": 36, "high": 96}})
+step("coverage is measured against the keyboard you have",
+     what.range_used(1)["coverage"] == round(60 / 60, 3), str(what.range_used(1)))
+step("and it can exceed nothing -- the span used equals the span owned",
+     what.range_used(1)["of_low"] == 36 and what.range_used(1)["of_high"] == 96)
+config.settings.update({"instrument": {"low": 21, "high": 108}})
 blank = fresh("range-empty")
 step("no notes means Nones, not a crash",
      blank.range_used(1) == {"low": None, "high": None, "span": 0, "coverage": 0.0,
+                             "of_low": 21, "of_high": 108,
                              "low_name": None, "high_name": None}, str(blank.range_used(1)))
 
 print("12. interval_histogram: a melody, then chords that must not count")
@@ -626,6 +656,7 @@ step("per-day series are empty",
      and broken.session_lengths() == [] and broken.preset_usage() == [])
 step("range_used is None-shaped",
      broken.range_used() == {"low": None, "high": None, "span": 0, "coverage": 0.0,
+                             "of_low": 21, "of_high": 108,
                              "low_name": None, "high_name": None}, str(broken.range_used()))
 step("totals is zero-shaped",
      broken.totals() == {"active_seconds": 0, "note_count": 0, "sessions": 0, "chords": 0,

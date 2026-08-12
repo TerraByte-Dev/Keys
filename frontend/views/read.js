@@ -9,6 +9,7 @@
  * C#4 and C4 sit on the same line and differ only by the accidental glyph, which is
  * exactly why the server spells notes by key signature instead of always saying "C#". */
 
+import { instrument } from '../app.js';
 import { $, api, h, mod, noteName, stat, toast } from '../ui.js';
 import { renderStaff } from '../staff.js';
 
@@ -56,14 +57,19 @@ export default {
           h('label.field', null,
             h('span.field__label', null, h('span', null, 'Lowest'),
               h('span.field__value', { id: 'sr-lo-v' }, '')),
-            h('input', { id: 'sr-lo', type: 'range', min: 21, max: 108, onchange: pushCfg })),
+            /* The full piano, NOT the declared keyboard -- see setBounds below. The
+               generator meets this window with the keys you own every time it runs
+               (music.reading_window), so narrowing the track here would buy nothing
+               and would silently rewrite the preference it clamped. */
+            h('input', { id: 'sr-lo', type: 'range', min: 0, max: 127, onchange: pushCfg })),
           h('label.field', null,
             h('span.field__label', null, h('span', null, 'Highest'),
               h('span.field__value', { id: 'sr-hi-v' }, '')),
-            h('input', { id: 'sr-hi', type: 'range', min: 21, max: 108, onchange: pushCfg }))),
+            h('input', { id: 'sr-hi', type: 'range', min: 0, max: 127, onchange: pushCfg }))),
         h('label.toggle', { style: { marginTop: '4px' } },
           h('input', { id: 'sr-adaptive', type: 'checkbox', onchange: pushCfg }),
-          h('span.toggle__track'), 'Weight toward my worst notes'))),
+          h('span.toggle__track'), 'Weight toward my worst notes'),
+        h('div.note', { id: 'sr-window', style: { marginTop: '8px' } }))),
 
       h('div.col-12', null, mod('Weakest notes', 'from your own attempt history',
         h('div.list', { id: 'weak-list' }, h('div.empty', null, 'not enough attempts yet')))),
@@ -104,8 +110,21 @@ async function paint(ctx) {
   $('#sr-count').value = String(cfg.notes_per_measure ?? 4);
   $('#sr-lo').value = cfg.low ?? 55;
   $('#sr-hi').value = cfg.high ?? 79;
-  $('#sr-lo-v').textContent = noteName(cfg.low ?? 55);
-  $('#sr-hi-v').textContent = noteName(cfg.high ?? 79);
+  $('#sr-lo-v').textContent = noteName(Number($('#sr-lo').value));
+  $('#sr-hi-v').textContent = noteName(Number($('#sr-hi').value));
+  /* What the generator will actually read out of, when that is narrower than what you
+     asked for. Your preference is never rewritten -- reading_window meets it with your
+     keyboard at generation time -- so the honest thing is to say what it came to. */
+  const inst = instrument();
+  const eff = [Math.max(inst.low, Number($('#sr-lo').value)),
+               Math.min(inst.high, Number($('#sr-hi').value))];
+  const note = $('#sr-window');
+  if (note) {
+    note.textContent = (eff[0] > Number($('#sr-lo').value) || eff[1] < Number($('#sr-hi').value))
+      ? `Your keyboard is ${noteName(inst.low)}-${noteName(inst.high)}, `
+        + `so notes come from ${noteName(eff[0])}-${noteName(eff[1])}.`
+      : '';
+  }
   $('#sr-adaptive').checked = cfg.adaptive !== false;
 
   $('#staff-host').replaceChildren(staffFor(state));

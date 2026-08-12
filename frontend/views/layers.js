@@ -18,26 +18,90 @@
  * warns when that happens and this editor auto-assigns to avoid it. */
 
 import { createLoopStation } from '../loopstation.js';
-import { ctx as appCtx } from '../app.js';
-import { $, $$, api, h, mod, noteName, slider, toast } from '../ui.js';
+import { ctx as appCtx, instrument } from '../app.js';
+import { $, $$, api, h, mod, noteName, paint as paintSlider, slider, toast } from '../ui.js';
 
-const LOW = 21, HIGH = 108;
+/* The keys the player has, read fresh every time rather than captured at import. This
+   module is evaluated before /api/state has been fetched, so a `const LOW = ...` here
+   would be the 88 of a piano for the life of the tab. */
+const LO = () => instrument().low;
+const HI = () => instrument().high;
+
 const zoneColour = (i) => `var(--zone-${(i % 6) + 1})`;
 
 /* Defaults lifted from presets/bass-split.json and presets/piano-strings.json rather
    than invented -- those are tuned recipes, particularly the layer's 0.42 gain and soft
    curve, which is what stops the pad swallowing the piano. */
-const SPLIT_DEFAULT = { left: 32, right: 0, point: 47 };   // Acoustic Bass | Grand Piano
+const SPLIT_DEFAULT = { left: 32, right: 0 };              // Acoustic Bass | Grand Piano
 const LAYER_DEFAULT = { a: 0, b: 48, balance: 0.42 };      // Grand Piano + String Ensemble
+
+/* Where the hands part. B2 (MIDI 47) on a piano, because that is where a walking bass
+   line stops and the right hand starts -- but on a 61-key board it sits a fifth of the
+   way up rather than in the middle, and on a 25-key it is off the end entirely. So it is
+   the piano's answer while the piano's keys are there, and the middle of what you have
+   when they are not. */
+function defaultSplit() {
+  const lo = LO();
+  const hi = HI();
+  const B2 = 47;
+  if (B2 > lo + 6 && B2 < hi - 6) return B2;
+  return Math.round((lo + hi) / 2);
+}
+
+/* An octave stepper, reading and writing the zone's own `transpose`. Deliberately NOT a
+   second persisted field: an octave IS a transpose of twelve, and storing both would
+   give one zone two answers to "how far is this shifted" the moment someone drags the
+   fine slider to 7. The stepper moves in octaves; the slider underneath still does
+   semitones, and they are the same number. */
+function octaveField(label, get, onchange, id) {
+  // `get` rather than a value, because the buttons outlive the render that built them:
+  // capturing the number would make every press step from wherever it started.
+  const step = (by) => onchange(
+    Math.max(-4, Math.min(4, Math.round(get() / 12) + by)) * 12);
+  // The readout is handed back on the element rather than found by id afterwards. The
+  // two in the split builder have no other reason to carry an id, and an id that only
+  // exists so a $() can find it again is an id frontend_check cannot see declared.
+  const value = h('span.field__value', id ? { id } : null, octLabel(get()));
+  const field = h('label.field', null,
+    h('span.field__label', null, h('span', null, label), value),
+    h('div.octstep', null,
+      h('button.btn.btn--sm', { onclick: () => step(-1) }, '−'),
+      h('button.btn.btn--sm', { onclick: () => step(1) }, '+')));
+  field.valueEl = value;
+  return field;
+}
+
+function octLabel(semitones) {
+  const n = Math.round(semitones / 12);
+  return n === 0 ? 'none' : `${n > 0 ? '+' : '−'}${Math.abs(n)} oct`;
+}
 
 let zones = [];
 let instruments = [];
 let station = null;
+/* The split builder's two octave steppers, in semitones. Held here rather than read
+   back off the DOM because a stepper has no input to read -- and rebuilt on mount, so
+   opening the tab twice does not inherit the last visit's shift. */
+let splitOct = { left: 0, right: 0 };
+let splitOctEls = { left: null, right: null };
+
+function paintSplitOct() {
+  if (splitOctEls.left) splitOctEls.left.textContent = octLabel(splitOct.left);
+  if (splitOctEls.right) splitOctEls.right.textContent = octLabel(splitOct.right);
+}
+
+function splitOctField(hand, label) {
+  const field = octaveField(label, () => splitOct[hand],
+                            (v) => { splitOct[hand] = v; paintSplitOct(); });
+  splitOctEls[hand] = field.valueEl;
+  return field;
+}
 
 export default {
   async mount(root, ctx) {
     zones = (ctx.state.engine?.zones || []).map((z) => ({ ...z }));
     if (!zones.length) zones = [blank(0)];
+    splitOct = { left: 0, right: 0 };
     station = createLoopStation(ctx, () => instruments);
 
     root.append(h('div.grid', null,
@@ -53,7 +117,8 @@ export default {
           'Build one below in a click, or open the editor at the bottom to move the split ',
           'point and balance the two sounds.'))),
 
-      h('div.col-6', null, mod('Layout', 'A0 to C8 -- 88 keys',
+      h('div.col-6', null, mod('Layout',
+        `${noteName(LO())} to ${noteName(HI())} -- ${HI() - LO() + 1} keys`,
         h('div.zonebar', { id: 'zonebar' }),
         h('div.btnrow', null,
           h('button.btn', { onclick: () => { zones.push(blank(zones.length)); render(ctx); } },
@@ -71,16 +136,26 @@ export default {
               'melody, without a second keyboard.'),
             instSelect('split-left', SPLIT_DEFAULT.left, 'Left hand'),
             instSelect('split-right', SPLIT_DEFAULT.right, 'Right hand'),
+            /* An octave each, which is the point of a split on a short keyboard: two
+               hands sharing 61 keys have nowhere to go unless one of them can be moved.
+               Set both to the same number and you have the plain split back. */
+            h('div.split__octs', null,
+              splitOctField('left', 'Left octave'),
+              splitOctField('right', 'Right octave')),
             h('label.field', null,
               h('span.field__label', null, h('span', null, 'Split point'),
-                h('span.field__value', { id: 'split-pt-v' }, noteName(SPLIT_DEFAULT.point))),
+                h('span.field__value', { id: 'split-pt-v' }, noteName(defaultSplit()))),
               slider({
-                min: LOW + 6, max: HIGH - 6, step: 1, value: SPLIT_DEFAULT.point,
+                // Bounds from the keyboard you have. Hardcoded 21+6/108-6 inverted on
+                // anything shorter than thirteen keys and put the default off the end
+                // of a 49, which built a left zone matching no key at all and toasted
+                // it as a success.
+                min: LO() + 3, max: HI() - 3, step: 1, value: defaultSplit(),
                 oninput: (v) => {
                   $('#split-pt-v').textContent = noteName(v);
                   // Light the left hand's half on the dock, so the split point is
                   // something you see rather than a note name you decode.
-                  ghost(LOW, v);
+                  ghost(LO(), v);
                 },
               })),
             h('button.btn.btn--wide', { id: 'do-split', onclick: () => buildSplit(ctx) },
@@ -150,7 +225,7 @@ function ghost(lo, hi) {
 
 function blank(i) {
   return {
-    id: 'zone' + (i + 1), name: '', lo: LOW, hi: HIGH, channel: freeChannel(),
+    id: 'zone' + (i + 1), name: '', lo: LO(), hi: HI(), channel: freeChannel(),
     soundfont: 'GeneralUser-GS.sf2', bank: 0, program: 0, transpose: 0,
     gain: 1, pan: 0.5, reverb: 0.3, chorus: 0, curve: 'linear',
     fixed_velocity: 100, enabled: true,
@@ -211,11 +286,22 @@ async function buildSplit(ctx) {
   const left = chosen('split-left');
   const right = chosen('split-right');
   zones = [
-    zoneFrom(left, { id: 'left', lo: LOW, hi: point, channel: 0, gain: 0.9, reverb: 0.15 }),
-    zoneFrom(right, { id: 'right', lo: point + 1, hi: HIGH, channel: 1, gain: 1.0 }),
+    zoneFrom(left, {
+      id: 'left', lo: LO(), hi: point, channel: 0, gain: 0.9, reverb: 0.15,
+      transpose: splitOct.left,
+    }),
+    zoneFrom(right, {
+      id: 'right', lo: point + 1, hi: HI(), channel: 1, gain: 1.0,
+      transpose: splitOct.right,
+    }),
   ];
   render(ctx);
-  await apply(ctx, `Split at ${noteName(point)} -- ${left.name} / ${right.name}`);
+  const shifted = [
+    splitOct.left ? `L ${octLabel(splitOct.left)}` : '',
+    splitOct.right ? `R ${octLabel(splitOct.right)}` : '',
+  ].filter(Boolean).join(', ');
+  await apply(ctx, `Split at ${noteName(point)} -- ${left.name} / ${right.name}`
+                 + (shifted ? ` (${shifted})` : ''));
 }
 
 async function buildLayer(ctx) {
@@ -256,10 +342,21 @@ function render(ctx) {
 function drawBar() {
   const bar = $('#zonebar');
   if (!bar) return;
-  const span = HIGH - LOW;
+  const lo0 = LO();
+  const hi0 = HI();
+  // Math.max(1, ...), the same guard loopstation.js already uses: a one-key instrument
+  // would otherwise hand CSS an Infinity and the whole bar would vanish.
+  const span = Math.max(1, hi0 - lo0);
   bar.replaceChildren(...zones.map((z, i) => {
-    const left = ((z.lo - LOW) / span) * 100;
-    const width = ((z.hi - z.lo) / span) * 100;
+    /* Drawn clamped to the keyboard, NOT clamped in the model. Every shipped preset
+       spans 21..108 because a preset is instrument-agnostic, and that is correct -- a
+       zone wider than your keyboard covers all of it, which is what you want. What is
+       not wanted is a segment drawn at left:-17% and 140% wide. So the picture is
+       clipped and the zone is left alone. */
+    const zlo = Math.max(lo0, Math.min(hi0, z.lo));
+    const zhi = Math.max(lo0, Math.min(hi0, z.hi));
+    const left = ((zlo - lo0) / span) * 100;
+    const width = ((zhi - zlo) / span) * 100;
     return h('div.zonebar__seg', {
       style: {
         left: left + '%', width: width + '%',
@@ -297,14 +394,21 @@ function zoneCard(z, i, ctx) {
       }, 'Remove')),
 
     h('div.zone__grid', null,
-      rangeField(`Low  ${noteName(z.lo)}`, z.lo, LOW, HIGH, (v) => {
-        set('lo', Math.min(v, z.hi));
-        $(`#zlo-${i}`).textContent = noteName(z.lo);
-      }, `zlo-${i}`, noteName(z.lo)),
-      rangeField(`High ${noteName(z.hi)}`, z.hi, LOW, HIGH, (v) => {
-        set('hi', Math.max(v, z.lo));
-        $(`#zhi-${i}`).textContent = noteName(z.hi);
-      }, `zhi-${i}`, noteName(z.hi)),
+      /* Bounded by the keyboard OR the zone, whichever is wider. Every shipped preset
+         spans 21..108 by design -- a preset is instrument-agnostic -- so bounding these
+         at the declared keyboard alone parked the slider at one end while the caption
+         beside it printed the zone's real, unclamped note. Worse, Apply then posts what
+         the slider holds, which would quietly rewrite the preset's range on open. */
+      rangeField(`Low  ${noteName(z.lo)}`, z.lo,
+        Math.min(LO(), z.lo, z.hi), Math.max(HI(), z.lo, z.hi), (v) => {
+          set('lo', Math.min(v, z.hi));
+          $(`#zlo-${i}`).textContent = noteName(z.lo);
+        }, `zlo-${i}`, noteName(z.lo)),
+      rangeField(`High ${noteName(z.hi)}`, z.hi,
+        Math.min(LO(), z.lo, z.hi), Math.max(HI(), z.lo, z.hi), (v) => {
+          set('hi', Math.max(v, z.lo));
+          $(`#zhi-${i}`).textContent = noteName(z.hi);
+        }, `zhi-${i}`, noteName(z.hi)),
 
       h('label.field', null,
         h('span.field__label', null, h('span', null, 'Channel')),
@@ -329,9 +433,26 @@ function zoneCard(z, i, ctx) {
           selected: inst.bank === z.bank && inst.program === z.program,
         }, `${inst.drums ? 'KIT ' : ''}${inst.name}`)))),
 
-      rangeField('Transpose', z.transpose, -24, 24, (v) => {
+      /* Octave and Transpose are the SAME field, offered two ways: the stepper for the
+         thing anyone actually wants, the slider for the semitones nobody wants until
+         they do. Both write z.transpose and both repaint the other, so the pair can
+         never disagree. */
+      octaveField('Octave', () => z.transpose, (v) => {
+        set('transpose', v);
+        $(`#zoct-${i}`).textContent = octLabel(v);
+        const sl = $(`#ztr-${i}`).closest('.field').querySelector('input');
+        sl.value = String(v);
+        paintSlider(sl);
+        $(`#ztr-${i}`).textContent = (v > 0 ? '+' : '') + v;
+      }, `zoct-${i}`),
+
+      // Widened from ±24 to match the engine's own clamp at engine.py's Zone.from_dict.
+      // At ±24 the slider silently pulled a ±3-octave stepper back to two the moment
+      // anything repainted it.
+      rangeField('Transpose', z.transpose, -48, 48, (v) => {
         set('transpose', v);
         $(`#ztr-${i}`).textContent = (v > 0 ? '+' : '') + v;
+        $(`#zoct-${i}`).textContent = octLabel(v);
       }, `ztr-${i}`, (z.transpose > 0 ? '+' : '') + z.transpose),
 
       pctField('Volume', z.gain, (v) => set('gain', v), `zg-${i}`),

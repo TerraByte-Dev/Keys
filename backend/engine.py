@@ -249,8 +249,7 @@ class Engine:
         # _catch is a 128-byte mask, not a set or a range check: the hot path does one
         # indexed load, and rebuilding it is a pedal-rate operation, not a note-rate one.
         self.pedal_mode: str = ""
-        self.pedal_lo: int = config.LOW_KEY
-        self.pedal_hi: int = config.HIGH_KEY
+        self.pedal_lo, self.pedal_hi = config.instrument_range(self.settings)
         self._pedal_down = False
         self._catch = bytearray(128)
         # Routes for notes whose note-off the pedal is holding back.
@@ -267,6 +266,9 @@ class Engine:
         self.preset_id: str = ""
         self.preset_name: str = ""
         self.started = False
+        # True only between _suspend_hot_path() and the next start(). Nothing may refill
+        # the routing table while it is set -- see _rebind_routes.
+        self._suspended = False
         self.warnings: list[str] = []
 
     # ------------------------------------------------------------------ setup
@@ -323,6 +325,7 @@ class Engine:
         self.sequencer = fluidsynth.Sequencer(time_scale=1000, use_system_timer=False)
         self.seq_dest = self.sequencer.register_fluidsynth(fs)
 
+        self._suspended = False
         self.started = True
 
     def _suspend_hot_path(self) -> None:
@@ -333,6 +336,7 @@ class Engine:
         its very first branch instead of calling into a freed Synth. Order matters:
         these three assignments are each atomic, and all of them happen before delete().
         """
+        self._suspended = True
         self.routes = EMPTY_ROUTES
         self.active_channels = ()
         self._pedal_down = False
@@ -539,16 +543,6 @@ class Engine:
         for ch in {z.channel for z in self.zones} - seen_channels:
             self.fs.cc(ch, 123, 0)
 
-        table: list[tuple] = []
-        for note in range(128):
-            entries = []
-            for z in zones:
-                if z.enabled and z.lo <= note <= z.hi:
-                    out = note + z.transpose
-                    if 0 <= out <= 127:
-                        entries.append((z.channel, out, curve_for(z.curve, z.fixed_velocity)))
-            table.append(tuple(entries))
-
         self.zones = zones
         # No sticky fallback. An empty preset_id is the honest answer to "which saved
         # preset is loaded?" after you edit zones or pick an instrument by hand -- none
@@ -557,21 +551,105 @@ class Engine:
         self.preset_id = preset_id
         self.preset_name = preset_name
         self.active_channels = tuple(sorted(seen_channels)) or (0,)
-        self.routes = tuple(table)  # <-- the atomic swap the hot path relies on
+        self._rebind_routes()
         self.warnings = warnings
         return warnings
+
+    def _rebind_routes(self) -> None:
+        """Rebuild the note -> (channel, out, curve) table from self.zones.
+
+        Split out of set_zones because the master octave shift changes only this, and
+        re-running set_zones for it would re-send every program_select and every CC --
+        an audible click, and a soundfont reload, for a button you may press twice a bar.
+
+        Refuses while the hot path is suspended, and that guard is not belt-and-braces.
+        _suspend_hot_path() empties this very table so the callback thread returns at its
+        first branch while the Synth is being freed; an OCT press arriving from a request
+        thread inside that window would refill it and hand the callback a pointer into a
+        deleted Synth. `started` is the wrong flag to test -- the check scripts drive a
+        stub Synth without ever calling start().
+        """
+        if self._suspended:
+            return
+        shift = 12 * config.master_octave(self.settings)
+        table: list[tuple] = []
+        for note in range(128):
+            entries = []
+            for z in self.zones:
+                if z.enabled and z.lo <= note <= z.hi:
+                    out = note + shift + z.transpose
+                    # A shift can push a key off the end of MIDI. Dropping it is right:
+                    # there is no such pitch, and the alternative -- folding it back an
+                    # octave -- would answer a key you pressed with a note you did not.
+                    # The keyboard marks these dead, so it is visible rather than silent.
+                    if 0 <= out <= 127:
+                        entries.append((z.channel, out, curve_for(z.curve, z.fixed_velocity)))
+            table.append(tuple(entries))
+        self.routes = tuple(table)  # <-- the atomic swap the hot path relies on
+
+    def apply_instrument(self) -> None:
+        """Re-read the instrument settings and bring everything derived from them true.
+
+        Called after the range or the octave shift is written. Two things go stale: the
+        routing table bakes in the shift, and the pedal's catch mask is built from the
+        zone met with the keys that exist.
+        """
+        if self.fs is None:
+            return
+        self._rebind_routes()
+        if self.pedal_mode == "zone":
+            lo_, hi_ = self._pedal_span()
+            catch = self._catch
+            # Rebuilt directly rather than through set_pedal, which releases everything
+            # the pedal is holding -- right when the mode changes, wrong for this, where
+            # it would cut a sustained chord off under your foot on every octave press.
+            for i in range(128):
+                catch[i] = 1 if lo_ <= i <= hi_ else 0
+
+    def set_master_octave(self, octaves: int) -> int:
+        """Shift the whole instrument by whole octaves. Returns what was applied.
+
+        The shift is baked into the routing table rather than added in note_on, for two
+        reasons. The hot path stays exactly as boring as it was -- no arithmetic, no
+        second attribute load. And note_off is already correct for free: note_on stores
+        the routes it actually used in self._held[note], so a key still down when the
+        octave moves is released at the pitch it was struck at. That is the same
+        invariant a mid-hold zone change relies on, and it is why this is not a new
+        class of stuck note.
+        """
+        n = max(-config.MAX_OCTAVE, min(config.MAX_OCTAVE, int(octaves)))
+        self.settings.update({"instrument": {"octave": n}})
+        if self.fs is not None:
+            self._rebind_routes()
+        return n
 
     # --------------------------------------------------------------- HOT PATH
     # Called from rtmidi's callback thread. Keep these boring.
     def note_on(self, note: int, velocity: int) -> None:
         routes = self.routes[note]
+        # Re-striking a key the pedal is still holding. Dropping the claim is right ONLY
+        # when the new strike lands on the same voice -- then it steals it, and releasing
+        # the old one later would cut the new note off.
+        #
+        # It does not always land on the same voice. The octave shift and zone transpose
+        # are baked into the table, so a key struck at OCT 0 and re-struck at OCT -1 is a
+        # different pitch on the way out, and the pedal's voice is left ringing with
+        # nothing holding a reference to it: a stuck note no note-off can ever reach.
+        # The empty case matters too -- a shift can push a key off the end of MIDI, and
+        # the early return below would skip this entirely.
+        #
+        # Comparing whole route tuples is cheap: curve_for hands out cached tuples, so
+        # the common "nothing moved" case settles on identity.
+        pedal_held = self._pedal_held[note]
+        if pedal_held is not None:
+            self._pedal_held[note] = None
+            if pedal_held != routes:
+                noteoff = self.fs.noteoff
+                for channel, out, _curve in pedal_held:
+                    noteoff(channel, out)
         if not routes:
             return
         noteon = self.fs.noteon
-        # Re-striking a key the pedal is still holding: that voice is now the new one's
-        # to own, so drop the pedal's claim rather than release it a second time later.
-        if self._pedal_held[note] is not None:
-            self._pedal_held[note] = None
         for channel, out, curve in routes:
             noteon(channel, out, curve[velocity])
         self._held[note] = routes
@@ -688,16 +766,24 @@ class Engine:
             # 0 means hold until the pedal comes up. 30 s is a ceiling, not a
             # recommendation -- past a few seconds this is a texture, not a pedal.
             self.pedal_decay = max(0.0, min(30.0, float(decay)))
+        # What you ASKED for is what is kept, and the clamp to the keys that exist
+        # happens where the range is used -- see _pedal_span below.
+        #
+        # The other way round is destructive and was: clamping on write meant declaring
+        # a 61-key controller permanently rewrote a saved 21..108 pedal zone down to
+        # 36..96 on the next boot, and widening back to 88 did not bring it back. A
+        # settings change must not silently delete a different setting. This way
+        # narrow-then-widen restores exactly what you had.
         if lo is not None:
-            self.pedal_lo = max(config.LOW_KEY, min(config.HIGH_KEY, int(lo)))
+            self.pedal_lo = max(0, min(127, int(lo)))
         if hi is not None:
-            self.pedal_hi = max(config.LOW_KEY, min(config.HIGH_KEY, int(hi)))
+            self.pedal_hi = max(0, min(127, int(hi)))
         if self.pedal_lo > self.pedal_hi:
             self.pedal_lo, self.pedal_hi = self.pedal_hi, self.pedal_lo
 
         catch = self._catch
         if mode == "zone":
-            lo_, hi_ = self.pedal_lo, self.pedal_hi
+            lo_, hi_ = self._pedal_span()
             for i in range(128):
                 catch[i] = 1 if lo_ <= i <= hi_ else 0
         elif mode == "sostenuto":
@@ -725,6 +811,13 @@ class Engine:
         }})
         return self.pedal_status()
 
+    def _pedal_span(self) -> tuple[int, int]:
+        """The pedal zone as it actually applies: what you asked for, met with what you
+        have. "Sustain from A0" means nothing on a board whose lowest key is C2."""
+        low_key, high_key = config.instrument_range(self.settings)
+        return (max(low_key, min(high_key, self.pedal_lo)),
+                max(low_key, min(high_key, self.pedal_hi)))
+
     def load_pedal(self) -> None:
         """Restore the saved pedal setup. Called once, after the Synth exists."""
         saved = self.settings.get("pedal", default={}) or {}
@@ -734,10 +827,16 @@ class Engine:
         )
 
     def pedal_status(self) -> dict[str, Any]:
+        # lo/hi are what the sliders should show -- what you asked for. eff_lo/eff_hi are
+        # what the pedal is actually doing once your keyboard has had its say; the panel
+        # says so when the two differ, rather than moving your slider behind your back.
+        eff_lo, eff_hi = self._pedal_span()
         return {
             "mode": self.pedal_mode,
             "lo": self.pedal_lo,
             "hi": self.pedal_hi,
+            "eff_lo": eff_lo,
+            "eff_hi": eff_hi,
             "decay": self.pedal_decay,
             "down": self._pedal_down,
             "holding": [i for i in range(128) if self._pedal_held[i] is not None],
@@ -804,6 +903,10 @@ class Engine:
             "preset_id": self.preset_id,
             "preset_name": self.preset_name,
             "zones": [z.to_dict() for z in self.zones],
+            # Carried on the engine's own status rather than only in settings because
+            # the frontend needs it on the same object as `zones` -- the two together
+            # are what decide which keys actually make a sound.
+            "octave": config.master_octave(self.settings),
             "warnings": self.warnings,
             "soundfonts": list(self._sfids),
         }

@@ -35,7 +35,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Sequence
 
-from .. import music
+from .. import config, music
 from . import ExerciseType, GenContext, Param, Plan, Step, clean_params, register
 
 try:
@@ -60,7 +60,15 @@ STEPS_PER_BEAT = 2.0
 HOME = 60
 HAND_GAP = 12
 
-LOW, HIGH = 21, 108      # the 88 keys. Nothing may ever leave this range.
+# The keys the player actually has. Nothing may ever leave this range -- that rule is
+# older than the setting and is the whole reason _fit exists; what changed is that the
+# range is now a question with a per-user answer rather than the 88 of a piano.
+#
+# Read at generation time, never cached: an ExerciseType is frozen and registered once
+# at import, so anything captured up here would still be the 88 keys for the life of
+# the process.
+def _range() -> tuple[int, int]:
+    return config.instrument_range()
 
 # A timed run may survive two dropped notes before the rest of the plan is marked wrong;
 # untimed blocks on the wrong note, which is what gives reaction time its meaning.
@@ -198,7 +206,8 @@ def _layout(offsets: Sequence[int], mirror: Sequence[int], octaves: int, pattern
     return right, left
 
 
-def _fit(base: int, right: Sequence[int], left: Sequence[int]) -> tuple[int, bool]:
+def _fit(base: int, right: Sequence[int], left: Sequence[int],
+         low: int, high: int) -> tuple[int, bool]:
     """Shift the tonic by whole octaves until the run is on the keyboard.
 
     Whole octaves only -- the run has to start on the tonic, so a shift of anything else
@@ -208,8 +217,8 @@ def _fit(base: int, right: Sequence[int], left: Sequence[int]) -> tuple[int, boo
     lines = [ln for ln in (right, left) if ln]
     lo = base + min(min(ln) for ln in lines)
     hi = base + max(max(ln) for ln in lines)
-    k_lo = -(-(LOW - lo) // 12)          # smallest shift that clears the bottom key
-    k_hi = (HIGH - hi) // 12             # largest shift that clears the top key
+    k_lo = -(-(low - lo) // 12)           # smallest shift that clears the bottom key
+    k_hi = (high - hi) // 12              # largest shift that clears the top key
     if k_lo > k_hi:
         return base + 12 * k_lo, False
     k = 0 if k_lo <= 0 <= k_hi else (k_lo if k_lo > 0 else k_hi)
@@ -263,15 +272,42 @@ def _plan(exercise: str, params: dict[str, Any], form: str, offsets: Sequence[in
     mirror = _mirror(offsets)
     home = _home(music.scale_pitch_classes(key, "major")[0])
 
+    low_key, high_key = _range()
     octaves, base = 1, home
     right: tuple[int, ...] = ()
     left: tuple[int, ...] = ()
+    fits = False
     for want in range(int(params["octaves"]), 0, -1):
         right, left = _layout(offsets, mirror, want, pattern, hands, motion, updown)
-        base, fits = _fit(home, right, left)
+        base, fits = _fit(home, right, left, low_key, high_key)
         octaves = want
         if fits:
             break
+
+    if not fits:
+        # Refused, out loud. This used to fall out of the loop with the failing `base`
+        # still in hand and build the plan anyway -- on a 25-key controller a C major
+        # scale hands-together came back with half its notes above the top key, and the
+        # grader then blocked forever on a note the keyboard cannot produce, with no
+        # timeout and nothing on screen to say why. An exercise that cannot be played is
+        # not a smaller exercise; it is not an exercise.
+        span = max(max(ln) for ln in (right, left) if ln) \
+            - min(min(ln) for ln in (right, left) if ln) + 1
+        have = high_key - low_key + 1
+        both = hands == "B"
+        # Two different refusals wearing one message would be worse than none. The run
+        # can be too wide for the keyboard, or it can fit and still have nowhere to
+        # start -- it has to begin on the tonic, and _fit only ever moves by whole
+        # octaves, so a 25-note run on 25 keys lands only if the tonic happens to be the
+        # bottom key. Saying "needs 25, you have 25" without that reads as a bug.
+        why = (f"needs {span} keys and you have {have}" if span > have
+               else f"needs {span} keys starting on {key}, and there is nowhere in your "
+                    f"{have} that one starts")
+        raise ValueError(
+            f"{key} {'hands together' if both else 'this way'} {why}. "
+            + ("Try one hand instead of both, or fewer octaves." if both
+               else "Try fewer octaves, or a key that sits further up the keyboard.")
+        )
 
     run = len(_walk(offsets, octaves, pattern))   # ascending length, before the mirror
     # Only ask for a fingering the exercise actually has one for. An arpeggio passes its

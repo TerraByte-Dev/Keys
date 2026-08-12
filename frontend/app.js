@@ -108,7 +108,81 @@ ctx.kb = createKeyboard(dock, {
   },
 });
 
+/* ── the instrument you actually own ──────────────────────────────────────── */
+/* One copy of "which keys exist and where they are sounding", kept here because the
+   dock keyboard is here and everything else that needs it is a view that comes and
+   goes. Views read it through instrument(); nothing else keeps its own answer.
+
+   Seeded with the 88 of a piano so the first paint has something to draw, then
+   corrected from /api/state before the socket is even open, and re-checked on every
+   status heartbeat -- so a range changed in another tab lands here within a second. */
+let inst = { low: 21, high: 108, keys: 88, octave: 0, min_keys: 12, max_octave: 4 };
+
+export const instrument = () => inst;
+
+function applyRange(r) {
+  if (!r) return;
+  const redraw = r.low !== inst.low || r.high !== inst.high;
+  const shifted = r.octave !== inst.octave;
+  if (!redraw && !shifted) return;
+  inst = { ...inst, ...r };
+
+  if (redraw) {
+    ctx.kb.setRange(inst.low, inst.high);
+    // The roll takes its columns off the dock's actual keys, so it is measuring a
+    // keyboard that no longer exists until it looks again.
+    requestAnimationFrame(() => roll?.remeasure());
+  }
+  // Either one changes which keys do nothing when pressed: a narrower board has fewer
+  // keys to judge, and a shift can push a key's output off the end of MIDI.
+  lastZoneSig = null;
+  paintOctave();
+}
+
+function paintOctave() {
+  const out = $('#oct-value');
+  if (out) out.textContent = inst.octave > 0 ? `+${inst.octave}` : String(inst.octave);
+  $('#oct')?.classList.toggle('is-shifted', inst.octave !== 0);
+  const down = $('#oct-down');
+  const up = $('#oct-up');
+  if (down) down.disabled = inst.octave <= -inst.max_octave;
+  if (up) up.disabled = inst.octave >= inst.max_octave;
+  // The roll bar says what the shift means for a piece you have open; repaint it too,
+  // or it goes stale the moment you press OCT mid-play-along.
+  if (ghostModel) paintGhost();
+}
+
+/* Nudge the whole instrument by whole octaves. The engine bakes the shift into its
+   routing table, so a key already down is still released at the pitch it was struck
+   at -- pressing this mid-chord is safe, and deliberately so. */
+export async function shiftOctave(by) {
+  try {
+    const res = await api.post('/api/octave', { by });
+    applyRange(res.range);
+    toast(res.octave ? `Octave ${res.octave > 0 ? '+' : ''}${res.octave}` : 'Octave normal',
+          'good', 1400);
+  } catch (err) { toast(err.message, 'bad'); }
+}
+
+/* Anyone who needs to see the raw keys as they are struck, wherever they are mounted.
+   The router hands frames to the ONE view that is up (`current.frame`), which is right
+   for a panel and wrong for anything that outlives a view -- the tutorial card and the
+   gear overlay both float above whatever is routed. One Set, called from applyFrame,
+   rather than a second frame channel per floating thing. */
+const noteListeners = new Set();
+
+export function listenNotes(fn) {
+  noteListeners.add(fn);
+  return () => noteListeners.delete(fn);
+}
+
 function applyFrame(f) {
+  if (f.on && noteListeners.size) {
+    for (const fn of noteListeners) {
+      // One bad listener must not stop the keyboard painting.
+      try { fn(f.on); } catch (err) { /* not the frame path's problem */ }
+    }
+  }
   if (f.on) for (const [n, v] of f.on) ctx.kb.noteOn(n, v);
   if (f.off) for (const n of f.off) ctx.kb.noteOff(n);
   if (f.held) ctx.kb.setHeld(f.held);
@@ -145,6 +219,9 @@ function applyFrame(f) {
 
 function applyStatus(s) {
   ctx.status = s;
+  // Before the held set: setRange rebuilds the SVG and drops every layer with it, so
+  // pushing held keys into the old drawing first would paint them and throw them away.
+  applyRange(s.range);
   ctx.kb.setHeld(s.held || []);
   // The engine's own held set, once a second. In wait mode this is what un-sticks a
   // gate the frame path got wrong -- and a stuck gate looks exactly like a hang.
@@ -163,23 +240,30 @@ function applyStatus(s) {
        !s.engine?.started ? 'off' : buf == null ? 'shared' : `${buf}ms`);
   lamp('lamp-voices', (s.engine?.voices || 0) > 0 ? 'warn' : '', String(s.engine?.voices ?? 0));
 
-  // Keys no enabled zone covers do nothing when pressed. Marking them is the whole
-  // answer to "where can I actually play" -- for a split, and for any zone set you
-  // build yourself that leaves a hole. Recomputed only when the zones change.
-  const zoneSig = JSON.stringify((s.engine?.zones || [])
-    .filter((z) => z.enabled).map((z) => [z.lo, z.hi]));
+  // Keys that do nothing when pressed. Marking them is the whole answer to "where can
+  // I actually play" -- for a split, for any zone set you build yourself that leaves a
+  // hole, and now for an octave shift that has pushed the top of the board off the end
+  // of MIDI. Recomputed only when one of its inputs changes.
+  const zoneSig = JSON.stringify([inst.low, inst.high, inst.octave,
+    (s.engine?.zones || []).filter((z) => z.enabled).map((z) => [z.lo, z.hi, z.transpose])]);
   if (zoneSig !== lastZoneSig) {
     lastZoneSig = zoneSig;
     // The roll colours a bar by the zone that owns the note, so a split built
     // while it is open has to reach it too.
     roll?.setZones(s.engine?.zones || []);
+    // The same test the engine's routing table makes, and it has to stay the same one:
+    // a key is live if a zone covers it AND what that zone would play is a real pitch.
+    const shift = 12 * (inst.octave || 0);
     const live = new Set();
     for (const z of s.engine?.zones || []) {
       if (!z.enabled) continue;
-      for (let n = z.lo; n <= z.hi; n++) live.add(n);
+      for (let n = z.lo; n <= z.hi; n++) {
+        const out = n + shift + (z.transpose || 0);
+        if (out >= 0 && out <= 127) live.add(n);
+      }
     }
     const dead = [];
-    for (let n = 21; n <= 108; n++) if (!live.has(n)) dead.push(n);
+    for (let n = inst.low; n <= inst.high; n++) if (!live.has(n)) dead.push(n);
     ctx.kb.setDead(dead);
   }
 
@@ -416,10 +500,23 @@ export function startGhost(payload, meta = {}) {
   ghostModel = createGhost(payload, {
     title: meta.title || payload.title,
     wait: ctx.state?.settings?.ui?.ghost_wait !== false,
+    // The piece is fitted to the keys you actually have. A 61-key player opening a
+    // piano piece gets it moved into reach rather than getting a play-along with its
+    // bass line quietly deleted.
+    low: inst.low,
+    high: inst.high,
     onChange: paintGhost,
   });
   ghostModel.setTempo(meta.tempo || payload.tempo || 100);
   ghostModel.setHands(ctx.state?.settings?.ui?.ghost_hands || 'both');
+  // Said out loud, once, because the app has just changed the piece on your behalf.
+  // Silently moving someone's music is the kind of help that reads as a bug.
+  if (ghostModel.shift) {
+    toast(`Moved ${Math.abs(ghostModel.shift)} octave`
+        + `${Math.abs(ghostModel.shift) === 1 ? '' : 's'} `
+        + `${ghostModel.shift < 0 ? 'down' : 'up'} to fit your keyboard`
+        + ` — change it on the bar`, 'good', 5200);
+  }
 
   document.body.classList.add('is-ghosting');
   for (const id of ['#ghost-song', '#ghost-close', '#ghost-scrub']) {
@@ -562,6 +659,28 @@ function paintGhost() {
 
   $('#ghost-play').textContent = g.playing ? 'Pause' : 'Play';
   $('#ghost-play').classList.toggle('is-on', g.playing);
+
+  // Where the piece ended up, in words rather than a signed number -- "-1" beside a
+  // Tempo slider reads as a setting you got wrong, and this one is usually the app
+  // helping. The count of what still cannot be reached rides along, because a piece
+  // wider than your keyboard has notes nothing can bring into range and pretending
+  // otherwise is how you learn a piece with holes in it and never find out why.
+  const sv = $('#ghost-shift-v');
+  if (sv) {
+    const oct = g.shift === 0 ? 'as written'
+      : `${Math.abs(g.shift)} octave${Math.abs(g.shift) === 1 ? '' : 's'} ${g.shift < 0 ? 'down' : 'up'}`;
+    const bits = [oct];
+    if (g.unreachable) bits.push(`${g.unreachable} out of reach`);
+    /* The one place the two octave controls can be confused for each other. This one
+       moves the MUSIC; OCT above the keys moves YOUR HANDS, and with it what every key
+       sounds -- so with both engaged you are playing the lit keys and hearing something
+       else. That is a legitimate thing to want and a bewildering thing to stumble into,
+       so it is said rather than left to be discovered. */
+    if (inst.octave) bits.push(`keys are OCT ${inst.octave > 0 ? '+' : ''}${inst.octave}`);
+    sv.textContent = bits.join(' · ');
+    sv.classList.toggle('is-warn', g.unreachable > 0 || inst.octave !== 0);
+  }
+  $('#ghost-shift')?.classList.toggle('is-shifted', g.shift !== 0);
   $('#ghost-wait').setAttribute('aria-pressed', String(g.wait));
   $('#ghost-wait').classList.toggle('is-on', g.wait);
   for (const b of document.querySelectorAll('#ghost-hands .btn')) {
@@ -629,6 +748,11 @@ function paintGhost() {
 const songs = createSongs((payload, meta) => startGhost(payload, meta));
 
 $('#gear')?.addEventListener('click', () => openSettings(ctx));
+$('#oct-down')?.addEventListener('click', () => shiftOctave(-1));
+$('#oct-up')?.addEventListener('click', () => shiftOctave(1));
+// Click the number itself to come back to centre. Two presses of the other button
+// would do it, but "put it back" is one intention.
+$('#oct-value')?.addEventListener('click', () => { if (inst.octave) shiftOctave(-inst.octave); });
 $('#roll-toggle')?.addEventListener('click', () => toggleRoll());
 $('#roll-exit')?.addEventListener('click', () => toggleImmersive(false));
 
@@ -707,6 +831,10 @@ $('#ghost-bpm')?.addEventListener('input', (e) => {
   paintSlider(e.target);
   ghostModel?.setTempo(e.target.value);
 });
+$('#ghost-shift-down')?.addEventListener('click',
+  () => ghostModel?.setShift(ghostModel.shift - 1));
+$('#ghost-shift-up')?.addEventListener('click',
+  () => ghostModel?.setShift(ghostModel.shift + 1));
 /* A scrub IS a seek here, and a seek is just a number -- there is no queue to
    rebuild, unlike the score transport. */
 $('#ghost-scrub')?.addEventListener('click', (e) => {
@@ -783,6 +911,17 @@ export const ACTIONS = [
     id: 'settings', label: 'Open settings', group: 'Do', key: ',',
     run: () => openSettings(ctx),
   },
+  /* Z and X, the two keys a hardware controller puts OCT on, and next to each other
+     under the left hand so you can reach them without looking. Safe to hit mid-phrase:
+     the engine releases a key at the pitch it was struck at. */
+  {
+    id: 'octave-down', label: 'Down an octave', group: 'Do', key: 'z',
+    run: () => shiftOctave(-1),
+  },
+  {
+    id: 'octave-up', label: 'Up an octave', group: 'Do', key: 'x',
+    run: () => shiftOctave(1),
+  },
 ];
 
 const DEFAULT_BINDS = Object.fromEntries(ACTIONS.map((a) => [a.id, a.key]));
@@ -833,6 +972,9 @@ window.addEventListener('beforeunload', () => { if (ws) { ws.onclose = null; ws.
     ctx.state = {};
   }
   applyTheme(ctx.state?.settings?.ui?.theme);
+  // Before the first route: a view that draws a range slider wants the real numbers,
+  // not the 88 the dock was seeded with.
+  applyRange(ctx.state?.range);
   setBinds(ctx.state?.settings?.keys);
   setRollSpeed(ctx.state?.settings?.ui?.roll_speed ?? 100);
   setVolume((ctx.state?.settings?.audio?.gain ?? 0.6) * 100, { persist: false });

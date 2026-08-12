@@ -312,6 +312,49 @@ def detect_chord(notes: list[int], key: str = "C") -> dict | None:
     }
 
 
+# --- reading windows ---------------------------------------------------------
+# Treble stays at or above A3, bass at or below F4. Two ledger lines either way is where
+# reading practice belongs, not five. These are conventions, not arithmetic.
+TREBLE_FLOOR = 57
+BASS_CEILING = 65
+
+
+def reading_window(clef: str, lo: int, hi: int,
+                   low_key: int, high_key: int) -> tuple[int, int]:
+    """A clef's note window, met with the keys that exist. Never empty, never inverted.
+
+    This lives here rather than in the two modules that need it because there used to be
+    a copy in each, they had already drifted, and the two failure modes were a matched
+    pair: exercises/reading.py swapped an inverted window and generated notes NINE
+    semitones above the top of the instrument while logging them as intentional, and
+    sightread.py did not swap and raised IndexError out of random.choices on the empty
+    pool. One is silently wrong and one is a 500; both are the same missing intersection.
+
+    The order matters. Meet the request with the instrument first -- what you own is not
+    negotiable -- and apply the clef preference second, because it IS negotiable: if a
+    keyboard has no notes above A3 there is no treble window to be had, and reading what
+    you actually have beats refusing to draw a staff.
+    """
+    lo, hi = int(lo), int(hi)
+    if lo > hi:
+        lo, hi = hi, lo
+    # The keys that exist. An empty intersection means the saved preference has nothing
+    # to do with this keyboard, so the keyboard wins outright.
+    lo, hi = max(lo, low_key), min(hi, high_key)
+    if lo > hi:
+        lo, hi = low_key, high_key
+
+    if clef == "treble":
+        want_lo, want_hi = max(lo, TREBLE_FLOOR), hi
+    elif clef == "bass":
+        want_lo, want_hi = lo, min(hi, BASS_CEILING)
+    else:
+        want_lo, want_hi = lo, hi
+    # A clef preference that leaves nothing is dropped rather than obeyed into an
+    # empty pool.
+    return (want_lo, want_hi) if want_lo <= want_hi else (lo, hi)
+
+
 # --- scales ------------------------------------------------------------------
 # Semitones above the tonic, in scale order, so the index is the degree - 1.
 MODES: dict[str, tuple[int, ...]] = {

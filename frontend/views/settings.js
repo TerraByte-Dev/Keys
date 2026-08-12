@@ -12,7 +12,11 @@
  * output is exclusive-mode. Any app claiming a round-trip number is lying, so this one
  * reports the piece it can actually see and labels it. */
 
+import { instrumentPanel } from '../instrument.js';
 import { $, api, h, mod, stat, toast } from '../ui.js';
+
+/* Held so unmount can give back the live-MIDI listener Detect arms. */
+let instPanel = null;
 
 export default {
   async mount(root, ctx) {
@@ -20,6 +24,8 @@ export default {
     const eng = st.engine || {};
     const midi = st.midi || {};
     const s = st.settings || {};
+
+    instPanel = instrumentPanel(ctx);
 
     root.append(h('div.grid', null,
       h('div.col-6', null, mod('MIDI input', midi.connected ? 'connected' : 'not connected',
@@ -43,6 +49,10 @@ export default {
           'plugging it back in does not need a restart. If Windows sees no MIDI device ',
           'at all, that is a driver problem -- run ', h('strong', null, 'tools/midi_probe.py'),
           ', which needs no venv and no packages.'))),
+
+      // Directly under MIDI input, because they are the same subject -- that panel says
+      // which keyboard is plugged in, this one says what it is.
+      instPanel,
 
       h('div.col-6', null, mod('Latency', 'the honest number', h('div.stats', { id: 'lat-stats' }),
         h('div.note', { style: { marginTop: '12px' } },
@@ -156,6 +166,11 @@ export default {
 
     wireAudio(ctx);
     this.status?.(ctx.status || {}, ctx);
+  },
+
+  unmount() {
+    instPanel?.destroy?.();
+    instPanel = null;
   },
 
   status(s) {

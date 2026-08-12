@@ -99,10 +99,97 @@ def list_assets(name: str, pattern: str) -> list[Path]:
     return [seen[k] for k in sorted(seen)]
 
 # --- The piano ---------------------------------------------------------------
-# Yamaha P-71B: 88 keys, A0 (21) through C8 (108). Hardcoded on purpose -- this is
-# the only keyboard this app targets and every measurement here is device-specific.
+# Yamaha P-71B: 88 keys, A0 (21) through C8 (108). This is what Keys was built on and
+# what it still assumes if you never say otherwise -- but it is a DEFAULT now, not a
+# constant. Plenty of people own a 61- or 49-key controller, and an app that draws
+# thirty keys they do not have, then sets them exercises down there, is wrong about
+# the instrument in front of them.
+#
+# Read the live answer with instrument_range(); these two are the fallback and the
+# outer bound of what the picker offers, nothing more.
 LOW_KEY = 21
 HIGH_KEY = 108
+
+# A keyboard narrower than an octave has no exercise, no scale and barely a chord in
+# it. Refusing at one octave is not a taste call: _fit in exercises/scales.py shifts
+# by whole octaves and cannot place a run in less than one.
+MIN_KEYS = 12
+
+# How far the master octave shift travels each way. Four octaves takes the bottom of a
+# 25-key controller from C3 down to C-1 and the top of it up past C8, which is already
+# further than the useful range of any GM patch.
+MAX_OCTAVE = 4
+
+# Which pitch classes are black, indexed by note % 12. C C# D D# E F F# G G# A A# B.
+_BLACK_PC = (0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0)
+
+
+def clamp_range(low: Any, high: Any) -> tuple[int, int]:
+    """A sane (low, high) from anything, including a swapped or degenerate pair.
+
+    Total, never raises: this runs on settings a human typed into a JSON file, and a
+    keyboard that refuses to draw is worse than one drawn slightly wrong.
+    """
+    try:
+        lo, hi = int(low), int(high)
+    except (TypeError, ValueError, OverflowError):
+        # OverflowError is not hypothetical: json.loads accepts Infinity, so a
+        # hand-edited config.local.json holding one would otherwise take the app down
+        # on import rather than fall back to the piano.
+        return LOW_KEY, HIGH_KEY
+    if lo > hi:
+        lo, hi = hi, lo
+    lo = max(0, min(127, lo))
+    hi = max(0, min(127, hi))
+    # Widen upward first, then downward, so a too-narrow range near the top of the
+    # keyboard does not silently push past 127 and come back clamped to nothing.
+    if hi - lo < MIN_KEYS:
+        hi = min(127, lo + MIN_KEYS)
+        lo = max(0, hi - MIN_KEYS)
+    # Both ends land on a white key, widening rather than narrowing -- outward can never
+    # take a key away from someone who has it, and MIDI 0 and 127 are both white, so it
+    # can never run off the end either.
+    #
+    # No physical keyboard begins or ends on a black key, but Detect is one mis-press
+    # away from being told one. It matters because the keyboard widget draws a black key
+    # only when both its white neighbours are in range: a black endpoint is a key that
+    # exists in the model, sounds when pressed, and has nothing on screen -- and the roll,
+    # which takes its columns from what IS on screen, then has no column for it. One snap
+    # here is cheaper than teaching three files about a key they cannot see.
+    while lo > 0 and _BLACK_PC[lo % 12]:
+        lo -= 1
+    while hi < 127 and _BLACK_PC[hi % 12]:
+        hi += 1
+    return lo, hi
+
+
+def instrument_range(s: "Settings | None" = None) -> tuple[int, int]:
+    """The keys the player actually has, as (low, high) inclusive MIDI notes.
+
+    Takes the settings object rather than always reading the module global, so an
+    Engine built against its own Settings -- which is what every check script does --
+    gets its own answer instead of whatever is in the developer's config.local.json.
+    """
+    s = s if s is not None else settings
+    # `instrument` itself can be a string or a list if the file was hand-edited, in
+    # which case Settings.get walks into it and returns the default anyway -- but only
+    # if it is a dict. Guard the shape here so a junk value is inert rather than fatal.
+    block = s.get("instrument", default=None)
+    if not isinstance(block, dict):
+        return LOW_KEY, HIGH_KEY
+    return clamp_range(block.get("low", LOW_KEY), block.get("high", HIGH_KEY))
+
+
+def master_octave(s: "Settings | None" = None) -> int:
+    """Whole octaves every incoming note is shifted by before it reaches a zone."""
+    s = s if s is not None else settings
+    block = s.get("instrument", default=None)
+    if not isinstance(block, dict):
+        return 0
+    try:
+        return max(-MAX_OCTAVE, min(MAX_OCTAVE, int(block.get("octave", 0))))
+    except (TypeError, ValueError, OverflowError):
+        return 0
 
 # --- Audio (measured; see docs/HARDWARE.md section 3) --------------------------
 HARDWARE: dict[str, Any] = {
@@ -136,6 +223,11 @@ HARDWARE: dict[str, Any] = {
 # --- Defaults the UI can change ----------------------------------------------
 DEFAULTS: dict[str, Any] = {
     "audio": dict(HARDWARE),
+    # The keyboard you actually own, and where it sits. `octave` is here rather than in
+    # "ui" because it changes what SOUNDS, not what is drawn: on a 61-key controller it
+    # is how you reach the bottom of a piece, and it has to survive a restart the same
+    # way the range does.
+    "instrument": {"low": LOW_KEY, "high": HIGH_KEY, "octave": 0},
     "midi_port": None,           # None = first available port
     "preset": "grand-piano",     # presets/<id>.json loaded at boot
     "idle_seconds": 12,          # practice clock pauses after this long with no note
@@ -234,7 +326,9 @@ class Settings:
         self._save(snapshot)
         return snapshot
 
-    def reset_to_defaults(self, keep: tuple[str, ...] = ("ui.layout",)) -> int:
+    def reset_to_defaults(
+        self, keep: tuple[str, ...] = ("ui.layout", "instrument.low", "instrument.high"),
+    ) -> int:
         """Back to DEFAULTS. Returns how many top-level keys actually changed.
 
         `keep` takes dotted paths, and the default keeps the panel arrangement --
@@ -242,6 +336,12 @@ class Settings:
         rearranged every panel would be lying about its own label. It has to be a
         path rather than a key because layout.js stores it under "ui", alongside
         settings a reset genuinely should clear.
+
+        It also keeps the declared key range, for a stronger reason: how many keys you
+        own is a fact about your hardware, not a preference. Resetting settings should
+        not tell a 61-key controller it has 88 and leave it drawing keys that are not
+        there. `instrument.octave` is deliberately NOT kept -- that one IS a preference,
+        it is a live performance control, and zero is the right place to be put back to.
 
         Unlike `update`, this REPLACES rather than merges: a deep-merge against
         the defaults would leave every customised leaf exactly where it was, which

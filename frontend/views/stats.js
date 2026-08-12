@@ -21,6 +21,7 @@
  * look like an instrument that has not been played yet, not like a broken page --
  * the blank year grid and the cold 88-key map ARE the reading. */
 
+import { instrument } from '../app.js';
 import { $, api, h, hms, humanMinutes, mod, noteName, stat } from '../ui.js';
 
 let data = null;
@@ -387,8 +388,25 @@ function calendar(payload) {
    pointer handling. The numbers below must stay in step with it, so the derivation is
    reproduced instead of the results -- black keys are NOT centred on the joint between
    two whites, and eyeballing the offsets is what makes a drawn keyboard look wrong. */
-const LOW = 21;
-const HIGH = 108;
+/* The keys this map draws: the UNION of the keyboard you have and the keys you have
+   actually played. Not just the configured range, and the difference matters -- someone
+   who played a P-71B for a year and then declares a 61-key controller would otherwise
+   watch a year of A0s disappear out of their own history, silently, in a chart. The
+   store no longer filters that history either; between them, what you played stays
+   played. Snapped out to whole octaves so the picture keeps a piano's shape. */
+function mapRange(range) {
+  const inst = instrument();
+  let lo = inst.low;
+  let hi = inst.high;
+  if (range && range.low != null) {
+    lo = Math.min(lo, range.low);
+    hi = Math.max(hi, range.high);
+  }
+  while (WHITE_INDEX[lo % 12] < 0 && lo > 0) lo -= 1;
+  while (WHITE_INDEX[hi % 12] < 0 && hi < 127) hi += 1;
+  return [lo, hi];
+}
+
 const WHITE_INDEX = [0, -1, 1, -1, 2, 3, -1, 4, -1, 5, -1, 6];
 const WHITE_W = 24;
 const WHITE_H = 148;
@@ -413,6 +431,7 @@ function keyPath(x, w, hgt, r) {
 }
 
 function pianoMap(heat, range) {
+  const [LOW, HIGH] = mapRange(range);
   const counts = new Array(129).fill(0);
   let max = 0;
   for (const [k, v] of Object.entries(heat || {})) {
@@ -429,7 +448,7 @@ function pianoMap(heat, range) {
   const root = svg('svg', {
     class: 'pianomap', viewBox: `0 0 ${width} ${WHITE_H}`,
     preserveAspectRatio: 'xMidYMid meet', role: 'img',
-    'aria-label': 'how often each of the 88 keys has been played',
+    'aria-label': `how often each of the ${HIGH - LOW + 1} keys has been played`,
   });
   // Two groups, whites first: SVG paints in document order, so blacks land on top.
   const whites = svg('g');
@@ -466,10 +485,18 @@ function heatFill(c, max, isWhite) {
 function rangeLine(range) {
   if (!range || !range.span) return h('div.note', { style: { marginTop: '12px' } },
     'No notes logged yet -- play anything and the keys light up here.');
+  // Measured against the keyboard you have, so the label has to say which one -- "Of
+  // the 88" on a 61-key board is the app talking about an instrument you do not own.
+  const keys = range.of_high != null ? range.of_high - range.of_low + 1 : 88;
   return h('div.stats', { style: { marginTop: '14px' } },
     stat(`${range.low_name || '--'}-${range.high_name || '--'}`, 'Range used',
          `${range.span} semitones`, 'stat__value--amber'),
-    stat(pct(range.coverage), 'Of the 88', 'keys touched at least once',
+    // Capped at 100%: coverage divides a played span that history may have widened by
+    // the span you currently declare, so a smaller keyboard than you once had really
+    // can exceed it. True, but "143%" reads as a bug.
+    stat(pct(Math.min(1, range.coverage)), `Of your ${keys}`,
+         range.coverage > 1 ? 'you have played wider than this keyboard'
+                            : 'keys touched at least once',
          'stat__value--cyan'));
 }
 

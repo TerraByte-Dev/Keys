@@ -16,13 +16,16 @@
 import { createKeyboard } from './keyboard.js';
 import { $, api, h, mod, toast } from './ui.js';
 
-const LOW = 60, HIGH = 84;          // two octaves from middle C, plus the closing note
+/* Two octaves from middle C, plus the closing note. Deliberately NOT the player's own
+   range: this board is a diagram of a shape, and a shape is the same shape on 61 keys
+   as on 88. The dock below it is the one that draws your actual instrument. */
+const LOW = 60, HIGH = 84;
 
 export function createTheory() {
   let kb = null;                    // the panel's own small keyboard
   let vocab = null;
   let plan = null;
-  let dock = null;                  // the 88-key dock, so you can see it where you play
+  let dock = null;                  // the docked keyboard, so you see it where you play
   let kind = 'scale';
   const pick = { root: 'C', mode: 'major', quality: '', octaves: 1, hand: 'R', inversion: 0 };
 

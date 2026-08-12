@@ -112,6 +112,61 @@ closing and reopening the stream. `Engine.restart()` does that while preserving 
 suspends the hot path first — emptying the routing table and channel list so the callback returns at its first
 branch instead of calling into a Synth that is being freed.
 
+## The keyboard is a setting, and three things shift by octaves for different reasons
+
+`settings["instrument"] = {low, high, octave}` is the app's notion of the instrument. `config.instrument_range()`
+is the only reader; `config.clamp_range()` is the only writer's funnel, and it enforces a minimum span and snaps
+both ends outward onto white keys — so no other file ever has to reason about a key that exists in the model and
+not in the drawing. `LOW_KEY`/`HIGH_KEY` survive as the fallback, nothing more.
+
+There are now **three** octave shifts, they are deliberately independent, and confusing them is the mistake this
+section exists to prevent:
+
+| Shift | Lives in | Moves | Applies to |
+|---|---|---|---|
+| **Master** (`OCT −/+`, Z/X) | `settings.instrument.octave` | where your hands sit | sound only |
+| **Zone transpose** | `Zone.transpose` | one zone's sound | sound only |
+| **Piece fit** (roll bar) | `ghost.js` `model.shift` | where the music sits | the play-along only |
+
+**The master shift is baked into the routing table, not added in `note_on`.** `Engine._rebind_routes()` folds
+`master*12 + zone.transpose` into the pre-built table, so the hot path is untouched *and* note-off is correct for
+free: `note_on` stores the routes it actually used in `self._held[note]`, so a key still down when the octave moves
+is released at the pitch it was struck at. That is the same invariant a mid-hold zone change already relied on. It
+is why pressing OCT mid-chord is safe, and why this is not a new class of stuck note.
+
+**Zone matching stays on the raw incoming note.** A split at F#3 with the left zone an octave down stays under the
+same physical key when you press OCT — which is what a hardware controller does. The corollary is that the dock
+lights the key you *pressed* while a different pitch sounds, and the NOTES/CHORD readout names the untransposed
+notes. That is deliberate: they describe your fingers, not your ears.
+
+**Exercises ignore the master shift; play-alongs fit themselves. Do not "fix" one to match the other.** An
+exercise's pitches are chosen by the generator, so the right answer to "the target is off my keyboard" is to
+generate a target that is on it — `exercises/scales.py` fits by whole octaves and *refuses with a sentence*
+(`ValueError` → HTTP 400) when even one octave will not go, because an out-of-range target does not go quietly:
+`run.py` blocks on it and an untimed plan has no lookahead to escape with. A score's pitches are fixed by the
+composer, so the opposite applies — `ghost.js` moves the whole piece by whole octaves to put the most of it under
+your hands, keeping every interval as written, and says so on the bar. A handful of stray pitches is left alone
+rather than dragging the piece, because junk from a bad export is not a register problem.
+
+Because the shift is sound-only and the graders are fed the raw physical note, `note_event.note`,
+`exercise_step.note` and `sightread_attempt.note` all stay in physical-key space. No historical row changes
+meaning and there is no migration.
+
+**Declaring a smaller keyboard is never destructive.** The pedal zone persists what you *asked for* and is clamped
+where it is *used* (`Engine._pedal_span()`), so narrow-then-widen restores it exactly; `note_heatmap` and
+`range_used` read all of MIDI, so a year of A0s does not vanish from your own history the day you plug in a 61;
+and `reset_to_defaults` keeps `instrument.low`/`high` because how many keys you own is a fact about your hardware,
+not a preference. `instrument.octave` is not kept, because that one is.
+
+**Never bound a range `<input>` by the declared keyboard when its value is a saved preference.** This is the trap
+that broke the rule above twice, and it is not obvious: a range input silently clamps any value assigned to it
+into `[min,max]`, and these panels post back whatever the slider holds. Bounding the pedal sliders at the
+keyboard meant a saved A0–B3 zone was clamped to C2 on arrival and then written to disk by the next unrelated
+nudge of the Decay slider — the setting destroyed by touching a different control, with the label beside it still
+confidently reading A0. The sight-reading window went the same way via its *adaptive checkbox*. Both sliders are
+now built `min:0 max:127`, narrowed only to fit the value they are about to show, and the panels state the
+effective range (`pedal.eff_lo/eff_hi`, and Read's own note) rather than moving your slider behind your back.
+
 ## The frontend
 
 No build step, no framework, no `package.json`, no `node_modules`. Vanilla ES modules served straight off disk.
@@ -119,7 +174,7 @@ This is a deliberate constraint: the app must start with one command on a machin
 Python, and must keep working in five years without a dependency archaeology expedition.
 
 Views build their DOM once in `mount()` and mutate specific nodes afterwards. Nothing re-renders a subtree
-sixty times a second. The 88-key component diffs against the previous held-note `Set` and touches only the keys
+sixty times a second. The keyboard component diffs against the previous held-note `Set` and touches only the keys
 that changed.
 
 The cost of no build step is that nothing catches a syntax error until the browser silently refuses to run the

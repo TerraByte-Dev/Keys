@@ -51,12 +51,61 @@
  * Anything else, you skip on purpose.
  */
 
-/* The 88 keys. A file may name pitches outside them -- an orchestral reduction, a
-   bass line written an octave low, junk from a bad export -- and the roll already
-   cannot draw those because there is no column for them. Asking you to play a key
-   that does not exist is the one gate that can never open, so it is never asked. */
+/* The 88 keys, as the fallback when nobody says otherwise. A file may name pitches
+   outside the player's keyboard -- an orchestral reduction, a bass line written an
+   octave low, junk from a bad export, or simply a piano piece opened by someone with
+   61 keys -- and the roll cannot draw those because there is no column for them.
+   Asking you to play a key that does not exist is the one gate that can never open,
+   so it is never asked. */
 const PLAYABLE_LO = 21;
 const PLAYABLE_HI = 108;
+
+/* How far the auto-fit will move a piece, in octaves each way. Beyond this you are no
+   longer playing the piece in a different register, you are playing a different piece. */
+const MAX_FIT = 3;
+
+/**
+ * The whole-piece octave shift that puts the most of it under your hands.
+ *
+ * Whole octaves only, and one shift for the WHOLE piece -- both of those are the point.
+ * Moving individual notes into range would keep every pitch class and destroy the
+ * music: a bass line that leaps up an octave mid-phrase is not the bass line. Moving
+ * the whole piece keeps every interval, every shape and every leap exactly as written,
+ * and only changes which register you play it in -- which is a thing pianists do to
+ * each other's music all the time and think nothing of.
+ *
+ * Ties go to the smaller shift, and then to shifting DOWN: a piece that does not fit
+ * a short keyboard is usually one with a bass line under it, and a short keyboard is
+ * usually missing its bottom end rather than its top.
+ */
+function fitShift(notes, lo, hi) {
+  /* Outliers are not a register problem. A file can name a pitch two octaves below the
+     bottom A -- an orchestral reduction, junk from a bad export, one stray note in five
+     hundred -- and transposing somebody's whole piece to rescue it would be the cure
+     doing more damage than the disease. So a handful of strays is left where it is, and
+     only a piece that genuinely sits outside your hands gets moved. */
+  let out0 = 0;
+  for (let i = 0; i < notes.length; i++) {
+    const m = notes[i].midi;
+    if (m < lo || m > hi) out0++;
+  }
+  if (out0 <= Math.max(2, notes.length * 0.02)) return 0;
+
+  let best = 0;
+  let bestIn = -1;
+  for (let k = -MAX_FIT; k <= MAX_FIT; k++) {
+    let inRange = 0;
+    for (let i = 0; i < notes.length; i++) {
+      const m = notes[i].midi + k * 12;
+      if (m >= lo && m <= hi) inRange++;
+    }
+    if (inRange > bestIn || (inRange === bestIn && Math.abs(k) < Math.abs(best))) {
+      best = k;
+      bestIn = inRange;
+    }
+  }
+  return best;
+}
 
 /* Two notes this close together are one chord, not two gates. Engraved MIDI puts a
    chord's notes on the same tick; a performance MIDI spreads them by a few ms, and
@@ -84,10 +133,20 @@ const MAX_BPM = 240;
  * tempo is a separate knob here and not baked into the geometry.
  */
 export function createGhost(payload, opts = {}) {
+  // The keys the player actually has. Defaulted to the 88 so a caller that does not
+  // care -- and every existing check -- behaves exactly as it always did.
+  const lo = Number.isFinite(opts.low) ? opts.low | 0 : PLAYABLE_LO;
+  const hi = Number.isFinite(opts.high) ? opts.high | 0 : PLAYABLE_HI;
+
   const notes = (payload.notes || [])
     .map((n) => ({
       onset: +n.onset || 0,
       duration: Math.max(0.01, +n.duration || 0),
+      // `written` is what the file says and never changes; `midi` is where the piece
+      // is currently sitting. Keeping both means the shift is always re-derivable
+      // from the source rather than accumulated, so nudging it up and back down
+      // cannot drift the piece a semitone at a time.
+      written: n.midi | 0,
       midi: n.midi | 0,
       staff: n.staff === 2 ? 2 : 1,
     }))
@@ -102,6 +161,20 @@ export function createGhost(payload, opts = {}) {
 
   const total = notes.reduce((t, n) => Math.max(t, n.onset + n.duration), 0);
   const staves = [...new Set(notes.map((n) => n.staff))].sort();
+
+  /* Move the piece to where it can be played, before anything is built on top of it.
+     A transposition changes pitch and nothing else -- no onset moves -- so this is
+     safe to do here and safe to redo later: the gates below group by onset, and
+     onsets are exactly what a shift does not touch. */
+  function applyShift(k) {
+    const bounded = Math.max(-MAX_FIT, Math.min(MAX_FIT, k | 0));
+    for (const n of notes) n.midi = n.written + bounded * 12;
+    let out = 0;
+    for (const n of notes) if (n.midi < lo || n.midi > hi) out++;
+    return { shift: bounded, unreachable: out };
+  }
+
+  const fitted = applyShift(notes.length ? fitShift(notes, lo, hi) : 0);
 
   /* Gates: one per distinct onset, carrying every note struck there. Built over ALL
      notes regardless of hand, and filtered at match time -- so switching hands
@@ -122,6 +195,15 @@ export function createGhost(payload, opts = {}) {
     staves,
     title: opts.title || payload.title || 'Untitled',
     warnings: payload.warnings || [],
+
+    /* Where the piece is sitting relative to how it was written, and how much of it
+       still cannot be reached. Both are read by the control bar: a piece that has
+       been moved has to SAY it has been moved, or the first thing you learn is the
+       wrong register and the app never told you. */
+    shift: fitted.shift,
+    unreachable: fitted.unreachable,
+    lo,
+    hi,
 
     // --- read by roll.js every frame ---
     nowQ: 0,
@@ -172,8 +254,10 @@ export function createGhost(payload, opts = {}) {
   function required(gate) {
     const out = new Set();
     for (const n of gate.notes) {
-      // Off the end of the keyboard: not yours to play, so not yours to be held up by.
-      if (n.midi < PLAYABLE_LO || n.midi > PLAYABLE_HI) continue;
+      // Off the end of YOUR keyboard: not yours to play, so not yours to be held up
+      // by. After the fit above this is a handful of notes in a wide piece rather
+      // than the whole bottom half of it, and the count is on screen either way.
+      if (n.midi < lo || n.midi > hi) continue;
       if (model.hands === 'both'
         || (model.hands === 'R' ? n.staff === 1 : n.staff === 2)) out.add(n.midi);
     }
@@ -431,6 +515,29 @@ export function createGhost(payload, opts = {}) {
       else spendHeld();          // arriving at a gate mid-hold must not be free
       onChange();
       return model.wait;
+    },
+
+    /* Move the whole piece by octaves, by hand. The auto-fit is a guess -- it counts
+       notes, and the most-notes register is not always the one you want to play in --
+       so it has to be overridable, and the override is the same one-shift-for-the-
+       whole-piece transposition rather than a second mechanism.
+
+       Nothing structural is rebuilt: a shift moves pitches and no onsets, so the gates
+       stay exactly as grouped. What does have to be reset is which notes have been
+       spent, because the keys the current gate is asking for have just changed
+       underneath the player's hands. */
+    setShift(k) {
+      const before = model.shift;
+      const res = applyShift(k);
+      model.shift = res.shift;
+      model.unreachable = res.unreachable;
+      if (res.shift !== before) {
+        spendHeld();
+        model.waiting = false;
+        model.seq++;             // the roll's cursors are indexed by pitch column
+      }
+      onChange();
+      return model.shift;
     },
 
     /* Live key state. `held` only -- see the header.

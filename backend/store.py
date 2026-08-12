@@ -634,12 +634,20 @@ class Store:
 
     # ----------------------------------------------------------- note stats
     def note_heatmap(self, days: int = 30) -> dict[int, int]:
+        """Every key you struck and how often, over the window.
+
+        The filter is all of MIDI on purpose. It used to be the 88 keys, which was the
+        right guard while the instrument was a constant and became a quiet act of
+        vandalism once it was not: declaring a 61-key controller would have deleted a
+        year of A0s from your own history, in a chart, with no way to tell it had
+        happened. What was recorded was played. The renderer decides what to draw.
+        """
         start, end, _f, _t = _window(days)
         rows = self._rows(
             "SELECT note, COUNT(*) AS n FROM note_event "
             f"WHERE session_id IN ({self._session_ids_sql()}) "
-            "AND note BETWEEN ? AND ? GROUP BY note",
-            (start, end, config.LOW_KEY, config.HIGH_KEY),
+            "AND note BETWEEN 0 AND 127 GROUP BY note",
+            (start, end),
         )
         return {int(r["note"]): int(r["n"]) for r in rows}
 
@@ -736,21 +744,29 @@ class Store:
         return {int(r["oct"]): int(r["n"]) for r in rows}
 
     def range_used(self, days: int = 365) -> dict:
-        """Lowest and highest key touched, and what fraction of the 88 they span.
+        """Lowest and highest key touched, and what fraction of your keyboard they span.
 
-        Clamped to the piano's own range for the same reason note_heatmap is: a
-        coverage figure measured against the 88 keys is meaningless if one of its
-        endpoints is not on them.
+        Two ranges, on purpose, because they answer different questions. What you PLAYED
+        is history and is read out of all of MIDI -- narrowing your declared keyboard
+        must not retroactively un-play a note. What you played it ON is the instrument
+        you have now, and it is the denominator, because "how much of my keyboard do I
+        use" is the only reading of coverage anyone wants.
+
+        The consequence is that coverage can exceed 1.0 if you once played a wider
+        keyboard than you now declare. That is true rather than broken -- it says you
+        have used more range than you currently own -- and the caller caps the bar.
         """
         start, end, _f, _t = _window(days)
         rows = self._rows(
             "SELECT MIN(note) AS lo, MAX(note) AS hi FROM note_event "
-            f"WHERE session_id IN ({self._session_ids_sql()}) AND note BETWEEN ? AND ?",
-            (start, end, config.LOW_KEY, config.HIGH_KEY),
+            f"WHERE session_id IN ({self._session_ids_sql()}) AND note BETWEEN 0 AND 127",
+            (start, end),
         )
+        low_key, high_key = config.instrument_range()
         r = rows[0] if rows else None
         if r is None or r["lo"] is None:
             return {"low": None, "high": None, "span": 0, "coverage": 0.0,
+                    "of_low": low_key, "of_high": high_key,
                     "low_name": None, "high_name": None}
         low, high = int(r["lo"]), int(r["hi"])
         span = high - low
@@ -758,8 +774,13 @@ class Store:
             "low": low,
             "high": high,
             "span": span,
-            # 87, not 88: A0 to C8 is 88 keys but 87 steps between them.
-            "coverage": round(span / (config.HIGH_KEY - config.LOW_KEY), 3),
+            # Steps, not keys: A0 to C8 is 88 keys but 87 steps between them. max(1,..)
+            # rather than trusting the clamp, because this is a division and the cost of
+            # being wrong is a 500 on the whole Stats page.
+            "coverage": round(span / max(1, high_key - low_key), 3),
+            # What the denominator was, so the label can say so instead of guessing.
+            "of_low": low_key,
+            "of_high": high_key,
             "low_name": _note_label(low),
             "high_name": _note_label(high),
         }

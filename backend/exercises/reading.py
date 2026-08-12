@@ -12,22 +12,12 @@ time mean anything and is what a teacher sitting next to you would do.
 
 from __future__ import annotations
 
-from .. import music
+from .. import config, music
 from . import ExerciseType, GenContext, Param, Plan, Step, register
 
 MAX_LEAP = 12          # keep successive notes within an octave -- reading, not gymnastics
 WEAK_BOOST = 3.0       # how hard the adaptive weighting pulls toward your worst notes
 MIN_ATTEMPTS = 3       # a note needs this many attempts before it counts as weak
-
-
-def _range_for_clef(clef: str, lo: int, hi: int) -> tuple[int, int]:
-    # Treble stays at or above A3, bass at or below F4. Two ledger lines either way is
-    # where reading practice belongs, not five.
-    if clef == "treble":
-        return max(lo, 57), hi
-    if clef == "bass":
-        return lo, min(hi, 65)
-    return lo, hi
 
 
 def _weights(store, candidates: list[int], adaptive: bool) -> list[float]:
@@ -51,9 +41,15 @@ def generate(params: dict, ctx: GenContext) -> Plan:
     key = str(params.get("key", "C"))
     clef = str(params.get("clef", "both"))
     count = max(1, min(16, int(params.get("notes", 4))))
-    lo, hi = _range_for_clef(clef, int(params.get("low", 55)), int(params.get("high", 79)))
-    if lo > hi:
-        lo, hi = hi, lo
+    # What you asked for, met with the keys you have. Never inverted, never empty --
+    # the swap this used to do turned an empty intersection into a window ABOVE the
+    # instrument and generated notes nobody could play, then logged them as intended.
+    want_lo, want_hi = int(params.get("low", 55)), int(params.get("high", 79))
+    low_key, high_key = config.instrument_range()
+    lo, hi = music.reading_window(clef, want_lo, want_hi, low_key, high_key)
+    # The same window against the full piano, for the variant slug only -- see below.
+    slug_lo, slug_hi = music.reading_window(clef, want_lo, want_hi,
+                                            config.LOW_KEY, config.HIGH_KEY)
 
     scale = set(music.scale_pitch_classes(key, "major"))
     candidates = [n for n in range(lo, hi + 1) if n % 12 in scale] or list(range(lo, hi + 1))
@@ -77,7 +73,16 @@ def generate(params: dict, ctx: GenContext) -> Plan:
     )
     return Plan(
         exercise="reading",
-        variant=f"{key}:{clef}:{count}:{lo}-{hi}",
+        # The clef window measured against the FULL piano -- not the keyboard you have,
+        # and not the raw request either.
+        #
+        # A slug is an exercise's identity across sessions, so it must not move. Keying
+        # it on the instrument-clamped bounds forks the row you have been watching
+        # improve the day you declare a controller. Keying it on the raw request looks
+        # safe and is not: it silently renames every treble and bass row that already
+        # exists, because those were stored clef-windowed. Windowing against 21..108
+        # reproduces exactly what v0.6.0 wrote for everyone, and never moves again.
+        variant=f"{key}:{clef}:{count}:{slug_lo}-{slug_hi}",
         title=f"Sight reading in {key}, {count} note{'s' if count != 1 else ''}",
         key=key,
         steps=steps,
@@ -100,8 +105,14 @@ register(ExerciseType(
         Param("clef", "Clef", "choice", "both",
               choices=(("both", "Grand staff"), ("treble", "Treble"), ("bass", "Bass"))),
         Param("notes", "Notes", "int", 4, lo=1, hi=16),
-        Param("low", "Lowest", "note", 55, lo=21, hi=108),
-        Param("high", "Highest", "note", 79, lo=21, hi=108),
+        # Bounds stay at the full piano and are NOT narrowed to the instrument. The
+        # registry is built once at import and ExerciseType is frozen, so a live range
+        # could never reach here anyway -- and the clamp that matters is the one in
+        # generate(), which meets these against the keyboard every time it runs. Keeping
+        # the sliders wide means your stated preference survives plugging a bigger
+        # keyboard in.
+        Param("low", "Lowest", "note", 55, lo=config.LOW_KEY, hi=config.HIGH_KEY),
+        Param("high", "Highest", "note", 79, lo=config.LOW_KEY, hi=config.HIGH_KEY),
         Param("adaptive", "Weight toward my worst notes", "bool", True,
               help="Uses your own attempt history to pick what you keep missing."),
     ),

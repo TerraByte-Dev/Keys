@@ -12,9 +12,9 @@
  * transport and a progress bar, and it costs one rAF and no traffic.
  */
 
+import { instrument } from './app.js';
 import { $, api, h, mod, noteName, slider, toast } from './ui.js';
 
-const LOW = 21, HIGH = 108;
 const BAR_CHOICES = [1, 2, 4, 8, 16];
 
 export function createLoopStation(ctx, getInstruments) {
@@ -230,7 +230,8 @@ export function createLoopStation(ctx, getInstruments) {
     }
     if (hi < lo) return [60, 72];
     const pad = Math.max(2, Math.round((hi - lo) * 0.12));
-    return [Math.max(LOW, lo - pad), Math.min(HIGH, hi + pad)];
+    const inst = instrument();
+    return [Math.max(inst.low, lo - pad), Math.min(inst.high, hi + pad)];
   }
 
   function roll(l) {

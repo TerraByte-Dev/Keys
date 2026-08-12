@@ -71,8 +71,12 @@ application folder — are not touched by any of it.
   the binding you want is `pyfluidsynth`, which bundles no native library.)*
 - **A SoundFont** — [GeneralUser GS 2.0.3](https://github.com/mrbumpy409/GeneralUser-GS) saved to
   `soundfonts/GeneralUser-GS.sf2`.
-- A class-compliant USB MIDI keyboard. Developed and measured against a **Yamaha P-71B**; the 88-key display
-  assumes the standard MIDI range 21–108.
+- A class-compliant USB MIDI keyboard. Developed and measured against a **Yamaha P-71B**, and 88 keys
+  (MIDI 21–108) is what Keys assumes until you say otherwise. **Any size works**: tell it what you have in
+  **Sound → Your keyboard** — pick 25/32/37/49/61/73/76/88, set a custom range, or press your lowest and
+  highest key and let it work them out. Everything follows from that answer: what gets drawn, how far a scale
+  runs, where sight reading puts its notes, and what happens when you open a piece written for more keys than
+  you own.
 
 **Run**
 
@@ -113,7 +117,7 @@ plugging it back in needs no restart. `1`–`6` switch views, `M` toggles the me
 ## Screenshots
 
 <p align="center">
-  <img src="docs/assets/screenshots/play.png" alt="The Play view — presets, instrument browser and the 88-key dock" width="100%" />
+  <img src="docs/assets/screenshots/play.png" alt="The Play view — presets, instrument browser and the docked keyboard" width="100%" />
 </p>
 <p align="center">
   <sub><b>The keyboard never leaves.</b> It's docked to the bottom edge in every view and lights amber under your fingers, scaled by velocity.</sub>
@@ -137,7 +141,7 @@ plugging it back in needs no restart. `1`–`6` switch views, `M` toggles the me
     </td>
     <td width="50%" valign="top">
       <img src="docs/assets/screenshots/stats.png" alt="The Stats tab: activity calendar and key heatmap" /><br/>
-      <sub><b>Stats</b> — a year of activity, an 88-key heatmap, and the keys you actually play in.</sub>
+      <sub><b>Stats</b> — a year of activity, a keyboard heatmap, and the keys you actually play in.</sub>
     </td>
   </tr>
 </table>
@@ -165,7 +169,8 @@ engine's own held-note set puts the display back in sync.
 - `backend/hub.py` — the bounded queue between the callback thread and everything else.
 - `backend/metronome.py` — sequencer scheduling. `backend/music.py` — spelling, intervals, chord detection.
 - `backend/store.py` / `practice.py` — SQLite practice log and the idle-aware clock.
-- `frontend/` — `app.js` shell + websocket, `keyboard.js` the 88-key component, `views/*.js`, `style.css`.
+- `frontend/` — `app.js` shell + websocket, `keyboard.js` the keyboard component, `instrument.js` the
+  key-count picker, `views/*.js`, `style.css`.
 
 Deeper notes: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (the invariants and why they exist),
 [`docs/HARDWARE.md`](docs/HARDWARE.md) (every measured number, and the settings that fail silently),
@@ -206,7 +211,8 @@ Keys is up — close it first, or pass `--force` if you know what you're doing.
 .venv\Scripts\python tools\frontend_check.py    # every ES module parses; needs Node for the syntax pass
 ```
 
-The full suite is eighteen checks; the fourteen that need no hardware at all carry 869 assertions between them.
+The full suite is eighteen checks; the thirteen that need nothing plugged in and no browser carry 946
+assertions between them (`ui_check` also wants Playwright).
 See [`CONTRIBUTING.md`](CONTRIBUTING.md). There is no
 bundler, no transpiler and no `node_modules` — editing `frontend/` and reloading the page is the whole loop.
 

@@ -54,6 +54,24 @@ SUSTAIN_CC = 64
 CHORD_SETTLE_SECONDS = 0.14
 
 
+def _range_state() -> dict[str, Any]:
+    """The instrument, as the frontend needs it.
+
+    `low`/`high` are the keys that exist and `octave` is where they are sounding; the
+    limits ride along so the settings panel does not have to keep its own copy of
+    numbers the backend already enforces.
+    """
+    low, high = config.instrument_range()
+    return {
+        "low": low,
+        "high": high,
+        "keys": high - low + 1,
+        "octave": config.master_octave(),
+        "min_keys": config.MIN_KEYS,
+        "max_octave": config.MAX_OCTAVE,
+    }
+
+
 class App:
     """Everything with a lifetime. One instance, created at startup."""
 
@@ -276,6 +294,11 @@ class App:
             "t": "s",
             "held": truth,
             "sustain": self.sustain,
+            # On the heartbeat rather than only in /api/state, for the same reason the
+            # held list is: a second tab, or this one after the range was changed
+            # somewhere else, corrects itself within a second instead of drawing keys
+            # that are not there until someone reloads.
+            "range": _range_state(),
             "engine": self.engine.status(),
             "midi": self.midi.status(),
             "metronome": self.metro.status(),
@@ -318,7 +341,7 @@ class App:
             "frozen": config.FROZEN,
             "curves": engine_mod.CURVE_NAMES,
             "keys": music.KEYS,
-            "range": {"low": config.LOW_KEY, "high": config.HIGH_KEY},
+            "range": _range_state(),
             "hub": self.hub.stats(),
             "errors": self._boot_errors,
         }
@@ -524,6 +547,26 @@ def panic() -> dict[str, Any]:
     return {"ok": True}
 
 
+@api.post("/api/octave")
+def set_octave(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """Shift the whole instrument by whole octaves.
+
+    Its own endpoint rather than a settings patch because it is a control you reach for
+    mid-phrase -- the same case /api/fx/send is: one number, applied live, no zone id.
+    Takes `octave` for an absolute value or `by` for a step, so the two dock buttons do
+    not have to know what the current value is before they can change it.
+    """
+    # Total, like every other clamp on this surface: a control you reach for mid-phrase
+    # must not be able to answer with a 500. Anything unreadable means "no change".
+    try:
+        want = (config.master_octave() + int(body["by"])) if "by" in body \
+            else int(body.get("octave", config.master_octave()))
+    except (TypeError, ValueError):
+        want = config.master_octave()
+    applied = app_state.engine.set_master_octave(want)
+    return {"ok": True, "octave": applied, "range": _range_state()}
+
+
 @api.post("/api/preview")
 def preview(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
     """Audition notes from the UI. The note-off is scheduled on the sequencer, not
@@ -591,6 +634,12 @@ def data_reset(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
         result = app_state.store.wipe(what, app_state.settings)
     except ValueError as err:
         raise HTTPException(400, str(err)) from None
+    # Resetting settings puts the master octave back to 0 -- but the shift is baked into
+    # the routing table, so without this the table keeps the old one and every key goes
+    # on sounding transposed while the whole UI truthfully reports 0. A silent shift
+    # nobody can see the cause of is the worst version of this bug.
+    if what in ("settings", "everything"):
+        app_state.engine.apply_instrument()
     # printed, not logged: this module has no logger, and keys.py routes stdout to
     # the data directory's log when there is no console. A reset is worth a trace.
     print(f"[data] reset {what}: {result['removed']}", flush=True)
@@ -1018,7 +1067,13 @@ def exercise_start(exercise_id: str, body: dict[str, Any] = Body(default=None)) 
     params = clean_params(ex, body)
     ctx = GenContext(store=app_state.store, rng=app_state.rng,
                      display_key=app_state.reading_key())
-    plan = ex.generate(params, ctx)
+    try:
+        plan = ex.generate(params, ctx)
+    except ValueError as err:
+        # A generator that cannot place this exercise on this keyboard says so, and the
+        # message is written to be read by the person holding it. 400 rather than 500:
+        # nothing is broken, the request just does not fit the instrument.
+        raise HTTPException(400, str(err)) from None
 
     if plan.timed:
         # override(), not configure(): the exercise borrows the tempo for the length of
@@ -1111,7 +1166,33 @@ def get_settings() -> dict[str, Any]:
 
 @api.post("/api/settings")
 def post_settings(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    # Written back clamped rather than validated-and-rejected: a range is a pair, and
+    # the two halves arrive from two sliders that can each be dragged past the other.
+    # Storing the sane pair means every later reader gets one answer, and the panel
+    # sees what it actually got.
+    if "instrument" in body:
+        # A non-dict would be stored verbatim and then poison every later write, because
+        # _deep_merge only recurses when BOTH sides are dicts -- one bad POST and the
+        # keyboard picker is broken until someone edits the file by hand.
+        patch = dict(body["instrument"]) if isinstance(body["instrument"], dict) else {}
+        if "low" in patch or "high" in patch:
+            current = app_state.settings.get("instrument", default={})
+            if not isinstance(current, dict):
+                current = {}
+            lo, hi = config.clamp_range(patch.get("low", current.get("low", config.LOW_KEY)),
+                                        patch.get("high", current.get("high", config.HIGH_KEY)))
+            patch["low"], patch["high"] = lo, hi
+        if "octave" in patch:
+            try:
+                patch["octave"] = max(-config.MAX_OCTAVE,
+                                      min(config.MAX_OCTAVE, int(patch["octave"] or 0)))
+            except (TypeError, ValueError):
+                patch["octave"] = 0
+        body = {**body, "instrument": patch}
+
     updated = app_state.settings.update(body)
+    if "instrument" in body:
+        app_state.engine.apply_instrument()
     if "reverb" in body:
         app_state.engine.apply_reverb(updated.get("reverb", {}))
     if "chorus" in body:

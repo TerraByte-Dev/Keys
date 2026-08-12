@@ -47,7 +47,19 @@ REAL_BEFORE = (REAL_DB.exists(), REAL_DB.stat().st_mtime_ns if REAL_DB.exists() 
 STORE = Store(TMP / "exercise-check.db")
 CTX = GenContext(store=STORE, rng=random.Random(1))
 
-LOW, HIGH = 21, 108
+# Pinned to a scratch settings file holding the 88 keys, deliberately, and this is the
+# one line in the file that matters most.
+#
+# The generators read the instrument range at generation time now. Left alone, this
+# check would inherit whatever is in the developer's own config.local.json -- so it
+# would pass on their machine and assert nothing about anyone else's, and every
+# absolute-MIDI expectation below ("right hand starts on middle C", the exact contrary
+# head, the 29-step counts) would be measuring a keyboard nobody chose. A test whose
+# expected values come from live user settings is the same failure CONTRIBUTING.md
+# already names twice.
+config.settings = config.Settings(TMP / "settings.json")
+config.settings.update({"instrument": {"low": 21, "high": 108}})
+LOW, HIGH = config.instrument_range()
 ok = True
 
 
@@ -59,6 +71,28 @@ def step(label: str, passed: bool, detail: str = "") -> None:
 
 def gen(exercise: str, **params) -> Plan:
     return REGISTRY[exercise].generate(params, CTX)
+
+
+def _refusal() -> tuple[str, bool]:
+    """The first refusal a 25-key controller produces, and whether it is worth reading.
+
+    Returns (message, usable). It used to compute the verdict and then throw it away,
+    returning a string on both branches while the caller only tested `is not None` --
+    an assertion that could not fail, which is worse than no assertion.
+    """
+    config.settings.update({"instrument": {"low": 48, "high": 72}})
+    try:
+        for key in KEYS:
+            try:
+                gen("scale", key=key, hands="B", octaves=2)
+            except ValueError as err:
+                text = str(err)
+                # It has to name the key, the size of the keyboard, and a way out --
+                # anything less is a shrug rather than an answer.
+                return text, (key in text and "25" in text and "Try" in text)
+        return "nothing refused on a 25-key at all", False
+    finally:
+        config.settings.update({"instrument": {"low": 21, "high": 108}})
 
 
 def midi(plan: Plan) -> list[int]:
@@ -591,7 +625,38 @@ step("and the arpeggio generator does not claim one",
      gen("arpeggio", key="C").show_fingers is False
      and not any(s.fingers for s in gen("arpeggio", key="C").steps))
 
-print("13. the real keys.db was never touched")
+print("13. a smaller keyboard: every note is reachable, or the generator refuses")
+# The bug this pins is not cosmetic. An out-of-range target does not merely go silent --
+# run.py blocks on it, _miss never advances the cursor, and an untimed plan has no
+# lookahead to escape with. So a scale that ran off the top of a 25-key controller hung
+# the exercise forever with nothing on screen to explain it. _fit computed its own
+# failure and the caller threw the answer away.
+BOARDS = ((61, 36, 96), (49, 36, 84), (25, 48, 72))
+for keys, lo, hi in BOARDS:
+    config.settings.update({"instrument": {"low": lo, "high": hi}})
+    off, refused, built = [], 0, 0
+    for ex in ("scale", "arpeggio"):
+        for key in KEYS:
+            for hands in ("R", "L", "B"):
+                for octaves in (1, 2, 4):
+                    try:
+                        plan = gen(ex, key=key, hands=hands, octaves=octaves)
+                    except ValueError:
+                        refused += 1          # said so, in words, with a 400 behind it
+                        continue
+                    built += 1
+                    off += [n for s in plan.steps for n in s.notes if not lo <= n <= hi]
+    step(f"{keys}-key ({lo}..{hi}): nothing off the keyboard", not off,
+         f"{built} built, {refused} refused" if not off
+         else f"{len(off)} stray notes, e.g. {sorted(set(off))[:6]}")
+    step(f"{keys}-key: it still builds most of them", built > refused,
+         f"{built} built vs {refused} refused")
+
+config.settings.update({"instrument": {"low": 21, "high": 108}})
+_msg, _usable = _refusal()
+step("a refusal names the key, the size and a way out", _usable, _msg)
+
+print("14. the real keys.db was never touched")
 after = (REAL_DB.exists(), REAL_DB.stat().st_mtime_ns if REAL_DB.exists() else 0,
          REAL_DB.stat().st_size if REAL_DB.exists() else 0)
 step("keys.db unchanged", after == REAL_BEFORE,

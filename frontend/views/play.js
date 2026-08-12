@@ -5,7 +5,7 @@
  * scale highlighter paints straight onto the dock keyboard. */
 
 import { $, api, fill, h, mod, noteName, paint, slider, stat, toast } from '../ui.js';
-import { ctx as appCtx, resetTouch } from '../app.js';
+import { ctx as appCtx, instrument, resetTouch } from '../app.js';
 import { createLibrary } from '../library.js';
 
 /* Wire value -> what it means to someone with one pedal. The empty string is the
@@ -204,9 +204,12 @@ export default {
               PEDAL_LABELS.map(([v, label]) => h('option', { value: v }, label)))),
           h('label.field', { id: 'pedal-range-lo' },
             h('span.field__label', null, h('span', null, 'Sustains from'),
-              h('span.field__value', { id: 'pedal-lo-v' }, 'A0')),
+              h('span.field__value', { id: 'pedal-lo-v' }, noteName(instrument().low))),
             slider({
-              min: 21, max: 108, step: 1, value: 21,
+              // Built wide open. setPedalRange narrows the track to fit whatever the
+              // saved zone plus your keyboard actually needs -- doing it the other way
+              // round lets the browser clamp the saved value before anyone reads it.
+              min: 0, max: 127, step: 1, value: instrument().low,
               oninput: (v) => {
                 $('#pedal-lo-v').textContent = noteName(v);
                 previewRange(v, Number($('#pedal-range-hi input').value));
@@ -215,9 +218,9 @@ export default {
             })),
           h('label.field', { id: 'pedal-range-hi' },
             h('span.field__label', null, h('span', null, 'up to'),
-              h('span.field__value', { id: 'pedal-hi-v' }, 'C8')),
+              h('span.field__value', { id: 'pedal-hi-v' }, noteName(instrument().high))),
             slider({
-              min: 21, max: 108, step: 1, value: 108,
+              min: 0, max: 127, step: 1, value: instrument().high,
               oninput: (v) => {
                 $('#pedal-hi-v').textContent = noteName(v);
                 previewRange(Number($('#pedal-range-lo input').value), v);
@@ -233,12 +236,22 @@ export default {
               onchange: () => pushPedal(),
             }))),
         h('div.btnrow', { style: { marginTop: '10px' } },
+          /* "The bottom half of what you have", not "A0 to B3". On a 61-key board B3
+             is a third of the way up, so the fixed note names described somebody
+             else's keyboard. Halfway is the same intention wherever it lands. */
           h('button.btn', {
             id: 'pedal-split',
-            onclick: () => { setPedalRange(21, 59); pushPedal(); },
-          }, 'Left hand only (A0-B3)'),
+            onclick: () => {
+              const mid = Math.round((instrument().low + instrument().high) / 2);
+              setPedalRange(instrument().low, mid);
+              pushPedal();
+            },
+          }, 'Left hand only'),
           h('button.btn', {
-            onclick: () => { setPedalRange(21, 108); pushPedal(); },
+            onclick: () => {
+              setPedalRange(instrument().low, instrument().high);
+              pushPedal();
+            },
           }, 'Whole keyboard')),
         h('div.note', { id: 'pedal-note', style: { marginTop: '10px' } }))),
 
@@ -369,9 +382,27 @@ function previewRange(lo, hi) {
   ghostTimer = setTimeout(() => kb.setGhost([]), 1400);
 }
 
+/* Widen the two tracks so they can HOLD the pair being shown, then set the values.
+ *
+ * Order is the whole point, and getting it wrong destroyed data. A range input clamps
+ * any value assigned to it into [min,max]. With the tracks bounded by the declared
+ * keyboard, a saved pedal zone of A0..B3 on a 61-key board was silently clamped to
+ * C2 on arrival -- and pushPedal() then posts whatever the slider holds, so the next
+ * unrelated nudge of the Decay slider wrote C2 back to disk and A0 was gone for good.
+ * Widening back to 88 keys did not bring it back.
+ *
+ * engine.set_pedal deliberately keeps what you ASKED for and clamps only where the
+ * pedal is used; this is the frontend keeping the same promise. */
 function setPedalRange(lo, hi) {
   const els = pedalEls();
   if (!els) return;
+  const inst = instrument();
+  const min = Math.min(inst.low, lo, hi);
+  const max = Math.max(inst.high, lo, hi);
+  for (const el of [els.lo, els.hi]) {
+    el.min = String(min);
+    el.max = String(max);
+  }
   els.lo.value = lo;
   els.hi.value = hi;
   paint(els.lo);
@@ -410,7 +441,14 @@ function paintPedal(pedal, force = false) {
   els.hi.disabled = !zoned;
   $('#pedal-split').disabled = !zoned;
 
-  if (force) setPedalRange(pedal.lo, pedal.hi);
+  /* Painted whenever the sliders are not under your hand, not only on force. `force`
+     alone meant the panel opened showing whatever the sliders were BUILT with rather
+     than the zone you actually saved -- and pushPedal posts what the sliders hold, so
+     the first unrelated nudge wrote that wrong pair to disk. Skipping only the focused
+     slider keeps the original intent: never fight a drag. */
+  if (force || (document.activeElement !== els.lo && document.activeElement !== els.hi)) {
+    setPedalRange(pedal.lo, pedal.hi);
+  }
 
   const note = $('#pedal-note');
   if (note) {
@@ -421,6 +459,15 @@ function paintPedal(pedal, force = false) {
         ? h('span', null, '  ',
             h('strong', null, pedal.down ? 'Pedal down.' : 'Pedal up.'),
             held ? ` Ringing on the pedal: ${held} note${held > 1 ? 's' : ''}.` : '')
+        : null,
+      /* What it is actually doing, when that is not what the sliders say. The zone you
+         set is kept exactly as you set it; the keys you own are what it can act on.
+         Saying so beats moving your slider behind your back. */
+      zoned && (pedal.eff_lo !== pedal.lo || pedal.eff_hi !== pedal.hi)
+        ? h('span', null, '  ',
+            `Your keyboard stops at ${noteName(instrument().low)}-${noteName(instrument().high)}, `
+            + `so this is sustaining ${noteName(pedal.eff_lo)}-${noteName(pedal.eff_hi)}. `
+            + 'The range above is kept as you set it.')
         : null);
   }
 }
@@ -631,7 +678,7 @@ async function applyInstrument(inst, ctx) {
   let zones = (eng.zones || []).map((z) => ({ ...z }));
   if (!zones.length) {
     zones = [{
-      id: 'main', name: inst.name, lo: 21, hi: 108, channel: 0,
+      id: 'main', name: inst.name, lo: instrument().low, hi: instrument().high, channel: 0,
       soundfont: instrumentsSf, bank: inst.bank, program: inst.program, transpose: 0,
       gain: 1, pan: 0.5, reverb: 0.3, chorus: 0, curve: 'linear',
       fixed_velocity: 100, enabled: true,
@@ -756,6 +803,7 @@ function paintScale(ctx) {
   const steps = MODES[$('#scale-mode').value] || MODES.major;
   const pcs = new Set(steps.map((s) => (root + s) % 12));
   const notes = [];
-  for (let n = 21; n <= 108; n++) if (pcs.has(n % 12)) notes.push(n);
+  const { low, high } = instrument();
+  for (let n = low; n <= high; n++) if (pcs.has(n % 12)) notes.push(n);
   ctx.kb.setHighlight(notes);
 }

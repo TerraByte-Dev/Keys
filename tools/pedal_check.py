@@ -212,14 +212,78 @@ eng._suspend_hot_path()  # noqa: SLF001
 step("a restart clears them", eng.pedal_status()["holding"] == [],
      "the callback thread must not release into a freed Synth")
 
-print("9. bad input is clamped, not obeyed")
+print("9. the master octave moves under the pedal without orphaning a voice")
+# note_on drops the pedal's claim on a re-struck key, on the theory that the new strike
+# steals the same voice. That holds only while the key comes out at the same pitch. The
+# octave shift is baked into the routing table, so a key pedalled at OCT 0 and re-struck
+# at OCT +1 is a DIFFERENT voice -- and the pedalled one was left ringing with nothing
+# holding a reference to it. No note-off could ever reach it: a stuck note for the rest
+# of the session, in all three managed pedal modes.
+for _mode, _kw in (("zone", {"lo": 21, "hi": 108}), ("hold", {}), ("sostenuto", {})):
+    eng, fs = fresh(_mode, **_kw)
+    press(eng, 60)
+    eng.control(SUSTAIN_CC, 127)          # pedal down (latches in "hold")
+    lift(eng, 60)                          # the pedal now owns the voice at 60
+    caught = ringing(fs)
+    eng.set_master_octave(1)               # 60 now comes out at 72
+    press(eng, 60)                         # re-strike: a different voice entirely
+    lift(eng, 60)
+    # "hold" latches: a release means nothing to it and a second PRESS is what lets go.
+    eng.control(SUSTAIN_CC, 127 if _mode == "hold" else 0)
+    step(f"{_mode}: nothing is left ringing", ringing(fs) == set(),
+         f"pedal caught {sorted(caught)}, left behind {sorted(ringing(fs))}")
+
+eng, fs = fresh("zone", lo=21, hi=108)
+press(eng, 60)
+eng.control(SUSTAIN_CC, 127)
+lift(eng, 60)
+press(eng, 60)
+step("re-striking at the SAME pitch still steals the voice", ringing(fs) == {60},
+     str(ringing(fs)))
+lift(eng, 60)
+eng.control(SUSTAIN_CC, 0)
+step("and it is released once, not twice", ringing(fs) == set(), str(ringing(fs)))
+
+eng, fs = fresh("zone", lo=21, hi=108)
+press(eng, 100)
+eng.control(SUSTAIN_CC, 127)
+lift(eng, 100)
+eng.set_master_octave(4)                   # 100 + 48 = 148: no route at all
+press(eng, 100)                            # the empty-routes early return used to skip it
+eng.control(SUSTAIN_CC, 0)
+step("a shift off the end of MIDI does not orphan it either", ringing(fs) == set(),
+     str(ringing(fs)))
+
+print("9b. bad input is clamped, not obeyed")
 eng, _fs = fresh()
 eng.set_pedal("nonsense")
 step("an unknown mode falls back to the damper", eng.pedal_mode == "")
 eng.set_pedal("zone", lo=200, hi=-5)
-step("range clamped to the keyboard",
-     eng.pedal_lo == config.LOW_KEY and eng.pedal_hi == config.HIGH_KEY,
+step("range clamped to MIDI", eng.pedal_lo == 0 and eng.pedal_hi == 127,
      f"{eng.pedal_lo}-{eng.pedal_hi}")
+# What is STORED is what you asked for, clamped only to notes that exist at all. What
+# APPLIES is that met with the keyboard you have. Keeping them apart is what makes
+# declaring a smaller keyboard non-destructive -- see the note in set_pedal.
+step("but what applies is the keyboard you have",
+     eng._pedal_span() == config.instrument_range(eng.settings),  # noqa: SLF001
+     f"{eng._pedal_span()}")  # noqa: SLF001
+
+print("   narrowing the instrument does not eat a saved pedal zone")
+eng, _fs = fresh()
+eng.set_pedal("zone", lo=21, hi=108)
+eng.settings.update({"instrument": {"low": 48, "high": 72}})
+eng.apply_instrument()
+step("the pedal still applies only where keys exist", eng._pedal_span() == (48, 72),  # noqa: SLF001
+     f"{eng._pedal_span()}")  # noqa: SLF001
+step("and the saved zone is untouched", eng.pedal_lo == 21 and eng.pedal_hi == 108,
+     f"{eng.pedal_lo}-{eng.pedal_hi}")
+eng.settings.update({"instrument": {"low": 21, "high": 108}})
+eng.apply_instrument()
+step("so widening back restores it exactly", eng._pedal_span() == (21, 108),  # noqa: SLF001
+     f"{eng._pedal_span()}")  # noqa: SLF001
+
+eng, _fs = fresh()
+eng.set_pedal("zone", lo=200, hi=-5)
 eng.set_pedal("zone", lo=80, hi=40)
 step("a backwards range is swapped, not empty",
      eng.pedal_lo == 40 and eng.pedal_hi == 80)

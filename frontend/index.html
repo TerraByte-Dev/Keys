@@ -147,6 +147,16 @@
         <button class="btn" data-hands="R">R</button>
         <button class="btn" data-hands="L">L</button>
       </span>
+      <!-- Where the PIECE sits, as opposed to where your hands sit. Keys moves a piece
+           that does not fit your keyboard into reach on its own; this is how you argue
+           with the register it picked. Distinct from the OCT control above the keys:
+           that one moves you, this one moves the music. -->
+      <span class="rollbar__shift" id="ghost-shift" role="group" aria-label="Move the piece by octaves"
+            title="Move the whole piece by octaves so it fits your keyboard. Every interval stays as written; only the register changes.">
+        <button class="btn" id="ghost-shift-down" title="A octave lower">&minus;</button>
+        <span class="rollbar__shiftv" id="ghost-shift-v">as written</span>
+        <button class="btn" id="ghost-shift-up" title="An octave higher">+</button>
+      </span>
       <label class="field rollbar__knob">
         <span class="field__label"><span>Tempo</span><span class="field__value" id="ghost-bpm-v">100</span></span>
         <input type="range" id="ghost-bpm" min="20" max="240" step="1" value="100">
@@ -187,6 +197,15 @@
     <span class="pedal" id="pedal" title="Sustain pedal (CC64)">
       <i class="pedal__led"></i>SUSTAIN
     </span>
+    <!-- What a hardware controller puts under OCT -/+. It shifts what SOUNDS, not what
+         is drawn: the key you press is the key that lights, because on a 61-key board
+         the note you are hearing may be off the end of the drawing entirely. -->
+    <span class="oct" id="oct" title="Shift the whole keyboard by octaves (Z down, X up). Click the number to centre it.">
+      <button class="oct__btn" id="oct-down" type="button" aria-label="Down an octave">&minus;</button>
+      <span class="oct__label">OCT</span>
+      <output class="oct__value" id="oct-value" title="Back to centre">0</output>
+      <button class="oct__btn" id="oct-up" type="button" aria-label="Up an octave">+</button>
+    </span>
     <span class="readout__label">VEL</span>
     <output class="readout__vel" id="last-vel">—</output>
     <button class="rolltoggle" id="roll-toggle" title="The roll, full screen — play along with a MIDI, or watch what you play (V)" aria-pressed="false">
@@ -197,7 +216,8 @@
 </section>
 
 <!-- ── the instrument. always here, whatever view you are in. ────────────── -->
-<section class="dock" id="dock" aria-label="88-key keyboard"></section>
+<!-- The label is replaced by the widget itself, which knows how many keys it drew. -->
+<section class="dock" id="dock" aria-label="Piano keyboard"></section>
 
 <!-- ── transient notices ─────────────────────────────────────────────────── -->
 <div class="toasts" id="toasts" aria-live="polite"></div>

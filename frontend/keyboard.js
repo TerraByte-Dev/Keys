@@ -1,5 +1,7 @@
 /**
- * The 88-key keyboard widget. One SVG, built once, then never rebuilt.
+ * The keyboard widget. One SVG, built once and never rebuilt while you play -- the
+ * only thing that rebuilds it is setRange(), i.e. telling Keys how many keys you own.
+ * 88 is the default because that is what a piano has, not because it is assumed.
  *
  * Why it is shaped this way:
  *
@@ -23,7 +25,9 @@
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const STYLE_ID = 'keys-keyboard-geometry';
 
-// The instrument: Yamaha P-71B, A0..C8. 52 white keys, 36 black.
+// The default instrument: Yamaha P-71B, A0..C8. 52 white keys, 36 black. A smaller
+// controller says so in Settings and gets its own range; this is only what Keys draws
+// until it is told otherwise.
 const P71B_LOW = 21;
 const P71B_HIGH = 108;
 
@@ -399,9 +403,60 @@ class Keyboard {
     this._forced.clear();
   }
 
+  /**
+   * Redraw at a new key range, in place, keeping the same controller.
+   *
+   * This file's opening claim is that the SVG is built once and never rebuilt, and
+   * that is still true of the update path -- nothing here runs at frame rate. But not
+   * everyone owns 88 keys, and every x, width, label and hit target depends on which
+   * key is leftmost, so declaring a 61-key controller is a teardown and a rebuild
+   * rather than an edit. Returns whether anything changed.
+   */
+  setRange(low, high) {
+    if (this._destroyed) return false;
+    const lo = Math.max(0, Math.min(127, low | 0));
+    const hi = Math.max(lo, Math.min(127, high | 0));
+    if (lo === this.low && hi === this.high) return false;
+    // Checked BEFORE anything is torn down. _build throws on a range with no white key
+    // to stand on, and a widget that threw halfway through a rebuild is a dead dock
+    // with no keyboard in it -- worse than the range it refused.
+    let white = false;
+    for (let n = lo; n <= hi && !white; n++) white = WHITE_INDEX[n % 12] >= 0;
+    if (!white) return false;
+
+    this._teardown();
+    this._el.fill(null);
+    this._label.fill(null);
+    this._defaultLabel.fill('');
+    // The layers are sets of elements that are about to stop existing. Dropping them is
+    // correct rather than lossy: the status heartbeat re-asserts the held set every
+    // second, and the views that own the other layers repaint on the same beat.
+    for (const set of [this._held, this._heldSpare, this._highlight, this._highlightSpare,
+                       this._ghost, this._ghostSpare, this._dead, this._deadSpare,
+                       this._sustained, this._forced]) set.clear();
+
+    this.low = lo;
+    this.high = hi;
+    this._build();
+    this.setLabels(this._labels);
+    // The pedal is a state of the instrument, not of the drawing, so it survives.
+    if (this._sustain) this._svg.classList.add('kb--sustain');
+    this._syncAria();
+    if (this.interactive) this._bind();
+    return true;
+  }
+
   destroy() {
     if (this._destroyed) return;
     this._destroyed = true;
+    this._teardown();
+    this.container.removeAttribute('role');
+    this.container.removeAttribute('aria-label');
+  }
+
+  /* Give back the pointers, unhook the listeners, drop the SVG. Shared by destroy()
+     and setRange() so there is one list of listeners to keep in step rather than two. */
+  _teardown() {
     if (this.interactive) {
       for (const id of [...this._pointers.keys()]) {
         // Every down we announced owes the app a matching up, teardown included,
@@ -421,8 +476,6 @@ class Keyboard {
     }
     this._pointers.clear();
     this._svg.remove();
-    this.container.removeAttribute('role');
-    this.container.removeAttribute('aria-label');
   }
 
   // --------------------------------------------------------------- pointer
@@ -536,7 +589,8 @@ class Keyboard {
 }
 
 /**
- * Render an 88-key keyboard into `container` and return a controller for it.
+ * Render a keyboard into `container` and return a controller for it. Defaults to the
+ * 88 keys of a piano; pass low/high for anything else, or call setRange() later.
  *
  * options: { low, high, onKeyDown(midi, velocity), onKeyUp(midi), interactive,
  *            labels: 'none' | 'c-only' | 'all' }

@@ -59,13 +59,11 @@ class SightReader:
 
     # ------------------------------------------------------------ generation
     def _range_for_clef(self, clef: str, lo: int, hi: int) -> tuple[int, int]:
-        # Treble stays at or above A3, bass at or below F4. Two ledger lines either way
-        # is where a beginner should be reading, not five.
-        if clef == "treble":
-            return max(lo, 57), hi
-        if clef == "bass":
-            return lo, min(hi, 65)
-        return lo, hi
+        """See music.reading_window -- this used to be a second copy of it that had
+        already drifted from the one in exercises/reading.py, and raised IndexError on
+        an empty pool where the other silently generated unplayable notes."""
+        low_key, high_key = config.instrument_range(self.settings)
+        return music.reading_window(clef, lo, hi, low_key, high_key)
 
     def _weights(self, candidates: list[int]) -> list[float]:
         cfg = self.cfg()

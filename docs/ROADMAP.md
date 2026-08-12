@@ -13,7 +13,8 @@ more to do at their own pace, or does it try to teach them? The first kind gets 
 | **M1** | Sound | ✅ **3.00 ms, WASAPI exclusive, verified on hardware** |
 | **M2** | Instrument switching | ✅ 18 presets as JSON, 287 enumerated instruments, hotplug |
 | **M3** | Zones: split / layer / drum pads | ✅ overlap is the layer; one-click builders + full editor |
-| **M4** | See what you're playing | ✅ 88-key display, enharmonic names, chords with inversions |
+| **M4** | See what you're playing | ✅ keyboard display, enharmonic names, chords with inversions |
+| **M13** | Any size keyboard | ✅ declare 25–88 keys or press your own; octave shift; play-alongs fit themselves |
 | **M5a** | Practice timer | ✅ idle-gapped clock, streaks, heatmaps |
 | **M5b** | Metronome + tempo ramp | ✅ audio-clock driven, ramp, drift measured |
 | **M6** | Sight reading trainer | ✅ SVG grand staff, adaptive weighting |
@@ -25,8 +26,8 @@ more to do at their own pace, or does it try to teach them? The first kind gets 
 | **M12** | Backing tracks | ✅ YouTube shelf with A/B loop points and a speed control |
 
 Everything above M1 is covered by `tools/pipeline_check.py`, which drives synthetic notes through the real
-engine, hub, drain loop and websocket — so the suite runs without a piano attached. Eighteen scripts: fourteen
-need nothing plugged in at all and carry 869 assertions between them. `engine_check`, `looper_check` and
+engine, hub, drain loop and websocket — so the suite runs without a piano attached. Eighteen scripts: thirteen
+need nothing plugged in and no browser, and carry 946 assertions between them. `engine_check`, `looper_check` and
 `pipeline_check` want the audio device to themselves and refuse to run while Keys is open; `audio_check` also
 wants a piano actually connected, and fails its last step without one.
 
@@ -84,6 +85,26 @@ that reasoning, and the swap mechanic in enough detail to debug it at 2am, are i
 of the data. The gap is *material*: five-finger patterns, Hanon-style cells, contrary-motion drills, and
 independent rhythms between the hands. This is the stated biggest pitfall and the one thing the app can measure
 that nothing else does.
+
+**M14 — a loop length per layer.** Next up, and specified. Today `LoopStation.loop_ms` is one station-wide number
+and `_schedule_cycle` fires every layer at the same boundary, so every part is the same length. Giving each layer
+its own bar count is what buys **parts that play every other time** — a 4-bar bass under an 8-bar chord part,
+where the chords' second half lands on the bass's second pass. Nothing drifts: every layer is a whole number of
+bars and all bars come off the same `Metronome.grid()`.
+
+Three decisions already taken, so nobody re-litigates them:
+
+- **Any 1–32 bars**, not just doublings, with ×½ / ×1 / ×2 / ×4 as one-tap presets. Odd combinations are allowed
+  and Keys says what they cost — a 6 against a 4 comes back around every 12 bars — rather than refusing them.
+- **Length is set before a take and editable afterwards.** Stretching a 4-bar layer to 8 leaves bars 5–8 empty,
+  which *is* the every-other effect without re-recording. Shrinking must keep the notes past the new end rather
+  than deleting them, the same rule the pedal zone and the sight-reading window now follow: what you played is
+  yours, and re-stretching has to bring it back.
+- **The position bar shows the whole pattern** — the lowest common multiple of the layer lengths, capped — so
+  "bar 3 of 8" means something with mixed lengths. Each layer row shows its own wrap points.
+
+The work is mostly in `_fill`/`_schedule_cycle`, which stop scheduling *a cycle for every layer* and start
+scheduling *a window*, asking each layer which of its own cycles fall inside it.
 
 **M8 — export.** The loop station already holds your notes with millisecond positions; `.mid` is a serialiser and
 `.wav` is FluidSynth's file renderer. Also a rolling buffer — "save the last two minutes" — since the drain sees

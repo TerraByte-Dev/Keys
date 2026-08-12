@@ -18,6 +18,7 @@
  * says where to look beats a spotlight that drifts two pixels off its target.
  */
 
+import { keyboardPicker } from './instrument.js';
 import { api, h } from './ui.js';
 
 const b = (t) => h('strong', null, t);
@@ -31,6 +32,28 @@ export const CHAPTERS = [
       'Six tabs down the left, or press ', b('1'), '–', b('6'), '. Every shortcut in ',
       'the app is rebindable in Settings.',
     ],
+  },
+  /* Second, and the only chapter that asks you for something. It is this early because
+     every chapter after it describes an instrument, and describing the wrong one is
+     worse than describing none: an 88-key tour read on a 61-key controller teaches you
+     about twenty-seven keys you do not have.
+
+     Skippable, like everything else here -- 88 is the default and is what most people
+     have. `build` is what makes a chapter interactive; the rest are prose. */
+  {
+    id: 'instrument', tab: null, title: 'Your keyboard',
+    body: [
+      'One question, and it is the only one Keys asks. ', b('How many keys do you have?'),
+      h('br'), h('br'),
+      'Everything downstream follows from this — what gets drawn under the tabs, how ',
+      'far a scale exercise runs, where sight reading puts its notes, and what happens ',
+      'when you open a piece written for more keys than you own. Get it right once and ',
+      'the app stops being wrong about the instrument in front of you.', h('br'), h('br'),
+      'It is ', b('88'), ' unless you say otherwise, and you can change it whenever — ',
+      b('Sound'), ' → ', b('Your keyboard'), ', which is where to come back the day you ',
+      'plug in a full piano.',
+    ],
+    build: (ctx) => keyboardPicker(ctx),
   },
   {
     id: 'play', tab: 'play', title: 'Play — the sounds',
@@ -199,6 +222,7 @@ export const CHAPTERS = [
 let overlay = null;
 let index = 0;
 let markSeen = true;
+let built = null;          // an interactive chapter's element, while one is showing
 
 export function tourOpen() {
   return overlay !== null;
@@ -230,6 +254,11 @@ function paint(ctx) {
   const step = CHAPTERS[index];
   if (step.tab) location.hash = step.tab;
 
+  // An interactive chapter can be holding a live MIDI listener; leaving the chapter has
+  // to give it back, or Detect goes on reading your playing from a card that is gone.
+  built?.destroy?.();
+  built = step.build ? step.build(ctx) : null;
+
   const last = index === CHAPTERS.length - 1;
   document.getElementById('tour-card').replaceChildren(
     // The contents stays on screen at every step. Someone who opened this from
@@ -244,6 +273,7 @@ function paint(ctx) {
       h('div.tour__step', null, `${index + 1} of ${CHAPTERS.length}`),
       h('h2.tour__title', null, step.title),
       h('div.tour__body', null, ...step.body),
+      built,
       h('div.tour__row', null,
         h('button.btn', { onclick: () => finish(ctx) }, markSeen ? 'Skip' : 'Close'),
         h('span.list__spacer'),
@@ -256,6 +286,8 @@ function paint(ctx) {
 }
 
 function finish(ctx) {
+  built?.destroy?.();
+  built = null;
   overlay?.remove();
   overlay = null;
   if (!markSeen) return;
