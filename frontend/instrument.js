@@ -18,7 +18,7 @@
  * is the only number that matters and is occasionally not the number on the box.
  */
 
-import { instrument, listenNotes } from './app.js';
+import { instrument, listenNotes, setDetecting } from './app.js';
 import { api, fill, h, mod, noteName, toast } from './ui.js';
 
 /* The sizes people actually own, with the ranges they actually ship with. A 61 is
@@ -142,6 +142,9 @@ export function keyboardPicker(ctx, { onApply } = {}) {
       return;
     }
     detecting = 'low';
+    // While Detect is armed, pressing a key outside the current range is the whole
+    // point -- the app must not scold you for doing what it just asked.
+    setDetecting(true);
     q('#kbpick-detect').textContent = 'Cancel';
     q('#kbpick-detect').classList.add('is-capturing');
     say('Press the LOWEST key on your keyboard.');
@@ -177,6 +180,7 @@ export function keyboardPicker(ctx, { onApply } = {}) {
     stopListening?.();
     stopListening = null;
     detecting = null;
+    setDetecting(false);
     const btn = q('#kbpick-detect');
     if (btn) {
       btn.textContent = 'Press my keys instead';

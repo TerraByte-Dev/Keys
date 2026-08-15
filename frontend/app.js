@@ -16,7 +16,7 @@ import { createRoll } from './roll.js';
 import { createGhost } from './ghost.js';
 import { createSongs } from './songs.js';
 import { attachLayout, primeLayout } from './layout.js';
-import { $, api, h, hms, paint as paintSlider, toast } from './ui.js';
+import { $, api, h, hms, noteName, paint as paintSlider, toast } from './ui.js';
 import { startTour, tourOpen } from './tour.js';
 import { closeSettings, openSettings, settingsOpen } from './settings-overlay.js';
 
@@ -207,7 +207,43 @@ export async function panic() {
   }
 }
 
+/* A key you pressed that the drawn keyboard has no room for.
+ *
+ * It SOUNDS -- the engine routes every note regardless of what you declared -- but the
+ * widget has no element for it, so nothing lights, the roll has no column, and the
+ * whole app reads as "my keyboard stopped working". That is the worst way to be wrong:
+ * silently, about the thing you just did.
+ *
+ * It almost always means the size chip you picked does not match what your controller
+ * actually sends. "61 keys" is not one range: plenty of them sit somewhere other than
+ * C2-C7, and many have their own octave buttons that move where they start. Pressing
+ * your own two end keys is the only answer that cannot be wrong, so the notice says so.
+ *
+ * Throttled hard, and never while the Detect flow is armed -- there, pressing a key
+ * outside the current range is exactly what you were asked to do. */
+let strayNoticeAt = 0;
+
+function noticeOutOfRange(on) {
+  if (detectArmed) return;
+  const now = performance.now();
+  if (now - strayNoticeAt < 25000) return;
+  let stray = null;
+  for (const [n] of on) {
+    if (n < inst.low || n > inst.high) { stray = n; break; }
+  }
+  if (stray === null) return;
+  strayNoticeAt = now;
+  toast(`${noteName(stray)} is outside the ${inst.keys} keys you told Keys you have, `
+      + 'so it sounds but does not light up. Sound → Your keyboard → '
+      + '"Press my keys instead" sets it from your actual keyboard.', 'warn', 11000);
+}
+
+/* Set while the keyboard picker is listening for your two end keys. */
+let detectArmed = false;
+export function setDetecting(on) { detectArmed = !!on; }
+
 function applyFrame(f) {
+  if (f.on) noticeOutOfRange(f.on);
   if (f.on && noteListeners.size) {
     for (const fn of noteListeners) {
       // One bad listener must not stop the keyboard painting.

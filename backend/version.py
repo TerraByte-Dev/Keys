@@ -1,9 +1,10 @@
 """The version, and asking GitHub whether there is a newer one.
 
-**Only when you press the button.** Keys does not phone home on launch, on a timer, or
-in the background, and the check sends nothing but an HTTP GET for a public release
-list. An app that quietly contacts a server every time you open it is not local-first
-regardless of what its README says.
+**Once when Keys opens, and whenever you press the button.** The launch check is what
+puts the dot on the gear -- you cannot show a badge for news you refused to hear -- and
+`ui.update_check_on_launch` turns it off, after which this runs only on a button press.
+Either way it is one HTTP GET for a public release list, it sends nothing about you,
+and there is no timer and nothing in the background.
 
 There is deliberately no auto-install here either. This module only answers "is there
 a newer one, and where are its bytes"; downloading and installing them is
@@ -18,7 +19,7 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-VERSION = "0.7.2"
+VERSION = "0.7.3"
 REPO = "TerraByte-Dev/Keys"
 RELEASES_API = f"https://api.github.com/repos/{REPO}/releases/latest"
 RELEASES_PAGE = f"https://github.com/{REPO}/releases/latest"
