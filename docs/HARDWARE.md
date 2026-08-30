@@ -44,6 +44,29 @@ keyboard. That is the whole diagnosis, and it used to require a terminal.
 Pinning one input is still possible and is stored **by name**, not index — a saved index silently came to mean a
 different device the moment anything else was plugged in. "Listen to everything" is the way back.
 
+### If a build ever opens no input at all
+
+`could not open any MIDI input`, with ports listed and every one of them silent, means Keys
+is pinned to a device it cannot find — not that the driver is missing. The recovery is one
+click and it does not need a new build:
+
+**Settings → MIDI input → "Listen to everything"**
+
+That clears the pin, opens every input, and persists. Field-confirmed on the 0.8.0 build
+whose migration bug caused it.
+
+That bug is worth remembering as a shape rather than an incident. `midi_port` changed from
+holding a port INDEX to holding a port NAME, and nothing converted the values already on
+disk — so a saved `1` was read as a device named "1", matched nothing, and opened nothing. A
+saved `0` survived only because `0` is falsy, which meant the failure selected precisely for
+users who had already gone hunting for a working port. Two rules came out of it, and both are
+enforced in `backend/midi_in.py`:
+
+- **A persisted field that changes meaning needs a migration in the same commit.** `open_named`
+  recognises a legacy integer, discards it, and the value is written back once.
+- **Never resolve an ambiguity by going silent.** A pin naming an absent device now falls back
+  to every input and reports which device is missing.
+
 `tools/midi_ports_check.py` holds all of this against a simulated V49 and needs no hardware.
 
 ## 1. If Windows sees zero MIDI inputs
