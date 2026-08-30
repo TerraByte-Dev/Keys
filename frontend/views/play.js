@@ -100,7 +100,12 @@ export default {
         h('div.scroller', null, h('div.list', { id: 'inst-list' },
           h('div.empty', null, 'loading...'))))),
 
-      h('div.col-12', null, mod('Effects', 'the two units FluidSynth has',
+      // col-6, and authored second on purpose. Instruments is the tallest panel in the
+      // app (a 287-row scroller plus the profile shelf) and Effects was col-12, so it
+      // could not fit beside it -- half of a 1456px row sat empty under the one panel
+      // you always look at first. At col-6 the FX_GRID auto-fit reflows to four columns
+      // and the two pack side by side, which took the tab from 2198px to 1593px.
+      h('div.col-6', null, mod('Effects', 'the two units FluidSynth has',
         h('div.chips__head', null, 'Reverb -- the room'),
         h('div', { style: FX_GRID },
           fxKnobs('reverb', s, ctx),
@@ -131,6 +136,40 @@ export default {
           'leaves them alone. ',
           'FluidSynth has exactly two effect units, so there is no tone or brightness ',
           'knob to offer: the CCs that would drive one render byte-identical at 0 and 127.'))),
+
+      // Third, not last. Alone at the bottom it was a 152px panel with 721px of dead
+      // space beside it; here it fills the gap under Effects instead.
+      h('div.col-6', null, mod('Scale highlighter', null,
+        h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' } },
+          h('select', { id: 'scale-root', onchange: () => paintScale(ctx) },
+            Object.keys(ROOT_PC).map((k) => h('option', { value: k }, k))),
+          h('select', { id: 'scale-mode', onchange: () => paintScale(ctx) },
+            Object.keys(MODES).map((m) =>
+              h('option', { value: m }, m.replace(/_/g, ' '))))),
+        h('div.btnrow', { style: { marginTop: '10px' } },
+          h('button.btn', {
+            id: 'scale-toggle',
+            onclick: (e) => {
+              scaleOn = !scaleOn;
+              e.target.classList.toggle('is-on', scaleOn);
+              paintScale(ctx);
+            },
+          }, 'Show on keys'),
+          h('button.btn', {
+            onclick: (e) => {
+              const modes = ['none', 'c-only', 'all'];
+              const next = modes[(modes.indexOf(labelMode) + 1) % 3];
+              labelMode = next;
+              ctx.kb.setLabels(next);
+              e.target.textContent = 'Labels: ' + next;
+            },
+          // Rendered from the variable, not hardcoded. Label mode is a property of the
+          // always-docked keyboard -- like sustain, it should survive navigation -- so
+          // the fix is an honest label, not resetting the mode.
+          }, 'Labels: ' + labelMode)),
+        h('div.note', { style: { marginTop: '12px' } },
+          'Highlighted keys are the scale. They do not change what sounds -- ',
+          'this is a reading aid, not a lock.'))),
 
       h('div.col-6', null, mod('Tempo', null,
         h('div', { style: { display: 'flex', alignItems: 'baseline' } },
@@ -215,37 +254,6 @@ export default {
 
       h('div.col-12', null, station.el),
 
-      h('div.col-6', null, mod('Scale highlighter', null,
-        h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' } },
-          h('select', { id: 'scale-root', onchange: () => paintScale(ctx) },
-            Object.keys(ROOT_PC).map((k) => h('option', { value: k }, k))),
-          h('select', { id: 'scale-mode', onchange: () => paintScale(ctx) },
-            Object.keys(MODES).map((m) =>
-              h('option', { value: m }, m.replace(/_/g, ' '))))),
-        h('div.btnrow', { style: { marginTop: '10px' } },
-          h('button.btn', {
-            id: 'scale-toggle',
-            onclick: (e) => {
-              scaleOn = !scaleOn;
-              e.target.classList.toggle('is-on', scaleOn);
-              paintScale(ctx);
-            },
-          }, 'Show on keys'),
-          h('button.btn', {
-            onclick: (e) => {
-              const modes = ['none', 'c-only', 'all'];
-              const next = modes[(modes.indexOf(labelMode) + 1) % 3];
-              labelMode = next;
-              ctx.kb.setLabels(next);
-              e.target.textContent = 'Labels: ' + next;
-            },
-          // Rendered from the variable, not hardcoded. Label mode is a property of the
-          // always-docked keyboard -- like sustain, it should survive navigation -- so
-          // the fix is an honest label, not resetting the mode.
-          }, 'Labels: ' + labelMode)),
-        h('div.note', { style: { marginTop: '12px' } },
-          'Highlighted keys are the scale. They do not change what sounds -- ',
-          'this is a reading aid, not a lock.'))),
     ));
 
     // Seeded from state rather than left at the markup's defaults, so the panel does
