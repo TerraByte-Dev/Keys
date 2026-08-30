@@ -29,12 +29,15 @@ SUSTAIN_CC = 64
 DEDUPE_S = 0.008
 
 
-def _make_callback(engine: Engine, hub: Hub, seen: dict, counts: list, slot: int) -> Callable:
+def _make_callback(engine: Engine, hub: Hub, seen: dict, counts: dict, name: str, slot: int) -> Callable:
     """Build the hot callback with every lookup it needs bound as a local.
 
-    `slot` is which input port this callback belongs to; `counts` is the shared list it
-    bumps so the UI can say which port is actually sending. `seen` is the cross-port
-    de-dupe window -- see the note on DEDUPE_S below.
+    `name` is the port this callback belongs to and `counts` is the shared dict it bumps,
+    keyed by NAME rather than by index -- a release whose whole thesis is that indices are
+    unreliable must not key its own diagnostic by one, or a count follows the slot across
+    a hotplug and strands itself on a port that never sent anything. `slot` is still
+    carried for the de-dupe, where it only ever has to distinguish two live callbacks
+    from each other. `seen` is the de-dupe window -- see DEDUPE_S below.
     """
     perf = time.perf_counter
     note_on = engine.note_on
@@ -53,7 +56,7 @@ def _make_callback(engine: Engine, hub: Hub, seen: dict, counts: list, slot: int
         if status >= 0xF8:          # clock, active sensing, reset -- 98.5% of traffic
             return
         t0 = perf()
-        counts[slot] += 1
+        counts[name] = counts.get(name, 0) + 1
         # Cross-port de-dupe. Listening to every input is what makes a two-port
         # controller work without anyone choosing a port, and the price is that a device
         # which MIRRORS its keys onto both ports would sound every note twice. One dict
@@ -116,9 +119,12 @@ class MidiInput:
         # slot -> (rtmidi.MidiIn, port name). Slots are indices into self.counts.
         self._open: dict[int, tuple] = {}
         self._names: list[str] = []
-        self.counts: list[int] = []
+        self.counts: dict[str, int] = {}
         self._seen: dict = {}
         self.pinned: str = ""          # "" = listen to everything
+        # Set when a pinned name matches no present port -- we are listening to
+        # everything instead, and the UI needs to be able to say why.
+        self.unresolved_pin: str = ""
         self.last_error: str = ""
         self._watch_stop = threading.Event()
         self._watcher: threading.Thread | None = None
@@ -145,31 +151,61 @@ class MidiInput:
                 self.pinned = ports[idx]
             return self._sync_locked(ports)
 
-    def open_named(self, name: str | None) -> bool:
-        """Pin by port name, or listen to everything when name is falsy."""
+    def open_named(self, name: object) -> bool:
+        """Pin by port name, or listen to everything when name is empty.
+
+        Accepts a legacy value and throws it away. `midi_port` used to hold an INDEX,
+        and reading an old one as a name pins to a device called "1" -- which matches
+        nothing, opens nothing, and reports "could not open any MIDI input" while every
+        port sits there listed and silent. Index 0 survived only because 0 is falsy, so
+        this bit exactly the people who had gone looking for a working port.
+
+        Discarded rather than resolved: an index means whatever the enumeration order
+        means today, which is the reason it stopped being what this field stores. The
+        new default -- listen to everything -- is what they wanted from the choice anyway.
+        """
         with self._lock:
-            self.pinned = str(name or "")
+            if isinstance(name, bool) or isinstance(name, int):
+                name = ""
+            elif isinstance(name, str) and name.strip().isdigit():
+                name = ""
+            self.pinned = str(name or "").strip()
             return self._sync_locked()
 
     def _wanted(self, ports: list[str]) -> list[int]:
         """Which port indices we should be listening to right now."""
         if not self.pinned:
+            # Cleared here too. It used to be reset only on the branch where a pin
+            # resolves, so unpinning left the old "X is not here" line on screen forever.
+            self.unresolved_pin = ""
             return list(range(len(ports)))
-        # By name. If the pinned device is gone we listen to nothing rather than
-        # silently adopting whatever took its index -- that substitution is the bug
-        # storing an index caused in the first place.
-        return [i for i, n in enumerate(ports) if n == self.pinned]
+        match = [i for i, n in enumerate(ports) if n == self.pinned]
+        # A pin that resolves to nothing falls back to everything, and says so. The
+        # first version of this listened to NOTHING, on the reasoning that adopting
+        # whatever took the missing device's index is the bug indices caused. That is
+        # true and it is not a reason to go deaf: listening to every port is not
+        # adopting one impostor, it is the default this release exists to make safe.
+        # Silence is never the right answer to "the keyboard you chose is not here".
+        if not match:
+            self.unresolved_pin = self.pinned
+            return list(range(len(ports)))
+        self.unresolved_pin = ""
+        return match
 
     def _sync_locked(self, ports: list[str] | None = None) -> bool:
-        """Make the set of open ports match what _wanted() says it should be."""
+        """Make the set of open ports match what _wanted() says it should be.
+
+        Opens before it shuts, and never shuts its way to zero. Windows MIDI inputs are
+        exclusive, so pinning a port a DAW is holding fails -- and the first version of
+        this shut first, which meant that failure closed the port that WAS working and
+        left nothing open. The 2 s watcher then retried the same losing move forever.
+        Deaf, one click away, in the release whose entire point is that "ports listed,
+        no error, no sound" must never happen again.
+        """
         ports = self.list_ports() if ports is None else ports
         self._names = ports
-        if len(self.counts) < len(ports):
-            self.counts.extend([0] * (len(ports) - len(self.counts)))
         wanted = set(self._wanted(ports))
-
-        for slot in [s for s in self._open if s not in wanted or self._open[s][1] != ports[s]]:
-            self._shut(slot)
+        refused: list[str] = []
 
         for slot in sorted(wanted - set(self._open)):
             try:
@@ -178,21 +214,38 @@ class MidiInput:
                 # Drop clock / active sensing / sysex in the C layer so the Python
                 # callback is never even entered for them.
                 port.ignore_types(sysex=True, timing=True, active_sense=True)
-                port.set_callback(_make_callback(self.engine, self.hub,
-                                                 self._seen, self.counts, slot))
+                port.set_callback(_make_callback(self.engine, self.hub, self._seen,
+                                                 self.counts, ports[slot], slot))
             except Exception as exc:  # noqa: BLE001
-                # One port refusing to open is normal and not fatal: Windows MIDI inputs
-                # are exclusive, so a port another app already holds throws here while
-                # every other port on the machine is still perfectly usable.
-                self.last_error = f"could not open {ports[slot]}: {exc}"
+                # One port refusing is normal, not fatal: an input another application
+                # already holds throws here while every other port stays usable.
+                refused.append(f"{ports[slot]} ({exc})")
                 continue
             self._open[slot] = (port, ports[slot])
 
+        stale = [s for s in self._open if s not in wanted or self._open[s][1] != ports[s]]
+        # Hold the line rather than go silent: if dropping the stale ports would leave
+        # nothing listening, the newcomers must have refused, and keeping a working
+        # input the user did not ask for beats keeping none at all. last_error still
+        # says the pin did not take.
+        if set(stale) != set(self._open) or not wanted:
+            for slot in stale:
+                self._shut(slot)
+
         if not self._open:
-            self.last_error = self.last_error or (
-                "no MIDI inputs -- is the keyboard on and plugged into USB?"
-                if not ports else "could not open any MIDI input")
+            self.last_error = ("no MIDI inputs -- is the keyboard on and plugged into USB?"
+                               if not ports else
+                               "could not open any MIDI input: " + "; ".join(refused))
             return False
+        if refused:
+            self.last_error = ("still listening to "
+                               + ", ".join(sorted(n for _, n in self._open.values()))
+                               + " -- could not open " + "; ".join(refused))
+            # A PIN that refused is a failure the caller has to report: the user asked
+            # for that one input and did not get it. One port being unavailable while we
+            # listen to everything is not a failure -- we are listening, which was the
+            # whole request -- so it rides out on last_error as a note instead.
+            return not self.pinned
         self.last_error = ""
         return True
 
@@ -267,12 +320,13 @@ class MidiInput:
                     "index": i,
                     "name": n,
                     "listening": n in open_names,
-                    "messages": self.counts[i] if i < len(self.counts) else 0,
+                    "messages": self.counts.get(n, 0),
                 }
                 for i, n in enumerate(ports)
             ],
             "pinned": self.pinned,
-            "listening_to_all": not self.pinned,
-            "messages": sum(self.counts),
+            "unresolved_pin": self.unresolved_pin,
+            "listening_to_all": not self.pinned or bool(self.unresolved_pin),
+            "messages": sum(self.counts.values()),
             "error": self.last_error,
         }

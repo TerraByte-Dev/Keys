@@ -377,6 +377,12 @@ class Engine:
             self._sfids.clear()
             self._preset_cache.clear()
             self.started = False
+            # The hot path must not be left pointing at a Synth that no longer exists.
+            # startup() carries on past a failed audio open -- it still wants MIDI, the
+            # visual keyboard and the practice clock -- so notes DO arrive at an engine
+            # whose fs is None, which 0.7.3 could never reach. Emptying the routing table
+            # makes note_on/note_off return at their first branch instead of raising.
+            self._suspend_hot_path()
             return
 
         self.apply_reverb(self.settings.get("reverb", default={}) or {})

@@ -43,7 +43,7 @@ const VIEWS = {
 /* Old hashes, so a bookmark or a stale tab lands somewhere sensible instead of
    silently falling through to Play with no nav item lit. Deletable once nobody has
    an old URL. */
-const ALIASES = { zones: 'layers', metronome: 'tools', analytics: 'stats' };
+const ALIASES = { zones: 'layers', metronome: 'play', analytics: 'stats' };
 
 /* ── shared context handed to every view ──────────────────────────────────── */
 export const ctx = {

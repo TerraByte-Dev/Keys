@@ -225,7 +225,7 @@ def dev_monitor(interval: float = 2.0) -> None:
 
             if midi.connected != last_midi:
                 last_midi = midi.connected
-                print(f"  [dev] MIDI {'CONNECTED: ' + midi.port_name if midi.connected else 'not connected -- is the piano on?'}",
+                print(f"  [dev] MIDI {'CONNECTED: ' + (midi.pinned or 'all inputs') if midi.connected else 'not connected -- is the piano on?'}",
                       flush=True)
 
             rate = (hub["events_total"] - last_total) / interval

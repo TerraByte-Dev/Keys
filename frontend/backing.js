@@ -383,7 +383,11 @@ export function createBacking() {
       catch { /* the shelf is a preference list; the app works without it */ }
     },
     status(s) {
-      const now = !!s.engine?.exclusive;
+      // engine.exclusive is null when no audio stream is open, and !! turned that into
+      // "shared" -- a confident answer about a device that is not there. Hold the last
+      // known value instead; the audio panel is where a dead stream gets reported.
+      if (s.engine?.exclusive == null) return;
+      const now = !!s.engine.exclusive;
       if (now !== exclusive) { exclusive = now; paint(); }
     },
     destroy() {

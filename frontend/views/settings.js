@@ -20,6 +20,35 @@
 import { instrumentPanel } from '../instrument.js';
 import { $, api, h, mod, stat, toast } from '../ui.js';
 
+/* Built here rather than inline in mount(), because status() has to rebuild the same
+   rows every second. The counters ARE this panel -- "the port that moves is your
+   keyboard" -- and painting them once at mount meant they never moved. Someone who
+   updated BECAUSE their keyboard was silent would have watched every port read `silent`
+   forever and drawn exactly the wrong conclusion. */
+function portRows(midi) {
+  const ports = midi?.ports || [];
+  if (!ports.length) return [h('div.empty', null, 'no MIDI inputs found')];
+  return ports.map((p) => h('div.list__row', {
+    onclick: async () => {
+      const res = await api.post(`/api/midi/open/${p.index}`);
+      toast(res.ok ? `Listening only to ${p.name}` : 'Could not open that port',
+            res.ok ? 'good' : 'bad');
+    },
+  },
+    h('span.mono', null, String(p.index)),
+    h('span', { style: { flex: '1', minWidth: 0, overflow: 'hidden',
+                         textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, p.name),
+    h('span.tag' + (p.messages ? '.tag--cyan' : ''), null,
+      p.messages ? `${p.messages} msg` : 'silent'),
+    p.listening ? h('span.tag.tag--amber', null, 'listening') : null));
+}
+
+function midiAside(midi) {
+  if (!midi?.connected) return 'not connected';
+  if (midi.unresolved_pin) return `${midi.unresolved_pin} is not here -- listening to everything`;
+  return midi.listening_to_all ? 'listening to everything' : `pinned to ${midi.pinned}`;
+}
+
 /* Held so unmount can give back the live-MIDI listener Detect arms. */
 let instPanel = null;
 
@@ -34,28 +63,12 @@ export default {
 
     root.append(h('div.grid', null,
       h('div.col-6', null, mod('MIDI input',
-        midi.connected ? (midi.listening_to_all ? 'listening to everything' : `pinned to ${midi.pinned}`)
-                       : 'not connected',
-        h('div.list', { id: 'port-list' },
-          (midi.ports || []).length
-            ? midi.ports.map((p) => h('div.list__row', {
-                onclick: async () => {
-                  const res = await api.post(`/api/midi/open/${p.index}`);
-                  toast(res.ok ? `Listening only to ${p.name}` : 'Could not open that port',
-                        res.ok ? 'good' : 'bad');
-                },
-              },
-                h('span.mono', null, String(p.index)),
-                h('span', { style: { flex: '1', minWidth: 0, overflow: 'hidden',
-                                     textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, p.name),
-                // The whole diagnosis, in one number. A port sitting at 0 while you are
-                // pressing keys is not your keyboard; the one counting up is. Before
-                // this existed the only way to tell them apart was a terminal.
-                h('span.tag' + (p.messages ? '.tag--cyan' : ''), null,
-                  p.messages ? `${p.messages} msg` : 'silent'),
-                p.listening ? h('span.tag.tag--amber', null, 'listening') : null))
-            : [h('div.empty', null, 'no MIDI inputs found')]),
-        midi.error ? h('div.note.note--warn', { style: { marginTop: '10px' } }, midi.error) : null,
+        midiAside(midi),
+        h('div.list', { id: 'port-list' }, ...portRows(midi)),
+        h('div.note.note--warn', {
+          id: 'midi-error',
+          style: { marginTop: '10px', display: midi.error ? '' : 'none' },
+        }, midi.error || ''),
         h('div.btnrow', { style: { marginTop: '10px' } },
           h('button.btn', {
             onclick: async () => {
@@ -203,6 +216,20 @@ export default {
   },
 
   status(s) {
+    // The 1 Hz frame already carries the whole midi status, so this is a repaint and
+    // not a fetch. Without it the port counters are frozen at whatever they read when
+    // the tab was opened -- which is zero, for a keyboard you have not played yet.
+    const plist = $('#port-list');
+    if (plist && s.midi) {
+      plist.replaceChildren(...portRows(s.midi));
+      const aside = plist.closest('.mod')?.querySelector('.mod__aside');
+      if (aside) aside.textContent = midiAside(s.midi);
+      const err = $('#midi-error');
+      if (err) {
+        err.textContent = s.midi.error || '';
+        err.style.display = s.midi.error ? '' : 'none';
+      }
+    }
     const lat = s.hub?.latency;
     const host = $('#lat-stats');
     if (host && lat) {

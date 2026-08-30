@@ -147,8 +147,18 @@ class App:
 
         # A stored name pins that one input; nothing stored means listen to everything,
         # which is the default and the reason a two-port controller now just works.
-        if not self.midi.open_named(self.settings.get("midi_port")):
+        saved_port = self.settings.get("midi_port")
+        if not self.midi.open_named(saved_port):
             self._boot_errors.append(self.midi.last_error)
+        # open_named discards a legacy INDEX. Persist that so it is a one-time migration
+        # rather than a value that keeps being read and thrown away on every launch --
+        # and so /api/settings stops reporting a port choice that is no longer honoured.
+        if saved_port is not None and self.midi.pinned != saved_port:
+            self.settings.update({"midi_port": self.midi.pinned or None})
+        if self.midi.unresolved_pin:
+            self._boot_errors.append(
+                f'"{self.midi.unresolved_pin}" is not plugged in -- listening to every '
+                "MIDI input instead")
         self.midi.start_watcher()
 
     def shutdown(self) -> None:
@@ -515,7 +525,11 @@ def load_preset(pid: str) -> dict[str, Any]:
     # That difference is the whole point of the field, and why this is not a return of
     # the bug the comment above describes.
     if preset.effects:
-        updated = app_state.settings.update(preset.effects)
+        # Narrowed here as well as on save. A preset file is just JSON on disk, and an
+        # unfiltered blob deep-merges into config.local.json -- which would let it set
+        # `preset` and re-pin the startup sound that the comment below deliberately
+        # refuses to write. The whitelist belongs with the data, not with one route.
+        updated = app_state.settings.update(_clean_effects(preset.effects))
         app_state.engine.apply_reverb(updated.get("reverb", {}))
         app_state.engine.apply_chorus(updated.get("chorus", {}))
     # Deliberately does NOT become the startup sound. Trying a split out of curiosity

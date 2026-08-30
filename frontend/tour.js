@@ -67,7 +67,7 @@ export const CHAPTERS = [
     ],
   },
   {
-    id: 'touch', tab: 'play', title: 'Touch and highlighting',
+    id: 'touch', tab: 'tools', title: 'Touch and highlighting',
     body: [
       b('Touch response'), ' changes how hard you have to hit for a loud note. A ',
       'weighted action and a light one want different curves; there is no correct ',
@@ -88,7 +88,7 @@ export const CHAPTERS = [
     ],
   },
   {
-    id: 'pedal', tab: 'layers', title: 'The pedal, four ways',
+    id: 'pedal', tab: 'tools', title: 'The pedal, four ways',
     body: [
       'Normally it is the damper, handled inside the synth. It can also be:', h('br'),
       b('Zone'), ' — hold it to switch which zones are live.', h('br'),
@@ -129,7 +129,7 @@ export const CHAPTERS = [
     ],
   },
   {
-    id: 'metronome', tab: 'tools', title: 'Tools — the click',
+    id: 'metronome', tab: 'play', title: 'Play — the click',
     body: [
       'Scheduled on the audio clock rather than a software timer, so it cannot drift ',
       'against what you hear. ', b('M'), ' toggles it from any tab.', h('br'), h('br'),

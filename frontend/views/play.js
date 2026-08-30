@@ -458,6 +458,10 @@ function profileRow(preset, activeId, ctx) {
       e.target.closest('.list__row')?.classList.add('is-active');
       for (const w of res.warnings || []) toast(w, 'bad', 7000);
       ctx.state.engine = res.engine;
+      // The load route applies the profile's saved effects to the settings file, and
+      // returns only `engine` -- so without this ctx.state.settings still holds the
+      // reverb from before the load, and the next Save profile would bake THAT in.
+      if (Object.keys(preset.effects || {}).length) await ctx.refresh();
     } catch (err) { toast(err.message, 'bad'); }
   };
   return h('div.list__row', {

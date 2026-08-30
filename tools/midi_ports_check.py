@@ -154,6 +154,71 @@ live = [p["name"] for p in m5.status()["ports"] if p["listening"]]
 step("open still succeeds", opened_ok)
 step("the free port is listening", live == ["MIDIIN2 (V49)"], str(live))
 
+print("7. a LEGACY midi_port index does not brick MIDI")
+# The regression that shipped in 0.8.0. midi_port used to hold an index; the new build
+# reads it as a name, so a saved 1 pinned to a device called "1", matched nothing, and
+# opened nothing -- "could not open any MIDI input" with every port listed and silent.
+# Index 0 survived only because 0 is falsy, so this hit exactly the people who had gone
+# looking for a working port.
+for legacy in (0, 1, 5, "1", True):
+    m6 = fresh()
+    opened_ok = m6.open_named(legacy)
+    live = [p["name"] for p in m6.status()["ports"] if p["listening"]]
+    step(f"midi_port={legacy!r} still hears the keyboard", opened_ok and len(live) == 2,
+         f"pinned={m6.pinned!r} listening={live}")
+
+print("8. a pin naming a device that is not plugged in falls back, loudly")
+m7 = fresh()
+m7.open_named("Some Piano That Is Not Here")
+st7 = m7.status()
+live = [p["name"] for p in st7["ports"] if p["listening"]]
+step("still listening to everything", len(live) == 2, str(live))
+step("and says which device is missing",
+     st7["unresolved_pin"] == "Some Piano That Is Not Here", st7["unresolved_pin"])
+step("reported as listening-to-all", st7["listening_to_all"])
+
+print("9. a pin that DOES resolve is still honoured")
+m8 = fresh()
+m8.open_named("V49")
+st8 = m8.status()
+live = [p["name"] for p in st8["ports"] if p["listening"]]
+step("only the chosen port", live == ["V49"], str(live))
+step("no false unresolved flag", st8["unresolved_pin"] == "")
+
+print("10. pinning a port another app holds does NOT close the one that works")
+# _sync_locked used to shut before it opened, so this click closed the working input,
+# failed to open the held one, and left zero ports open -- which the 2 s watcher then
+# retried forever. Deaf, one click away, in the release built to prevent exactly that.
+m9 = fresh()
+daw = FakeMidiIn()
+daw.open_port(0)                          # a DAW already holds "V49"
+m9.open_named(None)                       # so Keys comes up on MIDIIN2 only
+step("came up on the free port", sorted(n for _, n in m9._open.values()) == ["MIDIIN2 (V49)"],
+     str(sorted(n for _, n in m9._open.values())))
+ok9 = m9.open(0)                          # user now pins the port the DAW is holding
+live = sorted(n for _, n in m9._open.values())
+step("the pin is reported as failed", not ok9)
+step("but the working input is STILL open", live == ["MIDIIN2 (V49)"], str(live))
+step("and the error says what is still live", "still listening to" in m9.last_error,
+     m9.last_error[:80])
+m9._sync_locked()                         # what the 2 s watcher does, repeatedly
+step("the watcher does not make it worse", bool(m9._open),
+     str(sorted(n for _, n in m9._open.values())))
+
+print("11. the message counter follows the DEVICE, not the slot")
+# A release whose thesis is "indices are unreliable" must not key its own diagnostic by
+# one, or a count strands itself on a port that never sent anything after a hotplug.
+m10 = fresh()
+m10.open_named(None)
+opened[1].cb(([0x90, 60, 100], 0.0))      # MIDIIN2 sends one
+before = {p["name"]: p["messages"] for p in m10.status()["ports"]}
+PORTS.insert(0, "loopMIDI Port")          # everything renumbers
+m10._sync_locked()
+after = {p["name"]: p["messages"] for p in m10.status()["ports"]}
+step("count stayed with MIDIIN2 (V49)", after.get("MIDIIN2 (V49)") == 1, str(after))
+step("no count invented for the newcomer", after.get("loopMIDI Port", 0) == 0, str(after))
+PORTS.pop(0)
+
 print()
 print("ALL CHECKS PASSED" if ok else "FAILURES ABOVE")
 sys.exit(0 if ok else 1)
