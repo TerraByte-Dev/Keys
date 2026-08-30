@@ -67,6 +67,9 @@ export function field(label, valueEl, control) {
 
 export function slider(opts) {
   const el = h('input', {
+    // Optional, and skipped by h() when absent. Present so a caller can declare the id
+    // where the control is built instead of walking the DOM to stamp it on afterwards.
+    id: opts.id ?? null,
     type: 'range', min: opts.min, max: opts.max, step: opts.step ?? 1, value: opts.value,
     oninput: (e) => { paint(e.target); opts.oninput?.(Number(e.target.value)); },
     onchange: (e) => opts.onchange?.(Number(e.target.value)),
@@ -81,6 +84,72 @@ export function paint(input) {
   const min = Number(input.min || 0), max = Number(input.max || 100);
   const pct = max === min ? 0 : ((Number(input.value) - min) / (max - min)) * 100;
   input.style.setProperty('--pct', pct.toFixed(2) + '%');
+  // A knob's arc is the same number. Every programmatic write in the app already
+  // routes through here -- eight call sites across app.js, play.js and layers.js --
+  // so one hook means no caller has to know which control it is holding. A separate
+  // paintKnob() would leave all eight drawing a stale angle beside a correct number.
+  input._knob?.(pct);
+}
+
+/* A dial for a mix amount. Drop-in for slider(): same opts bag, same oninput/onchange
+ * contract, and the <input type=range> underneath is real -- invisible, but keyboard
+ * operable, and three places in the app reach through a .field to it by hand.
+ *
+ * Draws no numeral of its own. The readout is the .field__value span every call site
+ * already builds; a knob that printed its own number would put two of them, in two
+ * fonts, on every control. */
+export function knob(opts) {
+  const input = slider(opts);
+  input.className = 'knob__input';
+
+  // h() is createElement, which cannot build SVG. Kept local rather than teaching h()
+  // a namespace branch -- this is the only SVG in the shared helpers.
+  const svg = (tag, attrs) => {
+    const n = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+    return n;
+  };
+  const arc = svg('circle', { cx: 23, cy: 23, r: 18, class: 'knob__arc' });
+  const dial = svg('svg', { viewBox: '0 0 46 46', class: 'knob__dial', 'aria-hidden': 'true' });
+  dial.append(svg('circle', { cx: 23, cy: 23, r: 18, class: 'knob__track' }), arc);
+
+  const el = h('span.knob', { title: opts.title || null }, input, dial);
+  // Written onto the INPUT, because that is what paint() is handed.
+  input._knob = (pct) => arc.style.setProperty('--turn', pct.toFixed(2));
+  // slider() already ran paint() before this hook existed, so the first draw has to
+  // happen here or the dial sits at zero until the control is first touched.
+  paint(input);
+
+  // Vertical drag. The gesture writes the input and dispatches the events the browser
+  // would have, so there is exactly one code path: the oninput/onchange timing below
+  // is literally slider()'s own listeners firing. Sites that POST on release keep
+  // doing so, and sites that mutate at 60 Hz keep doing that.
+  el.addEventListener('pointerdown', (e) => {
+    if (e.target === input) return;          // let the range handle its own events
+    e.preventDefault();
+    el.setPointerCapture(e.pointerId);
+    const min = Number(input.min || 0), max = Number(input.max || 100);
+    const step = Number(input.step) || 1;
+    const startY = e.clientY, startVal = Number(input.value);
+    // 160px of travel covers the whole range -- the same feel as the 46px dial being
+    // roughly three and a half of its own diameters, which is what hardware does.
+    const span = (max - min) / 160;
+    const move = (ev) => {
+      const raw = startVal + (startY - ev.clientY) * span;
+      const snapped = Math.round(raw / step) * step;
+      input.value = String(Math.min(max, Math.max(min, snapped)));
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    const up = (ev) => {
+      el.releasePointerCapture(ev.pointerId);
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', up);
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
+  });
+  return el;
 }
 
 export function toggle(label, checked, onchange) {

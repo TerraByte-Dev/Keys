@@ -204,6 +204,15 @@ class Preset:
     # source checkout as it does frozen. A directory test cannot: in a checkout
     # DATA_DIR, BUNDLE and the repo's presets/ are all the same folder.
     saved: bool = False
+    # The two global FX units, or {} for every preset that ships with Keys. Per-zone
+    # gain/pan/reverb/chorus already persist -- those are Zone fields. These are the
+    # nine unit params that live in Settings, and they are kept at preset level rather
+    # than on the zones because the units themselves are global.
+    #
+    # Empty is what makes browsing the shelf safe: a shipped preset carries {} and
+    # therefore still cannot overwrite a reverb you tuned, which is the promise
+    # server.load_preset already makes. Only a profile you saved carries the units.
+    effects: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -212,6 +221,7 @@ class Preset:
             "description": self.description,
             "zones": [z.to_dict() for z in self.zones],
             "saved": self.saved,
+            "effects": self.effects,
         }
 
 
@@ -270,11 +280,17 @@ class Engine:
         # the routing table while it is set -- see _rebind_routes.
         self._suspended = False
         self.warnings: list[str] = []
+        # Why the audio stream is not open, when it is not -- "" whenever audio is fine.
+        # Read at boot into server._boot_errors and carried out of restart().
+        self.audio_error: str = ""
 
     # ------------------------------------------------------------------ setup
     def start(self) -> None:
         if self.started:
             return
+        # Cleared per attempt, not on success -- the fallback path below opens a working
+        # stream on the wrong device and must keep its reason.
+        self.audio_error = ""
         audio = self.settings.get("audio", default=config.HARDWARE) or config.HARDWARE
         rate = float(audio.get("sample_rate", 48000.0))
         period = int(audio.get("period_size", 144))
@@ -313,7 +329,55 @@ class Engine:
 
         self.fs = fs
         self.load_soundfont(config.DEFAULT_SOUNDFONT)
-        fs.start()
+        # Hand start() the device rather than letting it fetch its own. pyfluidsynth does
+        # `device = device or self.get_setting(f'audio.{driver}.device')`, and get_setting
+        # copies strings into a 32-byte buffer (fluidsynth.py:799-801) -- so a name over
+        # 31 bytes comes back TRUNCATED and line 825 writes that stump back over the good
+        # name set above, immediately before opening the driver. It is not a Bluetooth
+        # bug, it is a length bug that Bluetooth names always trip: "Speakers (Realtek(R)
+        # Audio)" is 27 and survives, "Headset (WH-1000XM4 Hands-Free AG Audio)" is 40 and
+        # cannot. Measured: the same 38-char endpoint refuses via the settings path and
+        # opens via this one. "default" is what the setting holds when unset, so passing
+        # it through needs no special case.
+        fs.start(driver="wasapi", device=device)
+
+        # new_fluid_audio_driver returns NULL when the endpoint refuses; start() stores it
+        # and returns FLUID_OK anyway (fluidsynth.py:826, 839), and nothing raises. The
+        # truthiness of fs.audio_driver is the ONLY in-process signal that a stream
+        # exists -- the same test tools/audio_check.py already makes. Not making it is
+        # what let started=True stand with no driver attached, which is in turn what made
+        # restart()'s guard and server.set_audio's warning unreachable.
+        if fs.audio_driver is None and device != "default":
+            # A pinned endpoint that will not open has usually gone away rather than said
+            # no: Bluetooth headphones that slept, powered off, or roamed to a phone stop
+            # enumerating entirely. Falling back to the default is what you would do by
+            # hand; doing it silently is not, so the reason rides out on audio_error.
+            # Rebuilding only the audio driver -- a second fs.start() would leak the MIDI
+            # router and driver it already built.
+            self.audio_error = (
+                f'"{device}" would not open, so Keys is using the system default '
+                "instead. If those are Bluetooth headphones, wake them and pick them "
+                "again."
+            )
+            fs.setting("audio.wasapi.device", "default")
+            fs.audio_driver = fluidsynth.new_fluid_audio_driver(fs.settings, fs.synth)
+        if fs.audio_driver is None:
+            self.audio_error = (
+                f"the audio device refused {int(rate)} Hz"
+                + (f" at {period} samples in exclusive mode -- try shared mode"
+                   if audio.get("exclusive", False)
+                   else " in shared mode -- try a different output device")
+            )
+            # Nothing above survives a failed open: this Synth holds a soundfont and the
+            # sfids naming it, and stop() returns at its first line while started is
+            # False, so it will never clean up after us. Undo it here or the next start()
+            # builds a second Synth on top of the first.
+            fs.delete()
+            self.fs = None
+            self._sfids.clear()
+            self._preset_cache.clear()
+            self.started = False
+            return
 
         self.apply_reverb(self.settings.get("reverb", default={}) or {})
         self.apply_chorus(self.settings.get("chorus", default={}) or {})
@@ -364,8 +428,13 @@ class Engine:
         self.started = False
         self.start()
         if not self.started:
-            return ["audio engine did not restart"]
+            return [self.audio_error or "audio engine did not restart"]
         warnings = self.set_zones(zones, preset_id, preset_name) if zones else []
+        # Opened, but not on the device that was asked for. The fallback above makes this
+        # the common failure now, and "sound, just not where you pointed it" must not
+        # arrive as a silent success.
+        if self.audio_error:
+            warnings.insert(0, self.audio_error)
         return warnings
 
     def stop(self) -> None:
@@ -888,14 +957,21 @@ class Engine:
         audio = self.settings.get("audio", default=config.HARDWARE) or config.HARDWARE
         rate = float(audio.get("sample_rate", 48000.0))
         period = int(audio.get("period_size", 144))
+        # These four describe a stream, so they are None when there is no stream. They
+        # come from the settings dict, which happily holds 48 kHz and 144 samples for a
+        # device that refused both -- printing "3.00 ms / 48k / Exclusive" over a driver
+        # that never opened is precisely how a silent engine passed for a working one.
+        live = self.fs is not None and self.fs.audio_driver is not None
         return {
             "started": self.started,
-            "sample_rate": rate,
-            "period_size": period,
+            "audio_error": self.audio_error,
+            "sample_rate": rate if live else None,
+            "period_size": period if live else None,
             # In shared mode the period size is ignored, so quoting it as the buffer
             # would be a lie. Windows picks the engine period there (~10 ms at 48 kHz).
-            "buffer_ms": round(period / rate * 1000, 2) if audio.get("exclusive", False) else None,
-            "exclusive": bool(audio.get("exclusive", False)),
+            "buffer_ms": (round(period / rate * 1000, 2)
+                          if live and audio.get("exclusive", False) else None),
+            "exclusive": bool(audio.get("exclusive", False)) if live else None,
             "device": str(audio.get("device", "default") or "default"),
             "polyphony": int(audio.get("polyphony", 256)),
             "gain": float(audio.get("gain", 0.6)),
@@ -924,6 +1000,7 @@ def load_preset_file(path: Path) -> Preset:
         # Absent means shipped. The 62 generated by tools/make_presets.py never carry
         # the key, so they read as factory forever without touching any of them.
         saved=bool(data.get("saved", False)),
+        effects=dict(data.get("effects") or {}),
     )
 
 

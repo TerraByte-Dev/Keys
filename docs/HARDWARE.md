@@ -12,6 +12,40 @@ Reference machine: Windows 11 (build 26200.x), a Realtek onboard audio endpoint,
 **3.00 ms**, WASAPI exclusive, 48 kHz / 16-bit, at a 144-sample buffer. No audio interface, no ASIO shim, no
 hardware purchase. That is interface-class latency from onboard audio.
 
+## 1a. If Windows sees your keyboard TWICE
+
+Many USB controllers expose **two** MIDI input ports. An Alesis V49 enumerates as:
+
+```
+  [0] V49
+  [1] MIDIIN2 (V49)
+```
+
+Only one of them carries the keys; the other is the vendor's editor/DAW-control port. Which one is which is not
+knowable from the name, is not consistent across vendors, and Windows hands out the indices in enumeration
+order — so it changes when anything else MIDI is plugged in.
+
+Keys used to open exactly one input: index 0, or a saved *index*. On a single-port piano like the P-71B that was
+never wrong, so it stood for months. On a two-port controller it was a coin flip, and losing the flip looked
+exactly like a broken application — **both ports listed, no error, no keys lighting up, no sound.** The same
+shape as the silent-audio bug in section 3: a real failure with no signal attached to it.
+
+**Keys now listens to every MIDI input at once**, so there is nothing to get wrong. Two things make that safe:
+
+- A device that *mirrors* its keys onto both ports would sound every note twice. An identical status+data byte
+  arriving from a **different** port within 8 ms is treated as the mirror and dropped (`DEDUPE_S`,
+  `backend/midi_in.py`). The same port repeating is never dropped — that is real playing.
+- Windows MIDI inputs are exclusive, so a port another application already holds throws on open. One port
+  refusing no longer takes the rest down with it.
+
+**Settings → MIDI input** now shows a message counter per port. Press a key: the port whose counter moves is your
+keyboard. That is the whole diagnosis, and it used to require a terminal.
+
+Pinning one input is still possible and is stored **by name**, not index — a saved index silently came to mean a
+different device the moment anything else was plugged in. "Listen to everything" is the way back.
+
+`tools/midi_ports_check.py` holds all of this against a simulated V49 and needs no hardware.
+
 ## 1. If Windows sees zero MIDI inputs
 
 The most common hard failure is not the app. A vendor MIDI driver can be **blocked at load time** by Windows
@@ -116,6 +150,48 @@ device name need not be hardcoded. `audio.wasapi.device` accepts any endpoint na
 silence, not an error.
 
 **You do not need an audio interface.** 3 ms is already interface-class.
+
+### Endpoint names over 31 characters
+
+`Synth.start()` in pyfluidsynth reads `audio.wasapi.device` back through `get_setting()`, which copies strings
+into a 32-byte buffer (`fluidsynth.py:799-801`) and writes the truncated stump back over the good name
+immediately before opening the driver (`:825`). **Any endpoint whose name is 32+ characters could never be
+opened**, and the failure was silent — `new_fluid_audio_driver` returns NULL, `start()` returns `FLUID_OK`
+anyway (`:839`), and nothing raised.
+
+Five of the seven endpoints on this machine are over the limit:
+
+```
+  7        default
+ 27        Speakers (Realtek(R) Audio)        <- the reference endpoint; why this never showed up
+ 23        Speakers (Yeti Classic)
+ 35  OVER  Speakers (Steam Streaming Speakers)
+ 36  OVER  CABLE Input (VB-Audio Virtual Cable)
+ 38  OVER  CABLE In 16ch (VB-Audio Virtual Cable)
+ 38  OVER  HISENSE (NVIDIA High Definition Audio)
+```
+
+Fixed by passing the device to `start()` directly rather than letting it fetch its own
+(`backend/engine.py`, `fs.start(driver="wasapi", device=device)`), which skips the read-back entirely.
+
+### Bluetooth
+
+Bluetooth output **works** but is not playable. A2DP/SBC carries 100–250 ms of codec and transport latency,
+aptX-LL ~40 ms, LE Audio/LC3 ~20–50 ms. None of that is under this app's control and no setting changes it —
+3 ms over Bluetooth is physically impossible. Use it for score playback and backing tracks, never for playing.
+
+Two more Bluetooth-specific traps, both of which used to present as silence:
+
+- Windows exposes a headset as **two** endpoints. `Headphones (… Stereo)` is A2DP and is the one you want.
+  `Headset (… Hands-Free AG Audio)` is 8/16 kHz mono telephony, it seizes the mic, and it will not give you
+  48 kHz. `list_audio_devices()` reports both, verbatim, with no hint which is which.
+- BT endpoints stop enumerating entirely when the headphones sleep, power off, or roam to a phone. A pinned
+  device name then names nothing. The engine now falls back to the system default and says so, rather than
+  opening no stream at all.
+
+Bluetooth names are also almost always over the 31-character limit above — `Headset (WH-1000XM4 Hands-Free AG
+Audio)` is 40 — which is why "it works for everyone else" held for so long: every wired tester landed on
+`default` or a short Realtek name.
 
 **Microsoft's in-box low-latency USB ASIO driver does not exist in any usable form.** The
 `microsoft/low-latency-audio` README still reads "There is no public release of the driver, yet." FlexASIO is

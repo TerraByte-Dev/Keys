@@ -116,11 +116,12 @@ print("7. every id the JS looks up is spelled like one something declares -- a r
       "check, not proof the element is ever in the DOM")
 # Checking selectors against index.html alone reports 137 false positives, because every
 # view builds its own DOM in mount() and the shell only declares the ~55 static ids. So a
-# declaration is any of three things. The third looks redundant with the second and is
-# not: ui.js's slider() takes no id, so views/tools.js labels the tempo range afterwards
-# by walking to it -- `$('#bpm-display').parentElement.nextElementSibling.id =
-# 'bpm-slider'` -- and that is the only line in the app shaped like that. Delete the
-# pattern and #bpm-slider goes unresolved.
+# declaration is any of three things. The third -- `.id = 'name'` assigned onto a node
+# found by walking the DOM -- matches nothing in frontend/ today and is kept only so the
+# check keeps working if anyone reaches for that shape again. It used to be load-bearing:
+# slider() took no id, so views/tools.js labelled the tempo range by walking to it from
+# #bpm-display. slider() now forwards an optional `id`, the walk is gone, and the range
+# declares itself where it is built.
 # Template-literal selectors (`$(`#zlo-${i}`)`) are deliberately not counted as uses: the
 # id is assembled at runtime, so there is no static name to check against anything.
 declared = set(re.findall(r'id="([^"]+)"', index))

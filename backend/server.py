@@ -129,6 +129,11 @@ class App:
         except Exception as exc:  # noqa: BLE001
             self._boot_errors.append(f"audio engine failed to start: {exc}")
             return
+        # A refused output device does not raise -- it comes back on audio_error, with
+        # the engine either stopped or quietly moved to the system default. Either way
+        # the user finds out at launch instead of by pressing a key and hearing nothing.
+        if self.engine.audio_error:
+            self._boot_errors.append(self.engine.audio_error)
         wanted = str(self.settings.get("preset", default="grand-piano"))
         preset = self.presets.get(wanted) or next(iter(self.presets.values()), None)
         if preset is not None:
@@ -140,8 +145,9 @@ class App:
 
         self.engine.load_pedal()
 
-        port = self.settings.get("midi_port")
-        if not self.midi.open(port):
+        # A stored name pins that one input; nothing stored means listen to everything,
+        # which is the default and the reason a two-port controller now just works.
+        if not self.midi.open_named(self.settings.get("midi_port")):
             self._boot_errors.append(self.midi.last_error)
         self.midi.start_watcher()
 
@@ -504,6 +510,14 @@ def load_preset(pid: str) -> dict[str, Any]:
     # push it onto the Settings sliders, and the effect of that was that browsing the
     # shelf silently rewrote a reverb you had tuned. Settings is the only writer now.
     warnings = app_state.engine.set_zones(preset.zones, preset.id, preset.name)
+    # A PROFILE you saved carries the two units and is meant to restore them; the 62
+    # presets that ship with Keys carry {} and still cannot touch a reverb you tuned.
+    # That difference is the whole point of the field, and why this is not a return of
+    # the bug the comment above describes.
+    if preset.effects:
+        updated = app_state.settings.update(preset.effects)
+        app_state.engine.apply_reverb(updated.get("reverb", {}))
+        app_state.engine.apply_chorus(updated.get("chorus", {}))
     # Deliberately does NOT become the startup sound. Trying a split out of curiosity
     # used to pin it forever, so every launch afterwards came up with the keyboard cut
     # in half and nothing on screen explaining why. Startup is set on purpose, in
@@ -521,16 +535,57 @@ def set_startup_preset(pid: str) -> dict[str, Any]:
     return {"ok": True, "preset": pid}
 
 
+# The nine params of the two FX units, with the coercion each one needs. `type` is the
+# chorus waveform and is an int; everything else is a float. Anything not on this list
+# does not reach the settings file.
+_FX_FIELDS: dict[str, tuple[str, ...]] = {
+    "reverb": ("room", "damping", "width", "level"),
+    "chorus": ("level", "nr", "speed", "depth", "type"),
+}
+
+
+def _clean_effects(raw: Any) -> dict[str, Any]:
+    if not isinstance(raw, dict):
+        return {}
+    out: dict[str, Any] = {}
+    for group, keys in _FX_FIELDS.items():
+        src = raw.get(group)
+        if not isinstance(src, dict):
+            continue
+        unit: dict[str, Any] = {}
+        for key in keys:
+            if key not in src:
+                continue
+            try:
+                unit[key] = int(src[key]) if key == "type" else float(src[key])
+            except (TypeError, ValueError):
+                continue        # a value we cannot read is a value we do not store
+        if unit:
+            out[group] = unit
+    return out
+
+
 @api.post("/api/presets/save")
 def save_preset(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
     pid = str(body.get("id") or "").strip().lower().replace(" ", "-")
     if not pid:
         raise HTTPException(400, "id is required")
+    # In a source checkout DATA_DIR, BUNDLE and the repo's presets/ are all the same
+    # folder, so PRESET_DIR *is* the tracked presets/ and this write would silently
+    # clobber a shipped file -- "grand-piano" among them, which is DEFAULTS["preset"].
+    # The shadowing that makes saving safe only exists once the app is frozen.
+    existing = app_state.presets.get(pid)
+    if existing is not None and not existing.saved:
+        raise HTTPException(409, f"'{pid}' ships with Keys -- pick another name")
     preset = Preset(
         id=pid,
         name=str(body.get("name") or pid.replace("-", " ").title()),
         description=str(body.get("description") or ""),
         zones=[Zone.from_dict(z) for z in body.get("zones", [])],
+        # Whitelisted rather than stored as handed over: post_settings validates only
+        # `instrument`, and ui.layout is the standing proof of how far an unvalidated
+        # blob travels once it is in the settings file.
+        effects=_clean_effects(body.get("effects")),
     )
     engine_mod.save_preset(preset)
     app_state.presets = engine_mod.load_presets()
@@ -1251,9 +1306,18 @@ def midi_status() -> dict[str, Any]:
 
 @api.post("/api/midi/open/{index}")
 def midi_open(index: int) -> dict[str, Any]:
+    """Pin one input. Saved by name -- see DEFAULTS["midi_port"]."""
     ok = app_state.midi.open(index)
     if ok:
-        app_state.settings.update({"midi_port": index})
+        app_state.settings.update({"midi_port": app_state.midi.pinned})
+    return {"ok": ok, "midi": app_state.midi.status()}
+
+
+@api.post("/api/midi/listen-all")
+def midi_listen_all() -> dict[str, Any]:
+    """Stop pinning and take every input. The way back from a wrong choice."""
+    ok = app_state.midi.open(None)
+    app_state.settings.update({"midi_port": None})
     return {"ok": ok, "midi": app_state.midi.status()}
 
 

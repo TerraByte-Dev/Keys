@@ -182,6 +182,30 @@ module and the page comes up empty. `tools/frontend_check.py` is the gate that r
 it parses every module with Node, verifies every import and asset reference resolves, and checks that every CSS
 custom property the keyboard reads is actually defined.
 
+### Which tab holds what, and why
+
+| Tab | Holds | The rule it follows |
+|---|---|---|
+| **Play** | Instruments (with Profiles), Effects, the metronome (Tempo, Meter, Tempo ramp, Click kit), Loop station, Scale highlighter | what you reach for *while* your hands are on the keys |
+| **Practice** | Now, Timing, Exercises, Songs | what you work *on* |
+| **Layers** | What this is, Layout, Build one, Zone editor | how the instrument is *built* |
+| **Tools** | Touch response, Pedal, Chords & scales, Backing tracks | the rig you calibrate *once* |
+| **Read** | Staff, This run, Exercise setup, Weakest notes | sight-reading |
+| **Stats** | fifteen panels of history | what you *did* |
+| **Settings** | MIDI input, Latency, Audio output, Reading key, Startup sound, SoundFonts | the machine, not the music |
+
+Two of these moved for the same reason and it is worth writing down: the **metronome** went to Play because
+you look at it while you use it, and **Touch response** and **Pedal** left Play for Tools because you set them
+up once and then stop thinking about them. "Where is it built" lost to "where are you looking when you need it."
+
+**Panel identity is the slug of the panel's rendered title** (`layout.js` `panelId()`), stored per-view in
+backend settings under `ui.layout`. Two consequences that are easy to trip over: renaming a `mod()` title costs
+that panel its saved position once, and *moving* a panel into a view that already has one with the same title
+silently hands the newcomer the incumbent's saved slot and width. The metronome's kit panel is called
+**Click kit** rather than "Sound" for exactly this reason — Play's old master-volume panel slugged to `sound`
+too, and the collision would have applied a `col-3` width to a `col-6` panel, differently at different window
+widths.
+
 ### The roll is full screen or it is not open
 
 There used to be a 150px strip as well, and it was the worst of both ends: at 100 px/s
@@ -190,25 +214,36 @@ enough to read one you just played — and it took a third of the stage to say s
 mode now, and it is the good one. `V`, `F` and the ROLL button are three names for the
 same door.
 
-That is also where music comes in. `frontend/songs.js` is a drawer inside the roll, and
+That is also where music comes in. `frontend/songs.js` is a drawer inside the roll — not to be
+confused with the **Songs** panel, which is `frontend/library.js` and now lives in Practice — and
 a `.mid` dropped anywhere on that screen lands on the roll rather than in the engraver —
 importing a file in order to learn a song should not hand you a page of notation you
 did not ask for, on a screen you have to leave before you can play.
 
 ### The printed page is a view of the roll, not another room
 
-Sheet music used to be a panel at the bottom of Practice. It is now also a toggle in the
-rollbar, because the two things were never different pieces of music: `backend/midi_import.py`
+Sheet music used to be a panel at the bottom of Practice. That panel is gone; the printed
+page is now **a mode of the roll screen and nothing else**, reached by the Sheet button on a
+song row where Roll sits beside it. Two doors, one room. They were never different pieces of
+music: `backend/midi_import.py`
 converts a `.mid` to MusicXML **before storage**, so `/api/scores/{id}/file` and
 `/api/scores/{id}/notes` are two projections of one stored artifact and **every** score has
 both, whatever it was imported as. Swapping between them is a render, not a conversion.
 
 One rule makes it work: **there is one clock, and it is the ghost clock.** The sheet in the
-roll is a *rendering*, never a player. The score transport in Practice is a different thing
-that makes sound through FluidSynth, and wiring it to this screen would give you two
-playheads at two independently-set tempos with one of them audible. `ghost.js` says so at
-the top and this is what it is protecting: ghost mode makes no backend call and no sound,
-which is why a play-along still works with the audio engine down.
+roll is a *rendering*, never a player. `ghost.js` says so at the top and this is what it is
+protecting: ghost mode makes no backend call and no sound, which is why a play-along still
+works with the audio engine down. Both modes are therefore play-*along* — the only thing
+making sound is you, on the page exactly as on the falling notes.
+
+**What that cost, deliberately.** The deleted panel owned the only frontend caller of
+`POST /api/scores/{id}/transport/{action}` — a real player, with play/pause/seek/scrub and
+its own tempo, sounding the score through FluidSynth. Merging it into this screen was the
+obvious move and is exactly what `ghost.js` forbids, because it would give you two playheads
+at two independently-set tempos with one of them audible. So it was dropped rather than
+merged. `backend/scoreplay.py` and its route are intact and **unreferenced by the frontend**:
+if "play it to me" comes back it should come back as its own surface, not as a second clock
+bolted to this one.
 
 What is deliberately *not* built is a moving cursor on the page. Verovio's timemap is
 milliseconds against Verovio's reading of the file; the ghost clock is quarter notes against
@@ -254,10 +289,18 @@ sliders in **Play → Effects** drive. Neither substitutes for the other — sen
 cupboard, a cathedral with the send at zero is silence in a cathedral — which is why turning the
 send up never produced a concert hall.
 
-Presets used to carry a room of their own and push it onto those sliders when loaded. It is
-gone: browsing the shelf silently rewrote a reverb somebody had tuned, which is a bad price for
-a room nobody asked to be moved into. **The settings store is the sole writer of the reverb
-unit** — those knobs post to `/api/settings`, which is the only route into `apply_reverb`.
+Presets used to carry a room of their own and push it onto those sliders when loaded. That was
+removed: browsing the shelf silently rewrote a reverb somebody had tuned, which is a bad price
+for a room nobody asked to be moved into.
+
+It came back, narrowed to the case that asked for it. A **profile** — a preset you saved
+yourself, `saved: true` — carries an `effects` dict holding the two units, and loading one
+restores them. The 62 presets that ship with Keys carry `{}` and therefore still cannot touch
+your reverb, which is the whole difference between the two and why this is not the old bug
+returning. The gate is literally `if preset.effects:` in `server.load_preset`. Everything else
+still holds: **the settings store is the sole writer of the reverb unit** — those knobs post to
+`/api/settings`, which is the only route into `apply_reverb`, and a profile load goes through
+`settings.update()` to get there rather than around it.
 `POST /api/fx/send` writes the sends instead — live, on every enabled zone at once, and back
 onto the Zone as well as down the wire, because `set_zones()` re-sends each zone's stored send
 and would otherwise undo it at the next zone edit.

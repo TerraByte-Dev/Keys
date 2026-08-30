@@ -19,7 +19,7 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-VERSION = "0.7.3"
+VERSION = "0.8.0"
 REPO = "TerraByte-Dev/Keys"
 RELEASES_API = f"https://api.github.com/repos/{REPO}/releases/latest"
 RELEASES_PAGE = f"https://github.com/{REPO}/releases/latest"

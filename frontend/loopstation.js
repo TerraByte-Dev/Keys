@@ -13,7 +13,7 @@
  */
 
 import { instrument } from './app.js';
-import { $, api, h, mod, noteName, slider, toast } from './ui.js';
+import { $, api, h, knob, mod, noteName, slider, toast } from './ui.js';
 
 const BAR_CHOICES = [1, 2, 4, 8, 16];
 
@@ -193,7 +193,7 @@ export function createLoopStation(ctx, getInstruments) {
         h('label.field', null,
           h('span.field__label', null, h('span', null, 'Volume'),
             h('span.field__value', { id: `lg-${l.id}` }, Math.round(l.gain * 100) + '%')),
-          slider({
+          knob({
             min: 0, max: 1, step: 0.01, value: l.gain,
             oninput: (v) => { $(`#lg-${l.id}`).textContent = Math.round(v * 100) + '%'; },
             onchange: (v) => patch({ gain: v }),
@@ -201,7 +201,7 @@ export function createLoopStation(ctx, getInstruments) {
         h('label.field', null,
           h('span.field__label', null, h('span', null, 'Pan'),
             h('span.field__value', { id: `lp-${l.id}` }, panLabel(l.pan))),
-          slider({
+          knob({
             min: 0, max: 1, step: 0.01, value: l.pan,
             oninput: (v) => { $(`#lp-${l.id}`).textContent = panLabel(v); },
             onchange: (v) => patch({ pan: v }),

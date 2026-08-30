@@ -228,7 +228,11 @@ DEFAULTS: dict[str, Any] = {
     # is how you reach the bottom of a piece, and it has to survive a restart the same
     # way the range does.
     "instrument": {"low": LOW_KEY, "high": HIGH_KEY, "octave": 0},
-    "midi_port": None,           # None = first available port
+    # The NAME of the one input to listen to, or None to listen to every input.
+    # A name because Windows hands out MIDI indices by enumeration order, and that
+    # order changes when anything else is plugged in -- so a saved index quietly
+    # came to mean a different device than the one that was chosen.
+    "midi_port": None,
     "preset": "grand-piano",     # presets/<id>.json loaded at boot
     "idle_seconds": 12,          # practice clock pauses after this long with no note
     "metronome": {

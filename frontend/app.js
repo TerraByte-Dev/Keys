@@ -318,7 +318,7 @@ function applyStatus(s) {
     paintGhost();
   }
   lamp('lamp-midi', s.midi?.connected ? 'on' : 'bad',
-       s.midi?.connected ? (s.midi.port_name || 'ok').slice(0, 14) : 'none');
+       s.midi?.connected ? (s.midi.pinned || 'all inputs').slice(0, 14) : 'none');
   // buffer_ms is null in shared mode on purpose -- Windows owns the period there, so
   // quoting a number we do not control would be a lie.
   const buf = s.engine?.buffer_ms;
@@ -576,8 +576,12 @@ export function ghostArmed() { return !!ghostModel; }
 
 /**
  * Start a play-along. `payload` is the body of /api/scores/{id}/notes.
+ *
+ * `sheet: true` opens on the engraved page instead of the falling notes. Same screen,
+ * same clock, same silence -- the two are modes of one player, not two players, which
+ * is why the Sheet button on a song row lands here rather than anywhere else.
  */
-export function startGhost(payload, meta = {}) {
+export function startGhost(payload, meta = {}, { sheet = false } = {}) {
   if (!payload || !(payload.notes || []).length) {
     toast('that piece has no notes to play along with', 'bad');
     return null;
@@ -614,6 +618,9 @@ export function startGhost(payload, meta = {}) {
   sheetScoreId = meta.id || '';
   $('#roll-mode')?.toggleAttribute('hidden', !sheetScoreId);
   paintSheetControls();
+  // After sheetScoreId is set, because setSheetMode refuses without it. The 7 MB
+  // engraver is still only fetched on the press that actually asks for a page.
+  if (sheet && sheetScoreId) setSheetMode(true);
   $('#ghost-title').textContent = ghostModel.title;
   if ((ghostModel.warnings || []).length) {
     $('#ghost-title').title = ghostModel.warnings.join('\n');

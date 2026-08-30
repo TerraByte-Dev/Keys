@@ -1,6 +1,11 @@
-/* Sound -- the rig: MIDI in, audio out, SoundFonts, and the diagnostics you want when
- * something is off. The reverb and chorus knobs moved to Play, because they change the
- * instrument rather than the rig and two unsynced copies of one slider is a bug.
+/* Settings -- the machine, not the music: MIDI in, audio out, SoundFonts, and the
+ * diagnostics you want when something is off. The reverb and chorus knobs moved to
+ * Play, because they change the instrument rather than the rig and two unsynced copies
+ * of one slider is a bug.
+ *
+ * The Events panel is gone. Queue depth and dropped-frame counts are something you want
+ * while debugging the hub, not while setting up a piano, and `/api/state` still carries
+ * `hub` for anyone who wants to read it.
  *
  * Everything about the APP rather than the instrument -- themes, shortcuts, updates,
  * your data, the tutorial -- lives behind the gear in the top rail instead. This tab
@@ -28,24 +33,47 @@ export default {
     instPanel = instrumentPanel(ctx);
 
     root.append(h('div.grid', null,
-      h('div.col-6', null, mod('MIDI input', midi.connected ? 'connected' : 'not connected',
+      h('div.col-6', null, mod('MIDI input',
+        midi.connected ? (midi.listening_to_all ? 'listening to everything' : `pinned to ${midi.pinned}`)
+                       : 'not connected',
         h('div.list', { id: 'port-list' },
           (midi.ports || []).length
-            ? midi.ports.map((p, i) => h('div.list__row', {
+            ? midi.ports.map((p) => h('div.list__row', {
                 onclick: async () => {
-                  const res = await api.post(`/api/midi/open/${i}`);
-                  toast(res.ok ? `Listening on ${p}` : 'Could not open that port',
+                  const res = await api.post(`/api/midi/open/${p.index}`);
+                  toast(res.ok ? `Listening only to ${p.name}` : 'Could not open that port',
                         res.ok ? 'good' : 'bad');
                 },
               },
-                h('span.mono', null, String(i)),
-                h('span', null, p),
-                h('span.list__spacer'),
-                i === midi.port_index ? h('span.tag.tag--amber', null, 'open') : null))
+                h('span.mono', null, String(p.index)),
+                h('span', { style: { flex: '1', minWidth: 0, overflow: 'hidden',
+                                     textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, p.name),
+                // The whole diagnosis, in one number. A port sitting at 0 while you are
+                // pressing keys is not your keyboard; the one counting up is. Before
+                // this existed the only way to tell them apart was a terminal.
+                h('span.tag' + (p.messages ? '.tag--cyan' : ''), null,
+                  p.messages ? `${p.messages} msg` : 'silent'),
+                p.listening ? h('span.tag.tag--amber', null, 'listening') : null))
             : [h('div.empty', null, 'no MIDI inputs found')]),
         midi.error ? h('div.note.note--warn', { style: { marginTop: '10px' } }, midi.error) : null,
+        h('div.btnrow', { style: { marginTop: '10px' } },
+          h('button.btn', {
+            onclick: async () => {
+              const res = await api.post('/api/midi/listen-all');
+              toast(res.ok ? 'Listening to every input' : 'No inputs to listen to',
+                    res.ok ? 'good' : 'bad');
+            },
+          }, 'Listen to everything')),
         h('div.note', { style: { marginTop: '10px' } },
-          'The port is watched and reopened automatically, so unplugging the piano and ',
+          h('strong', null, 'Keys listens to every MIDI input at once by default.'),
+          ' You do not have to pick one, and picking the wrong one is the reason a ',
+          'keyboard that shows up twice -- an Alesis V49 appears as both ',
+          h('span.mono', null, 'V49'), ' and ', h('span.mono', null, 'MIDIIN2 (V49)'),
+          ' -- used to look completely dead. Press a key and watch the counters: the ',
+          'port that moves is your keyboard. Pin one only if something else on the ',
+          'machine is sending notes you do not want.'),
+        h('div.note', { style: { marginTop: '10px' } },
+          'Ports are watched and reopened automatically, so unplugging the piano and ',
           'plugging it back in does not need a restart. If Windows sees no MIDI device ',
           'at all, that is a driver problem -- run ', h('strong', null, 'tools/midi_probe.py'),
           ', which needs no venv and no packages.'))),
@@ -63,13 +91,24 @@ export default {
 
       h('div.col-12', null, mod('Audio output', 'applies live -- the stream reopens',
         h('div.stats', { id: 'audio-stats', style: { marginBottom: '16px' } },
-          stat(eng.buffer_ms != null ? `${eng.buffer_ms} ms` : '~10 ms', 'Delay',
-               eng.exclusive ? `${eng.period_size ?? '--'} sample buffer`
-                             : 'Windows picks the buffer',
-               'stat__value--amber'),
-          stat((eng.sample_rate ?? 0) / 1000 + 'k', 'Sample rate', '16-bit'),
-          stat(eng.exclusive ? 'Exclusive' : 'Shared', 'Device mode',
-               eng.exclusive ? 'Keys owns the device' : 'shared with other apps')),
+          /* sample_rate is null exactly when no stream is open -- these three describe a
+           * stream, and a refused device still leaves 48 kHz and 144 samples sitting in
+           * the settings dict. Printing "3.00 ms / 48k / Exclusive" over a driver that
+           * never opened is how a silent engine passed for a working one. */
+          ...(eng.sample_rate == null ? [
+            stat('--', 'Delay', 'no audio stream', 'stat__value--amber'),
+            stat('--', 'Sample rate', 'no audio stream'),
+            stat('--', 'Device mode', 'no audio stream'),
+          ] : [
+            stat(eng.buffer_ms != null ? `${eng.buffer_ms} ms` : '~10 ms', 'Delay',
+                 eng.exclusive ? `${eng.period_size ?? '--'} sample buffer`
+                               : 'Windows picks the buffer',
+                 'stat__value--amber'),
+            stat(eng.sample_rate / 1000 + 'k', 'Sample rate', '16-bit'),
+            stat(eng.exclusive ? 'Exclusive' : 'Shared', 'Device mode',
+                 eng.exclusive ? 'Keys owns the device' : 'shared with other apps'),
+          ])),
+        eng.audio_error ? h('div.note.note--warn', null, eng.audio_error) : null,
 
         h('div', { style: { display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '14px', alignItems: 'end' } },
           h('label.field', null,
@@ -113,8 +152,6 @@ export default {
           'is 144". Buffer size only does anything in exclusive mode. Raise it if you hear ',
           'crackling.'))),
 
-      
-
       h('div.col-6', null, mod('Reading key', null,
         h('label.field', null,
           h('span.field__label', null, h('span', null, 'Key signature')),
@@ -154,14 +191,6 @@ export default {
           ' and pick them per zone. Salamander Grand will not work here -- it is SFZ, ',
           'and FluidSynth cannot load SFZ.'))),
 
-      
-
-      h('div.col-12', null, mod('Events', 'engine to browser',
-        h('div.stats', { id: 'hub-stats' }),
-        h('div.note', { style: { marginTop: '12px' } },
-          'Dropped frames mean the UI fell behind and the queue shed its oldest events. ',
-          'That is by design -- the callback never blocks. The held-note list is resent ',
-          'every second from the engine, so the display corrects itself.'))),
     ));
 
     wireAudio(ctx);
@@ -183,17 +212,8 @@ export default {
         stat(lat.n ? lat.p95_us + 'us' : '--', 'p95'),
         stat(lat.n ? lat.max_us + 'us' : '--', 'Worst'));
     }
-    const hub = $('#hub-stats');
-    if (hub && s.hub) {
-      hub.replaceChildren(
-        stat((s.hub.events_total || 0).toLocaleString(), 'Events'),
-        stat(s.hub.queue_depth ?? 0, 'Queue depth', `limit ${s.hub.queue_limit}`),
-        stat(s.hub.dropped ?? 0, 'Dropped',
-             s.hub.dropped ? 'UI fell behind' : 'none', s.hub.dropped ? 'stat__value--amber' : ''));
-    }
   },
 };
-
 
 async function wireAudio(ctx) {
   try {

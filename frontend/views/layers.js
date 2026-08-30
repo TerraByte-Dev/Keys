@@ -1,14 +1,15 @@
-/* Layers -- splits, layers, and the loop station.
+/* Layers -- splits and layers.
  *
  * A SPLIT puts one sound in your left hand and another in your right. A LAYER puts two
  * sounds on the same keys so they sound together. Both are one idea: a zone is a key
  * range pointed at a channel, and overlapping two zones IS the layer. There is no
  * separate "layer mode" because there does not need to be one.
  *
- * The loop station is that idea moved along one more axis. A split stacks sounds across
- * the keys, a layer stacks them on the same key, and a recorded loop stacks them in
- * time -- so it lives here rather than in a tab of its own. Its code is in
- * ../loopstation.js; this file only mounts it.
+ * The loop station is the same idea moved along one more axis -- a split stacks sounds
+ * across the keys, a layer stacks them on one key, and a recorded loop stacks them in
+ * time. It used to live here for that reason and now lives in Play, because the
+ * argument was about how it is BUILT and the question you actually have while using it
+ * is which sound is playing. Its code is in ../loopstation.js either way.
  *
  * The tab was called "Zones" and nobody knew what that meant, including its author.
  * The concept is genuinely useful; the word was jargon.
@@ -17,9 +18,8 @@
  * MIDI controllers, so two zones sharing a channel would fight over them -- the server
  * warns when that happens and this editor auto-assigns to avoid it. */
 
-import { createLoopStation } from '../loopstation.js';
 import { ctx as appCtx, instrument } from '../app.js';
-import { $, $$, api, h, mod, noteName, paint as paintSlider, slider, toast } from '../ui.js';
+import { $, $$, api, h, knob, mod, noteName, paint as paintSlider, slider, toast } from '../ui.js';
 
 /* The keys the player has, read fresh every time rather than captured at import. This
    module is evaluated before /api/state has been fetched, so a `const LOW = ...` here
@@ -78,7 +78,6 @@ function octLabel(semitones) {
 
 let zones = [];
 let instruments = [];
-let station = null;
 /* The split builder's two octave steppers, in semitones. Held here rather than read
    back off the DOM because a stepper has no input to read -- and rebuilt on mount, so
    opening the tab twice does not inherit the last visit's shift. */
@@ -102,7 +101,6 @@ export default {
     zones = (ctx.state.engine?.zones || []).map((z) => ({ ...z }));
     if (!zones.length) zones = [blank(0)];
     splitOct = { left: 0, right: 0 };
-    station = createLoopStation(ctx, () => instruments);
 
     root.append(h('div.grid', null,
       h('div.col-6', null, mod('What this is', null,
@@ -172,7 +170,10 @@ export default {
               h('span.field__label', null, h('span', null, 'How loud underneath'),
                 h('span.field__value', { id: 'layer-bal-v' },
                   Math.round(LAYER_DEFAULT.balance * 100) + '%')),
-              slider({
+              // Stays 0..1. buildLayer reads .value straight off this and hands it to a
+              // zone gain, and engine.py clamps >1 to 1.0 silently -- so a percent-scaled
+              // knob would post gain: 42, apply with no error, and play at full volume.
+              knob({
                 min: 0, max: 1, step: 0.01, value: LAYER_DEFAULT.balance,
                 oninput: (v) => { $('#layer-bal-v').textContent = Math.round(v * 100) + '%'; },
               })),
@@ -188,9 +189,6 @@ export default {
             h('button.btn.btn--wide', { id: 'do-single', onclick: () => buildSingle(ctx) },
               'Use one sound'))))),
 
-      
-      h('div.col-12', null, station.el),
-
       h('div.col-12', null, mod('Zone editor', 'the long way',
         h('div', { id: 'zone-list' }))),
     ));
@@ -200,15 +198,9 @@ export default {
     } catch { instruments = []; }
     fillInstSelects();
     render(ctx);
-    await station.init();
   },
 
-  status(s, ctx) { station?.status(s, ctx); },
-
-  unmount() {
-    station?.destroy();
-    station = null;
-  },
+  unmount() {},
 };
 
 /* Paint a key range on the docked keyboard while a slider sets it, then let go. */
@@ -475,11 +467,15 @@ function rangeField(label, value, min, max, onchange, valueId, valueText) {
     slider({ min, max, step: 1, value, oninput: onchange }));
 }
 
+/* A mix amount, so a dial rather than a track. The readout stays the .field__value
+   span above it -- a knob that printed its own number would put two of them, in two
+   fonts, on every one of these. buildLayer and the octave/transpose sync both reach
+   through .field to the <input>, which is still there and still a range. */
 function pctField(label, value, onchange, id) {
   return h('label.field', null,
     h('span.field__label', null, h('span', null, label),
       h('span.field__value', { id }, Math.round(value * 100) + '%')),
-    slider({
+    knob({
       min: 0, max: 1, step: 0.01, value,
       oninput: (v) => { $('#' + id).textContent = Math.round(v * 100) + '%'; onchange(v); },
     }));

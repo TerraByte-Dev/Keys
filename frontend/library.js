@@ -85,17 +85,24 @@ export function createLibrary() {
       (s.warnings || []).length
         ? h('span.tag.tag--amber', { title: s.warnings.join('\n') }, 'note')
         : null,
+      // Two doors into one room. Roll and Sheet are modes of the same full-screen
+      // player -- same clock, same play-along, same silence -- so this is a choice of
+      // how to read the piece, not a choice of what happens to it.
       h('button.btn', {
-        title: 'Play along on the roll, full screen',
+        title: 'Play along on the falling notes, full screen',
         onclick: () => play(s),
-      }, 'Play'),
+      }, 'Roll'),
+      h('button.btn', {
+        title: 'Play along on the engraved page, full screen',
+        onclick: () => play(s, { sheet: true }),
+      }, 'Sheet'),
       h('button.btn', { title: 'Remove from the library', onclick: () => remove(s.id) }, '×'));
   }
 
-  async function play(meta) {
+  async function play(meta, opts) {
     try {
       const payload = await api.get(`/api/scores/${meta.id}/notes`);
-      startGhost(payload, meta);
+      startGhost(payload, meta, opts);
     } catch (err) { toast(err.message, 'bad', 9000); }
   }
 

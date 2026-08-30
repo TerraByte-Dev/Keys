@@ -8,6 +8,9 @@
  * of things to work on. Both are cheap: the tiles are painted from the 1 Hz status
  * frame with no fetch at all, and the shelf is one GET on mount.
  *
+ * Songs came here from Play. It was under the instrument browser, which is the tab you
+ * are in when you want a TONE -- not when you want something to play along to.
+ *
  * Timing stayed. It reads the last ~96 notes you played, so it is a "now" number and
  * not a long-view one -- and it is the only place in the app that shows what
  * backend/timing.py computes every second. Stats is built once from one request and
@@ -20,17 +23,17 @@
  * backend that stopped grading.
  */
 
-import { createSheet } from '../sheet.js';
 import { $, api, fill, h, hms, mod, stat, toast } from '../ui.js';
 import { createRunner } from '../exercise-run.js';
+import { createLibrary } from '../library.js';
 
 let shelf = null;      // last GET /api/exercises
 let current = null;    // the open runner, or null when the shelf is showing
-let sheet = null;      // the score library panel
+let library = null;    // the Songs shelf, moved here from Play
 
 export default {
   async mount(root, ctx) {
-    sheet = createSheet(ctx);
+    library = createLibrary();
     root.append(h('div.grid', null,
       h('div.col-6', null, mod('Now', null,
         h('div.stats', { id: 'practice-hud' },
@@ -45,16 +48,18 @@ export default {
           'while the whole tempo slides -- that is the failure mode the research found.'))),
       h('div.grid.col-12', { id: 'ex-host' },
         h('div.col-12', null, h('div.empty', null, 'loading exercises...'))),
-      h('div.col-12', null, sheet.el)));
+      // The shelf belongs with practising rather than with choosing a sound: it was
+      // in Play under the instrument browser, which is the tab you are in when you
+      // want a TONE, not when you want something to play along to.
+      h('div.col-12', null, library.el)));
 
     await load(ctx);
-    await sheet.init();
+    await library.init();
   },
 
   frame(f, ctx) { current?.frame?.(f, ctx); },
 
   status(s, ctx) {
-    sheet?.status?.(s);
     paintHud(s.practice || {});
     paintTiming(s.timing);
     current?.status?.(s, ctx);
@@ -63,8 +68,8 @@ export default {
   unmount() {
     current?.destroy?.();
     current = null;
-    sheet?.destroy?.();
-    sheet = null;
+    library?.destroy();
+    library = null;
   },
 };
 
@@ -158,12 +163,8 @@ function byId(id) {
 
 function paintShelf(ctx) {
   const list = shelf.exercises || [];
-  const recent = shelf.recent || [];
 
   fill(host(),
-    recent.length ? h('div.col-12', null, mod('Pick up where you left off', null,
-      h('div.list', null, recent.slice(0, 6).map((r) => recentRow(r, ctx))))) : null,
-
     h('div.col-12', null, mod('Exercises', `${list.length} to work on`,
       list.length
         ? h('div.builds', null, list.map((ex) => card(ex, ctx)))
@@ -175,21 +176,6 @@ function card(ex, ctx) {
     h('div.build__title', null, ex.name),
     h('div.build__why', null, ex.blurb),
     h('button.btn.btn--wide', { onclick: () => openRun(ex, ctx) }, 'Open'));
-}
-
-/* The variant a run was recorded under is a slug, not a parameter set, so reopening
-   goes to that exercise's setup rather than pretending to restore it exactly. */
-function recentRow(r, ctx) {
-  const ex = byId(r.exercise);
-  const when = new Date((r.at || 0) * 1000);
-  return h('div.list__row', null,
-    h('span.mono', null, when.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })),
-    h('span', null, r.title || r.variant || r.exercise),
-    h('span.list__spacer'),
-    r.accuracy != null
-      ? h('span.tag.tag--amber', null, Math.round(r.accuracy * 100) + '%')
-      : null,
-    ex ? h('button.btn', { onclick: () => openRun(ex, ctx) }, 'Open') : null);
 }
 
 /* ── switching between the shelf and a run ────────────────────────────────── */
