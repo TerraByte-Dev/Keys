@@ -34,6 +34,9 @@ let instrumentsSf = '';   // which SoundFont /api/instruments enumerated
 let filter = '';
 let family = '';          // '' = every family
 let scaleOn = false;
+/* Which shelf the Instruments panel is showing. Module-scoped so leaving Play and
+   coming back does not throw away the choice, the same reason `filter` is. */
+let shelf = 'instruments';
 let station = null;
 // The metronome's last known config and beat. Module-scoped so the -10/+10 buttons
 // and the lamp painter agree without re-reading the status feed.
@@ -61,44 +64,62 @@ export default {
 
     root.append(h('div.grid', null,
       h('div.col-6', null, mod('Instruments', null,
-        h('div', { style: { display: 'flex', gap: '8px', marginBottom: '10px' } },
-          h('input', {
-            type: 'text', placeholder: 'filter -- rhodes, organ, kit...',
-            // Seeded from the module-scoped filter so the box and the list can never
-            // disagree: leaving Play and coming back used to show an empty-looking
-            // input that was still filtering.
-            value: filter, style: { flex: '1' },
-            oninput: (e) => { filter = e.target.value.toLowerCase(); renderList(ctx); },
-          }),
-          // 287 instruments is enough to browse instead of play. This picks one.
-          h('button.btn', { onclick: () => randomInstrument(ctx), title: 'surprise me' },
-            'Random'),
-          h('button.btn', { onclick: () => audition(ctx) }, 'Audition')),
-        // 287 sounds in one flat list is a list nobody reads. GM groups its programs
-        // into families of eight and every bank is a variation on the same numbers,
-        // so the whole SoundFont sorts itself with no table of names to maintain.
-        h('div.chips.chips--tight', { id: 'fam-chips' }),
+        // Two shelves, one at a time. Stacked, they made this panel two scrollers tall
+        // and neither of them a comfortable height -- the odd shape that made Play's
+        // first row awkward in the first place. They are also two different questions:
+        // "what sound do I want" is browsing 287 of them, "load the rig I built" is
+        // picking one of a handful. Instruments is the default because that is the one
+        // you open this panel for.
+        h('div.btnrow', { style: { marginBottom: '10px' } },
+          h('button.btn', {
+            id: 'shelf-instruments',
+            class: shelf === 'instruments' ? 'is-on' : '',
+            onclick: () => setShelf('instruments'),
+          }, 'Instruments'),
+          h('button.btn', {
+            id: 'shelf-profiles',
+            class: shelf === 'profiles' ? 'is-on' : '',
+            onclick: () => setShelf('profiles'),
+          }, `Profiles (${mine.length + shipped.length})`)),
 
-        // One shelf, not two. A profile is a sound plus its zones plus the two FX
-        // units, and the 62 that ship with Keys are the read-only half of the same
-        // shelf -- so they are one list with a heading, not a separate panel of
-        // sixty-eight chips two panels up. `saved` is stamped by the backend when it
-        // writes the file, which is the only shipped-vs-yours test that works the same
-        // in a source checkout and in the packaged app.
-        h('div.chips__head', null, 'Profiles'),
-        h('div.scroller', null,
-          h('div.list', { id: 'profile-list' },
-            ...mine.map((pr) => profileRow(pr, eng.preset_id, ctx)),
-            ...shipped.map((pr) => profileRow(pr, eng.preset_id, ctx)))),
-        h('div.btnrow', { style: { marginBottom: '10px', marginTop: '10px' } },
-          h('input', {
-            type: 'text', id: 'preset-name', placeholder: 'name this sound',
-            style: { flex: '1', minWidth: '140px' },
-            onkeydown: (e) => { if (e.key === 'Enter') savePreset(ctx); },
-          }),
-          h('button.btn', { onclick: () => savePreset(ctx) }, 'Save profile')),
-        h('div.scroller', null, h('div.list', { id: 'inst-list' },
-          h('div.empty', null, 'loading...'))))),
+        h('div', { id: 'shelf-inst', hidden: shelf !== 'instruments' },
+          h('div', { style: { display: 'flex', gap: '8px', marginBottom: '10px' } },
+            h('input', {
+              type: 'text', placeholder: 'filter -- rhodes, organ, kit...',
+              // Seeded from the module-scoped filter so the box and the list can never
+              // disagree: leaving Play and coming back used to show an empty-looking
+              // input that was still filtering.
+              value: filter, style: { flex: '1' },
+              oninput: (e) => { filter = e.target.value.toLowerCase(); renderList(ctx); },
+            }),
+            // 287 instruments is enough to browse instead of play. This picks one.
+            h('button.btn', { onclick: () => randomInstrument(ctx), title: 'surprise me' },
+              'Random'),
+            h('button.btn', { onclick: () => audition(ctx) }, 'Audition')),
+          // 287 sounds in one flat list is a list nobody reads. GM groups its programs
+          // into families of eight and every bank is a variation on the same numbers,
+          // so the whole SoundFont sorts itself with no table of names to maintain.
+          h('div.chips.chips--tight', { id: 'fam-chips' }),
+          h('div.scroller', null, h('div.list', { id: 'inst-list' },
+            h('div.empty', null, 'loading...')))),
+
+        h('div', { id: 'shelf-prof', hidden: shelf !== 'profiles' },
+          // A profile is a sound plus its zones plus the two FX units, and the 62 that
+          // ship with Keys are the read-only half of the same shelf -- so they are one
+          // list with a heading, not two. `saved` is stamped by the backend when it
+          // writes the file, the only shipped-vs-yours test that works the same in a
+          // source checkout and in the packaged app.
+          h('div.scroller', null,
+            h('div.list', { id: 'profile-list' },
+              ...mine.map((pr) => profileRow(pr, eng.preset_id, ctx)),
+              ...shipped.map((pr) => profileRow(pr, eng.preset_id, ctx)))),
+          h('div.btnrow', { style: { marginTop: '10px' } },
+            h('input', {
+              type: 'text', id: 'preset-name', placeholder: 'name this sound',
+              style: { flex: '1', minWidth: '140px' },
+              onkeydown: (e) => { if (e.key === 'Enter') savePreset(ctx); },
+            }),
+            h('button.btn', { onclick: () => savePreset(ctx) }, 'Save profile'))))),
 
       // col-6, and authored second on purpose. Instruments is the tallest panel in the
       // app (a 287-row scroller plus the profile shelf) and Effects was col-12, so it
@@ -456,6 +477,17 @@ async function savePreset(ctx) {
    Rename has no endpoint and does not need one: the id is the file name, so a rename
    that keeps the id is just a re-save with a new display name. Renaming the FILE is
    what would need the collision guard the save route just grew. */
+/* Swap the two shelves. Both subtrees stay in the DOM -- renderList, renderFamilies
+   and the status() profile sync all address them by id and would otherwise have to
+   learn which half is mounted. Hiding is cheaper than teaching four call sites. */
+function setShelf(which) {
+  shelf = which;
+  $('#shelf-inst')?.toggleAttribute('hidden', which !== 'instruments');
+  $('#shelf-prof')?.toggleAttribute('hidden', which !== 'profiles');
+  $('#shelf-instruments')?.classList.toggle('is-on', which === 'instruments');
+  $('#shelf-profiles')?.classList.toggle('is-on', which === 'profiles');
+}
+
 function profileRow(preset, activeId, ctx) {
   const load = async (e) => {
     try {

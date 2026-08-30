@@ -715,6 +715,16 @@ class Updater:
             # written by apply() is about to move. Refusing here is the only thing
             # between the two, because the About panel is happy to offer Download again.
             raise UpdateBusy("Keys is installing an update and is about to restart.")
+        with self._lock:
+            staged = self._state == "staged"
+        if staged:
+            # Same reasoning one state earlier. `staged` means 88 MB is already on disk
+            # and ready, and _work would clear it and pull the 55 MB again -- so pressing
+            # Check for updates after a finished download and taking the Download button
+            # it offers re-downloaded the release, as many times as you liked. Cancel is
+            # the way back out; it removes the staged tree and returns to idle.
+            raise UpdateBusy(
+                "That update is already downloaded and ready to install.")
         info = check()
         if info["error"]:
             raise UpdateError(info["error"])

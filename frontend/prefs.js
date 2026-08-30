@@ -441,7 +441,7 @@ async function resume() {
   let s;
   try { s = await api.get('/api/update/status'); } catch { return; }
   if (s.state === 'downloading' || s.state === 'cancelling') { showProgress(s); startPoll(); }
-  else if (s.state === 'staged') showStaged();
+  else if (s.state === 'staged') showStaged();   // disables the check button itself
 }
 
 function startPoll() {
@@ -455,11 +455,15 @@ function startPoll() {
   if (btn) btn.disabled = true;
 }
 
-function stopPoll() {
+function stopPoll({ recheck = true } = {}) {
   if (poll) clearInterval(poll);
   poll = null;
+  // `recheck: false` for the states where checking again is not a thing you can
+  // usefully do. It used to re-enable unconditionally, including on the way into
+  // `staged` -- so Check for updates came back to life next to "Restart and install",
+  // rebuilt the panel over it, and offered Download for a release already on disk.
   const btn = $('#upd-check');
-  if (btn) btn.disabled = false;
+  if (btn) btn.disabled = !recheck;
 }
 
 async function tick() {
@@ -491,7 +495,7 @@ async function tick() {
     label.textContent = 'Cancelling — waiting for the transfer to stop.';
     return;
   }
-  stopPoll();
+  stopPoll({ recheck: s.state !== 'staged' });
   if (s.state === 'staged') showStaged();
   else if (s.state === 'error') fill($('#upd-result'),
     h('div.note.note--warn', null, s.error || 'the download did not finish'));
@@ -509,6 +513,11 @@ function showProgress(s) {
 }
 
 function showStaged() {
+  // Check for updates stays disabled behind this. There is nothing left to check --
+  // the answer is on disk -- and the only thing pressing it did was paint over this
+  // panel and offer to fetch the same 55 MB again.
+  const btn = $('#upd-check');
+  if (btn) btn.disabled = true;
   fill($('#upd-result'),
     h('div.note', null,
       h('strong', null, 'Downloaded and ready.'), ' Installing closes Keys and reopens ',
@@ -516,7 +525,26 @@ function showStaged() {
       'history, settings and recordings are untouched: they live in a different folder ',
       'from the application, which is why that is a fact rather than a hope.'),
     h('div.btnrow', { style: { marginTop: '10px' } },
-      h('button.btn.btn--lg', { onclick: applyUpdate }, 'Restart and install')));
+      h('button.btn.btn--lg', { onclick: applyUpdate }, 'Restart and install'),
+      // The way back out, and the thing that re-arms Check for updates. The backend has
+      // always been able to throw a staged tree away -- 88 MB sitting beside the
+      // application is worth being able to decline -- but nothing on screen asked.
+      h('button.btn', { onclick: (e) => discardStaged(e.target) }, 'Discard download')));
+}
+
+async function discardStaged(btn) {
+  btn.disabled = true;
+  try {
+    await api.post('/api/update/cancel', {});
+  } catch (err) {
+    btn.disabled = false;
+    warn(err.message);
+    return;
+  }
+  const check = $('#upd-check');
+  if (check) check.disabled = false;
+  fill($('#upd-result'),
+    h('div.note', null, 'Download discarded. Nothing on disk was changed.'));
 }
 
 /* Update trouble stays in the panel instead of going to a toast. You are reading it
