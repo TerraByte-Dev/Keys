@@ -69,7 +69,7 @@ def _version() -> str:
 ZIP = ROOT / "dist" / f"Keys-{_version()}-win-x64.zip"
 # Not 8770: the whole point is to test the build, and colliding with the app you have
 # open would either fail confusingly or -- worse -- test the app instead of the build.
-SMOKE_PORT = 8791
+SMOKE_PORT = int(os.environ.get("KEYS_SMOKE_PORT", "8791"))
 
 ok = True
 
