@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import random
 import threading
 import time
@@ -39,6 +40,7 @@ from .midi_in import MidiInput
 from .practice import PracticeClock
 from .score import ScoreError
 from .scoreplay import ScorePlayer
+from . import scores as scores_mod
 from .scores import Library
 from .sightread import SightReader
 from .store import Store
@@ -469,6 +471,43 @@ async def lifespan(_app: FastAPI):
 api = FastAPI(title="Keys", lifespan=lifespan)
 
 
+class LocalOnlyGuard:
+    """Refuse requests that did not come from Keys' own page.
+
+    Binding to 127.0.0.1 does not make the API private: any web page you visit can make
+    your browser call it. Two checks close that. `Host` must be a loopback name (defeats
+    DNS rebinding, where a hostile name resolves to 127.0.0.1). `Origin`, when the
+    browser sends one -- always on POST/DELETE and on websockets -- must be this same
+    host:port. Pure ASGI, no body buffering, so it adds nothing measurable per request.
+    """
+
+    LOOPBACK = {"127.0.0.1", "localhost", "[::1]"}
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] in ("http", "websocket"):
+            hdr = {k: v for k, v in scope["headers"] if k in (b"host", b"origin")}
+            host = hdr.get(b"host", b"").decode("latin-1").lower()
+            origin = hdr.get(b"origin")
+            ok = host.rsplit(":", 1)[0] in self.LOOPBACK if ":" in host else host in self.LOOPBACK
+            if ok and origin is not None:
+                ok = origin.decode("latin-1").lower() in (f"http://{host}",)
+            if not ok:
+                if scope["type"] == "websocket":
+                    await send({"type": "websocket.close", "code": 1008})
+                else:
+                    await send({"type": "http.response.start", "status": 403,
+                                "headers": [(b"content-type", b"text/plain")]})
+                    await send({"type": "http.response.body", "body": b"forbidden"})
+                return
+        await self.app(scope, receive, send)
+
+
+api.add_middleware(LocalOnlyGuard)
+
+
 # ------------------------------------------------------------------ realtime
 @api.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket) -> None:
@@ -579,11 +618,17 @@ def _clean_effects(raw: Any) -> dict[str, Any]:
     return out
 
 
+_PRESET_ID = re.compile(r"[a-z0-9][a-z0-9._-]{0,63}")
+
+
 @api.post("/api/presets/save")
 def save_preset(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
     pid = str(body.get("id") or "").strip().lower().replace(" ", "-")
     if not pid:
         raise HTTPException(400, "id is required")
+    # The id becomes a file name, so it is a pattern, not a blocklist.
+    if not _PRESET_ID.fullmatch(pid) or pid.endswith("."):
+        raise HTTPException(400, "id may use letters, digits, '.', '-' and '_' only")
     # In a source checkout DATA_DIR, BUNDLE and the repo's presets/ are all the same
     # folder, so PRESET_DIR *is* the tracked presets/ and this write would silently
     # clobber a shipped file -- "grand-piano" among them, which is DEFAULTS["preset"].
@@ -610,6 +655,8 @@ def save_preset(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
 def delete_preset(pid: str) -> dict[str, Any]:
     # Only ever deletes your copy. A shipped preset lives inside the application
     # bundle, is reinstated by the next update anyway, and is not ours to remove.
+    if not _PRESET_ID.fullmatch(pid) or pid.endswith("."):
+        raise HTTPException(404, f"no preset '{pid}'")
     path = config.PRESET_DIR / f"{pid}.json"
     if not path.exists():
         if config.find_asset("presets", f"{pid}.json") is not None:
@@ -952,8 +999,16 @@ async def import_score(request: Request) -> dict[str, Any]:
     field, and multipart would mean a parser dependency to carry one filename.
     """
     name = request.headers.get("x-filename", "score.musicxml")
+    # Refuse on the declared length before buffering a byte of it.
+    try:
+        declared = int(request.headers.get("content-length", "0"))
+    except ValueError:
+        declared = 0
+    if declared > scores_mod.MAX_BYTES:
+        raise HTTPException(413, f"the limit is {scores_mod.MAX_BYTES // 1048576} MB")
     raw = await request.body()
-    meta = app_state.scores.add(name, raw)
+    # Conversion is CPU-bound; off the event loop so a big import cannot stall the UI feed.
+    meta = await asyncio.to_thread(app_state.scores.add, name, raw)
     if meta is None:
         raise HTTPException(400, app_state.scores.last_error or "could not import that")
     return {"ok": True, "score": meta, "scores": app_state.scores.all()}

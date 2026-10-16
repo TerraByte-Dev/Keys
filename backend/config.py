@@ -81,8 +81,21 @@ def asset_dirs(name: str) -> list[Path]:
     return [d for d in dirs if d.exists()]
 
 
+def safe_filename(filename: str) -> bool:
+    """True when `filename` is one plain file name: no separators, no `..`, no drive.
+
+    Every name that reaches the disk from a request goes through this or a stricter
+    pattern; joining a path with a backslash-dotdot name climbs out of the folder on Windows.
+    """
+    banned = "/" + chr(92) + ":" + chr(0)
+    return bool(filename) and filename not in (".", "..") and not any(
+        c in filename for c in banned) and filename == filename.strip()
+
+
 def find_asset(name: str, filename: str) -> Path | None:
     """First `filename` found across asset_dirs(name), or None."""
+    if not safe_filename(filename):
+        return None
     for d in asset_dirs(name):
         candidate = d / filename
         if candidate.exists():

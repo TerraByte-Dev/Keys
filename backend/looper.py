@@ -583,6 +583,9 @@ class LoopStation:
         return out
 
     def load(self, name: str) -> dict[str, Any]:
+        if not config.safe_filename(name):
+            self.last_error = f"no saved loop called '{name}'"
+            return self.status()
         path = config.RECORDING_DIR / f"{name}.loop.json"
         if not path.exists():
             self.last_error = f"no saved loop called '{name}'"
