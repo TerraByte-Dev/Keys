@@ -10,8 +10,9 @@
  * **YouTube's terms.** Embedding their player and driving it through the IFrame API is
  * allowed; separating the audio, overlaying the video and caching it are not. So the
  * two things a musician wants -- pitch shift and independent tempo -- are off the
- * table, except for setPlaybackRate, which is a documented player control and moves
- * pitch with speed like a tape machine. Slow practice still works; it just transposes.
+ * table, except for setPlaybackRate, which is a documented player control. It does NOT
+ * move pitch with speed: the player is an HTML5 video, and browsers time-stretch by
+ * default (HTMLMediaElement.preservesPitch is true), so a slowed track stays in key.
  *
  * The API script is fetched the first time you open a track and never before. Keys
  * makes no network request until you ask it to, and this is the only place it can.
@@ -45,6 +46,8 @@ export function createBacking() {
   let offPanic = null;          // unsubscribes this player from PANIC
   let tracks = [];
   let exclusive = true;
+  let yielded = false;          // the shared mode in force is one this panel asked for --
+                                // the server keeps it, so it survives a reload
   let player = null;
   let currentId = null;
   let watch = null;          // the A/B loop watcher
@@ -101,9 +104,8 @@ export function createBacking() {
               'data-rate': r, onclick: () => setRate(r),
             }, r === 1 ? '1x' : `${r}x`)))),
         h('div.note', null,
-          'YouTube changes pitch with speed, like slowing a record. At 0.75x everything ',
-          'sounds a fourth or so low -- fine for learning the shapes, not for playing ',
-          'along in the original key.'))),
+          'Slowing down keeps the pitch -- a track at 0.75x is still in its original key, ',
+          'so you can play along with it.'))),
 
     h('div', { id: 'yt-list' }));
 
@@ -112,6 +114,7 @@ export function createBacking() {
     if (!res) return;
     if (res.tracks) tracks = res.tracks;
     if ('exclusive' in res) exclusive = res.exclusive;
+    if ('yielded' in res) yielded = !!res.yielded;
     if (res.error) toast(res.error, 'bad');
     paint();
   }
@@ -195,8 +198,9 @@ export function createBacking() {
   async function yieldDevice() {
     if (!exclusive) return true;
     try {
-      const res = await api.post('/api/audio', { exclusive: false });
+      const res = await api.post('/api/audio', { exclusive: false, by: 'backing' });
       exclusive = !!res.engine?.exclusive;
+      yielded = !!res.backing_yielded;
       if (!exclusive) {
         toast('Shared output -- the video has sound now, and so does your piano', 'good', 5000);
       }
@@ -212,6 +216,8 @@ export function createBacking() {
     try {
       const res = await api.post('/api/audio', { exclusive: true, period_size: 144 });
       exclusive = !!res.engine?.exclusive;
+      // Still true if the device refused: the close of the track retries it.
+      yielded = !!res.backing_yielded;
       toast(exclusive ? 'Exclusive again -- 3.00 ms. Video audio is muted while it holds.'
                       : 'Could not reacquire the device', exclusive ? 'good' : 'bad', 5000);
     } catch (err) { toast(err.message, 'bad'); }
@@ -289,8 +295,10 @@ export function createBacking() {
     $('#yt-stage').style.display = 'none';
     paint();
     // Closing the track is the clearest possible statement that you are done needing
-    // the video audible, so the low-latency path comes back without being asked.
-    if (!exclusive) reclaimDevice();
+    // the video audible, so the low-latency path comes back without being asked --
+    // but only if this panel is what took it away. Someone who chose Shared in the
+    // Sound tab chose it for a reason, and closing a video is not a vote against it.
+    if (yielded) reclaimDevice();
   }
 
   /* The A/B loop. A 10 Hz poll on a video scrubber, which is nothing like musical
@@ -401,7 +409,7 @@ export function createBacking() {
       player = null;
       currentId = null;
       listSig = null;
-      if (wasOpen && !exclusive) {
+      if (wasOpen && yielded) {
         api.post('/api/audio', { exclusive: true, period_size: 144 }).catch(() => {});
       }
     },

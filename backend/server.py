@@ -718,6 +718,8 @@ def set_audio(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
         raise HTTPException(400, "nothing to change")
     if "sample_rate" in patch:
         patch["sample_rate"] = float(patch["sample_rate"])
+    audio = app_state.settings.get("audio", default=config.HARDWARE) or config.HARDWARE
+    was_exclusive = bool(audio.get("exclusive", False))
 
     was_running = app_state.metro.status()["running"]
     app_state.metro.shutdown()
@@ -735,7 +737,23 @@ def set_audio(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
             "the audio device refused those settings and the engine is now stopped -- "
             "try exclusive mode off, or a different output device"
         )
-    return {"ok": app_state.engine.started, "warnings": warnings, "engine": status}
+
+    # Who took exclusive mode away, so that closing a backing track gives back only what
+    # the backing panel took. Shared is the default and a deliberate choice; a close that
+    # always asked for exclusive silenced Spotify and Discord for people who never had it.
+    # Kept here, in the same request as the switch and in the settings file, because the
+    # panel's own memory dies on a reload while the shared mode it caused does not.
+    if "exclusive" in patch:
+        if not patch["exclusive"]:
+            app_state.settings.update({"backing": {"yielded": body.get("by") == "backing"
+                                                   and was_exclusive}})
+        elif app_state.engine.started and status.get("exclusive"):
+            # Cleared only once exclusive actually holds: a reclaim that failed (Chrome
+            # still has a shared stream open) must be retried when the track closes.
+            app_state.settings.update({"backing": {"yielded": False}})
+    return {"ok": app_state.engine.started, "warnings": warnings, "engine": status,
+            "backing_yielded": bool(app_state.settings.get("backing", "yielded",
+                                                           default=False))}
 
 
 # --------------------------------------------------------------------- sound
@@ -977,6 +995,8 @@ def _backing_reply(error: str = "") -> dict[str, Any]:
         "ok": not error, "error": error,
         "tracks": app_state.backing.all(),
         "exclusive": bool(audio.get("exclusive", False)),
+        # True while the shared mode in force is one this panel asked for (set_audio).
+        "yielded": bool(app_state.settings.get("backing", "yielded", default=False)),
     }
 
 
