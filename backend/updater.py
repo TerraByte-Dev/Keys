@@ -81,7 +81,7 @@ from pathlib import Path
 from typing import Any
 
 from . import config
-from .version import REPO, VERSION, check
+from .version import HTTPS, REPO, VERSION, check
 
 CHUNK = 65536
 TIMEOUT = 30.0
@@ -482,7 +482,7 @@ def preflight(app: Path, need: int) -> None:
 def _fetch_sha256(url: str) -> str:
     """The hex digest out of a `<hex>  <filename>` sidecar. Tiny; read whole."""
     req = urllib.request.Request(url, headers={"User-Agent": f"Keys/{VERSION}"})
-    with urllib.request.urlopen(req, timeout=TIMEOUT) as res:
+    with urllib.request.urlopen(req, timeout=TIMEOUT, context=HTTPS) as res:
         text = res.read(4096).decode("ascii", "replace")
     token = (text.split() or [""])[0].lower()
     if len(token) != 64 or token.strip("0123456789abcdef"):
@@ -852,7 +852,7 @@ class Updater:
         sha = hashlib.sha256()
         got = 0
         req = urllib.request.Request(url, headers={"User-Agent": f"Keys/{VERSION}"})
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as res:
+        with urllib.request.urlopen(req, timeout=TIMEOUT, context=HTTPS) as res:
             if urllib.parse.urlparse(res.url).scheme != "https":
                 # urllib follows a redirect to plain http without complaint.
                 raise UpdateError("the download was redirected off https.")

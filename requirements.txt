@@ -10,6 +10,7 @@ uvicorn[standard]==0.51.0   # the [standard] extra pulls in the websockets imple
 pywebview==6.2.1        # the desktop window. Edge WebView2 on Windows, which ships with
                         # Win11 -- no Chromium to bundle, no second audio stack. Without
                         # it Keys falls back to your default browser and still works.
+truststore==0.10.5      # update checks verify GitHub's certificate through Windows itself
 
 # The frontend has NO build step and NO dependencies -- vanilla ES modules, loaded
 # straight from frontend/. There is deliberately no package.json.
