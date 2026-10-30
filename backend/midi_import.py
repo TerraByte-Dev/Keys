@@ -91,6 +91,7 @@ class _Doc:
     beats: int = 4
     beat_type: int = 4
     tempo: float = 100.0
+    tempo_marked: bool = False      # the file carried a Set Tempo event
     name: str = ""
     events: list[_Ev] = field(default_factory=list)
     snapped: int = 0
@@ -161,8 +162,11 @@ def _read(data: bytes) -> _Doc:
                     doc.beat_type = 1 << payload[1] if payload[1] < 8 else 4
                 elif typ == 0x51 and len(payload) >= 3:
                     usec = (payload[0] << 16) | (payload[1] << 8) | payload[2]
-                    if usec:
+                    # The FIRST tempo, not the last: one number has to stand for the
+                    # whole piece, and a closing ritardando is not the piece's tempo.
+                    if usec and not doc.tempo_marked:
                         doc.tempo = 60_000_000.0 / usec
+                        doc.tempo_marked = True
                 elif typ == 0x03 and not doc.name:
                     text = payload.decode("utf-8", "replace").strip()
                     if text and "control" not in text.lower():
@@ -486,6 +490,18 @@ def convert(data: bytes, title: str = "") -> tuple[bytes, dict[str, Any]]:
                 '        <clef number="1"><sign>G</sign><line>2</line></clef>',
                 '        <clef number="2"><sign>F</sign><line>4</line></clef>',
                 "      </attributes>")))
+            # The tempo was read and then dropped on the floor: score.parse() only finds
+            # one in a <sound tempo>, so every converted file reported 0 and ghost mode
+            # opened it at its 100 BPM fallback. Unmarked files stay unmarked.
+            if doc.tempo_marked:
+                bpm = f"{doc.tempo:.2f}".rstrip("0").rstrip(".")
+                body.append("\n".join((
+                    '      <direction placement="above">',
+                    "        <direction-type><metronome>"
+                    f"<beat-unit>quarter</beat-unit><per-minute>{bpm}</per-minute>"
+                    "</metronome></direction-type>",
+                    f'        <sound tempo="{bpm}"/>',
+                    "      </direction>")))
 
         wrote_any = False
         for staff in (1, 2):

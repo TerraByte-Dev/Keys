@@ -54,7 +54,8 @@ def ok(cond: bool, label: str, detail: str = "") -> None:
 
 
 def synth_midi(events: list[tuple[int, int, int]], ppq: int = 384,
-               num: int = 4, den: int = 2, sharps: int = 0) -> bytes:
+               num: int = 4, den: int = 2, sharps: int = 0, usec: int = 0,
+               tempos: tuple[tuple[int, int], ...] = ()) -> bytes:
     """A one-track MIDI from (tick, duration, note), for the shaped cases below."""
     def var(n: int) -> bytes:
         out = bytearray([n & 0x7F])
@@ -68,6 +69,10 @@ def synth_midi(events: list[tuple[int, int, int]], ppq: int = 384,
         (0, b"\xFF\x58\x04" + bytes([num, den, 24, 8])),
         (0, b"\xFF\x59\x02" + bytes([sharps & 0xFF, 0])),
     ]
+    if usec:
+        msgs.append((0, b"\xFF\x51\x03" + usec.to_bytes(3, "big")))
+    for tick, us in tempos:
+        msgs.append((tick, b"\xFF\x51\x03" + us.to_bytes(3, "big")))
     for tick, dur, note in events:
         msgs.append((tick, bytes([0x90, note, 80])))
         msgs.append((tick + dur, bytes([0x80, note, 0])))
@@ -128,6 +133,21 @@ sc = score.parse(xml, "x.musicxml")
 ok(len(sc.notes) == 1 and abs(sc.notes[0].duration - 8.0) < 1e-6,
    "and our own reader merges the ties back into one 8-quarter note",
    f"{len(sc.notes)} notes, {sc.notes[0].duration if sc.notes else 0} quarters")
+
+# The tempo has to survive the conversion. It used to be read and then never written,
+# so every converted score reported 0 and ghost mode opened it at 100 BPM.
+xml, rep = midi_import.convert(synth_midi([(0, 384, 60)], usec=447_761))
+sc = score.parse(xml, "x.musicxml")
+ok(abs(sc.tempo - 134.0) < 0.01, "a Set Tempo event reaches the score's tempo",
+   f"{sc.tempo} (report {rep['tempo']})")
+tempo_map = synth_midi([(0, 384, 60), (384 * 8, 384, 62)], usec=500_000,
+                       tempos=((384 * 8, 1_000_000),))      # a closing ritardando to 60
+sc = score.parse(midi_import.convert(tempo_map)[0], "x.musicxml")
+ok(abs(sc.tempo - 120.0) < 0.01, "a tempo map keeps its FIRST tempo, not a closing ritardando",
+   str(sc.tempo))
+sc = score.parse(midi_import.convert(synth_midi([(0, 384, 60)]))[0], "x.musicxml")
+ok(sc.tempo == 0.0, "a file with no tempo stays unmarked rather than inventing one",
+   str(sc.tempo))
 
 # A chord: three notes, same onset, same length.
 xml, _ = midi_import.convert(synth_midi([(0, 384, 60), (0, 384, 64), (0, 384, 67)]))

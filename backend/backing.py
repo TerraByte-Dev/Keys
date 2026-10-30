@@ -5,8 +5,8 @@ deliberate. YouTube's terms allow embedding their player and driving it through 
 IFrame API; they do not allow separating the audio, overlaying the video, or caching
 it locally. So the two things a musician actually wants from a backing track -- pitch
 shift and tempo change -- are off the table except for the one YouTube itself
-provides, `setPlaybackRate`, which is a documented player control and changes pitch
-with speed like a tape machine.
+provides, `setPlaybackRate`, which is a documented player control. It changes tempo
+only: the browser time-stretches and keeps the pitch (`preservesPitch` defaults to true).
 
 What is left is still worth having: a named shelf, per-track loop points so you can
 grind eight bars of a solo without hunting the scrubber, a speed you set once and it
