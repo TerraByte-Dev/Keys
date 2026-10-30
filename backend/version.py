@@ -15,15 +15,25 @@ from __future__ import annotations
 
 import json
 import re
+import ssl
 import urllib.error
 import urllib.request
 from typing import Any
+
+import truststore
 
 VERSION = "0.8.5"
 REPO = "TerraByte-Dev/Keys"
 RELEASES_API = f"https://api.github.com/repos/{REPO}/releases/latest"
 RELEASES_PAGE = f"https://github.com/{REPO}/releases/latest"
 TIMEOUT = 8.0
+
+# Windows decides whether GitHub's certificate is good, not Python's copy of its store.
+# Python reads the store's certificates into OpenSSL, and when the cache holds two with
+# the same name -- the USERTrust ECC root and its cross-signed twin -- OpenSSL can pick
+# the twin and fail "unable to get issuer certificate" on a machine Edge is happy with.
+# Windows also fetches roots it has not seen yet; OpenSSL cannot.
+HTTPS = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 
 _NUM = re.compile(r"\d+")
 
@@ -57,7 +67,7 @@ def check() -> dict[str, Any]:
             RELEASES_API,
             headers={"Accept": "application/vnd.github+json",
                      "User-Agent": f"Keys/{VERSION}"})
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as res:
+        with urllib.request.urlopen(req, timeout=TIMEOUT, context=HTTPS) as res:
             data = json.loads(res.read())
     except urllib.error.HTTPError as exc:
         # 404 is the normal answer for a repo that has never cut a release, and saying
