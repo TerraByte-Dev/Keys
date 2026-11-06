@@ -977,6 +977,8 @@ export const ACTIONS = [
       // Peel one layer at a time. Escape with the drawer open means "close the
       // drawer", not "throw me out of the piece I am halfway through".
       if (songs.isOpen()) { songs.toggle(false); return; }
+      // An open (i) closes itself on this same Esc; reading one is not an emergency.
+      if (document.querySelector('.tip__pop:popover-open')) return;
       if (immersive) { toggleImmersive(false); return; }
       panic();
     },

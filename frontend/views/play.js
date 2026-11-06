@@ -7,7 +7,7 @@
  * Touch response and Pedal left for Tools -- they calibrate the instrument, which is a
  * thing you do once, not a thing you reach for mid-phrase. */
 
-import { $, api, h, knob, mod, paint, slider, stat, toast } from '../ui.js';
+import { $, api, h, knob, info, mod, paint, slider, stat, toast } from '../ui.js';
 import { instrument } from '../app.js';
 import { createLoopStation } from '../loopstation.js';
 
@@ -149,7 +149,7 @@ export default {
                   pushSend('chorus', ctx))),
         h('div.btnrow', null,
           h('button.btn', { onclick: () => resetFx() }, 'Reset both units')),
-        h('div.note', { style: { marginTop: '12px' } },
+        info(
           'Both units are global -- they colour every zone at once -- and a ',
           h('strong', null, 'send'), ' is how much of what you are playing goes into one. ',
           'The sends belong to the instrument rather than to the room, so they travel ',
@@ -188,7 +188,7 @@ export default {
           // always-docked keyboard -- like sustain, it should survive navigation -- so
           // the fix is an honest label, not resetting the mode.
           }, 'Labels: ' + labelMode)),
-        h('div.note', { style: { marginTop: '12px' } },
+        info(
           'Highlighted keys are the scale. They do not change what sounds -- ',
           'this is a reading aid, not a lock.'))),
 
@@ -250,7 +250,7 @@ export default {
         numField('Every (bars)', 'ramp_bars', 1, 32),
         numField('Faster by (bpm)', 'ramp_bpm_step', 1, 20),
         numField('Stop at (bpm)', 'ramp_bpm_max', 40, 240),
-        h('div.note', { style: { marginTop: '10px' } },
+        info(
           'Start slower than feels necessary and let it climb. ',
           h('strong', null, 'Drop a step'), ' when you miss -- that is the loop that ',
           'builds speed, not playing fast badly.'))),
@@ -270,7 +270,7 @@ export default {
           gainField('Downbeat', 'accent_velocity'),
           gainField('Beat', 'beat_velocity'),
           gainField('Subdivision', 'sub_velocity')),
-        h('div.note', { style: { marginTop: '10px' } },
+        info(
           'The click has its own MIDI channel, so a drum zone can never steal it.'))),
 
       h('div.col-12', null, station.el),

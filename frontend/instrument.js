@@ -19,7 +19,7 @@
  */
 
 import { instrument, listenNotes, setDetecting } from './app.js';
-import { api, fill, h, mod, noteName, toast } from './ui.js';
+import { api, fill, h, info, mod, noteName, toast } from './ui.js';
 
 /* The sizes people actually own, with the ranges they actually ship with. A 61 is
    C2..C7 and a 76 is E1..G7 -- those are conventions, not arithmetic, which is why they
@@ -236,7 +236,7 @@ export function keyboardPicker(ctx, { onApply } = {}) {
 export function instrumentPanel(ctx) {
   const picker = keyboardPicker(ctx);
   const el = h('div.col-12', null, mod('Your keyboard', 'how many keys you have',
-    h('div.note', null,
+    info(
       'Keys draws, generates and marks up exactly these keys. Set it once and the ',
       'docked keyboard, the scale and arpeggio exercises, sight reading, the pedal ',
       'range and the play-along all follow — a piece that does not fit gets moved into ',

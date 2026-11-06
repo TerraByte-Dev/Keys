@@ -17,7 +17,7 @@
  * cost is opted into, on purpose.
  */
 
-import { $, api, fill, h, hms, mod, toast } from './ui.js';
+import { $, api, fill, h, hms, info, mod, toast } from './ui.js';
 import { startGhost } from './app.js';
 import { failureNote, importScores } from './import-scores.js';
 
@@ -36,7 +36,7 @@ export function createLibrary() {
       })),
     h('div.scroller', null, h('div.list', { id: 'lib-list' },
       h('div.empty', null, 'loading…'))),
-    h('div.note', { style: { marginTop: '10px' } },
+    info(
       h('strong', null, 'Play'), ' drops the piece onto the roll, full screen: it falls, ',
       'silently, and waits at each chord until you have played it. Once you are there, ',
       h('strong', null, 'Sheet'), ' shows the same piece engraved. Nothing is shipped ',

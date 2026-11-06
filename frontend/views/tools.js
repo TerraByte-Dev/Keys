@@ -9,7 +9,7 @@
 
 import { createBacking } from '../backing.js';
 import { createTheory } from '../theory.js';
-import { $, api, fill, h, mod, noteName, paint, slider, stat, toast } from '../ui.js';
+import { $, api, fill, h, info, mod, noteName, paint, slider, stat, toast } from '../ui.js';
 import { ctx as appCtx, instrument, resetTouch } from '../app.js';
 
 /* Wire value -> what it means to someone with one pedal. The empty string is the
@@ -64,7 +64,7 @@ export default {
       // panels in Settings, beside the MIDI ports and the buffer size, which is the rig
       // -- and two unsynced copies of one slider is a bug, so there is one copy now.
       h('div.col-6', null, mod('Pedal', 'you have one; a grand has three',
-        h('div.note', null,
+        info(
           'One pedal, spent on something a grand needs three for.'),
         h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', marginTop: '12px' } },
           h('label.field', null,

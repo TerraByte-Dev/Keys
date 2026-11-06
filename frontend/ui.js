@@ -49,14 +49,62 @@ function add(el, kids) {
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
-/* One screwed-down section of the panel. */
+/* One screwed-down section of the panel. Any info() inside it, however deep, is lifted
+ * out of the body and into an (i) on the header, so a panel is as tall as its controls
+ * and the explanation is one click away. */
 export function mod(title, aside, ...kids) {
-  return h('section.mod', null,
+  const el = h('section.mod', null,
     h('div.mod__head', null,
       h('span.mod__title', null, title),
       h('span.mod__rule'),
       aside ? h('span.mod__aside', null, aside) : null),
     ...kids);
+  const infos = $$('.info', el);
+  if (infos.length) el.firstChild.insertBefore(tip(...infos), el.querySelector('.mod__rule'));
+  return el;
+}
+
+/* An explanation: what a panel is for, how to use it, why it works the way it does.
+ * Not a warning and not a live readout -- those stay on the panel as a plain .note,
+ * because they are what you need without asking. */
+export function info(...kids) {
+  return h('div.note.info', null, ...kids);
+}
+
+/* An (i) that opens `kids` in a popover. mod() builds one from a panel's info() blocks;
+ * a card with its own title (Layers' builders, the exercise shelf) calls it directly.
+ *
+ * A native popover, so light dismiss and Esc come free, and it sits in the top layer
+ * where no panel's overflow can clip it. popoverTargetElement rather than a click
+ * handler: with a handler, a click on the (i) while open is a light dismiss on
+ * pointerdown and a reopen on click. */
+export function tip(...kids) {
+  const pop = h('div.tip__pop', { popover: 'auto' }, ...kids);
+  const btn = h('button.tip', { type: 'button', title: 'What is this?', 'aria-label': 'What is this?' }, 'i');
+  btn.popoverTargetElement = pop;
+  // Inside a panel header, which starts a drag on pointerdown. Selecting text is not that.
+  pop.addEventListener('pointerdown', (e) => e.stopPropagation());
+  // Fixed to the viewport, so it would float in place while the panel scrolls away.
+  const close = () => pop.hidePopover();
+  pop.addEventListener('beforetoggle', (e) => {
+    if (e.newState === 'open') {
+      pop.classList.remove('is-placed');
+      addEventListener('scroll', close, { capture: true, passive: true });
+    } else {
+      removeEventListener('scroll', close, { capture: true });
+    }
+  });
+  // Measured only once it is open: a closed popover has no size.
+  pop.addEventListener('toggle', (e) => {
+    if (e.newState !== 'open') return;
+    const r = btn.getBoundingClientRect();
+    const w = pop.offsetWidth, ht = pop.offsetHeight;
+    pop.style.left = Math.max(8, Math.min(r.left - 10, innerWidth - w - 8)) + 'px';
+    pop.style.top = (r.bottom + 6 + ht > innerHeight - 8
+      ? Math.max(8, r.top - 6 - ht) : r.bottom + 6) + 'px';
+    pop.classList.add('is-placed');
+  });
+  return h('span.tip__wrap', null, btn, pop);
 }
 
 export function field(label, valueEl, control) {

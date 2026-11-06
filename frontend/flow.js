@@ -19,7 +19,7 @@
  * has been told the wrong thing.
  */
 
-import { api, h, mod, slider, toast, toggle } from './ui.js';
+import { api, h, info, mod, slider, toast, toggle } from './ui.js';
 import { ghostArmed, onPanic } from './app.js';
 import { createProgression, leftKeys, voiceLeft, voiceRight } from './harmony.js';
 
@@ -157,12 +157,17 @@ export function createFlow(ctx, { onStart } = {}) {
         h('button.btn', { onclick: () => skip() }, 'Next chord'),
         h('button.btn', { onclick: () => newPhrase() }, 'New progression'),
         h('span.list__spacer'),
-        el.stats),
+        el.stats)),
 
-      h('div.flow__legend', null,
+      info('The keyboard lights up with a chord. Play the solid keys, or any tinted one: ',
+        'every lit key sounds good right now. Each progression plays twice, then flows into ',
+        'another, and these are the chords songs are made of. Start on ',
+        h('strong', null, 'Slow'), ' and move to ', h('strong', null, 'Wait for me'),
+        ' when you want it to follow you instead of a clock.'),
+      info(h('div.flow__legend', null,
         legend('flow__sw--target', 'play this shape'),
         legend('flow__sw--tone', 'also sounds good'),
-        legend('flow__sw--next', 'coming next'),
+        legend('flow__sw--next', 'coming next (solid and outlined: keep holding)'),
         legend('flow__sw--good', 'you hit the chord'),
         legend('flow__sw--out', 'outside the key (spicy)')))));
 

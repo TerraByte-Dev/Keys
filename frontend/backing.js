@@ -19,7 +19,7 @@
  */
 
 import { onPanic } from './app.js';
-import { $, api, h, hms, mod, slider, toast } from './ui.js';
+import { $, api, h, hms, info, mod, slider, toast } from './ui.js';
 
 const API_SRC = 'https://www.youtube.com/iframe_api';
 const RATES = [0.5, 0.75, 0.9, 1, 1.25, 1.5];
@@ -54,7 +54,7 @@ export function createBacking() {
   let listSig = null;
 
   const el = mod('Backing tracks', 'play along with something',
-    h('div.note', null,
+    info(
       'Paste a YouTube link and it goes on the shelf. Set loop points to grind eight ',
       'bars of a solo without hunting the scrubber, slow it down to learn it, and write ',
       'the key and tempo next to it so you do not work them out twice.'),
@@ -86,7 +86,7 @@ export function createBacking() {
       h('div.yt__frame', null, h('div', { id: 'yt-player' })),
       h('div.yt__side', null,
         h('div.yt__title', { id: 'yt-title' }, ''),
-        h('div.note', null,
+        info(
           'The player has YouTube\'s own controls -- play, pause, scrub, volume, ',
           'quality, fullscreen. The buttons here are the ones it does not have.'),
         h('div.btnrow', null,
@@ -103,7 +103,7 @@ export function createBacking() {
             RATES.map((r) => h('button.btn', {
               'data-rate': r, onclick: () => setRate(r),
             }, r === 1 ? '1x' : `${r}x`)))),
-        h('div.note', null,
+        info(
           'Slowing down keeps the pitch -- a track at 0.75x is still in its original key, ',
           'so you can play along with it.'))),
 

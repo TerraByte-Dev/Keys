@@ -19,7 +19,7 @@
  * warns when that happens and this editor auto-assigns to avoid it. */
 
 import { ctx as appCtx, instrument } from '../app.js';
-import { $, $$, api, h, knob, mod, noteName, paint as paintSlider, slider, toast } from '../ui.js';
+import { $, $$, api, h, info, knob, mod, noteName, paint as paintSlider, slider, tip, toast } from '../ui.js';
 
 /* The keys the player has, read fresh every time rather than captured at import. This
    module is evaluated before /api/state has been fetched, so a `const LOW = ...` here
@@ -103,19 +103,9 @@ export default {
     splitOct = { left: 0, right: 0 };
 
     root.append(h('div.grid', null,
-      h('div.col-6', null, mod('What this is', null,
-        h('div.note', null,
-          'A ', h('strong', null, 'split'), ' puts one sound in your left hand and another ',
-          'in your right -- bass below the split point, piano above. A ',
-          h('strong', null, 'layer'), ' puts two sounds on the same keys so they sound ',
-          'together -- piano and strings under one finger.'),
-        h('div.note', { style: { marginTop: '8px' } },
-          'Both are the same idea: a ', h('strong', null, 'zone'), ' is a range of keys ',
-          'pointed at a sound, and overlapping two zones ', h('em', null, 'is'), ' the layer. ',
-          'Build one below in a click, or open the editor at the bottom to move the split ',
-          'point and balance the two sounds.'))),
-
-      h('div.col-6', null, mod('Layout',
+      // "What this is" was a panel of nothing but those two paragraphs. They are the
+      // (i) on Build one now, beside the thing they explain.
+      h('div.col-12', null, mod('Layout',
         `${noteName(LO())} to ${noteName(HI())} -- ${HI() - LO() + 1} keys`,
         h('div.zonebar', { id: 'zonebar' }),
         h('div.btnrow', null,
@@ -126,12 +116,21 @@ export default {
           h('button.btn', { onclick: () => { zones = [blank(0)]; render(ctx); } }, 'Reset')))),
 
       h('div.col-12', null, mod('Build one', 'a click each',
+        info(
+          'A ', h('strong', null, 'split'), ' puts one sound in your left hand and another ',
+          'in your right -- bass below the split point, piano above. A ',
+          h('strong', null, 'layer'), ' puts two sounds on the same keys so they sound ',
+          'together -- piano and strings under one finger.'),
+        info(
+          'Both are the same idea: a ', h('strong', null, 'zone'), ' is a range of keys ',
+          'pointed at a sound, and overlapping two zones ', h('em', null, 'is'), ' the layer. ',
+          'Build one below in a click, or open the editor at the bottom to move the split ',
+          'point and balance the two sounds.'),
         h('div.builds', null,
           h('div.build', null,
-            h('div.build__title', null, 'Split the keyboard'),
-            h('div.build__why', null,
+            h('div.build__title', null, h('span', null, 'Split the keyboard'), tip(
               'Left hand plays one sound, right hand another. Walking bass under a piano ',
-              'melody, without a second keyboard.'),
+              'melody, without a second keyboard.')),
             instSelect('split-left', SPLIT_DEFAULT.left, 'Left hand'),
             instSelect('split-right', SPLIT_DEFAULT.right, 'Right hand'),
             /* An octave each, which is the point of a split on a short keyboard: two
@@ -160,10 +159,9 @@ export default {
               'Make a split')),
 
           h('div.build', null,
-            h('div.build__title', null, 'Layer two sounds'),
-            h('div.build__why', null,
+            h('div.build__title', null, h('span', null, 'Layer two sounds'), tip(
               'Both sounds on every key at once. The classic is piano with strings ',
-              'underneath, quiet enough that you feel it more than hear it.'),
+              'underneath, quiet enough that you feel it more than hear it.')),
             instSelect('layer-a', LAYER_DEFAULT.a, 'Main sound'),
             instSelect('layer-b', LAYER_DEFAULT.b, 'Underneath'),
             h('label.field', null,
@@ -181,10 +179,9 @@ export default {
               'Make a layer')),
 
           h('div.build', null,
-            h('div.build__title', null, 'One sound'),
-            h('div.build__why', null,
+            h('div.build__title', null, h('span', null, 'One sound'), tip(
               'The whole keyboard, one instrument, nothing clever. Where to come back to ',
-              'when a split or a layer has stopped being useful.'),
+              'when a split or a layer has stopped being useful.')),
             instSelect('single-inst', 0, 'Sound'),
             h('button.btn.btn--wide', { id: 'do-single', onclick: () => buildSingle(ctx) },
               'Use one sound'))))),

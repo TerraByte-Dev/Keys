@@ -18,7 +18,7 @@
  * reports the piece it can actually see and labels it. */
 
 import { instrumentPanel } from '../instrument.js';
-import { $, api, h, mod, stat, toast } from '../ui.js';
+import { $, api, h, info, mod, stat, toast } from '../ui.js';
 
 /* Built here rather than inline in mount(), because status() has to rebuild the same
    rows every second. The counters ARE this panel -- "the port that moves is your
@@ -77,7 +77,7 @@ export default {
                     res.ok ? 'good' : 'bad');
             },
           }, 'Listen to everything')),
-        h('div.note', { style: { marginTop: '10px' } },
+        info(
           h('strong', null, 'Keys listens to every MIDI input at once by default.'),
           ' You do not have to pick one, and picking the wrong one is the reason a ',
           'keyboard that shows up twice -- an Alesis V49 appears as both ',
@@ -85,7 +85,7 @@ export default {
           ' -- used to look completely dead. Press a key and watch the counters: the ',
           'port that moves is your keyboard. Pin one only if something else on the ',
           'machine is sending notes you do not want.'),
-        h('div.note', { style: { marginTop: '10px' } },
+        info(
           'Ports are watched and reopened automatically, so unplugging the piano and ',
           'plugging it back in does not need a restart. If Windows sees no MIDI device ',
           'at all, that is a driver problem -- run ', h('strong', null, 'tools/midi_probe.py'),
@@ -96,7 +96,7 @@ export default {
       instPanel,
 
       h('div.col-6', null, mod('Latency', 'the honest number', h('div.stats', { id: 'lat-stats' }),
-        h('div.note', { style: { marginTop: '12px' } },
+        info(
           h('strong', null, 'This is not end-to-end latency.'), ' It is the time from the ',
           'MIDI callback being entered to the synth call returning. It excludes USB ',
           'transfer, the audio buffer, DMA, the DAC and the air. Software cannot measure ',
@@ -145,7 +145,7 @@ export default {
           h('button.btn', { id: 'audio-share' }, 'Play nicely with everything'),
           h('button.btn', { id: 'audio-lowlat' }, 'Lowest latency (takes the device)')),
 
-        h('div.note', { style: { marginTop: '14px' } },
+        info(
           h('strong', null, 'Shared is the default, on purpose.'), ' Keys coexists with ',
           'Spotify, Discord, a browser and everything else. Windows owns the buffer in ',
           'this mode, which is about 10 ms -- inside the range a piano action already ',
@@ -155,12 +155,12 @@ export default {
           ' Not turns them down -- silent. Spotify stops, Discord stops, a browser reports ',
           'an audio rendering error. That is not a bug and not a conflict; it is how WASAPI ',
           'buys the 3 ms, and it is why it is not the default.'),
-        h('div.note', { style: { marginTop: '8px' } },
+        info(
           h('strong', null, 'Want 3 ms without losing anything?'), ' Pin Keys to an output ',
           'Windows is not using -- an audio interface, headphones on a second endpoint, or ',
           'an HDMI device you are not watching. The piano goes there exclusively, everything ',
           'else keeps the default device, and nothing is taken from you.'),
-        h('div.note', { style: { marginTop: '8px' } },
+        info(
           '144 samples is this machine\'s measured floor; 128 is refused with "minimum period ',
           'is 144". Buffer size only does anything in exclusive mode. Raise it if you hear ',
           'crackling.'))),
@@ -174,7 +174,7 @@ export default {
           }, (st.keys || ['C']).map((k) => h('option', {
             value: k, selected: k === (s.ui?.key_signature || 'C'),
           }, k)))),
-        h('div.note', null,
+        info(
           'Sets how notes are spelled everywhere: in E flat major, MIDI 63 reads ',
           h('strong', null, 'Eb4'), ', not D#4.'))),
 
@@ -189,7 +189,7 @@ export default {
           }, (st.presets || []).map((p) => h('option', {
             value: p.id, selected: p.id === (s.preset || 'grand-piano'),
           }, `${p.name}${p.zones?.length > 1 ? `  (${p.zones.length} zones)` : ''}`)))),
-        h('div.note', null,
+        info(
           'Loading a preset in ', h('strong', null, 'Play'), ' does not change this. ',
           'The keyboard is one instrument end to end unless you say otherwise.'))),
 
@@ -199,7 +199,7 @@ export default {
           h('span.list__spacer'),
           h('span.mono', null, (sf.size / 1048576).toFixed(1) + ' MB'),
           sf.loaded ? h('span.tag.tag--green', null, 'loaded') : h('span.tag', null, 'on disk')))),
-        h('div.note', { style: { marginTop: '10px' } },
+        info(
           'Drop more .sf2 / .sf3 files into ', h('strong', null, 'soundfonts/'),
           ' and pick them per zone. Salamander Grand will not work here -- it is SFZ, ',
           'and FluidSynth cannot load SFZ.'))),
