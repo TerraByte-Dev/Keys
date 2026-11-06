@@ -115,6 +115,19 @@ const CSS = `
 .keys-kb .key--white.is-held{fill:color-mix(in oklab,var(--key-held,#3f9dff) calc(35% + var(--vel,.75)*65%),var(--key-white,#f2f2ef))}
 .keys-kb .key--black.is-held{fill:color-mix(in oklab,var(--key-held,#3f9dff) calc(35% + var(--vel,.75)*65%),var(--key-black,#16171b))}
 .keys-kb .key.is-pressed{fill:var(--key-pressed,var(--key-held,#3f9dff))}
+/* Chord Flow. "tone" is every key in the chord, tinted; "target" is the shape to play,
+   solid; "next" is the chord coming up, outlined ONLY -- a fill would make it one more
+   lit key, and every lit key is supposed to sound good right now. A key in both target
+   and next is one you keep holding. Held keys in flow mode say how they fit: in the
+   chord, in the key, or outside it. */
+.keys-kb .key--white.is-tone{fill:color-mix(in oklab,var(--key-tone,#58c4d4) 30%,var(--key-white,#f2f2ef))}
+.keys-kb .key--black.is-tone{fill:color-mix(in oklab,var(--key-tone,#58c4d4) 45%,var(--key-black,#16171b))}
+.keys-kb .key.is-target{fill:var(--key-target,#58c4d4)}
+.keys-kb .key.is-next{stroke:var(--key-next,#ffa62b);stroke-width:2.4}
+.keys-kb.kb--flow .key.is-held:not(.is-scale){fill:var(--key-spicy,#ff5f4d)}
+/* Must stay after the spicy rule: equal specificity, so order decides. A chord tone
+   outside the key -- minor V's raised third, G sharp in A minor -- is still the chord. */
+.keys-kb.kb--flow .key.is-held.is-tone{fill:var(--key-good,#74cf86)}
 .keys-kb .key-label{pointer-events:none;font-family:var(--key-font,ui-sans-serif,system-ui,sans-serif);font-size:9px;text-anchor:middle;fill:var(--key-label,#7a8290)}
 .keys-kb .key-label--black{fill:var(--key-label-black,#8d94a1)}
 .keys-kb.kb--labels-none .key-label{display:none}
@@ -158,6 +171,8 @@ class Keyboard {
     this._ghostSpare = new Set();
     this._dead = new Set();
     this._deadSpare = new Set();
+    this._marks = new Map();           // name -> { cur, spare }, see setMarks()
+    this._modes = new Set();           // board-wide kb--<name> classes, see setMode()
     this._sustained = new Set();
     this._forced = new Set();
     this._pointers = new Map();        // pointerId -> midi currently sounding
@@ -378,6 +393,32 @@ class Keyboard {
     this._dead = next;
   }
 
+  /* Named layers beyond highlight and ghost, for a view that needs several at once --
+     Chord Flow paints the shape to play, every note that fits, and the next chord.
+     Same diff as the fixed layers; the class is `is-<name>`, and style.css owns what
+     it looks like. */
+  setMarks(name, midiArray) {
+    if (this._destroyed) return;
+    let m = this._marks.get(name);
+    if (!m) this._marks.set(name, (m = { cur: new Set(), spare: new Set() }));
+    const next = this._layer(midiArray || [], m.cur, m.spare, 'is-' + name);
+    m.spare = m.cur;
+    m.cur = next;
+  }
+
+  clearMarks() {
+    for (const name of this._marks.keys()) this.setMarks(name, []);
+  }
+
+  /* A class on the whole board, so a view can restyle keys by combination -- "held AND
+     in the chord" -- in CSS, with nothing added to the frame path. */
+  setMode(name, on) {
+    if (this._destroyed) return;
+    if (on) this._modes.add(name);
+    else this._modes.delete(name);
+    this._svg.classList.toggle('kb--' + name, !!on);
+  }
+
   setLabels(mode) {
     if (this._destroyed) return;
     this._labels = LABEL_MODES.indexOf(mode) >= 0 ? mode : 'none';
@@ -434,6 +475,7 @@ class Keyboard {
     for (const set of [this._held, this._heldSpare, this._highlight, this._highlightSpare,
                        this._ghost, this._ghostSpare, this._dead, this._deadSpare,
                        this._sustained, this._forced]) set.clear();
+    for (const m of this._marks.values()) { m.cur.clear(); m.spare.clear(); }
 
     this.low = lo;
     this.high = hi;
@@ -441,6 +483,7 @@ class Keyboard {
     this.setLabels(this._labels);
     // The pedal is a state of the instrument, not of the drawing, so it survives.
     if (this._sustain) this._svg.classList.add('kb--sustain');
+    for (const name of this._modes) this._svg.classList.add('kb--' + name);
     this._syncAria();
     if (this.interactive) this._bind();
     return true;

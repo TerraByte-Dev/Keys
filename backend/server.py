@@ -33,6 +33,7 @@ from .engine import Engine, Preset, Zone
 from .exercises import GenContext, clean_params, load_all
 from .exercises.metrics import grade
 from .exercises.run import Run
+from .flow import SOUNDS as FLOW_SOUNDS, FlowBacking
 from .hub import BEND, CONTROL, NOTE_OFF, NOTE_ON, Hub
 from .looper import LoopStation
 from .metronome import Metronome
@@ -86,6 +87,7 @@ class App:
         self.metro = Metronome(self.engine, self.settings)
         self.loop = LoopStation(self.engine, self.metro, self.settings)
         self.backing = Backing(self.settings)
+        self.flow = FlowBacking(self.engine)
         self.scores = Library()
         self.player = ScorePlayer(self.engine)
         self.store = Store(config.DB_PATH)
@@ -410,6 +412,11 @@ class App:
         if self.player.status().get("state") == "playing":
             self.player.stop()
             stopped.append("score")
+
+        # Before engine.panic(), which would silence it anyway -- but the pad would go on
+        # believing it was sounding, and skip re-striking the same chord when it resumed.
+        if self.flow.stop():
+            stopped.append("chord flow")
 
         notes = len(self.held)
         self.engine.panic()
@@ -912,6 +919,24 @@ def theory_chord(root: str = "C", quality: str = "", inversion: int = 0) -> dict
         return theory.chord_plan(root, quality, inversion=inversion)
     except (ValueError, KeyError) as err:
         raise HTTPException(400, str(err)) from None
+
+
+# ----------------------------------------------------------------- chord flow
+@api.post("/api/flow/backing")
+def flow_backing(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """Hold this chord on the backing pad until the next call; `notes: []` is silence."""
+    if app_state.engine.fs is None:
+        raise HTTPException(503, "engine not started")
+    try:
+        notes = [int(n) for n in body.get("notes", [])]
+        volume = float(body.get("volume", 0.6))
+        hold = float(body.get("hold", 30))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "notes must be MIDI numbers") from None
+    sound = str(body.get("sound", "pad"))
+    if sound not in FLOW_SOUNDS:
+        sound = "pad"
+    return {"ok": True, **app_state.flow.play(notes, sound=sound, volume=volume, hold_s=hold)}
 
 
 # ------------------------------------------------------------------ metronome
