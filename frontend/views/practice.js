@@ -25,16 +25,32 @@
 
 import { $, api, fill, h, hms, mod, stat, toast } from '../ui.js';
 import { createRunner } from '../exercise-run.js';
+import { createFlow } from '../flow.js';
 import { createLibrary } from '../library.js';
 
 let shelf = null;      // last GET /api/exercises
 let current = null;    // the open runner, or null when the shelf is showing
 let library = null;    // the Songs shelf, moved here from Play
+let flow = null;       // Chord Flow
 
 export default {
   async mount(root, ctx) {
     library = createLibrary();
+    // Chord Flow and an exercise both draw on the keyboard, so starting one stops the
+    // other rather than painting two lessons over each other.
+    flow = createFlow(ctx, { onStart: () => { if (current) back(ctx); } });
+    // Order is what you came here to do, then the readouts about how it went. Songs sit
+    // above Exercises in the authored order because that is where a saved layout puts
+    // them anyway -- see applySaved in layout.js, which threads unsaved panels in after
+    // their authored neighbour, and the exercise host is not a panel it can move.
     root.append(h('div.grid', null,
+      flow.el,
+      // The shelf belongs with practising rather than with choosing a sound: it was
+      // in Play under the instrument browser, which is the tab you are in when you
+      // want a TONE, not when you want something to play along to.
+      h('div.col-12', null, library.el),
+      h('div.grid.col-12', { id: 'ex-host' },
+        h('div.col-12', null, h('div.empty', null, 'loading exercises...'))),
       h('div.col-6', null, mod('Now', null,
         h('div.stats', { id: 'practice-hud' },
           h('div.empty', null, 'waiting for the first note')),
@@ -44,30 +60,30 @@ export default {
         h('div.stats', { id: 'practice-timing' },
           h('div.empty', null, 'play something')),
         h('div.note', { style: { marginTop: '12px' } },
-          'Drift is the number to watch, not per-beat error. Players hold even spacing ',
-          'while the whole tempo slides -- that is the failure mode the research found.'))),
-      h('div.grid.col-12', { id: 'ex-host' },
-        h('div.col-12', null, h('div.empty', null, 'loading exercises...'))),
-      // The shelf belongs with practising rather than with choosing a sound: it was
-      // in Play under the instrument browser, which is the tab you are in when you
-      // want a TONE, not when you want something to play along to.
-      h('div.col-12', null, library.el)));
+          'Watch Drift: it says whether you are slowly speeding up or slowing down. ',
+          'Almost everyone does one or the other without hearing it.')))));
 
     await load(ctx);
     await library.init();
   },
 
-  frame(f, ctx) { current?.frame?.(f, ctx); },
+  frame(f, ctx) {
+    current?.frame?.(f, ctx);
+    flow?.frame(f);
+  },
 
   status(s, ctx) {
     paintHud(s.practice || {});
     paintTiming(s.timing);
     current?.status?.(s, ctx);
+    flow?.status();
   },
 
   unmount() {
     current?.destroy?.();
     current = null;
+    flow?.destroy();
+    flow = null;
     library?.destroy();
     library = null;
   },
@@ -181,6 +197,7 @@ function card(ex, ctx) {
 /* ── switching between the shelf and a run ────────────────────────────────── */
 // Named openRun, not open: a bare `open` at module scope shadows window.open.
 function openRun(ex, ctx, initial = null) {
+  flow?.stop();
   current?.destroy?.();
   current = createRunner(ex, ctx, () => back(ctx), initial);
   host()?.replaceChildren(current.el);

@@ -65,6 +65,13 @@
   --key-pressed: var(--amber-hot);      /* mouse/touch, not the piano */
   --key-sustain: #8a6528;               /* released but still ringing on the pedal */
   --key-highlight: var(--cyan);
+  /* Chord Flow: the shape to play, the rest of the chord, the chord coming next, and
+     how a held key fits -- in the chord, or outside the key altogether. */
+  --key-target: var(--cyan);
+  --key-tone: var(--cyan);
+  --key-next: var(--amber);
+  --key-good: var(--green);
+  --key-spicy: var(--red);
   --key-ghost: #46525a;
   /* No enabled zone covers this key, so pressing it does nothing. Grey rather than
      dark: it should read as "not part of the instrument", not as a black key. */
@@ -2405,4 +2412,106 @@ body.has-update #gear::after { top: 2px; right: 1px; }
   .prefs__body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
   .prefs__nav { flex-direction: row; flex-wrap: wrap; border-right: 0;
                 border-bottom: 1px solid var(--hairline); }
+}
+
+/* ── Chord Flow ─────────────────────────────────────────────────────────────
+   Built for someone who has never heard the word "inversion": the chord name is the
+   biggest thing on the page, every control says what it does in plain words, and the
+   legend at the bottom is the key to the colours on the keyboard. */
+.btn--primary {
+  color: var(--on-accent); border-color: var(--amber);
+  background: linear-gradient(180deg, var(--amber-hot), var(--amber));
+  box-shadow: 0 0 14px var(--amber-glow);
+}
+.btn--primary:hover { color: var(--on-accent); filter: brightness(1.06); }
+
+.flow { display: flex; flex-direction: column; gap: 16px; }
+.flow__setup { display: flex; flex-wrap: wrap; gap: 12px 22px; align-items: flex-end; }
+.flow__opt { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.flow__opt--vol { width: 130px; }
+.flow__opt .toggle { margin-bottom: 4px; font-size: 12px; color: var(--ink-dim); }
+.flow__lbl { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-faint); }
+.flow__select {
+  min-width: 150px; max-width: 340px; padding: 7px 9px; font-size: 12.5px;
+  color: var(--ink); background: var(--panel-2);
+  border: 1px solid var(--hairline); border-radius: 5px;
+}
+
+.flow__stage {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 220px) minmax(0, 1fr);
+  gap: 18px; align-items: stretch;
+}
+.flow__card {
+  padding: 14px 16px; border: 1px solid var(--hairline); border-radius: 8px;
+  background: var(--panel-2); display: flex; flex-direction: column; gap: 6px; min-width: 0;
+}
+.flow__card--next { opacity: .82; }
+.flow__sym {
+  font-family: var(--font-mono); font-size: 56px; font-weight: 700; line-height: 1;
+  color: var(--cyan); min-height: 56px;
+}
+.flow__sym--next { font-size: 40px; min-height: 40px; color: var(--amber); }
+.flow__role { min-height: 22px; }
+.flow__pill {
+  display: inline-flex; align-items: baseline; gap: 8px; padding: 3px 9px; border-radius: 99px;
+  font-size: 12px; font-weight: 600; border: 1px solid var(--hairline-hi); color: var(--ink);
+}
+.flow__pill small { font-weight: 400; color: var(--ink-dim); font-size: 11px; }
+.flow__pill--home { border-color: var(--green); }
+.flow__pill--away { border-color: var(--cyan); }
+.flow__pill--pull { border-color: var(--amber); }
+.flow__hands { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--ink-dim); line-height: 1.5; }
+.flow__hands b { color: var(--ink); font-family: var(--font-mono); letter-spacing: .04em; }
+.flow__tip { font-size: 13px; color: var(--ink); line-height: 1.45; }
+.flow__muted { color: var(--ink-faint); font-size: 13px; }
+
+.flow__clock { display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+.flow__beats { display: flex; justify-content: center; gap: 12px; }
+.flow__beat {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid var(--hairline-hi); background: var(--panel-2);
+  transition: background 80ms linear, border-color 80ms linear;
+}
+.flow__beat.is-on { background: var(--amber); border-color: var(--amber); box-shadow: 0 0 10px var(--amber-glow); }
+.flow__bar { height: 5px; border-radius: 3px; background: var(--panel-3); overflow: hidden; }
+.flow__fill { display: block; height: 100%; width: 0; background: var(--amber); }
+.flow__status { text-align: center; font-size: 12px; color: var(--ink-dim); min-height: 16px; }
+
+.flow__phrase {
+  display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-radius: 8px; background: var(--panel-1); border: 1px solid var(--hairline);
+}
+.flow__ptext { min-width: 0; flex: 1 1 320px; }
+.flow__pname { font-size: 14px; font-weight: 600; color: var(--ink); }
+.flow__pblurb { font-size: 12.5px; color: var(--ink-dim); margin-top: 3px; line-height: 1.45; }
+.flow__chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.flow__chip {
+  display: inline-flex; flex-direction: column; align-items: center; min-width: 46px;
+  padding: 5px 8px; border-radius: 6px; border: 1px solid var(--hairline); background: var(--panel-2);
+  color: var(--ink-dim);
+}
+.flow__chip b { font-family: var(--font-mono); font-size: 14px; }
+.flow__chip small { font-size: 10px; color: var(--ink-faint); }
+.flow__chip.is-on { border-color: var(--cyan); color: var(--ink); box-shadow: 0 0 10px color-mix(in oklab, var(--cyan) 40%, transparent); }
+.flow__chip.is-varied { border-style: dashed; }
+.flow__pass { font-size: 11px; color: var(--ink-faint); margin-left: 6px; }
+
+.flow__foot { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+.flow__go { min-width: 120px; }
+.flow__stats { font-size: 12.5px; color: var(--ink-dim); }
+.flow__stats b { color: var(--ink); font-family: var(--font-mono); }
+.flow__stats b.flow__ok { color: var(--green); }
+.flow__stats b.flow__spicy { color: var(--red); }
+
+.flow__legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; color: var(--ink-dim); }
+.flow__key { display: inline-flex; align-items: center; gap: 7px; }
+.flow__sw { width: 14px; height: 18px; border-radius: 2px 2px 4px 4px; background: var(--key-white); border: 1px solid var(--key-edge); }
+.flow__sw--target { background: var(--key-target); }
+.flow__sw--tone { background: color-mix(in oklab, var(--key-tone) 30%, var(--key-white)); }
+.flow__sw--next { background: var(--key-white); border: 2px solid var(--key-next); }
+.flow__sw--good { background: var(--key-good); }
+.flow__sw--out { background: var(--key-spicy); }
+
+@media (max-width: 900px) {
+  .flow__stage { grid-template-columns: 1fr; }
 }
