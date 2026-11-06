@@ -1247,6 +1247,33 @@ select:focus, input:focus { outline: none; border-color: var(--amber-deep); }
 .note--warn { border-left-color: var(--amber); }
 .note--warn strong { color: var(--amber); }
 
+/* ── the (i) ─────────────────────────────────────────────────────────────── */
+.tip__wrap { display: inline-flex; }
+.tip {
+  width: 16px; height: 16px; padding: 0; flex: none;
+  display: grid; place-items: center; cursor: pointer;
+  background: transparent; color: var(--ink-faint);
+  border: 1px solid var(--hairline-hi); border-radius: 50%;
+  font: italic 600 10px/1 Georgia, "Times New Roman", serif;
+  transition: color .14s var(--ease), border-color .14s var(--ease);
+}
+.tip:hover, .tip:focus-visible { color: var(--amber); border-color: var(--amber-deep); outline: none; }
+.tip:has(+ .tip__pop:popover-open) { color: var(--panel-0); background: var(--amber); border-color: var(--amber); }
+.tip__pop {
+  position: fixed; inset: auto; margin: 0;
+  width: max-content; max-width: min(440px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px); overflow: auto;
+  padding: 12px 14px;
+  font-size: 11.5px; line-height: 1.55;
+  background: var(--panel-3); color: var(--ink-dim);
+  border: 1px solid var(--hairline-hi); border-radius: var(--radius);
+  box-shadow: 0 14px 34px var(--shadow-deep);
+  cursor: auto; user-select: text; text-transform: none; letter-spacing: normal;
+}
+.tip__pop:not(.is-placed) { visibility: hidden; }
+.tip__pop .note { margin: 0 !important; border-left: 0; padding-left: 0; }
+.tip__pop .note + .note { margin-top: 8px !important; }
+
 .chips--tight { gap: 4px; margin-bottom: 10px; }
 .chips--tight .chip { padding: 3px 8px; font-size: 10.5px; letter-spacing: .06em; }
 .empty { color: var(--ink-faint); font-size: 12px; padding: 14px 0; text-align: center; }
@@ -1538,9 +1565,12 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
   border-radius: var(--radius);
 }
 .build__title {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
   font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink);
 }
-.build__why { font-size: 11.5px; line-height: 1.5; color: var(--ink-dim); flex: 1; }
+/* The blurb that used to fill the card is behind the (i), so the button keeps the
+   cards in a row level by taking up the slack itself. */
+.build > .btn:last-child { margin-top: auto; }
 .build .field { margin-bottom: 0; }
 .build .btn { margin-top: 2px; }
 
@@ -2505,6 +2535,7 @@ body.has-update #gear::after { top: 2px; right: 1px; }
 
 .flow__legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; color: var(--ink-dim); }
 .flow__key { display: inline-flex; align-items: center; gap: 7px; }
+.tip__pop .flow__legend { flex-direction: column; }
 .flow__sw { width: 14px; height: 18px; border-radius: 2px 2px 4px 4px; background: var(--key-white); border: 1px solid var(--key-edge); }
 .flow__sw--target { background: var(--key-target); }
 .flow__sw--tone { background: color-mix(in oklab, var(--key-tone) 30%, var(--key-white)); }

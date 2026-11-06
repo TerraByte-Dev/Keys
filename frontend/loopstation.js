@@ -13,7 +13,7 @@
  */
 
 import { instrument } from './app.js';
-import { $, api, h, knob, mod, noteName, slider, toast } from './ui.js';
+import { $, api, h, knob, info, mod, noteName, slider, toast } from './ui.js';
 
 const BAR_CHOICES = [1, 2, 4, 8, 16];
 
@@ -27,12 +27,12 @@ export function createLoopStation(ctx, getInstruments) {
   let signature = null;      // what the layer list was last built from
 
   const el = mod('Loop station', 'an ensemble of one',
-    h('div.note', null,
+    info(
       'Record a few bars, and they start looping. Play something else over the top and ',
       'record that too -- bass, then chords, then a melody -- until you are playing with ',
       'a band that is entirely you. Each layer keeps the sound you recorded it with, so ',
       'pick your instrument in ', h('strong', null, 'Play'), ' first.'),
-    h('div.note', { style: { marginTop: '8px' } },
+    info(
       'Takes are locked to the bar: a count-in, then recording starts on the downbeat ',
       'and ends itself at the end of the loop. That is what stops a loop drifting.'),
 
@@ -83,7 +83,7 @@ export function createLoopStation(ctx, getInstruments) {
       h('button.btn', { onclick: save }, 'Save'),
       h('select', { id: 'loop-saved', onchange: load }),
       h('button.btn', { id: 'loop-clear', onclick: () => act('clear') }, 'Clear all')),
-    h('div.note', { style: { marginTop: '8px' } },
+    info(
       'Saved loops keep their tempo, and land in ', h('strong', null, 'recordings/'),
       ' as plain JSON. Five layers is the ceiling.'));
 

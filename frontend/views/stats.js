@@ -22,7 +22,7 @@
  * the blank year grid and the cold 88-key map ARE the reading. */
 
 import { instrument } from '../app.js';
-import { $, api, h, hms, humanMinutes, mod, noteName, stat } from '../ui.js';
+import { $, api, h, hms, humanMinutes, info, mod, noteName, stat } from '../ui.js';
 
 let data = null;
 
@@ -255,13 +255,13 @@ function render(d) {
 
     h('div.col-6', null, mod('Velocity', 'mean, with the range you covered',
       velocity(d.velocity_by_day),
-      h('div.note', { style: { marginTop: '10px' } },
+      info(
         'The band is the softest and loudest note of the day. Its widening is what ',
         'dynamics developing actually looks like; a flat line means fixed touch.'))),
 
     h('div.col-6', null, mod('Notes per minute', 'while actually playing',
       speed(d.notes_per_minute),
-      h('div.note', { style: { marginTop: '10px' } },
+      info(
         'Idle time is already subtracted, so this is density, not diligence. ',
         'It goes up with faster pieces and down with harder ones.'))),
 

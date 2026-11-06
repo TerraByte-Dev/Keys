@@ -23,7 +23,7 @@
  * backend that stopped grading.
  */
 
-import { $, api, fill, h, hms, mod, stat, toast } from '../ui.js';
+import { $, api, fill, h, hms, info, mod, stat, tip, toast } from '../ui.js';
 import { createRunner } from '../exercise-run.js';
 import { createFlow } from '../flow.js';
 import { createLibrary } from '../library.js';
@@ -59,7 +59,7 @@ export default {
       h('div.col-6', null, mod('Timing', 'from your last ~96 notes',
         h('div.stats', { id: 'practice-timing' },
           h('div.empty', null, 'play something')),
-        h('div.note', { style: { marginTop: '12px' } },
+        info(
           'Watch Drift: it says whether you are slowly speeding up or slowing down. ',
           'Almost everyone does one or the other without hearing it.')))));
 
@@ -189,8 +189,7 @@ function paintShelf(ctx) {
 
 function card(ex, ctx) {
   return h('div.build', null,
-    h('div.build__title', null, ex.name),
-    h('div.build__why', null, ex.blurb),
+    h('div.build__title', null, h('span', null, ex.name), ex.blurb ? tip(ex.blurb) : null),
     h('button.btn.btn--wide', { onclick: () => openRun(ex, ctx) }, 'Open'));
 }
 

@@ -19,7 +19,7 @@ import { ACTIONS, applyTheme, defaultBinds, getBinds, normalKey, rollSpeed, setB
          setRollSpeed, THEMES } from './app.js';
 import { resetLayout } from './layout.js';
 import { CHAPTERS, startTutorial } from './tour.js';
-import { $, api, fill, h, mod, slider, stat, toast } from './ui.js';
+import { $, api, fill, h, info, mod, slider, stat, toast } from './ui.js';
 
 const THEME_NOTE = {
   midnight: 'Anodized aluminium and a tungsten lamp. The default.',
@@ -62,7 +62,7 @@ export function themePanel(ctx) {
         h('i', { style: { background: 'var(--key-white)' } })),
       h('span.themecard__name', null, name),
       h('span.themecard__note', null, THEME_NOTE[name] || '')))),
-    h('div.note', { style: { marginTop: '12px' } },
+    info(
       'The keyboard, the lamps and the charts all read from the same palette, so a ',
       'theme changes the whole instrument rather than the chrome around it.')));
 }
@@ -85,12 +85,12 @@ export function clockPanel(ctx) {
           } catch (err) { toast(err.message, 'bad'); }
         },
       })),
-    h('div.note', { style: { marginTop: '10px' } },
+    info(
       'TODAY counts time you spent ', h('strong', null, 'playing'), ', not time with ',
       'the app open. Go this long without a note and the clock stops; the next note ',
       'starts it again. The gap itself is never counted, so a coffee break cannot ',
       'inflate a day.'),
-    h('div.note', { style: { marginTop: '8px' } },
+    info(
       'Short is honest but choppy on slow pieces, since a held chord sends nothing ',
       'while it rings. Long is smoother and quietly generous. ',
       h('strong', null, '12 seconds'), ' is the default.')));
@@ -118,7 +118,7 @@ export function keysPanel(ctx) {
       ])),
     h('div.btnrow', { style: { marginTop: '12px' } },
       h('button.btn', { onclick: () => restore(ctx) }, 'Back to the defaults')),
-    h('div.note', { style: { marginTop: '10px' } },
+    info(
       h('strong', null, 'Stop everything'), ' fires even while you are typing in a ',
       'box — it is the one shortcut you need most at the moment you are least ',
       'able to reach for the mouse. The rest stand aside for text fields.')));
@@ -201,7 +201,7 @@ export function dataPanel() {
   const el = h('div.col-12', null, mod('Your data', 'kept on this machine only',
     h('div.data__where', { id: 'data-where' }),
     h('div.data__rows', { id: 'data-rows' }),
-    h('div.note', { style: { marginTop: '12px' } },
+    info(
       'None of this has ever left your computer. Keys has no account, no server and ',
       'no telemetry — the only thing it ever fetches is the public release list, to ',
       'see whether there is a newer version. That happens when Keys opens and when you ',
@@ -315,7 +315,7 @@ export function aboutPanel(ctx) {
     // Said before you press anything rather than after the backend has refused: a
     // checkout has no installed copy to replace, and offering a Download button that
     // can only fail is the panel discovering that on your behalf.
-    st.frozen ? null : h('div.note', { style: { marginTop: '10px' } },
+    st.frozen ? null : info(
       'You are running from source, so an update here is a ', h('strong', null, 'git pull'),
       ' rather than a download — there is no installed copy for Keys to replace. ',
       'Checking still works, and the result links to the release.'),
@@ -334,13 +334,13 @@ export function aboutPanel(ctx) {
         },
       }),
       h('span.toggle__track'), 'Look for updates when Keys opens'),
-    h('div.note', { style: { marginTop: '10px' } },
+    info(
       'That is the only thing Keys does on the network without you pressing something: ',
       'one request for the public release list, once, when it opens. If there is a ',
       'newer version the gear grows a dot and so does this row — nothing downloads and ',
       'nothing installs. Turn it off and Keys touches the network only when you press ',
       h('strong', null, 'Check for updates'), '.'),
-    h('div.note', { style: { marginTop: '8px' } },
+    info(
       h('strong', null, 'Nothing here updates on its own.'), ' Downloading is a button, ',
       'installing is a second button, and the swap happens when you close the app ',
       'because you told it to. There is no timer and no background install.')));
@@ -562,7 +562,7 @@ const progressText = (s) =>
 /* ── panel layout ─────────────────────────────────────────────────────────── */
 export function layoutPanel() {
   return h('div.col-6', null, mod('Panel layout', null,
-    h('div.note', null,
+    info(
       'Every panel drags by its header and resizes with the arrows that appear when ',
       'you hover it, at a quarter, half or full width. The arrangement is per tab and ',
       'saves as you go, so put what you actually use at the top.'),
@@ -574,7 +574,7 @@ export function layoutPanel() {
 /* ── the tutorial ─────────────────────────────────────────────────────────── */
 export function tutorialPanel(ctx) {
   return h('div.col-12', null, mod('Tutorial', `${CHAPTERS.length} chapters`,
-    h('div.note', null,
+    info(
       'The whole manual, and the same thing that runs on first launch. Every chapter ',
       'is one click from every other, so it is also the place to look one thing up.'),
     h('div.btnrow', { style: { marginTop: '12px' } },
@@ -608,7 +608,7 @@ export function rollPanel(ctx) {
           } catch (err) { toast(err.message, 'bad'); }
         },
       })),
-    h('div.note', { style: { marginTop: '10px' } },
+    info(
       'Pixels per second, not a crossing time — so full screen shows ',
       h('strong', null, 'more of your playing'), ' rather than the same amount going ',
       'faster. Slower is easier to read back; faster keeps more of the keyboard clear.'),
@@ -618,14 +618,14 @@ export function rollPanel(ctx) {
        one. Deliberately NOT a third slider — seconds of lookahead is just height over
        speed, and shipping a control that sets the same number twice is the confusion
        itself. */
-    h('div.note', { style: { marginTop: '8px' } },
+    info(
       'In ', h('strong', null, 'ghost mode'), ' this is the ', h('strong', null, 'reading'),
       ' knob and it changes nothing about the music — it decides how far ahead you can ',
       'see. The ', h('strong', null, 'Tempo'), ' slider on the ghost bar is the ',
       h('strong', null, 'practice'), ' knob: it decides how fast the piece actually goes. ',
       'Slowing the tempo therefore buys reading time twice over, because fewer notes ',
       'fall into the same stretch of screen.'),
-    h('div.note', { style: { marginTop: '8px' } },
+    info(
       h('strong', null, 'F'), ' takes the roll full screen with the lights down. ',
       h('strong', null, 'Esc'), ' brings the app back.')));
 }
