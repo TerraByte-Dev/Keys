@@ -106,7 +106,7 @@ export default {
       // "What this is" was a panel of nothing but those two paragraphs. They are the
       // (i) on Build one now, beside the thing they explain.
       h('div.col-12', null, mod('Layout',
-        `${noteName(LO())} to ${noteName(HI())} -- ${HI() - LO() + 1} keys`,
+        `${noteName(LO())} to ${noteName(HI())} — ${HI() - LO() + 1} keys`,
         h('div.zonebar', { id: 'zonebar' }),
         h('div.btnrow', null,
           h('button.btn', { onclick: () => { zones.push(blank(zones.length)); render(ctx); } },
@@ -118,9 +118,9 @@ export default {
       h('div.col-12', null, mod('Build one', 'a click each',
         info(
           'A ', h('strong', null, 'split'), ' puts one sound in your left hand and another ',
-          'in your right -- bass below the split point, piano above. A ',
+          'in your right — bass below the split point, piano above. A ',
           h('strong', null, 'layer'), ' puts two sounds on the same keys so they sound ',
-          'together -- piano and strings under one finger.'),
+          'together — piano and strings under one finger.'),
         info(
           'Both are the same idea: a ', h('strong', null, 'zone'), ' is a range of keys ',
           'pointed at a sound, and overlapping two zones ', h('em', null, 'is'), ' the layer. ',
@@ -289,7 +289,7 @@ async function buildSplit(ctx) {
     splitOct.left ? `L ${octLabel(splitOct.left)}` : '',
     splitOct.right ? `R ${octLabel(splitOct.right)}` : '',
   ].filter(Boolean).join(', ');
-  await apply(ctx, `Split at ${noteName(point)} -- ${left.name} / ${right.name}`
+  await apply(ctx, `Split at ${noteName(point)} — ${left.name} / ${right.name}`
                  + (shifted ? ` (${shifted})` : ''));
 }
 

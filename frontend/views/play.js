@@ -85,7 +85,7 @@ export default {
         h('div', { id: 'shelf-inst', hidden: shelf !== 'instruments' },
           h('div', { style: { display: 'flex', gap: '8px', marginBottom: '10px' } },
             h('input', {
-              type: 'text', placeholder: 'filter -- rhodes, organ, kit...',
+              type: 'text', placeholder: 'filter — rhodes, organ, kit...',
               // Seeded from the module-scoped filter so the box and the list can never
               // disagree: leaving Play and coming back used to show an empty-looking
               // input that was still filtering.
@@ -126,14 +126,17 @@ export default {
       // could not fit beside it -- half of a 1456px row sat empty under the one panel
       // you always look at first. At col-6 the FX_GRID auto-fit reflows to four columns
       // and the two pack side by side, which took the tab from 2198px to 1593px.
-      h('div.col-6', null, mod('Effects', 'the two units FluidSynth has',
-        h('div.chips__head', null, 'Reverb -- the room'),
+      h('div.col-6', null, mod('Effects', null,
+        h('div.chips__head', null, 'Reverb', h('small.chips__sub', null, 'the room')),
         h('div', { style: FX_GRID },
           fxKnobs('reverb', s, ctx),
           fxField('fx-send-reverb', 'Reverb send', 0, 1, 0.01, zone?.reverb ?? 0.3,
                   pushSend('reverb', ctx))),
-        h('div.chips__head', null, 'Chorus -- movement and thickness'),
-        h('div', { style: FX_GRID },
+        // Tucked away: reverb is the one everybody reaches for, chorus the one most never
+        // touch. layout.js watches the panel's height, so opening it repacks the grid.
+        h('details.fold', null,
+          h('summary', null, 'Chorus', h('small', null, 'movement and thickness')),
+          h('div', { style: FX_GRID },
           fxKnobs('chorus', s, ctx),
           h('label.field', null,
             h('span.field__label', null, h('span', null, 'Shape')),
@@ -146,11 +149,11 @@ export default {
               h('option', { value: '0', selected: (s.chorus?.type ?? 0) === 0 }, 'Sine'),
               h('option', { value: '1', selected: (s.chorus?.type ?? 0) === 1 }, 'Triangle'))),
           fxField('fx-send-chorus', 'Chorus send', 0, 1, 0.01, zone?.chorus ?? 0,
-                  pushSend('chorus', ctx))),
+                  pushSend('chorus', ctx)))),
         h('div.btnrow', null,
           h('button.btn', { onclick: () => resetFx() }, 'Reset both units')),
         info(
-          'Both units are global -- they colour every zone at once -- and a ',
+          'Both units are global — they colour every zone at once — and a ',
           h('strong', null, 'send'), ' is how much of what you are playing goes into one. ',
           'The sends belong to the instrument rather than to the room, so they travel ',
           'with it: pick another preset and you get that preset\'s sends, and Reset ',
@@ -189,7 +192,7 @@ export default {
           // the fix is an honest label, not resetting the mode.
           }, 'Labels: ' + labelMode)),
         info(
-          'Highlighted keys are the scale. They do not change what sounds -- ',
+          'Highlighted keys are the scale. They do not change what sounds — ',
           'this is a reading aid, not a lock.'))),
 
       h('div.col-6', null, mod('Tempo', null,
@@ -252,7 +255,7 @@ export default {
         numField('Stop at (bpm)', 'ramp_bpm_max', 40, 240),
         info(
           'Start slower than feels necessary and let it climb. ',
-          h('strong', null, 'Drop a step'), ' when you miss -- that is the loop that ',
+          h('strong', null, 'Drop a step'), ' when you miss — that is the loop that ',
           'builds speed, not playing fast badly.'))),
 
       // "Click kit", not "Sound". layout.js keys a panel's saved position on the slug
@@ -433,7 +436,7 @@ async function randomInstrument(ctx) {
   }
   const pick = pool[Math.floor(Math.random() * pool.length)];
   await applyInstrument(pick, ctx);
-  toast(`${pick.name} -- play something`, 'good', 2600);
+  toast(`${pick.name} — play something`, 'good', 2600);
   // Show it, so Random is a way to discover the list rather than a black box.
   filter = '';
   const box = $('#inst-list')?.closest('.mod')?.querySelector('input[type=text]');

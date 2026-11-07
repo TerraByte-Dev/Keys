@@ -36,7 +36,7 @@ function loadApi() {
     window.onYouTubeIframeAPIReady = () => { prev?.(); resolve(window.YT); };
     const tag = document.createElement('script');
     tag.src = API_SRC;
-    tag.onerror = () => reject(new Error('could not reach YouTube -- are you online?'));
+    tag.onerror = () => reject(new Error('could not reach YouTube — are you online?'));
     document.head.append(tag);
   });
   return apiReady;
@@ -63,13 +63,13 @@ export function createBacking() {
     h('div.note.note--warn', { id: 'yt-excl', style: { display: 'none' } },
       h('strong', null, 'Keys still owns the speakers.'),
       ' Exclusive mode is where the 3 ms comes from, and while it holds the output ',
-      'device nothing else can make a sound -- including this video. ',
+      'device nothing else can make a sound — including this video. ',
       h('button.btn', { id: 'yt-share', style: { marginLeft: '8px' } }, 'Switch to shared'),
       ' Latency goes to roughly 10 ms, which is still very playable.'),
 
     // The state you are actually in while using this panel.
     h('div.note', { id: 'yt-shared', style: { display: 'none' } },
-      h('strong', null, 'Shared output'), ' -- the video and your piano are both audible. ',
+      h('strong', null, 'Shared output'), ' — the video and your piano are both audible. ',
       'Latency is roughly 10 ms instead of 3. ',
       h('button.btn', { id: 'yt-restore', style: { marginLeft: '8px' } },
         'Give the device back to Keys (3 ms)')),
@@ -87,7 +87,7 @@ export function createBacking() {
       h('div.yt__side', null,
         h('div.yt__title', { id: 'yt-title' }, ''),
         info(
-          'The player has YouTube\'s own controls -- play, pause, scrub, volume, ',
+          'The player has YouTube\'s own controls — play, pause, scrub, volume, ',
           'quality, fullscreen. The buttons here are the ones it does not have.'),
         h('div.btnrow', null,
           h('button.btn', { id: 'yt-play' }, 'Play'),
@@ -104,7 +104,7 @@ export function createBacking() {
               'data-rate': r, onclick: () => setRate(r),
             }, r === 1 ? '1x' : `${r}x`)))),
         info(
-          'Slowing down keeps the pitch -- a track at 0.75x is still in its original key, ',
+          'Slowing down keeps the pitch — a track at 0.75x is still in its original key, ',
           'so you can play along with it.'))),
 
     h('div', { id: 'yt-list' }));
@@ -180,7 +180,7 @@ export function createBacking() {
         }),
         h('button.btn', { onclick: () => remove(t.id) }, 'Remove')),
       h('input.track__notes', {
-        type: 'text', value: t.notes, placeholder: 'notes -- what you are working on here',
+        type: 'text', value: t.notes, placeholder: 'notes — what you are working on here',
         onchange: (e) => patch(t.id, { notes: e.target.value }),
       }))));
   }
@@ -202,7 +202,7 @@ export function createBacking() {
       exclusive = !!res.engine?.exclusive;
       yielded = !!res.backing_yielded;
       if (!exclusive) {
-        toast('Shared output -- the video has sound now, and so does your piano', 'good', 5000);
+        toast('Shared output — the video has sound now, and so does your piano', 'good', 5000);
       }
       for (const w of res.warnings || []) toast(w, 'bad', 8000);
     } catch (err) {
@@ -218,7 +218,7 @@ export function createBacking() {
       exclusive = !!res.engine?.exclusive;
       // Still true if the device refused: the close of the track retries it.
       yielded = !!res.backing_yielded;
-      toast(exclusive ? 'Exclusive again -- 3.00 ms. Video audio is muted while it holds.'
+      toast(exclusive ? 'Exclusive again — 3.00 ms. Video audio is muted while it holds.'
                       : 'Could not reacquire the device', exclusive ? 'good' : 'bad', 5000);
     } catch (err) { toast(err.message, 'bad'); }
     paint();
@@ -272,7 +272,7 @@ export function createBacking() {
   function playerError(code, t) {
     const why = {
       2: 'that video id is malformed',
-      5: 'the player could not start -- try reloading the page',
+      5: 'the player could not start — try reloading the page',
       100: 'that video is private, deleted, or does not exist',
       101: 'the owner does not allow this one to be played outside YouTube',
       150: 'the owner does not allow this one to be played outside YouTube',

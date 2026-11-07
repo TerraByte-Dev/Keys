@@ -188,7 +188,7 @@ export function createRunner(ex, ctx, onExit, initial = null) {
     }
     if (plan.staff === 'none') {
       staffSvg = null;
-      staffHost.replaceChildren(h('div.empty', null, 'this one is played by ear -- watch the keyboard'));
+      staffHost.replaceChildren(h('div.empty', null, 'this one is played by ear — watch the keyboard'));
       return;
     }
     staffSvg = renderStaff({
@@ -250,7 +250,7 @@ export function createRunner(ex, ctx, onExit, initial = null) {
       h('div.stats', { style: { marginTop: '16px' } }, cards),
       h('div.note', { style: { marginTop: '12px' } },
         'Measurements, not a verdict. The number worth watching is evenness across ',
-        'days -- accuracy on one run mostly tells you how fast you took it.'));
+        'days — accuracy on one run mostly tells you how fast you took it.'));
   }
 
   /* ── the dock keyboard ──────────────────────────────────────────────────── */

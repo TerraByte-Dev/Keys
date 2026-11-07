@@ -115,18 +115,22 @@ const CSS = `
 .keys-kb .key--white.is-held{fill:color-mix(in oklab,var(--key-held,#3f9dff) calc(35% + var(--vel,.75)*65%),var(--key-white,#f2f2ef))}
 .keys-kb .key--black.is-held{fill:color-mix(in oklab,var(--key-held,#3f9dff) calc(35% + var(--vel,.75)*65%),var(--key-black,#16171b))}
 .keys-kb .key.is-pressed{fill:var(--key-pressed,var(--key-held,#3f9dff))}
-/* Chord Flow. "tone" is every key in the chord, tinted; "target" is the shape to play,
-   solid; "next" is the chord coming up, outlined ONLY -- a fill would make it one more
-   lit key, and every lit key is supposed to sound good right now. A key in both target
-   and next is one you keep holding. Held keys in flow mode say how they fit: in the
-   chord, in the key, or outside it. */
-.keys-kb .key--white.is-tone{fill:color-mix(in oklab,var(--key-tone,#58c4d4) 30%,var(--key-white,#f2f2ef))}
-.keys-kb .key--black.is-tone{fill:color-mix(in oklab,var(--key-tone,#58c4d4) 45%,var(--key-black,#16171b))}
-.keys-kb .key.is-target{fill:var(--key-target,#58c4d4)}
-.keys-kb .key.is-next{stroke:var(--key-next,#ffa62b);stroke-width:2.4}
+/* Jam. "scale" is every key that fits, dim; "tone" is the chord, bright; "suggest" is
+   the coach's next note, pulsing, and "suggest2" the runners-up, outlined. Held keys in
+   flow mode say how they fit: in the chord, in the key, or outside it. Order matters
+   below — equal specificity throughout, so each later rule is meant to win. */
+.keys-kb.kb--flow .key--white.is-scale{fill:color-mix(in oklab,var(--key-tone,#58c4d4) 14%,var(--key-white,#f2f2ef))}
+.keys-kb.kb--flow .key--black.is-scale{fill:color-mix(in oklab,var(--key-tone,#58c4d4) 30%,var(--key-black,#16171b))}
+.keys-kb.kb--flow .key--white.is-tone{fill:color-mix(in oklab,var(--key-tone,#58c4d4) 78%,var(--key-white,#f2f2ef))}
+.keys-kb.kb--flow .key--black.is-tone{fill:var(--key-tone,#58c4d4)}
+@keyframes kb-suggest{0%,100%{fill:var(--key-suggest,#ffa62b)}50%{fill:color-mix(in oklab,var(--key-suggest,#ffa62b) 45%,var(--key-white,#f2f2ef))}}
+.keys-kb.kb--flow .key.is-suggest{fill:var(--key-suggest,#ffa62b);animation:kb-suggest 1.1s ease-in-out infinite}
+.keys-kb.kb--flow .key.is-suggest2{stroke:var(--key-suggest,#ffa62b);stroke-width:2.6}
+.keys-kb.kb--flow .key.is-held{animation:none}
+.keys-kb.kb--flow .key.is-held.is-scale{fill:var(--key-held,#3f9dff)}
 .keys-kb.kb--flow .key.is-held:not(.is-scale){fill:var(--key-spicy,#ff5f4d)}
-/* Must stay after the spicy rule: equal specificity, so order decides. A chord tone
-   outside the key -- minor V's raised third, G sharp in A minor -- is still the chord. */
+/* A chord tone outside the key — minor V's raised third, G sharp in A minor — is still
+   the chord, so this comes after the spicy rule. */
 .keys-kb.kb--flow .key.is-held.is-tone{fill:var(--key-good,#74cf86)}
 .keys-kb .key-label{pointer-events:none;font-family:var(--key-font,ui-sans-serif,system-ui,sans-serif);font-size:9px;text-anchor:middle;fill:var(--key-label,#7a8290)}
 .keys-kb .key-label--black{fill:var(--key-label-black,#8d94a1)}
@@ -394,7 +398,7 @@ class Keyboard {
   }
 
   /* Named layers beyond highlight and ghost, for a view that needs several at once --
-     Chord Flow paints the shape to play, every note that fits, and the next chord.
+     Jam paints every note that fits, the chord, and the coach's suggestions.
      Same diff as the fixed layers; the class is `is-<name>`, and style.css owns what
      it looks like. */
   setMarks(name, midiArray) {

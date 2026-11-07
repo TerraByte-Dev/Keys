@@ -1,4 +1,4 @@
-/* Chord Flow's composer -- an endless chord progression that sounds like songs.
+/* Jam's composer -- an endless chord progression that sounds like songs.
  *
  * The problem with "random chords in the key" is that it is technically never wrong and
  * musically always wrong: nothing repeats, so nothing sounds like a song, and the ear
@@ -14,8 +14,8 @@
  * chord follows the last one: a chord that pulls toward home goes home.
  *
  * Nothing in here touches the DOM or the clock. Chords come in as pitch classes (the
- * spelling comes from the server -- see flow.js), randomness comes in as a function,
- * and tools/flow_check.py drives this file under node with a seeded one.
+ * spelling comes from the server -- see jam.js), randomness comes in as a function,
+ * and tools/jam_check.py drives this file under node with a seeded one.
  */
 
 // Six of the seven chords in a major key. vii° is left out: it is the one chord in the
@@ -57,7 +57,7 @@ export const PHRASES = {
     { id: 'circle', name: 'Round the circle', seq: ['vi', 'ii', 'V', 'I'], w: 1.2,
       blurb: 'Each chord falls five notes to the next. The strongest pull there is.' },
     { id: 'canon', name: "Pachelbel's Canon", seq: ['I', 'V', 'vi', 'iii', 'IV', 'I', 'IV', 'V'], w: 1.2,
-      blurb: 'The wedding classic -- and the middle of the Memories chorus.' },
+      blurb: 'The wedding classic — and the middle of the Memories chorus.' },
     { id: 'climb', name: 'The climb', seq: ['I', 'iii', 'IV', 'V'], w: 1,
       blurb: 'Leaps up from home, then climbs a step at a time to the pull.' },
   ],
@@ -69,7 +69,7 @@ export const PHRASES = {
     { id: 'drama', name: 'Drama', seq: ['i', 'VI', 'iv', 'V'], w: 2,
       blurb: 'Sinks, then pulls hard back to the start.' },
     { id: 'watchtower', name: 'Rocking', seq: ['i', 'VII', 'VI', 'VII'], w: 2,
-      blurb: 'Down two steps and back up -- All Along the Watchtower rocks on this.' },
+      blurb: 'Down two steps and back up — All Along the Watchtower rocks on this.' },
     { id: 'minor-three', name: 'Minor three chords', seq: ['i', 'iv', 'v', 'i'], w: 1.5,
       blurb: 'The three-chord song in a minor key. Darker, softer pull.' },
     { id: 'rise', name: 'The rise', seq: ['VI', 'VII', 'i', 'i'], w: 1.5,
@@ -197,60 +197,106 @@ export function createProgression({ mode = 'major', scale, rng = Math.random }) 
   };
 }
 
-/* ── where to put your hands ─────────────────────────────────────────────── */
-
-const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
+/* ── what to play next ───────────────────────────────────────────────────── */
 
 /**
- * The right-hand shape: three notes, close together, as near as possible to where your
- * hand already is. This is the whole trick of playing chords smoothly -- C to Am to F
- * is one finger moving at a time, not the hand jumping -- and a beginner never finds it
- * alone, because every chord chart draws every chord from its root.
+ * Up to three notes worth playing next, best first, each with the reason in words.
+ *
+ * Everything lit on the keyboard already sounds fine; this is the step after "fine" --
+ * what a melody would do from where you are. It scores every note of the key within a
+ * fifth of your last one on what melodies actually do:
+ *
+ *   - land on the chord, and on the next chord when the change is about to happen;
+ *   - move by step more than by leap, and fill a leap back in the other direction;
+ *   - resolve: a note that is not in the chord wants to step onto one that is, and the
+ *     key's seventh note wants to rise to home;
+ *   - turn around after running one way for a while, rather than walking off the end;
+ *   - not hammer one key.
+ *
+ * `history` is your recent notes, oldest first. `near` is how close the chord change is,
+ * 0 (just changed) to 1 (on the bar line). `rng` adds a little jitter so two equally
+ * good answers take turns instead of one always winning.
  */
-export function voiceRight(pcs, prev = null, { low = 55, high = 79, center = 66 } = {}) {
-  const shapes = [];
-  for (let inv = 0; inv < 3; inv++) {
-    const order = [pcs[inv % 3], pcs[(inv + 1) % 3], pcs[(inv + 2) % 3]];
-    for (let base = low; base <= high; base++) {
-      if (base % 12 !== order[0]) continue;
-      const notes = [base];
-      for (let k = 1; k < 3; k++) {
-        let n = notes[k - 1] + 1;
-        while (n % 12 !== order[k]) n++;
-        notes.push(n);
-      }
-      if (notes[2] <= high) shapes.push({ notes, inv });
+export function suggest({ history = [], chord, scale, next = null, near = 0,
+  low = 57, high = 84, rng = Math.random }) {
+  const inChord = new Set(chord);
+  const inNext = new Set(next || []);
+  const inScale = new Set([...scale, ...chord]);
+  const last = history.length ? history[history.length - 1] : null;
+  const prev = history.length > 1 ? history[history.length - 2] : null;
+
+  // Nothing played yet: a chord note around the middle of the keyboard, the third first.
+  if (last === null) {
+    const out = [];
+    const order = [chord[1], chord[0], chord[2]].filter((pc) => pc !== undefined);
+    for (const pc of order) {
+      let m = 64 + ((pc - 64) % 12 + 12) % 12;
+      if (m > 72) m -= 12;
+      out.push({ midi: m, why: pc === chord[0] ? 'the chord\'s home note' : 'a chord note — safe anywhere' });
     }
+    return out;
   }
-  const cost = (s) => {
-    // A little pull toward the middle stops a long run of smooth moves from walking the
-    // hand off the end of the keyboard.
-    const drift = Math.abs(mean(s.notes) - center) * (prev ? 0.35 : 1);
-    if (!prev) return drift;
-    return s.notes.reduce((a, n, i) => a + Math.abs(n - prev[i]), 0) + drift;
-  };
-  // The first chord is the textbook shape, root at the bottom: it is the one you can
-  // check against a chord chart. Every chord after it moves as little as it can.
-  const pool = prev ? shapes : shapes.filter((s) => s.inv === 0 && s.notes[0] < low + 12);
-  pool.sort((a, b) => cost(a) - cost(b));
-  return pool[0].notes;
-}
 
-/* The left hand: the chord's root, low, and as close to the last one as it can be. */
-export function voiceLeft(rootPc, prev = null, { low = 40, high = 51 } = {}) {
-  const options = [];
-  for (let n = low; n <= high; n++) if (n % 12 === rootPc) options.push(n);
-  const target = prev ?? 46;
-  options.sort((a, b) => Math.abs(a - target) - Math.abs(b - target) || a - b);
-  return options[0];
-}
+  // Which way you have been going: the sum of the last three moves.
+  const moves = [];
+  for (let i = Math.max(1, history.length - 3); i < history.length; i++) moves.push(history[i] - history[i - 1]);
+  const run = moves.reduce((a, b) => a + b, 0);
+  const lastMove = prev === null ? 0 : last - prev;
+  const lastPc = ((last % 12) + 12) % 12;
+  const tense = !inChord.has(lastPc);
+  const seventh = scale[6];
+  const tonic = scale[0];
+  const repeats = history.slice(-3).filter((m) => m === last).length;
 
-/* The keys the left hand is shown: one note, root and fifth, or none. Root and fifth
-   can reach up into the right hand's lowest key, so the pair drops an octave when it
-   would -- `root` itself never moves, because the next bass leads from it. */
-export function leftKeys(root, style, rhLow) {
-  if (style === 'off') return [];
-  if (style !== 'fifth') return [root];
-  const base = root + 7 >= rhLow ? root - 12 : root;
-  return [base, base + 7];
+  const scored = [];
+  for (let m = Math.max(low, last - 7); m <= Math.min(high, last + 7); m++) {
+    const pc = ((m % 12) + 12) % 12;
+    if (!inScale.has(pc)) continue;
+    const d = m - last, dist = Math.abs(d);
+    let score = 0;
+    let why = 'from the key';
+
+    const chordW = 3 * (1 - 0.55 * near);
+    if (inChord.has(pc)) {
+      score += chordW + (pc === chord[1] ? 0.3 : 0);
+      why = 'a chord note';
+    } else {
+      score += 1;
+    }
+    if (near > 0.5 && inNext.has(pc)) {
+      score += 2.5 * near;
+      if (!inChord.has(pc) || near > 0.8) why = 'a note of the next chord — lands as it changes';
+    }
+
+    if (dist === 0) score -= repeats >= 2 ? 4 : 1.5;
+    else if (dist <= 2) score += 2;
+    else if (dist <= 4) score += 1.2;
+    else if (dist === 5) score += 0.3;
+    else if (dist === 6) score -= 2;
+
+    if (tense && inChord.has(pc) && dist > 0 && dist <= 2) {
+      score += 2.5;
+      why = 'resolves — steps onto the chord';
+    }
+    if (lastPc === seventh && pc === tonic && d > 0 && d <= 2) {
+      score += 1.5;
+      why = 'rises home';
+    }
+    if (Math.abs(lastMove) >= 5 && dist > 0 && dist <= 2 && Math.sign(d) !== Math.sign(lastMove)) {
+      score += 1.5;
+      why = inChord.has(pc) ? 'steps back after the leap, onto the chord' : 'steps back after the leap';
+    } else if (Math.abs(run) >= 5 && dist > 0 && Math.sign(d) !== Math.sign(run)) {
+      score += 1.2;
+      if (why === 'from the key' || why === 'a chord note') why = 'turns the line around';
+    } else if (Math.abs(run) >= 5 && Math.sign(d) === Math.sign(run)) {
+      score -= 0.5;
+    }
+    score -= 0.08 * Math.max(0, Math.abs(m - 70) - 10);   // drifting off either end
+    score += rng() * 0.8;
+
+    if (why === 'a chord note' && dist > 0 && dist <= 2) why = 'a chord note, one step away';
+    scored.push({ midi: m, why, score });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, 3).map(({ midi, why }) => ({ midi, why }));
 }

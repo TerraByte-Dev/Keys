@@ -365,8 +365,8 @@ function calendar(payload) {
     cells.push(h('div.cal__day', {
       'data-l': secs === 0 ? 0 : secs < 300 ? 1 : secs < 900 ? 2 : secs < 1800 ? 3 : 4,
       title: secs
-        ? `${row.date} -- ${humanMinutes(secs)}, ${count(row.note_count)} notes`
-        : `${row.date} -- nothing`,
+        ? `${row.date} — ${humanMinutes(secs)}, ${count(row.note_count)} notes`
+        : `${row.date} — nothing`,
     }));
   }
 
@@ -466,7 +466,7 @@ function pianoMap(heat, range) {
       d: keyPath(x, isWhite ? WHITE_W : BLACK_W, isWhite ? WHITE_H : BLACK_H, isWhite ? 3 : 2),
     });
     key.style.fill = heatFill(counts[n], max, isWhite);
-    key.append(svg('title', null, `${noteName(n)} -- ${count(counts[n])} plays`));
+    key.append(svg('title', null, `${noteName(n)} — ${count(counts[n])} plays`));
     (isWhite ? whites : blacks).append(key);
   }
   return root;
@@ -484,7 +484,7 @@ function heatFill(c, max, isWhite) {
 
 function rangeLine(range) {
   if (!range || !range.span) return h('div.note', { style: { marginTop: '12px' } },
-    'No notes logged yet -- play anything and the keys light up here.');
+    'No notes logged yet — play anything and the keys light up here.');
   // Measured against the keyboard you have, so the label has to say which one -- "Of
   // the 88" on a 61-key board is the app talking about an instrument you do not own.
   const keys = range.of_high != null ? range.of_high - range.of_low + 1 : 88;
@@ -538,7 +538,7 @@ function wheel(values) {
       x2: (R + Math.cos(a) * Math.max(end, INNER + 1)).toFixed(2),
       y2: (R + Math.sin(a) * Math.max(end, INNER + 1)).toFixed(2),
     });
-    spoke.append(svg('title', null, `${PC_NAMES[i]} -- ${count(v)} notes`));
+    spoke.append(svg('title', null, `${PC_NAMES[i]} — ${count(v)} notes`));
     root.append(spoke);
     root.append(svg('text', {
       class: 'wheel__label',
@@ -588,7 +588,7 @@ function intervals(rows) {
   return barChart(
     sorted.map((r) => r.count || 0),
     sorted.map((r) => r.name || String(r.semitones)),
-    { title: (i, v) => `${sorted[i].name || sorted[i].semitones} -- ${count(v)}` });
+    { title: (i, v) => `${sorted[i].name || sorted[i].semitones} — ${count(v)}` });
 }
 
 function hours(rows) {
@@ -597,7 +597,7 @@ function hours(rows) {
   return barChart(v, v.map((_, i) => String(i)), {
     every: 3,
     // Active seconds, not notes -- store.hour_histogram weights by the practice clock.
-    title: (i, n) => `${String(i).padStart(2, '0')}:00 -- ${humanMinutes(n)}`,
+    title: (i, n) => `${String(i).padStart(2, '0')}:00 — ${humanMinutes(n)}`,
   });
 }
 
@@ -608,7 +608,7 @@ function weekdays(rows) {
   if (!v || !v.some((n) => n > 0)) return nothing('no sessions yet');
   // Same unit as hours(): active seconds, so the bare bar height needs a unit on it.
   return barChart(v, DAY_NAMES, {
-    cyan: true, title: (i, n) => `${DAY_NAMES[i]} -- ${humanMinutes(n)}`,
+    cyan: true, title: (i, n) => `${DAY_NAMES[i]} — ${humanMinutes(n)}`,
   });
 }
 
@@ -687,7 +687,7 @@ function sessionLengths(rows) {
   return barChart(
     sorted.map((r) => r.count || 0),
     sorted.map((r) => `${r.minutes}m`),
-    { title: (i, v) => `${sorted[i].minutes} min -- ${count(v)} sessions` });
+    { title: (i, v) => `${sorted[i].minutes} min — ${count(v)} sessions` });
 }
 
 function presets(rows) {

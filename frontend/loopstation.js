@@ -29,7 +29,7 @@ export function createLoopStation(ctx, getInstruments) {
   const el = mod('Loop station', 'an ensemble of one',
     info(
       'Record a few bars, and they start looping. Play something else over the top and ',
-      'record that too -- bass, then chords, then a melody -- until you are playing with ',
+      'record that too — bass, then chords, then a melody — until you are playing with ',
       'a band that is entirely you. Each layer keeps the sound you recorded it with, so ',
       'pick your instrument in ', h('strong', null, 'Play'), ' first.'),
     info(
@@ -147,7 +147,7 @@ export function createLoopStation(ctx, getInstruments) {
     const host = $('#loop-layers');
     if (!layers.length) {
       host.replaceChildren(h('div.empty', null,
-        'no layers yet -- hit Record and play something'));
+        'no layers yet — hit Record and play something'));
       return;
     }
     host.replaceChildren(...layers.map((l, i) => layerRow(l, i)));
@@ -296,7 +296,7 @@ export function createLoopStation(ctx, getInstruments) {
       sel.replaceChildren(
         h('option', { value: '' }, saved.length ? 'load a loop...' : 'nothing saved yet'),
         ...saved.map((s) => h('option', { value: s.name },
-          `${s.name} -- ${s.layers} layers, ${s.bars} bars, ${Math.round(s.bpm)} bpm`)));
+          `${s.name} — ${s.layers} layers, ${s.bars} bars, ${Math.round(s.bpm)} bpm`)));
     }
   }
 

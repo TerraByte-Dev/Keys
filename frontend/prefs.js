@@ -86,7 +86,7 @@ export function clockPanel(ctx) {
         },
       })),
     info(
-      'TODAY counts time you spent ', h('strong', null, 'playing'), ', not time with ',
+      'Today counts time you spent ', h('strong', null, 'playing'), ', not time with ',
       'the app open. Go this long without a note and the clock stops; the next note ',
       'starts it again. The gap itself is never counted, so a coffee break cannot ',
       'inflate a day.'),

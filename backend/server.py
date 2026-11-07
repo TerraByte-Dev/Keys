@@ -33,7 +33,7 @@ from .engine import Engine, Preset, Zone
 from .exercises import GenContext, clean_params, load_all
 from .exercises.metrics import grade
 from .exercises.run import Run
-from .flow import SOUNDS as FLOW_SOUNDS, FlowBacking
+from .band import STYLES as BAND_STYLES, Band
 from .hub import BEND, CONTROL, NOTE_OFF, NOTE_ON, Hub
 from .looper import LoopStation
 from .metronome import Metronome
@@ -87,7 +87,7 @@ class App:
         self.metro = Metronome(self.engine, self.settings)
         self.loop = LoopStation(self.engine, self.metro, self.settings)
         self.backing = Backing(self.settings)
-        self.flow = FlowBacking(self.engine)
+        self.band = Band(self.engine)
         self.scores = Library()
         self.player = ScorePlayer(self.engine)
         self.store = Store(config.DB_PATH)
@@ -171,6 +171,7 @@ class App:
         self.midi.stop_watcher()
         self.midi.close()
         self.loop.shutdown()
+        self.band.shutdown()
         self.metro.shutdown()
         self.practice.end_session()
         self.engine.stop()
@@ -332,6 +333,7 @@ class App:
             "midi": self.midi.status(),
             "metronome": self.metro.status(),
             "loop": self.loop.status(),
+            "band": self.band.status(),
             "pedal": self.engine.pedal_status(),
             "transport": self.player.status(),
             "practice": self.practice.status(now),
@@ -413,10 +415,10 @@ class App:
             self.player.stop()
             stopped.append("score")
 
-        # Before engine.panic(), which would silence it anyway -- but the pad would go on
-        # believing it was sounding, and skip re-striking the same chord when it resumed.
-        if self.flow.stop():
-            stopped.append("chord flow")
+        # Before engine.panic(): that silences what is sounding, but the band's queued
+        # bars live in the sequencer and would carry on playing after it.
+        if self.band.stop():
+            stopped.append("band")
 
         notes = len(self.held)
         self.engine.panic()
@@ -437,6 +439,7 @@ class App:
             "midi": self.midi.status(),
             "metronome": self.metro.status(),
             "loop": self.loop.status(),
+            "band": self.band.status(),
             "pedal": self.engine.pedal_status(),
             "transport": self.player.status(),
             "saved_loops": self.loop.saved(),
@@ -921,22 +924,61 @@ def theory_chord(root: str = "C", quality: str = "", inversion: int = 0) -> dict
         raise HTTPException(400, str(err)) from None
 
 
-# ----------------------------------------------------------------- chord flow
-@api.post("/api/flow/backing")
-def flow_backing(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
-    """Hold this chord on the backing pad until the next call; `notes: []` is silence."""
-    if app_state.engine.fs is None:
-        raise HTTPException(503, "engine not started")
+# ----------------------------------------------------------------------- jam
+def _chart(body: dict[str, Any]) -> list[dict[str, Any]]:
+    chart = body.get("chart", [])
+    if not isinstance(chart, list) or not all(isinstance(c, dict) for c in chart):
+        raise HTTPException(400, "chart must be a list of chords")
     try:
-        notes = [int(n) for n in body.get("notes", [])]
-        volume = float(body.get("volume", 0.6))
-        hold = float(body.get("hold", 30))
+        return [{"root": int(c.get("root", 0)), "bass": int(c.get("bass", c.get("root", 0))),
+                 "pcs": [int(p) for p in c.get("pcs", [])]} for c in chart]
     except (TypeError, ValueError):
-        raise HTTPException(400, "notes must be MIDI numbers") from None
-    sound = str(body.get("sound", "pad"))
-    if sound not in FLOW_SOUNDS:
-        sound = "pad"
-    return {"ok": True, **app_state.flow.play(notes, sound=sound, volume=volume, hold_s=hold)}
+        raise HTTPException(400, "chords are pitch classes 0-11") from None
+
+
+def _num(body: dict[str, Any], key: str) -> float | None:
+    if body.get(key) is None:
+        return None
+    try:
+        return float(body[key])
+    except (TypeError, ValueError):
+        raise HTTPException(400, f"{key} must be a number") from None
+
+
+@api.post("/api/band/start")
+def band_start(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """Start the band on this chart, bar 0 first. Restarts it if it is already playing."""
+    if app_state.engine.sequencer is None:
+        raise HTTPException(503, "engine not started")
+    style = str(body.get("style", "pop"))
+    volume = _num(body, "volume")
+    return {"ok": True, **app_state.band.start(
+        _chart(body), style=style if style in BAND_STYLES else "pop", bpm=_num(body, "bpm"),
+        volume=0.7 if volume is None else volume, drums=bool(body.get("drums", True)))}
+
+
+@api.post("/api/band/chart")
+def band_chart(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """Rewrite the chart from `from` on; answers with the bar the change really starts on."""
+    try:
+        start = int(body.get("from", 0))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "from must be a bar number") from None
+    return {"ok": True, "from": app_state.band.replace(start, _chart(body))}
+
+
+@api.post("/api/band/config")
+def band_config(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    style = body.get("style")
+    return {"ok": True, **app_state.band.configure(
+        bpm=_num(body, "bpm"), volume=_num(body, "volume"),
+        style=str(style) if style in BAND_STYLES else None,
+        drums=None if body.get("drums") is None else bool(body["drums"]))}
+
+
+@api.post("/api/band/stop")
+def band_stop() -> dict[str, Any]:
+    return {"ok": True, "was_playing": app_state.band.stop()}
 
 
 # ------------------------------------------------------------------ metronome
