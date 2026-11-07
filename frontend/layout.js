@@ -363,7 +363,7 @@ function slotUnder(grid, dragged, placeholder, x, y) {
    replaced wholesale, so every view is explicitly set to an empty list instead. */
 export async function resetLayout(viewId = null) {
   const ids = viewId ? [viewId] : Object.keys(saved);
-  if (!ids.length) { toast('Nothing to reset -- panels are where they shipped', '', 2600); return; }
+  if (!ids.length) { toast('Nothing to reset — panels are where they shipped', '', 2600); return; }
   const cleared = Object.fromEntries(ids.map((id) => [id, []]));
   saved = { ...saved, ...cleared };
   try {

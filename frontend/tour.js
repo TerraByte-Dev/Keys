@@ -104,7 +104,7 @@ export const CHAPTERS = [
       'Docked at the bottom of every tab. It lights under your fingers as you play — ',
       'brighter the harder you hit — and you can click it with the mouse.', h('br'),
       h('br'),
-      b('Esc'), ' is ', b('PANIC'), ', and it means everything: notes, the metronome, ',
+      b('Esc'), ' is ', b('Panic'), ', and it means everything: notes, the metronome, ',
       'the loop, a score that is playing and a backing track. It is the button for ',
       'when you do not know what is making a noise. It ', h('em', null, 'stops'),
       ' things and clears nothing — your loop keeps its layers, your tempo stays put, ',
@@ -115,7 +115,7 @@ export const CHAPTERS = [
   {
     id: 'roll', tab: null, title: 'The note roll',
     body: [
-      'Press ', b('ROLL'), ' at the right of the strip above the keys, or ', b('V'), '. ',
+      'Press ', b('Roll'), ' at the right of the strip above the keys, or ', b('V'), '. ',
       'It goes full screen — the roll, the keyboard, and nothing else. ', b('Esc'),
       ' brings the app back.', h('br'), h('br'),
       'On its own, the notes you play rise out of the keyboard — the falling-notes ',

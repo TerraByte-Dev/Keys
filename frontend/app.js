@@ -884,7 +884,7 @@ function stampLoop(end) {
   // A on its own leaves the section open, which is the normal half-way state and not a
   // failure -- but nothing is drawn until both ends exist, so it needs saying out loud
   // or the button reads as dead.
-  if (end === 'A') toast(`section starts at bar ${ghostModel.bar(ghostModel.loopA)} -- now Set B`, 'good', 2600);
+  if (end === 'A') toast(`section starts at bar ${ghostModel.bar(ghostModel.loopA)} — now Set B`, 'good', 2600);
   else toast('there is no bar left to loop there', 'bad');
 }
 

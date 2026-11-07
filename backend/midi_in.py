@@ -233,7 +233,7 @@ class MidiInput:
                 self._shut(slot)
 
         if not self._open:
-            self.last_error = ("no MIDI inputs -- is the keyboard on and plugged into USB?"
+            self.last_error = ("no MIDI inputs — is the keyboard on and plugged into USB?"
                                if not ports else
                                "could not open any MIDI input: " + "; ".join(refused))
             return False

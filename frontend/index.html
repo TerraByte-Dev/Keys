@@ -24,26 +24,26 @@
       <span class="lamp__value" id="lamp-midi-value">--</span>
     </div>
     <div class="lamp" id="lamp-audio" title="Audio buffer">
-      <i class="lamp__led"></i><span class="lamp__label">BUF</span>
+      <i class="lamp__led"></i><span class="lamp__label">Audio</span>
       <span class="lamp__value" id="lamp-audio-value">--</span>
     </div>
     <div class="lamp" id="lamp-voices" title="Active voices">
-      <i class="lamp__led"></i><span class="lamp__label">VOICE</span>
+      <i class="lamp__led"></i><span class="lamp__label">Voices</span>
       <span class="lamp__value" id="lamp-voices-value">0</span>
     </div>
     <div class="lamp" id="lamp-link" title="Connection to the app">
-      <i class="lamp__led"></i><span class="lamp__label">LINK</span>
+      <i class="lamp__led"></i><span class="lamp__label">Link</span>
       <span class="lamp__value" id="lamp-link-value">--</span>
     </div>
   </div>
 
   <div class="rail__right">
     <div class="clock" title="Time actually spent playing today, not time with the app open">
-      <span class="clock__label">TODAY</span>
+      <span class="clock__label">Today</span>
       <span class="clock__value" id="today-clock">0:00</span>
       <i class="clock__dot" id="playing-dot" title="lit while you are playing"></i>
     </div>
-    <button class="btn btn--panic" id="panic" title="Stop everything: notes, the metronome, the loop, a playing score and a backing track (Esc). Nothing is lost — it stops, it does not clear.">PANIC</button>
+    <button class="btn btn--panic" id="panic" title="Stop everything: notes, the metronome, the loop, a playing score and a backing track (Esc). Nothing is lost — it stops, it does not clear.">Panic</button>
     <!-- Output volume. It is synth.gain, the one audio setting FluidSynth will take
          live without renegotiating the stream, which is why it can sit out here
          instead of behind the gear with the ones that need a restart. -->
@@ -68,12 +68,12 @@
 
 <!-- ── left nav: view selector ───────────────────────────────────────────── -->
 <nav class="nav" id="nav">
-  <a class="nav__item is-active" href="#play"     data-view="play"><span class="nav__key">1</span>Play</a>
-  <a class="nav__item"           href="#practice" data-view="practice"><span class="nav__key">2</span>Practice</a>
-  <a class="nav__item"           href="#layers"   data-view="layers"><span class="nav__key">3</span>Layers</a>
-  <a class="nav__item"           href="#tools"    data-view="tools"><span class="nav__key">4</span>Tools</a>
-  <a class="nav__item"           href="#stats"    data-view="stats"><span class="nav__key">5</span>Stats</a>
-  <a class="nav__item"           href="#settings" data-view="settings"><span class="nav__key">6</span>Sound</a>
+  <a class="nav__item is-active" href="#play"     data-view="play"><svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 5v8M12 5v8M16 5v8M6.5 13h3M10.5 13h3M14.5 13h3"/></svg><span class="nav__key">1</span>Play</a>
+  <a class="nav__item"           href="#practice" data-view="practice"><svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".6" fill="currentColor"/></svg><span class="nav__key">2</span>Practice</a>
+  <a class="nav__item"           href="#layers"   data-view="layers"><svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg><span class="nav__key">3</span>Layers</a>
+  <a class="nav__item"           href="#tools"    data-view="tools"><svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span class="nav__key">4</span>Tools</a>
+  <a class="nav__item"           href="#stats"    data-view="stats"><svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20V11M12 20V5M19 20v-6"/></svg><span class="nav__key">5</span>Stats</a>
+  <a class="nav__item"           href="#settings" data-view="settings"><svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h3.5L12 19V5L7.5 9H4z"/><path d="M15.6 8.6a4.5 4.5 0 0 1 0 6.8M18.2 6a8 8 0 0 1 0 12"/></svg><span class="nav__key">6</span>Sound</a>
 </nav>
 
 <!-- ── the view ──────────────────────────────────────────────────────────── -->
@@ -99,7 +99,7 @@
   </button>
   <aside class="songs" id="songs" aria-label="Songs" hidden>
     <div class="songs__head">
-      <span class="songs__heading">SONGS</span>
+      <span class="songs__heading">Songs</span>
       <button class="songs__x" id="songs-close" title="Close (S)">&times;</button>
     </div>
     <button class="btn btn--wide" id="songs-add">Import a MIDI&hellip;</button>
@@ -185,32 +185,32 @@
 <!-- ── readout strip above the keys ──────────────────────────────────────── -->
 <section class="readout">
   <div class="readout__chord">
-    <span class="readout__label">CHORD</span>
+    <span class="readout__label">Chord</span>
     <output class="readout__value" id="chord-symbol">—</output>
     <span class="readout__sub" id="chord-name"></span>
   </div>
   <div class="readout__notes">
-    <span class="readout__label">NOTES</span>
+    <span class="readout__label">Notes</span>
     <output class="readout__list" id="note-list"></output>
   </div>
   <div class="readout__meta">
     <span class="pedal" id="pedal" title="Sustain pedal (CC64)">
-      <i class="pedal__led"></i>SUSTAIN
+      <i class="pedal__led"></i>Sustain
     </span>
     <!-- What a hardware controller puts under OCT -/+. It shifts what SOUNDS, not what
          is drawn: the key you press is the key that lights, because on a 61-key board
          the note you are hearing may be off the end of the drawing entirely. -->
     <span class="oct" id="oct" title="Shift the whole keyboard by octaves (Z down, X up). Click the number to centre it.">
       <button class="oct__btn" id="oct-down" type="button" aria-label="Down an octave">&minus;</button>
-      <span class="oct__label">OCT</span>
+      <span class="oct__label">Octave</span>
       <output class="oct__value" id="oct-value" title="Back to centre">0</output>
       <button class="oct__btn" id="oct-up" type="button" aria-label="Up an octave">+</button>
     </span>
-    <span class="readout__label">VEL</span>
+    <span class="readout__label">Velocity</span>
     <output class="readout__vel" id="last-vel">—</output>
     <button class="rolltoggle" id="roll-toggle" title="The roll, full screen — play along with a MIDI, or watch what you play (V)" aria-pressed="false">
       <i class="rolltoggle__bars" aria-hidden="true"><i></i><i></i><i></i></i>
-      <span class="rolltoggle__label">ROLL</span>
+      <span class="rolltoggle__label">Roll</span>
     </button>
   </div>
 </section>

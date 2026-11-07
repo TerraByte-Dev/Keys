@@ -45,7 +45,7 @@ function portRows(midi) {
 
 function midiAside(midi) {
   if (!midi?.connected) return 'not connected';
-  if (midi.unresolved_pin) return `${midi.unresolved_pin} is not here -- listening to everything`;
+  if (midi.unresolved_pin) return `${midi.unresolved_pin} is not here — listening to everything`;
   return midi.listening_to_all ? 'listening to everything' : `pinned to ${midi.pinned}`;
 }
 
@@ -80,15 +80,15 @@ export default {
         info(
           h('strong', null, 'Keys listens to every MIDI input at once by default.'),
           ' You do not have to pick one, and picking the wrong one is the reason a ',
-          'keyboard that shows up twice -- an Alesis V49 appears as both ',
+          'keyboard that shows up twice — an Alesis V49 appears as both ',
           h('span.mono', null, 'V49'), ' and ', h('span.mono', null, 'MIDIIN2 (V49)'),
-          ' -- used to look completely dead. Press a key and watch the counters: the ',
+          ' — used to look completely dead. Press a key and watch the counters: the ',
           'port that moves is your keyboard. Pin one only if something else on the ',
           'machine is sending notes you do not want.'),
         info(
           'Ports are watched and reopened automatically, so unplugging the piano and ',
           'plugging it back in does not need a restart. If Windows sees no MIDI device ',
-          'at all, that is a driver problem -- run ', h('strong', null, 'tools/midi_probe.py'),
+          'at all, that is a driver problem — run ', h('strong', null, 'tools/midi_probe.py'),
           ', which needs no venv and no packages.'))),
 
       // Directly under MIDI input, because they are the same subject -- that panel says
@@ -102,7 +102,7 @@ export default {
           'transfer, the audio buffer, DMA, the DAC and the air. Software cannot measure ',
           'the real figure. The buffer above is the part you can reason about.'))),
 
-      h('div.col-12', null, mod('Audio output', 'applies live -- the stream reopens',
+      h('div.col-12', null, mod('Audio output', 'applies live — the stream reopens',
         h('div.stats', { id: 'audio-stats', style: { marginBottom: '16px' } },
           /* sample_rate is null exactly when no stream is open -- these three describe a
            * stream, and a refused device still leaves 48 kHz and 144 samples sitting in
@@ -130,8 +130,8 @@ export default {
           h('label.field', null,
             h('span.field__label', null, h('span', null, 'Mode')),
             h('select', { id: 'audio-excl' },
-              h('option', { value: '0', selected: !eng.exclusive }, 'Shared -- everything works'),
-              h('option', { value: '1', selected: eng.exclusive }, 'Exclusive -- 3 ms, Keys only'))),
+              h('option', { value: '0', selected: !eng.exclusive }, 'Shared — everything works'),
+              h('option', { value: '1', selected: eng.exclusive }, 'Exclusive — 3 ms, Keys only'))),
           h('label.field', null,
             h('span.field__label', null, h('span', null, 'Buffer'),
               h('span.field__value', { id: 'audio-period-v' }, String(eng.period_size ?? 144))),
@@ -148,16 +148,16 @@ export default {
         info(
           h('strong', null, 'Shared is the default, on purpose.'), ' Keys coexists with ',
           'Spotify, Discord, a browser and everything else. Windows owns the buffer in ',
-          'this mode, which is about 10 ms -- inside the range a piano action already ',
+          'this mode, which is about 10 ms — inside the range a piano action already ',
           'spans between a soft and a hard keystroke.'),
         h('div.note.note--warn', { style: { marginTop: '8px' } },
           h('strong', null, 'Exclusive mode takes the output device away from every other app.'),
-          ' Not turns them down -- silent. Spotify stops, Discord stops, a browser reports ',
+          ' Not turns them down — silent. Spotify stops, Discord stops, a browser reports ',
           'an audio rendering error. That is not a bug and not a conflict; it is how WASAPI ',
           'buys the 3 ms, and it is why it is not the default.'),
         info(
           h('strong', null, 'Want 3 ms without losing anything?'), ' Pin Keys to an output ',
-          'Windows is not using -- an audio interface, headphones on a second endpoint, or ',
+          'Windows is not using — an audio interface, headphones on a second endpoint, or ',
           'an HDMI device you are not watching. The piano goes there exclusively, everything ',
           'else keeps the default device, and nothing is taken from you.'),
         info(
@@ -201,7 +201,7 @@ export default {
           sf.loaded ? h('span.tag.tag--green', null, 'loaded') : h('span.tag', null, 'on disk')))),
         info(
           'Drop more .sf2 / .sf3 files into ', h('strong', null, 'soundfonts/'),
-          ' and pick them per zone. Salamander Grand will not work here -- it is SFZ, ',
+          ' and pick them per zone. Salamander Grand will not work here — it is SFZ, ',
           'and FluidSynth cannot load SFZ.'))),
 
     ));
@@ -282,7 +282,7 @@ async function wireAudio(ctx) {
   // The two shortcuts, because "I want Discord back" and "I want it tight" are the
   // only two things anyone actually wants from this panel.
   $('#audio-share').onclick = () => apply(
-    { exclusive: false }, 'Shared mode -- other apps can use this device again');
+    { exclusive: false }, 'Shared mode — other apps can use this device again');
   $('#audio-lowlat').onclick = () => apply(
-    { exclusive: true, period_size: 144 }, 'Exclusive, 144 samples -- 3.00 ms');
+    { exclusive: true, period_size: 144 }, 'Exclusive, 144 samples — 3.00 ms');
 }

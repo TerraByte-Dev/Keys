@@ -16,16 +16,16 @@ import { ctx as appCtx, instrument, resetTouch } from '../app.js';
    damper, i.e. what the pedal is already for, and it is first because it is the
    default and the right answer almost always. */
 const PEDAL_LABELS = [
-  ['', 'Damper -- normal sustain'],
+  ['', 'Damper — normal sustain'],
   ['zone', 'Sustain only some keys'],
-  ['sostenuto', 'Sostenuto -- hold what is already down'],
-  ['hold', 'Latch -- press on, press off'],
+  ['sostenuto', 'Sostenuto — hold what is already down'],
+  ['hold', 'Latch — press on, press off'],
 ];
 
 const PEDAL_HELP = {
   '': 'Standard piano sustain: everything rings until you lift your foot.',
   zone: 'The pedal only sustains the range below. Hold a bass note with your foot and '
-      + 'play staccato on top without it smearing -- an acoustic piano physically '
+      + 'play staccato on top without it smearing — an acoustic piano physically '
       + 'cannot do this, because one set of dampers serves the whole instrument.',
   sostenuto: 'The middle pedal of a grand. It catches exactly the notes that are '
       + 'sounding at the instant you press, and nothing you play afterwards. Hold a '

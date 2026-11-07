@@ -25,26 +25,26 @@
 
 import { $, api, fill, h, hms, info, mod, stat, tip, toast } from '../ui.js';
 import { createRunner } from '../exercise-run.js';
-import { createFlow } from '../flow.js';
+import { createJam } from '../jam.js';
 import { createLibrary } from '../library.js';
 
 let shelf = null;      // last GET /api/exercises
 let current = null;    // the open runner, or null when the shelf is showing
 let library = null;    // the Songs shelf, moved here from Play
-let flow = null;       // Chord Flow
+let jam = null;        // Jam
 
 export default {
   async mount(root, ctx) {
     library = createLibrary();
-    // Chord Flow and an exercise both draw on the keyboard, so starting one stops the
+    // Jam and an exercise both draw on the keyboard, so starting one stops the
     // other rather than painting two lessons over each other.
-    flow = createFlow(ctx, { onStart: () => { if (current) back(ctx); } });
+    jam = createJam(ctx, { onStart: () => { if (current) back(ctx); } });
     // Order is what you came here to do, then the readouts about how it went. Songs sit
     // above Exercises in the authored order because that is where a saved layout puts
     // them anyway -- see applySaved in layout.js, which threads unsaved panels in after
     // their authored neighbour, and the exercise host is not a panel it can move.
     root.append(h('div.grid', null,
-      flow.el,
+      jam.el,
       // The shelf belongs with practising rather than with choosing a sound: it was
       // in Play under the instrument browser, which is the tab you are in when you
       // want a TONE, not when you want something to play along to.
@@ -69,21 +69,21 @@ export default {
 
   frame(f, ctx) {
     current?.frame?.(f, ctx);
-    flow?.frame(f);
+    jam?.frame(f);
   },
 
   status(s, ctx) {
     paintHud(s.practice || {});
     paintTiming(s.timing);
     current?.status?.(s, ctx);
-    flow?.status();
+    jam?.status(s);
   },
 
   unmount() {
     current?.destroy?.();
     current = null;
-    flow?.destroy();
-    flow = null;
+    jam?.destroy();
+    jam = null;
     library?.destroy();
     library = null;
   },
@@ -97,10 +97,10 @@ function paintHud(p) {
   const host = $('#practice-hud');
   if (!host) return;
   const live = p.session_active && !p.idle;
-  const where = !p.session_active ? 'not started' : p.idle ? 'idle -- clock paused' : 'playing';
+  const where = !p.session_active ? 'not started' : p.idle ? 'idle — clock paused' : 'playing';
   host.replaceChildren(
     stat(hms(p.session_seconds), 'This session',
-         `${where} -- ${p.session_notes ?? 0} notes`, live ? 'stat__value--amber' : ''),
+         `${where} — ${p.session_notes ?? 0} notes`, live ? 'stat__value--amber' : ''),
     stat(hms(p.today_seconds), 'Today', `${p.today_sessions || 0} session(s)`),
     stat(p.streak?.current ?? 0, 'Day streak', `longest ${p.streak?.longest ?? 0}`,
          'stat__value--cyan'));
@@ -196,7 +196,7 @@ function card(ex, ctx) {
 /* ── switching between the shelf and a run ────────────────────────────────── */
 // Named openRun, not open: a bare `open` at module scope shadows window.open.
 function openRun(ex, ctx, initial = null) {
-  flow?.stop();
+  jam?.stop();
   current?.destroy?.();
   current = createRunner(ex, ctx, () => back(ctx), initial);
   host()?.replaceChildren(current.el);
