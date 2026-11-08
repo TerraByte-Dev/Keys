@@ -197,106 +197,61 @@ export function createProgression({ mode = 'major', scale, rng = Math.random }) 
   };
 }
 
-/* ── what to play next ───────────────────────────────────────────────────── */
+/* ── what sounds good, and how to cross a change ─────────────────────────── */
 
 /**
- * Up to three notes worth playing next, best first, each with the reason in words.
+ * The notes that sound good over one chord, as pitch classes -- true in every octave.
  *
- * Everything lit on the keyboard already sounds fine; this is the step after "fine" --
- * what a melody would do from where you are. It scores every note of the key within a
- * fifth of your last one on what melodies actually do:
+ *   chord: the chord's own notes. Rest on these; nothing in the band rubs against them.
+ *   color: the rest of the key that sounds good held over this chord -- a 2nd, a 6th, a
+ *          7th. Use them to move between chord notes.
+ *   rub:   the key's notes a half step ABOVE a chord note. F over a C chord leans on E
+ *          and wants to fall to it; held, it sounds like a mistake. Passing through is
+ *          fine, landing is not, so these are left unlit.
  *
- *   - land on the chord, and on the next chord when the change is about to happen;
- *   - move by step more than by leap, and fill a leap back in the other direction;
- *   - resolve: a note that is not in the chord wants to step onto one that is, and the
- *     key's seventh note wants to rise to home;
- *   - turn around after running one way for a while, rather than walking off the end;
- *   - not hammer one key.
- *
- * `history` is your recent notes, oldest first. `near` is how close the chord change is,
- * 0 (just changed) to 1 (on the bar line). `rng` adds a little jitter so two equally
- * good answers take turns instead of one always winning.
+ * `scale` is the key as this chord is judged against it (minor V's raised third already
+ * in place -- see entry() in jam.js).
  */
-export function suggest({ history = [], chord, scale, next = null, near = 0,
-  low = 57, high = 84, rng = Math.random }) {
-  const inChord = new Set(chord);
-  const inNext = new Set(next || []);
-  const inScale = new Set([...scale, ...chord]);
-  const last = history.length ? history[history.length - 1] : null;
-  const prev = history.length > 1 ? history[history.length - 2] : null;
+export function palette(chord, scale) {
+  const tones = [...new Set(chord)];
+  const above = new Set(tones.map((pc) => (pc + 1) % 12));
+  const rest = scale.filter((pc) => !tones.includes(pc));
+  return {
+    chord: tones,
+    color: rest.filter((pc) => !above.has(pc)),
+    rub: rest.filter((pc) => above.has(pc)),
+  };
+}
 
-  // Nothing played yet: a chord note around the middle of the keyboard, the third first.
-  if (last === null) {
-    const out = [];
-    const order = [chord[1], chord[0], chord[2]].filter((pc) => pc !== undefined);
-    for (const pc of order) {
-      let m = 64 + ((pc - 64) % 12 + 12) % 12;
-      if (m > 72) m -= 12;
-      out.push({ midi: m, why: pc === chord[0] ? 'the chord\'s home note' : 'a chord note — safe anywhere' });
+/**
+ * How to cross into the next chord the way a good player does, decided once per change.
+ *
+ *   keep: the notes in both chords. Hold one through the change and the new chord
+ *         arrives underneath a note that does not move -- the smoothest change there is.
+ *   land: the one key to be on when the chord changes: a kept note if one is about as
+ *         close to your hand as anything else, otherwise the next chord's nearest note,
+ *         which is usually a step away.
+ *
+ * `from` is the last note you played (MIDI), or null before you have played. Returns
+ * { keep, land, why }, `land` a MIDI number between `low` and `high`.
+ */
+export function crossing(chord, next, from = null, { low = 57, high = 84 } = {}) {
+  const keep = chord.filter((pc) => next.includes(pc));
+  const at = Math.min(high, Math.max(low, from ?? 66));
+  const nearest = (pcs) => {
+    for (let d = 0; d <= 12; d++) {
+      for (const m of [at - d, at + d]) {
+        if (m >= low && m <= high && pcs.includes(((m % 12) + 12) % 12)) return m;
+      }
     }
-    return out;
+    return null;
+  };
+  const held = keep.length ? nearest(keep) : null;
+  const moved = nearest(next);
+  if (held !== null && Math.abs(held - at) <= Math.abs(moved - at) + 2) {
+    return { keep, land: held, why: 'it is in both chords, so hold it and let the change happen under it' };
   }
-
-  // Which way you have been going: the sum of the last three moves.
-  const moves = [];
-  for (let i = Math.max(1, history.length - 3); i < history.length; i++) moves.push(history[i] - history[i - 1]);
-  const run = moves.reduce((a, b) => a + b, 0);
-  const lastMove = prev === null ? 0 : last - prev;
-  const lastPc = ((last % 12) + 12) % 12;
-  const tense = !inChord.has(lastPc);
-  const seventh = scale[6];
-  const tonic = scale[0];
-  const repeats = history.slice(-3).filter((m) => m === last).length;
-
-  const scored = [];
-  for (let m = Math.max(low, last - 7); m <= Math.min(high, last + 7); m++) {
-    const pc = ((m % 12) + 12) % 12;
-    if (!inScale.has(pc)) continue;
-    const d = m - last, dist = Math.abs(d);
-    let score = 0;
-    let why = 'from the key';
-
-    const chordW = 3 * (1 - 0.55 * near);
-    if (inChord.has(pc)) {
-      score += chordW + (pc === chord[1] ? 0.3 : 0);
-      why = 'a chord note';
-    } else {
-      score += 1;
-    }
-    if (near > 0.5 && inNext.has(pc)) {
-      score += 2.5 * near;
-      if (!inChord.has(pc) || near > 0.8) why = 'a note of the next chord — lands as it changes';
-    }
-
-    if (dist === 0) score -= repeats >= 2 ? 4 : 1.5;
-    else if (dist <= 2) score += 2;
-    else if (dist <= 4) score += 1.2;
-    else if (dist === 5) score += 0.3;
-    else if (dist === 6) score -= 2;
-
-    if (tense && inChord.has(pc) && dist > 0 && dist <= 2) {
-      score += 2.5;
-      why = 'resolves — steps onto the chord';
-    }
-    if (lastPc === seventh && pc === tonic && d > 0 && d <= 2) {
-      score += 1.5;
-      why = 'rises home';
-    }
-    if (Math.abs(lastMove) >= 5 && dist > 0 && dist <= 2 && Math.sign(d) !== Math.sign(lastMove)) {
-      score += 1.5;
-      why = inChord.has(pc) ? 'steps back after the leap, onto the chord' : 'steps back after the leap';
-    } else if (Math.abs(run) >= 5 && dist > 0 && Math.sign(d) !== Math.sign(run)) {
-      score += 1.2;
-      if (why === 'from the key' || why === 'a chord note') why = 'turns the line around';
-    } else if (Math.abs(run) >= 5 && Math.sign(d) === Math.sign(run)) {
-      score -= 0.5;
-    }
-    score -= 0.08 * Math.max(0, Math.abs(m - 70) - 10);   // drifting off either end
-    score += rng() * 0.8;
-
-    if (why === 'a chord note' && dist > 0 && dist <= 2) why = 'a chord note, one step away';
-    scored.push({ midi: m, why, score });
-  }
-  scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, 3).map(({ midi, why }) => ({ midi, why }));
+  const dist = Math.abs(moved - at);
+  return { keep, land: moved,
+    why: dist <= 2 ? 'one step from where you are, into the next chord' : 'the next chord\'s nearest note' };
 }

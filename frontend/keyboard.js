@@ -115,9 +115,10 @@ const CSS = `
 .keys-kb .key--white.is-held{fill:color-mix(in oklab,var(--key-held,#3f9dff) calc(35% + var(--vel,.75)*65%),var(--key-white,#f2f2ef))}
 .keys-kb .key--black.is-held{fill:color-mix(in oklab,var(--key-held,#3f9dff) calc(35% + var(--vel,.75)*65%),var(--key-black,#16171b))}
 .keys-kb .key.is-pressed{fill:var(--key-pressed,var(--key-held,#3f9dff))}
-/* Jam. "scale" is every key that fits, dim; "tone" is the chord, bright; "suggest" is
-   the coach's next note, pulsing, and "suggest2" the runners-up, outlined. Held keys in
-   flow mode say how they fit: in the chord, in the key, or outside it. Order matters
+/* Jam. "scale" is every key that adds colour over the chord, dim; "tone" is the chord,
+   bright; "suggest" is the key to land on at the next change, pulsing, and "suggest2" the
+   next chord, outlined. Held keys in flow mode say how they fit: in the chord, sounding
+   good, or rubbing (anything unlit). Order matters
    below — equal specificity throughout, so each later rule is meant to win. */
 .keys-kb.kb--flow .key--white.is-scale{fill:color-mix(in oklab,var(--key-tone,#58c4d4) 14%,var(--key-white,#f2f2ef))}
 .keys-kb.kb--flow .key--black.is-scale{fill:color-mix(in oklab,var(--key-tone,#58c4d4) 30%,var(--key-black,#16171b))}
