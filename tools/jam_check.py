@@ -1,4 +1,4 @@
-"""Checks for Jam: the composer and the coach (frontend/harmony.js) and the band (backend/band.py).
+"""Checks for Jam: the composer and the note sets (frontend/harmony.js) and the band (backend/band.py).
 
     .venv\\Scripts\\python.exe tools\\jam_check.py
 
@@ -10,9 +10,10 @@ chords and several seeds, is checked against the server's chord on that degree. 
 one allowed exception is minor V, whose raised third is the point of it.
 
 The musical rules are checked as behaviour, not as a table: phrases do not come
-straight back, a session opens on the key's own chord, and the coach's suggestions stay
-in the key and near your hand, resolve a passing note, step back after a leap, rise
-from the seventh note, and land on the next chord just before it arrives.
+straight back, a session opens on the key's own chord, the lit notes over every chord
+are the key minus the ones that rub (a half step above a chord note), and the way across
+a change always lands on the next chord, close to your hand, holding a shared note when
+one is near.
 
 The band is checked against a recording sequencer: it keeps off the zones' channels,
 plays the chart's chords in the right registers, never rewrites a queued bar, keeps its
@@ -48,7 +49,7 @@ def ok(label: str, passed: bool, detail: str = "") -> None:
 
 
 DRIVER = r"""
-import { createProgression, suggest, PALETTE, PHRASES, chordPcs } from './harmony.js';
+import { createProgression, crossing, palette, PALETTE, PHRASES, chordPcs } from './harmony.js';
 
 const keys = JSON.parse(process.env.JAM_KEYS);
 const out = [];
@@ -143,9 +144,9 @@ function seeded(seed) {
      `first=${firstVaried} dup=${dup}`);
 }
 
-/* 5. The coach: every suggestion is in the key, near your last note, and musical. */
+/* 5. What sounds good: over every chord the composer plays, the lit notes are the chord
+      plus the key minus any note a half step above a chord note -- and nothing else. */
 {
-  const rnd = seeded(77);
   let n = 0, bad = [];
   for (const k of keys) {
     const mode = k.mode === 'major' ? 'major' : 'minor';
@@ -154,42 +155,69 @@ function seeded(seed) {
       const c = p.next();
       const scale = k.pcs.slice();
       if (c.roman === 'V' && mode === 'minor') scale[6] = c.pcs[1];
-      const history = Array.from({ length: Math.floor(rnd() * 5) }, () => 57 + Math.floor(rnd() * 28));
-      const tips = suggest({ history, chord: c.pcs, scale, next: p.peek().pcs, near: rnd() < 0.3 ? 0.9 : 0, rng: rnd });
+      const pal = palette(c.pcs, scale);
       n++;
-      const last = history[history.length - 1];
-      if (!tips.length || tips.length > 3) bad.push(`${k.name}: ${tips.length} tips`);
-      if (new Set(tips.map((t) => t.midi)).size !== tips.length) bad.push(`${k.name}: duplicate tips`);
-      for (const t of tips) {
-        const pc = t.midi % 12;
-        if (!scale.includes(pc) && !c.pcs.includes(pc)) bad.push(`${k.name} ${c.roman}: ${t.midi} not in the key`);
-        if (last !== undefined && Math.abs(t.midi - last) > 7) bad.push(`${k.name}: ${t.midi} too far from ${last}`);
-        if (t.midi < 57 || t.midi > 84) bad.push(`${k.name}: ${t.midi} out of range`);
-        if (!t.why) bad.push('a tip with no reason');
-      }
+      const all = [...pal.chord, ...pal.color, ...pal.rub];
+      const want = new Set([...scale, ...c.pcs]);
+      if (all.length !== want.size || !all.every((pc) => want.has(pc))) bad.push(`${k.name} ${c.roman}: tiers do not split the key`);
+      if (JSON.stringify(pal.chord) !== JSON.stringify(c.pcs)) bad.push(`${k.name} ${c.roman}: chord tier is not the chord`);
+      for (const pc of pal.color) if (c.pcs.includes((pc + 11) % 12)) bad.push(`${k.name} ${c.roman}: ${pc} rubs but is lit`);
+      for (const pc of pal.rub) if (!c.pcs.includes((pc + 11) % 12)) bad.push(`${k.name} ${c.roman}: ${pc} unlit for no reason`);
+      if (!pal.color.length) bad.push(`${k.name} ${c.roman}: nothing but the chord`);
     }
   }
-  ok('every suggestion is in the key, within a fifth of your last note, with a reason', !bad.length,
-     bad.length ? bad.slice(0, 3).join('; ') : `${n} calls, ${keys.length} keys`);
+  ok('over every chord, lit = chord + key, minus the notes a half step above the chord', !bad.length,
+     bad.length ? bad.slice(0, 3).join('; ') : `${n} chords, ${keys.length} keys`);
 }
 {
-  const C = [0, 4, 7], CM = [0, 2, 4, 5, 7, 9, 11];
-  const trials = (fn, runs = 200) => { let hit = 0; for (let i = 0; i < runs; i++) if (fn(seeded(i + 1))) hit++; return hit / runs; };
-  const first = suggest({ chord: C, scale: CM });
-  ok('with nothing played yet, every suggestion is a chord note near the middle',
-     first.length && first.every((t) => C.includes(t.midi % 12) && t.midi >= 60 && t.midi <= 72),
-     first.map((t) => t.midi).join(' '));
-  const resolve = trials((r) => [64, 67].includes(suggest({ history: [62, 65], chord: C, scale: CM, rng: r })[0].midi));
-  ok('F over a C chord resolves by step onto the chord (E or G), almost always', resolve >= 0.9, `${resolve}`);
-  const leap = trials((r) => { const m = suggest({ history: [60, 67], chord: C, scale: CM, rng: r })[0].midi; return m < 67 && m >= 64; });
-  ok('after a leap up, the next note steps back down most of the time', leap >= 0.7, `${leap}`);
-  const hammer = trials((r) => suggest({ history: [64, 64, 64], chord: C, scale: CM, rng: r })[0].midi !== 64);
-  ok('three of the same note in a row is never suggested a fourth time', hammer === 1, `${hammer}`);
-  const home = trials((r) => suggest({ history: [69, 71], chord: C, scale: CM, rng: r })[0].midi === 72);
-  ok('the seventh note (B) rises home to C most of the time', home >= 0.7, `${home}`);
-  const G = [7, 11, 2];
-  const lands = trials((r) => G.includes(suggest({ history: [64], chord: C, scale: CM, next: G, near: 0.9, rng: r })[0].midi % 12));
-  ok('just before a change, the best note belongs to the next chord most of the time', lands >= 0.6, `${lands}`);
+  const CM = [0, 2, 4, 5, 7, 9, 11];
+  const I = palette([0, 4, 7], CM), V = palette([7, 11, 2], CM), vi = palette([9, 0, 4], CM);
+  ok('over C in C major: D, A and B add colour, F rubs', JSON.stringify(I.color) === '[2,9,11]'
+     && JSON.stringify(I.rub) === '[5]', `${I.color} / ${I.rub}`);
+  ok('over G in C major, C rubs (it sits on B); over Am, F rubs (it sits on E)',
+     JSON.stringify(V.rub) === '[0]' && JSON.stringify(vi.rub) === '[5]', `${V.rub} / ${vi.rub}`);
+  const am = keys.find((k) => k.name === 'A natural_minor');
+  const sc = am.pcs.slice(); sc[6] = 8;
+  const E = palette([4, 8, 11], sc);
+  ok('over E major in A minor, only D adds colour (E7) -- A, C and F all rub',
+     JSON.stringify(E.color) === '[2]', `${E.color} / ${E.rub}`);
+}
+
+/* 6. The way across a change: decided by where your hand is, always onto the next chord,
+      always close, a shared note held when there is one nearby. */
+{
+  let n = 0, bad = [];
+  const rnd = seeded(77);
+  for (const k of keys) {
+    const mode = k.mode === 'major' ? 'major' : 'minor';
+    const p = createProgression({ mode, scale: k.pcs, rng: seeded(3) });
+    let c = p.next();
+    for (let i = 0; i < 150; i++) {
+      const nx = p.next();
+      const from = rnd() < 0.15 ? null : 40 + Math.floor(rnd() * 50);
+      const x = crossing(c.pcs, nx.pcs, from, { low: 36, high: 96 });
+      n++;
+      if (!nx.pcs.includes(x.land % 12)) bad.push(`${k.name}: lands off the next chord`);
+      if (x.land < 36 || x.land > 96) bad.push(`${k.name}: ${x.land} off the keyboard`);
+      if (from !== null && Math.abs(x.land - from) > 4) bad.push(`${k.name}: ${from} -> ${x.land} is a reach`);
+      if (JSON.stringify(x.keep) !== JSON.stringify(c.pcs.filter((pc) => nx.pcs.includes(pc)))) bad.push('keep is not the shared notes');
+      if (!x.why) bad.push('no reason');
+      const again = crossing(c.pcs, nx.pcs, from, { low: 36, high: 96 });
+      if (again.land !== x.land) bad.push('not the same answer twice');
+      c = nx;
+    }
+  }
+  ok('every change lands on the next chord, within 4 keys of your hand, the same every time', !bad.length,
+     bad.length ? bad.slice(0, 3).join('; ') : `${n} changes, ${keys.length} keys`);
+  const C = [0, 4, 7], F = [5, 9, 0], G = [7, 11, 2], Dm = [2, 5, 9];
+  const cf = crossing(C, F, 64);
+  ok('C to F from E: step up to F, not a reach down to the shared C', cf.land === 65, `${cf.land} ${cf.why}`);
+  const cg = crossing(C, G, 67);
+  ok('C to G from G: hold the G, it is in both', cg.land === 67 && /both/.test(cg.why), `${cg.land} ${cg.why}`);
+  const cd = crossing(C, Dm, 60);
+  ok('C to Dm (nothing shared) from C: one step to D', cd.land === 62 && !cd.keep.length, `${cd.land}`);
+  const first = crossing(C, G, null);
+  ok('before you have played, it lands near the middle of the keyboard', first.land >= 62 && first.land <= 70, `${first.land}`);
 }
 
 /* 7. Minor V really is major (leading tone), and v really is minor. */

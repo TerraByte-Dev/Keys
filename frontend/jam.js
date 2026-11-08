@@ -1,11 +1,15 @@
 /* Jam -- the band plays the chords, you play the tune.
  *
  * Keys plays a backing band (backend/band.py: drums, bass and a comping keyboard)
- * through progressions that real songs use. The keyboard lights what fits right now:
- * the chord's notes bright, the rest of the key dim, nothing lit for a note that will
- * clash. On top of that, a coach: from the last note you played, up to three notes
- * worth playing next, the best one pulsing, each with the reason in plain words
- * (harmony.js suggest()). Follow it, or ignore it and play anything lit.
+ * through progressions that real songs use. A one-octave strip (and the keyboard under
+ * it) lights the notes that sound good over the chord playing now: the chord's notes
+ * bright, the notes that add colour dim, nothing lit for a note that rubs (harmony.js
+ * palette()). The set holds still for the whole chord -- you play, it does not chase you.
+ *
+ * Two beats before the chord changes, it shows the way across: the next chord outlined,
+ * the notes the two chords share marked "both", and one key pulsing where to be when it
+ * changes (harmony.js crossing()). That is decided once per change, from the last note
+ * you played, so it never jumps under your fingers.
  *
  * Who owns what. harmony.js composes; this file turns chords into a chart of bars and
  * keeps the band's copy topped up; the band owns the clock. Where the band is comes in
@@ -18,7 +22,7 @@
 
 import { api, h, info, mod, slider, toast, toggle } from './ui.js';
 import { ghostArmed, onPanic } from './app.js';
-import { createProgression, suggest } from './harmony.js';
+import { createProgression, crossing, palette } from './harmony.js';
 
 /* The keys on offer, easiest first. The hint is what a beginner actually wants to
    know about a key: how many black keys it uses. */
@@ -53,6 +57,7 @@ const ROLE_TEXT = { home: 'Home', away: 'Away', pull: 'Pull' };
 const ROMAN_HELP = 'The numbers count up the key: I is the chord built on its 1st note, '
   + 'IV on its 4th, V on its 5th. Capitals are major chords (brighter), small letters minor (sadder).';
 const BEATS = 4;
+const WARN = 0.5;          // bars before a change that the way across is shown (2 beats)
 const AHEAD = 12;          // bars of chart the band always has in hand
 const LEAD_MS = 200;       // the band's lead-in before bar 0 (metronome LEAD_IN_MS + 80)
 const DEFAULTS = { key: 'C-major', style: 'pop', bpm: 96, bars: 1, volume: 0.7, drums: true,
@@ -72,14 +77,14 @@ export function createJam(ctx, { onStart } = {}) {
   let playing = false, starting = false, destroyed = false;
   let drawn = false, yielded = false;
   let clock = null;            // { pos, at, barMs }: bar `pos` was heard at performance.now() `at`
-  let shownBar = -1, shownNear = false;
+  let shownBar = -1, shownCross = '';
   let raf = 0;
   let phrasesInKey = 0;
-  let history = [];            // your recent notes, oldest first
-  let lastAt = 0;
-  let tips = [];
+  let lastNote = null;         // the last note you played (MIDI)
+  let cross = null;            // the change ahead: { bar, to, keep, land, why, hit }
+  let ahead = false;           // inside the two beats before that change
   let heard = null;            // the last note you played and how it fit
-  const tally = { chord: 0, key: 0, out: 0, followed: 0 };
+  const tally = { chord: 0, color: 0, rub: 0, out: 0, landed: 0 };
 
   /* ── the panel ─────────────────────────────────────────────────────────── */
   const seg = (items, current, onpick) => {
@@ -119,6 +124,7 @@ export function createJam(ctx, { onStart } = {}) {
     nowSym: h('div.jam__sym'), nowRole: h('div.jam__role'),
     nextSym: h('div.jam__sym.jam__sym--next'), nextRole: h('div.jam__role'),
     beats: h('div.jam__beats', null, Array.from({ length: BEATS }, () => h('span.jam__beat'))),
+    oct: h('div.strip'),
     coach: h('div.jam__coach'),
     heard: h('div.jam__heard'),
     phrase: h('div.jam__phrase', { title: ROMAN_HELP }),
@@ -127,13 +133,15 @@ export function createJam(ctx, { onStart } = {}) {
 
   const root = h('div.col-12', null, mod('Jam', 'the band plays, you solo',
     info('Press ', h('strong', null, 'Start the band'), ' and Keys plays drums, bass and chords. ',
-      'Every lit key sounds good right now: ', h('strong', null, 'bright'), ' keys are the chord ',
-      '(they can\'t miss), ', h('strong', null, 'dim'), ' keys are the rest of the key (a little colour). ',
-      'A key with no light will clash.'),
-    info('The ', h('strong', null, 'pulsing'), ' key is a suggestion for your next note, worked out from ',
-      'the one you just played: a step to a chord note, back the other way after a jump, onto the ',
-      'next chord just before it changes. Two outlined keys are the runners-up. Follow them to learn ',
-      'how melodies move, or ignore them and play anything lit.'),
+      'The strip is one octave of the piano, and what it lights is true in every octave: play it ',
+      'high, low, or both hands at once. ', h('strong', null, 'Bright'), ' keys are the chord: rest ',
+      'on them. ', h('strong', null, 'Dim'), ' keys add colour: move through them between the bright ',
+      'ones. A key with no light rubs against this chord. The set stays put until the chord changes.'),
+    info('Two beats before a change, the strip shows the way across. ', h('strong', null, 'Outlined'),
+      ' keys are the next chord, ', h('strong', null, 'both'), ' marks a note the two chords share, and ',
+      'the ', h('strong', null, 'pulsing'), ' key is where to be when it changes. Holding a shared ',
+      'note, or stepping to the next chord\'s nearest note, is how good players make a change sound ',
+      'smooth.'),
     info('The progressions are the ones songs are built on (the pop four, the fifties, ii–V–I, ',
       'Pachelbel...), each played twice, then flowing into the next. ', h('strong', null, 'Wander'),
       ' moves to a neighbouring key now and then, a key that changes only one note.'),
@@ -147,7 +155,7 @@ export function createJam(ctx, { onStart } = {}) {
 
       h('div.jam__stage', null,
         h('div.jam__card', null, h('div.jam__lbl', null, 'Now'), el.nowSym, el.nowRole),
-        h('div.jam__mid', null, el.beats, el.coach, el.heard),
+        h('div.jam__mid', null, el.beats, el.oct, el.coach, el.heard),
         h('div.jam__card.jam__card--next', null, h('div.jam__lbl', null, 'Next'), el.nextSym, el.nextRole)),
 
       el.phrase,
@@ -156,7 +164,7 @@ export function createJam(ctx, { onStart } = {}) {
         h('label.field.jam__field', null, h('span.field__label', null, h('span', null, 'Tempo'), bpmValue), bpm),
         h('label.field.jam__field', null, h('span.field__label', null, h('span', null, 'Band volume'), volValue), volume),
         toggle('Drums', opt.drums, (on) => { opt.drums = on; save(); if (playing) configure({ drums: on }); }),
-        toggle('Suggestions', opt.coach, (on) => { opt.coach = on; save(); retip(); paintKeys(); }),
+        toggle('Show the change', opt.coach, (on) => { opt.coach = on; save(); shownCross = '?'; }),
         toggle('Wander', opt.wander, (on) => { opt.wander = on; save(); }),
         h('button.btn', { onclick: () => newPhrase() }, 'New progression')),
       el.stats)));
@@ -232,7 +240,7 @@ export function createJam(ctx, { onStart } = {}) {
     const sp = spell(chord.roman, p);
     const byPc = new Map(sp.byPc);
     for (const pc of scale) if (!byPc.has(pc)) byPc.set(pc, p.chords.flatMap((c) => c.names).find((n) => pcOf(n) === pc));
-    return { chord, plan: p, scale, symbol: sp.symbol, byPc };
+    return { chord, plan: p, scale, symbol: sp.symbol, byPc, pal: palette(chord.pcs, scale) };
   }
 
   /* The next `n` bars of music, continuing the progression. A wander is decided at a
@@ -313,7 +321,9 @@ export function createJam(ctx, { onStart } = {}) {
       clock = { pos: -LEAD_MS / r.bar_ms, at: performance.now(), barMs: r.bar_ms };
       playing = true;
       yielded = false;
-      history = [];
+      lastNote = null;
+      cross = null;
+      ahead = false;
       heard = null;
       shownBar = -1;
       el.go.textContent = 'Stop';
@@ -359,6 +369,8 @@ export function createJam(ctx, { onStart } = {}) {
       const r = await api.post('/api/band/chart', { from: bar, chart: wire(bars) });
       chart = chart.slice(0, r.from).concat(bars);
       while (chart.length < r.from) chart.push(chart[chart.length - 1]);
+      // A way across worked out for the old chart may point at a chord that is gone.
+      if (cross && cross.bar >= r.from) cross = null;
       shownBar = -1;
     } catch (err) {
       toast('band: ' + err.message, 'bad');
@@ -400,18 +412,34 @@ export function createJam(ctx, { onStart } = {}) {
     const pos = position();
     if (pos < 0) { paintBeats(-1); return; }
     const bar = Math.floor(pos);
-    const frac = pos - bar;
-    paintBeats(Math.floor(frac * BEATS));
+    paintBeats(Math.floor((pos - bar) * BEATS));
     topUp(bar);
-    const near = frac >= (BEATS - 1) / BEATS && chart[bar + 1] !== chart[bar];
-    if (bar !== shownBar || near !== shownNear) {
+    track(pos, bar);
+    const key = cross ? `${cross.bar}${ahead ? '<' : '>'}` : '';
+    if (bar !== shownBar || key !== shownCross) {
       const changed = bar !== shownBar && chart[bar] !== chart[shownBar];
       shownBar = bar;
-      shownNear = near;
+      shownCross = key;
       if (changed) paintChord();
-      retip();
+      paintCoach();
       paintKeys();
     }
+  }
+
+  /* The change ahead. The way across is worked out once, when the two-beat warning
+     starts, and kept through the first beat of the new chord -- the beat you land on. */
+  function track(pos, bar) {
+    if (!opt.coach) { cross = null; ahead = false; return; }
+    let k = bar + 1;
+    while (k < chart.length && chart[k] === chart[bar]) k++;
+    const to = chart[k];
+    if (to && k - pos <= WARN && (!cross || cross.bar !== k)) {
+      const c = crossing(chart[bar].pal.chord, to.pal.chord, lastNote,
+        { low: ctx.kb?.low ?? 21, high: ctx.kb?.high ?? 108 });
+      cross = { bar: k, to, ...c, hit: false };
+    }
+    if (cross && pos >= cross.bar + 1 / BEATS) cross = null;
+    ahead = !!cross && pos < cross.bar;
   }
 
   function paintBeats(beat) {
@@ -426,25 +454,16 @@ export function createJam(ctx, { onStart } = {}) {
     if (!playing || !f.on) return;
     const now = chart[Math.max(0, shownBar)];
     if (!now) return;
-    const scale = new Set(now.scale);
-    const t = performance.now();
-    // A long silence starts a new line: the coach should not answer a phrase you
-    // finished half a minute ago.
-    if (t - lastAt > 6000) history = [];
-    lastAt = t;
     for (const [n] of f.on) {
       const pc = n % 12;
-      let fit;
-      if (now.chord.pcs.includes(pc)) { tally.chord++; fit = 'chord'; }
-      else if (scale.has(pc)) { tally.key++; fit = 'key'; }
-      else { tally.out++; fit = 'out'; }
-      if (tips.some((s) => s.midi === n)) tally.followed++;
+      const fit = now.pal.chord.includes(pc) ? 'chord' : now.pal.color.includes(pc) ? 'color'
+        : now.scale.includes(pc) ? 'rub' : 'out';
+      tally[fit]++;
+      if (cross && !cross.hit && pc === cross.land % 12) { cross.hit = true; tally.landed++; }
       heard = { n, fit, name: pretty(now.byPc.get(pc) || noteName(n)) };
-      history.push(n);
+      lastNote = n;
+      flash(pc, fit);
     }
-    if (history.length > 8) history = history.slice(-8);
-    retip();
-    paintKeys();
     paintHeard();
     paintStats();
   }
@@ -452,19 +471,51 @@ export function createJam(ctx, { onStart } = {}) {
   const NAMES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
   const noteName = (n) => NAMES[n % 12];
 
-  function retip() {
-    const now = chart[Math.max(0, shownBar)];
-    if (!opt.coach || !now || !playing) { tips = []; paintCoach(); return; }
-    const nxt = chart[shownBar + 1];
-    tips = suggest({
-      history, chord: now.chord.pcs, scale: now.scale,
-      next: nxt && nxt !== now ? nxt.chord.pcs : null, near: shownNear ? 0.9 : 0,
-      low: Math.max(ctx.kb?.low ?? 21, 57), high: Math.min(ctx.kb?.high ?? 108, 84),
+  /* ── drawing ───────────────────────────────────────────────────────────── */
+
+  /* One octave, C to B, built once; painting only flips classes and labels. */
+  const WHITE = [0, 2, 4, 5, 7, 9, 11];
+  const TONE_ROLE = ['root', '3rd', '5th'];
+  const octKeys = Array.from({ length: 12 }, (_, pc) => {
+    const black = BLACK.has(pc);
+    const k = h('div.strip__key' + (black ? '.strip__key--black' : ''), null,
+      h('span.strip__both', null, 'both'), h('span.strip__name'), h('span.strip__role'));
+    if (black) k.style.left = `calc(${((WHITE.indexOf(pc - 1) + 1) * 100) / 7}% - var(--strip-bw) / 2)`;
+    // Drop the flash once it has played, or its finished animation would hold the slot
+    // the landing pulse needs.
+    k.addEventListener('animationend', (e) => { if (e.animationName === 'strip-hit') k.classList.remove('is-hit'); });
+    el.oct.append(k);
+    return k;
+  });
+
+  function paintOctave() {
+    const now = playing ? chart[Math.max(0, shownBar)] : null;
+    const next = ahead ? cross.to : null;
+    octKeys.forEach((k, pc) => {
+      const tone = now ? now.pal.chord.indexOf(pc) : -1;
+      const color = !!now && now.pal.color.includes(pc);
+      const inNext = !!next && next.pal.chord.includes(pc);
+      k.classList.toggle('is-chord', tone >= 0);
+      k.classList.toggle('is-color', color);
+      k.classList.toggle('is-next', inNext);
+      k.classList.toggle('is-keep', !!next && cross.keep.includes(pc));
+      k.classList.toggle('is-land', !!cross && cross.land % 12 === pc);
+      const named = !now || tone >= 0 || color || inNext;
+      k.children[1].textContent = named
+        ? pretty((inNext && next.byPc.get(pc)) || now?.byPc.get(pc) || NAMES[pc]) : '';
+      k.children[2].textContent = tone >= 0 ? TONE_ROLE[tone] : '';
     });
-    paintCoach();
   }
 
-  /* ── drawing ───────────────────────────────────────────────────────────── */
+  /* What you just played, on the strip: a short flash in the colour of how it fit. */
+  function flash(pc, fit) {
+    const k = octKeys[pc];
+    k.dataset.fit = fit;
+    k.classList.remove('is-hit');
+    void k.offsetWidth;          // restart the animation on a repeated note
+    k.classList.add('is-hit');
+  }
+
   function paintChord() {
     const now = chart[shownBar];
     if (!now) return;
@@ -494,25 +545,30 @@ export function createJam(ctx, { onStart } = {}) {
 
   function paintCoach() {
     const now = chart[Math.max(0, shownBar)];
-    if (!playing || !opt.coach || !tips.length || !now) {
-      el.coach.replaceChildren(playing && !opt.coach
-        ? h('span.jam__muted', null, 'Play anything lit.') : '');
+    if (!playing || !now) return;
+    const say = (lead, name, why) => el.coach.replaceChildren(
+      h('span.jam__try', null, lead, h('b', null, name)), h('span.jam__why', null, why));
+    if (cross) {
+      const name = pretty(cross.to.byPc.get(cross.land % 12) || noteName(cross.land));
+      const kept = cross.keep.includes(cross.land % 12);
+      if (ahead) say(kept ? 'Hold ' : 'Head for ', name, `${cross.to.symbol} is next: ${cross.why}.`);
+      else say('Land on ', name, `${cross.to.symbol}, right on the change.`);
       return;
     }
-    const [best] = tips;
-    const name = pretty(now.byPc.get(best.midi % 12) || noteName(best.midi));
-    el.coach.replaceChildren(h('span.jam__try', null, 'Try ', h('b', null, name)),
-      h('span.jam__why', null, best.why));
+    say('Rest on ', now.pal.chord.map((pc) => pretty(now.byPc.get(pc) || NAMES[pc])).join(' · '),
+      'Every lit key sounds good. Bright is the chord, dim adds colour.');
   }
 
   function paintHeard() {
     if (!heard) { el.heard.replaceChildren(); return; }
-    const words = { chord: 'in the chord', key: 'from the key', out: 'outside the key — spicy' };
+    const words = { chord: 'in the chord', color: 'adds colour', rub: 'rubs against this chord: step off it',
+      out: 'outside the key — spicy' };
     el.heard.replaceChildren(h('span.jam__fit.jam__fit--' + heard.fit, null,
       `You played ${heard.name}: ${words[heard.fit]}`));
   }
 
   function paintKeys() {
+    paintOctave();
     const kb = ctx.kb;
     const now = chart[Math.max(0, shownBar)];
     if (!kb || !now || !playing) return;
@@ -521,24 +577,26 @@ export function createJam(ctx, { onStart } = {}) {
       for (let m = kb.low; m <= kb.high; m++) if (pcs.includes(m % 12)) out.push(m);
       return out;
     };
-    kb.setMarks('scale', every(now.scale));
-    kb.setMarks('tone', every(now.chord.pcs));
-    kb.setMarks('suggest', tips.slice(0, 1).map((s) => s.midi));
-    kb.setMarks('suggest2', tips.slice(1).map((s) => s.midi));
+    kb.setMarks('scale', every(now.pal.color));
+    kb.setMarks('tone', every(now.pal.chord));
+    kb.setMarks('suggest', cross ? [cross.land] : []);
+    kb.setMarks('suggest2', ahead ? every(cross.to.pal.chord) : []);
     kb.clearLabels();
-    for (const s of tips) kb.setKeyLabel(s.midi, pretty(now.byPc.get(s.midi % 12) || noteName(s.midi)));
+    if (cross) kb.setKeyLabel(cross.land, pretty(cross.to.byPc.get(cross.land % 12) || noteName(cross.land)));
     kb.setMode('flow', true);
     drawn = true;
   }
 
   function paintStats() {
-    const all = tally.chord + tally.key + tally.out;
+    const all = tally.chord + tally.color + tally.rub + tally.out;
+    const s = (n) => (n === 1 ? '' : 's');
     el.stats.replaceChildren(all
       ? h('span', null,
-        h('b.jam__ok', null, String(tally.chord)), ' chord notes · ',
-        h('b', null, String(tally.key)), ' from the key · ',
+        h('b.jam__ok', null, String(tally.chord)), ` chord note${s(tally.chord)} · `,
+        h('b', null, String(tally.color)), ' colour · ',
+        h('b.jam__rub', null, String(tally.rub)), ` rub${s(tally.rub)} · `,
         h('b.jam__spicy', null, String(tally.out)), ' spicy',
-        opt.coach ? ` · ${tally.followed} suggestions taken` : '')
+        opt.coach ? ` · ${tally.landed} change${s(tally.landed)} landed` : '')
       : h('span', null, 'Counted for this sitting only, never saved.'));
   }
 
@@ -559,9 +617,12 @@ export function createJam(ctx, { onStart } = {}) {
     el.nextSym.textContent = '';
     el.nextRole.replaceChildren();
     el.coach.replaceChildren(h('span.jam__muted', null,
-      'Start the band, then play any lit key. The pulsing one is a good next note.'));
+      'Start the band, then play any lit key, in any octave.'));
     el.heard.replaceChildren();
     el.phrase.replaceChildren();
+    cross = null;
+    ahead = false;
+    paintOctave();
     paintBeats(-1);
     paintStats();
   }
