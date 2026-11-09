@@ -2606,3 +2606,106 @@ body.has-update #gear::after { top: 2px; right: 1px; }
   .jam__mid { grid-column: 1 / -1; order: 3; }
 }
 
+
+/* -- focus: one practice mode, the keys, and nothing else ------------------ */
+/* The same zeroed-rows trick as immersive, with the stage row kept: the rail, nav,
+   roll and readout leave, and the dock gets immersive's larger size. After the Jam
+   block on purpose, so these win over its narrow-window rules. */
+body.is-focusing {
+  --dock-h: clamp(120px, 22vh, 240px);      /* = body.is-immersive */
+  grid-template-columns: 0 1fr;
+  grid-template-rows: 0 minmax(0, 1fr) 0 0 var(--dock-h);
+}
+body.is-focusing .rail,
+body.is-focusing .nav,
+body.is-focusing .roll,
+body.is-focusing .readout { display: none; }
+body.is-focusing .stage {
+  padding: clamp(16px, 3vh, 36px) clamp(20px, 4vw, 64px);
+  background: radial-gradient(1200px 520px at 50% -10%, var(--stage-glow), transparent 70%), var(--panel-0);
+}
+body.is-focusing .dock { background: var(--panel-0); box-shadow: 0 -30px 60px -30px var(--shadow-deep); }
+
+/* Only the marked branch. A grid on the path stops being masonry: its 8px rows and
+   the inline grid-row-end spans layout.js pack() writes mean nothing to one
+   full-height child, and !important is the only thing that outranks an inline style. */
+body.is-focusing [data-focus="path"] > :not([data-focus]) { display: none; }
+body.is-focusing [data-focus="path"] { display: block; height: 100%; }
+body.is-focusing [data-focus="on"] { height: 100%; grid-row-end: auto !important; }
+body.is-focusing [data-focus="on"].grid { grid-auto-rows: auto; align-content: start; }
+body.is-focusing [data-focus="on"].grid > * { grid-row-end: auto !important; }
+body.is-focusing [data-focus="on"] > .mod {
+  height: 100%; display: flex; flex-direction: column;
+  background: transparent; border: 0; box-shadow: none; padding: 0;
+}
+body.is-focusing .mod__grip { display: none; }
+body.is-focusing .mod__head { cursor: default; }
+
+/* The way out. The .roll__exit recipe, fixed instead of absolute. It never goes
+   (a door you cannot find is not a door -- see .roll__exit); moving the mouse only
+   brings it up from quiet to full strength. */
+.focus__exit {
+  position: fixed; top: 14px; right: 16px; z-index: 60;   /* over the stage, under .prefs and .toasts */
+  display: none; align-items: center; gap: 7px; padding: 7px 12px; cursor: pointer;
+  font-family: var(--font-panel); font-size: 10px; letter-spacing: .16em;
+  color: var(--ink-dim); background: var(--panel-1);
+  border: 1px solid var(--hairline-hi); border-radius: var(--radius);
+  box-shadow: 0 2px 12px -4px var(--shadow-deep);
+  opacity: .6;
+  transition: color .15s var(--ease), border-color .15s var(--ease), opacity .5s var(--ease);
+}
+body.is-focusing .focus__exit { display: flex; }
+body.is-focusing.is-stirring .focus__exit, .focus__exit:hover, .focus__exit:focus-visible { opacity: 1; }
+.focus__exit:hover { color: var(--amber); border-color: var(--amber-deep); }
+body.is-focusing .jam__focus, body.is-focusing .exrun__focus { display: none; }
+
+/* Jam from the piano bench, about a metre away: nothing you read mid-phrase under
+   32px. Height is the tight side (the dock takes a fifth of it), so sizes follow vh.
+   The strip grows by its height; its black keys are placed in % of --strip-bw, so
+   they stay on their seams at any size. */
+body.is-focusing .mod:has(> .jam) > .mod__head { display: none; }
+body.is-focusing .jam { flex: 1; min-height: 0; gap: clamp(12px, 2.4vh, 28px); }
+body.is-focusing .jam__mix { display: none; }          /* set once; leave focus to change it */
+/* Key, style and the rest fade with the mouse like the rollbar; Start/Stop never does. */
+body.is-focusing .jam__opt { opacity: 0; transition: opacity .5s var(--ease); }
+body.is-focusing.is-stirring .jam__opt,
+body.is-focusing .jam__top:hover .jam__opt,
+body.is-focusing .jam__opt:focus-within { opacity: 1; }
+
+body.is-focusing .jam__stage {
+  flex: 1; min-height: 0; align-items: stretch;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr);
+}
+body.is-focusing .jam__mid { grid-column: auto; order: 0; gap: clamp(10px, 1.8vh, 20px); }
+body.is-focusing .jam__card { justify-content: center; align-items: center; text-align: center; gap: 12px; }
+body.is-focusing .jam__lbl { font-size: 18px; }
+body.is-focusing .jam__sym { font-size: clamp(72px, 13vh, 168px); min-height: 1em; }
+body.is-focusing .jam__sym--next { font-size: clamp(48px, 8vh, 112px); }
+body.is-focusing .jam__pill { font-size: 18px; padding: 5px 14px; }
+body.is-focusing .jam__beats { gap: 18px; }
+body.is-focusing .jam__beat { width: 22px; height: 22px; }
+body.is-focusing .strip { max-width: min(960px, 100%); height: clamp(150px, 26vh, 320px); gap: 6px; }
+body.is-focusing .strip__name { font-size: clamp(20px, 3vh, 34px); }
+body.is-focusing .strip__key--black .strip__name { font-size: clamp(15px, 2.2vh, 24px); }
+body.is-focusing .strip__role { font-size: clamp(13px, 1.8vh, 18px); min-height: 1.2em; }
+body.is-focusing .strip__both { font-size: 14px; bottom: clamp(56px, 8vh, 84px); }
+body.is-focusing .jam__coach { min-height: 0; }
+body.is-focusing .jam__try { font-size: clamp(24px, 3.6vh, 40px); }
+body.is-focusing .jam__try b { font-size: clamp(32px, 5vh, 56px); }
+body.is-focusing .jam__why { font-size: clamp(16px, 2.2vh, 22px); }
+body.is-focusing .jam__heard { font-size: clamp(16px, 2vh, 20px); }
+body.is-focusing .jam__phrase { font-size: 18px; }
+body.is-focusing .jam__chip { padding: 6px 14px; }
+body.is-focusing .jam__chip b { font-size: 22px; }
+body.is-focusing .jam__chip small { font-size: 14px; }
+body.is-focusing .jam__pblurb { font-size: 15px; }
+body.is-focusing .jam__stats { font-size: 15px; }
+
+/* An exercise run: set up first, then focus. The staff and the numbers take the room. */
+body.is-focusing .exrun__setup { display: none; }
+body.is-focusing .exrun__run { grid-column: span 12; }
+body.is-focusing .exrun .mod__title { font-size: 20px; }
+body.is-focusing .exrun svg.staff { max-width: none; width: 100%; height: clamp(220px, 44vh, 520px); }
+body.is-focusing .exrun .stat__value { font-size: clamp(32px, 5vh, 52px); }
+body.is-focusing .exrun .stat__label { font-size: 16px; }
+body.is-focusing .exrun .stat__note { font-size: 14px; }

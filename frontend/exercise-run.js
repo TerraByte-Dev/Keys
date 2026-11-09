@@ -40,18 +40,20 @@ export function createRunner(ex, ctx, onExit, initial = null) {
 
   // A 12-wide nested grid: the host in practice.js is itself a grid, and the runner's
   // panels lay out inside it exactly as the shelf's do.
-  const el = h('div.grid.col-12', null,
+  const el = h('div.grid.col-12.exrun', null,
     h('div.col-12', null, mod(ex.name, titleEl,
       staffHost,
       h('div.btnrow', { style: { marginTop: '12px' } },
         h('button.btn.btn--lg', { onclick: start }, 'Start'),
         h('button.btn', { onclick: () => finish() }, 'Stop'),
-        h('button.btn', { onclick: exit }, 'Back to the shelf')))),
+        h('button.btn', { onclick: exit }, 'Back to the shelf'),
+        h('button.btn.exrun__focus', { onclick: () => ctx.toggleFocus?.(undefined, el),
+          title: 'Just this and the keys, full screen (G)' }, 'Focus')))),
 
-    h('div.col-5', null, mod('Setup',
+    h('div.col-5.exrun__setup', null, mod('Setup',
       ex.timed_default ? 'with the metronome' : 'at your own pace', formHost)),
 
-    h('div.col-7', null, mod('This run', null, statsHost, resultHost)));
+    h('div.col-7.exrun__run', null, mod('This run', null, statsHost, resultHost)));
 
   paintStaff();
   paintStats();

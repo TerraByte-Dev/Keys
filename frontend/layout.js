@@ -272,8 +272,10 @@ function addControls(grid, col, viewId) {
 
 /* ── drag ─────────────────────────────────────────────────────────────────── */
 function startDrag(e, grid, col, viewId) {
-  // Left button only, and never from a control inside the header.
-  if (e.button !== 0 || e.target.closest('button, input, select, a')) return;
+  // Left button only, and never from a control inside the header. Not in focus either:
+  // there is one panel on screen and nowhere to drag it.
+  if (e.button !== 0 || e.target.closest('button, input, select, a')
+      || document.body.classList.contains('is-focusing')) return;
 
   const head = e.currentTarget;
   const startX = e.clientX;
