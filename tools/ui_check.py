@@ -135,6 +135,28 @@ FOCUS = """() => {
 }"""
 
 
+# Focused Jam on a window smaller than the one it was designed on: nothing in the stage
+# (cards, strip, coach) may spill out of it onto the progression or the count, and the
+# stage itself must not scroll. Each entry is a problem; none is a pass.
+SPILL = """() => {
+  const q = (s) => document.querySelector('[data-focus="on"] ' + s);
+  const stage = q('.jam__stage').getBoundingClientRect();
+  const out = [];
+  for (const e of q('.jam__stage').querySelectorAll(':scope > *, .jam__mid > *, .jam__card > *')) {
+    const r = e.getBoundingClientRect();
+    if (r.height && r.bottom > stage.bottom + 1) out.push(`${e.className.split(' ')[0]} ends ${Math.round(r.bottom)} > stage ${Math.round(stage.bottom)}`);
+  }
+  for (const s of ['.jam__phrase', '.jam__stats']) {
+    const r = q(s).getBoundingClientRect();
+    if (r.height && r.top < stage.bottom - 1) out.push(`${s} starts inside the stage`);
+  }
+  const st = document.getElementById('stage');
+  if (st.scrollHeight > st.clientHeight + 1) out.push(`the stage scrolls ${st.scrollHeight} > ${st.clientHeight}`);
+  return out;
+}"""
+FOCUS_SIZES = ((1024, 680), (1280, 720), (1500, 1000))
+
+
 # Dark: a white chord key, held and unheld, against an unmarked white key held (that
 # one IS spicy -- the reference colour) and unheld (a plain key).
 DARK = """async () => {
@@ -212,6 +234,19 @@ def jam_checks(browser, port: int, errs: list[str]) -> list[str]:
     a = page.evaluate(AUDIT)
     bad = a.get("over", []) + a.get("junk", []) + a.get("hollow", [])
     check("...and Practice comes back laid out as it was", not a.get("error") and not bad, "; ".join(bad))
+
+    # Smaller windows, the packaged one (1500x1000) among them. Resized out of focus:
+    # focus is fullscreen, and a fullscreen window cannot be resized.
+    for w, h in FOCUS_SIZES:
+        page.set_viewport_size({"width": w, "height": h})
+        page.wait_for_timeout(300)
+        page.click(".jam__focus")
+        page.wait_for_timeout(400)
+        spill = page.evaluate(SPILL)
+        check(f"Focus at {w}x{h}: nothing in the stage spills onto the rest", not spill, "; ".join(spill))
+        press("Escape", 600)
+    page.set_viewport_size({"width": 1600, "height": 1000})
+    page.wait_for_timeout(300)
 
     # Lights Out. Dark hides the lit keys but keeps their marks: the held-key colours
     # read them, and a held key with none is painted spicy.

@@ -2477,6 +2477,7 @@ body.has-update #gear::after { top: 2px; right: 1px; }
 .jam { display: flex; flex-direction: column; gap: 16px; }
 .jam__top { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: flex-end; }
 .jam__go { min-width: 170px; }
+.jam__opts { display: contents; }                     /* a wrapper for focus only */
 .jam__opt { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .jam__lbl { font-size: 12px; font-weight: 500; color: var(--ink-dim); }
 .jam__select { min-width: 260px; }
@@ -2679,25 +2680,37 @@ body.is-focusing .jam__focus, body.is-focusing .exrun__focus { display: none; }
 body.is-focusing .mod:has(> .jam) > .mod__head { display: none; }
 body.is-focusing .jam { flex: 1; min-height: 0; gap: clamp(12px, 2.4vh, 28px); }
 body.is-focusing .jam__mix { display: none; }          /* set once; leave focus to change it */
-/* Key, style and the rest fade with the mouse like the rollbar; Start/Stop never does. */
-body.is-focusing .jam__opt { opacity: 0; transition: opacity .5s var(--ease); }
-body.is-focusing.is-stirring .jam__opt,
-body.is-focusing .jam__top:hover .jam__opt,
-body.is-focusing .jam__opt:focus-within { opacity: 1; }
+/* Key, style and the rest fade with the mouse like the rollbar; Start/Stop never does.
+   They lie over the stage rather than in the row, so they take no height however many
+   lines they wrap to, and stop short of EXIT. Faded, they let clicks through. */
+body.is-focusing .jam__top { position: relative; }
+body.is-focusing .jam__opts {
+  position: absolute; z-index: 5; top: 0; left: 192px; right: calc(96px - clamp(20px, 4vw, 64px));
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 22px; padding-bottom: 12px;
+  background: var(--panel-0); box-shadow: 0 16px 24px -12px var(--shadow-deep);
+  opacity: 0; pointer-events: none; transition: opacity .5s var(--ease);
+}
+body.is-focusing.is-stirring .jam__opts,
+body.is-focusing .jam__top:hover .jam__opts,
+body.is-focusing .jam__opts:focus-within { opacity: 1; pointer-events: auto; }
 
+/* One row the height of the stage, and the cards and the middle held inside it: on a
+   short window the strip gives up height first (it is the only thing that can). */
 body.is-focusing .jam__stage {
   flex: 1; min-height: 0; align-items: stretch;
   grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
 }
-body.is-focusing .jam__mid { grid-column: auto; order: 0; gap: clamp(10px, 1.8vh, 20px); }
-body.is-focusing .jam__card { justify-content: center; align-items: center; text-align: center; gap: 12px; }
+body.is-focusing .jam__mid { grid-column: auto; order: 0; gap: clamp(10px, 1.8vh, 20px); min-height: 0; overflow: hidden; }
+body.is-focusing .jam__card { justify-content: center; align-items: center; text-align: center; gap: 12px;
+  min-height: 0; overflow: hidden; }
 body.is-focusing .jam__lbl { font-size: 18px; }
 body.is-focusing .jam__sym { font-size: clamp(72px, 13vh, 168px); min-height: 1em; }
 body.is-focusing .jam__sym--next { font-size: clamp(48px, 8vh, 112px); }
 body.is-focusing .jam__pill { font-size: 18px; padding: 5px 14px; }
 body.is-focusing .jam__beats { gap: 18px; }
 body.is-focusing .jam__beat { width: 22px; height: 22px; }
-body.is-focusing .strip { max-width: min(960px, 100%); height: clamp(150px, 26vh, 320px); gap: 6px; }
+body.is-focusing .strip { max-width: min(960px, 100%); height: clamp(150px, 26vh, 320px); min-height: 96px; gap: 6px; }
 body.is-focusing .strip__name { font-size: clamp(20px, 3vh, 34px); }
 body.is-focusing .strip__key--black .strip__name { font-size: clamp(15px, 2.2vh, 24px); }
 body.is-focusing .strip__role { font-size: clamp(13px, 1.8vh, 18px); min-height: 1.2em; }
@@ -2713,6 +2726,11 @@ body.is-focusing .jam__chip b { font-size: 22px; }
 body.is-focusing .jam__chip small { font-size: 14px; }
 body.is-focusing .jam__pblurb { font-size: 15px; }
 body.is-focusing .jam__stats { font-size: 15px; }
+
+/* A phone-width tab: the stacked one-column grid, with focus's rows. */
+@media (max-width: 720px) {
+  body.is-focusing { grid-template-columns: 1fr; grid-template-rows: 0 minmax(0, 1fr) 0 var(--dock-h); }
+}
 
 /* An exercise run: set up first, then focus. The staff and the numbers take the room. */
 body.is-focusing .exrun__setup { display: none; }
