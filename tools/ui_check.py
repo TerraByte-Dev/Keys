@@ -222,6 +222,22 @@ def jam_checks(browser, port: int, errs: list[str]) -> list[str]:
     check("...and a held chord note is not painted spicy", dark["held"] != dark["spicy"], str(dark))
     pick(page, "Guide", "Full")
 
+    # Seats: the band is told which part to drop, and only the seat's register is lit.
+    for seat, want, lo, hi in (("Bass", {"bass": False, "comp": True}, 36, 55),
+                               ("Chords", {"bass": True, "comp": False}, 48, 72),
+                               ("Solo", {"bass": True, "comp": True}, 0, 127)):
+        page.evaluate("window.__posts = []")
+        pick(page, "Seat", seat, 1300)
+        sent = page.evaluate("""() => window.__posts.filter(p => p.url.endsWith('/api/band/config'))
+          .map(p => JSON.parse(p.body))""")
+        band = page.evaluate(BAND)
+        lit = page.evaluate("""() => [...document.querySelectorAll('#dock .key.is-tone:not(.is-quiet)')]
+          .map(k => +k.dataset.midi)""")
+        check(f"Seat {seat}: the band is told {want}, and plays it", sent == [want]
+              and band.get("bass") is want["bass"] and band.get("comp") is want["comp"], f"sent {sent}")
+        check(f"...lit only in {lo}-{hi}", lit and all(lo <= m <= hi for m in lit)
+              and (seat != "Chords" or len(lit) >= 6), f"{len(lit)} keys, {min(lit, default=0)}-{max(lit, default=0)}")
+
     press("g")
     press("v", 300)
     f = page.evaluate(FOCUS)

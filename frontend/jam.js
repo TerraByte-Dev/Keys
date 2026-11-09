@@ -16,6 +16,12 @@
  * on the 1 Hz status frame and is interpolated in between, so the keys change on the bar
  * line you hear, not on a timer of our own that would drift away from it.
  *
+ * You can also take a seat in the band (Seat: Solo | Bass | Chords). The band drops that
+ * part and the keys light what its player would play: the root low down, or the chord's
+ * notes as a set across the middle -- never one shape to copy. The seat decides which
+ * notes are the target; the guide decides how much of them is drawn. Both go through
+ * one paint path (harmony.js seatTarget / seatZone, then paintKeys / paintOctave).
+ *
  * The guide can be turned down (harmony.js guideLevel): Fading takes the lights away
  * a step each time through a progression, Dark plays by ear from the start. The marks
  * stay on the keys either way and only stop being drawn, because the keyboard says how
@@ -27,7 +33,7 @@
 
 import { api, h, info, mod, slider, toast, toggle } from './ui.js';
 import { ghostArmed, onPanic } from './app.js';
-import { createProgression, crossing, guideLevel, palette } from './harmony.js';
+import { createProgression, crossing, guideLevel, keysIn, palette, seatTarget, seatZone } from './harmony.js';
 
 /* The keys on offer, easiest first. The hint is what a beginner actually wants to
    know about a key: how many black keys it uses. */
@@ -53,6 +59,8 @@ const STYLES = [
 ];
 const LENGTHS = [{ id: 1, label: '1 bar' }, { id: 2, label: '2 bars' }];
 const GUIDES = [{ id: 'full', label: 'Full' }, { id: 'fading', label: 'Fading' }, { id: 'dark', label: 'Dark' }];
+const SEATS = [{ id: 'solo', label: 'Solo' }, { id: 'bass', label: 'Bass' }, { id: 'chords', label: 'Chords' }];
+const MIDDLE_C = 60;       // the bass seat counts what you play under it
 const PC = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 const pcOf = (name) => (PC[name[0]] + (name.match(/#/g) || []).length
   - (name.slice(1).match(/b/g) || []).length + 12) % 12;
@@ -67,7 +75,7 @@ const WARN = 0.5;          // bars before a change that the way across is shown 
 const AHEAD = 12;          // bars of chart the band always has in hand
 const LEAD_MS = 200;       // the band's lead-in before bar 0 (metronome LEAD_IN_MS + 80)
 const DEFAULTS = { key: 'C-major', style: 'pop', bpm: 96, bars: 1, volume: 0.7, drums: true,
-  coach: true, wander: false, guide: 'full' };
+  coach: true, wander: false, guide: 'full', seat: 'solo' };
 
 export function createJam(ctx, { onStart } = {}) {
   const saved = ctx.state?.settings?.ui?.jam || {};
@@ -75,6 +83,7 @@ export function createJam(ctx, { onStart } = {}) {
   if (!KEYS.some((k) => k.id === opt.key)) opt.key = DEFAULTS.key;
   if (!STYLES.some((s) => s.id === opt.style)) opt.style = DEFAULTS.style;
   if (!GUIDES.some((g) => g.id === opt.guide)) opt.guide = DEFAULTS.guide;
+  if (!SEATS.some((s) => s.id === opt.seat)) opt.seat = DEFAULTS.seat;
 
   const plans = new Map();     // key id -> loaded plan
   const loading = new Map();   // key id -> its request, so two callers share one
@@ -91,10 +100,16 @@ export function createJam(ctx, { onStart } = {}) {
   // -1 until the first one starts. Not phrasesInKey: that only counts with Wander on.
   let times = -1;
   let lastNote = null;         // the last note you played (MIDI)
+  let lastBass = null;         // ...and the last one under middle C, for the bass seat
   let cross = null;            // the change ahead: { bar, to, keep, land, why, hit }
   let ahead = false;           // inside the two beats before that change
   let heard = null;            // the last note you played and how it fit
-  const tally = { chord: 0, color: 0, rub: 0, out: 0, landed: 0 };
+  let holding = null;          // chords seat: what your held keys make of this chord
+  let held = { notes: [], sus: false };   // the keys down, from the last frame
+  // Counted once per chord, so holding a root or a chord is not a stream of points.
+  let rootedFor = null, madeFor = null, countedFor = null, oneBar = -1;
+  const tally = { chord: 0, color: 0, rub: 0, out: 0, landed: 0,
+    chords: 0, rooted: 0, one: 0, made: 0 };
 
   /* ── the panel ─────────────────────────────────────────────────────────── */
   const seg = (items, current, onpick) => {
@@ -162,6 +177,14 @@ export function createJam(ctx, { onStart } = {}) {
       'name, and after that just the beat. A new key or a new progression brings the lights back. ',
       h('strong', null, 'Dark'), ' is the beat alone from the start. Whatever you play still ',
       'flashes on the strip in the colour of how it fit, and the count still runs.'),
+    info(h('strong', null, 'Seat'), ' is which player in the band you are. ', h('strong', null, 'Solo'),
+      ' is the whole band, with you on the tune. ', h('strong', null, 'Bass'), ' sends the band\'s ',
+      'bass player home and your left hand takes over: each chord\'s root is lit low on the keyboard, ',
+      'with its fifth dim. Play the root on the first beat of the bar and the band sounds whole again. ',
+      h('strong', null, 'Chords'), ' sends the keyboard player home: every note of the chord is lit ',
+      'either side of middle C, and any of them, in any order and any octave there, is right. In ',
+      'Rock the band\'s chords are low power chords, and those are what you are replacing. A new ',
+      'seat starts at the next bar the band has not already lined up.'),
     h('div.jam', null,
       h('div.jam__top', null,
         el.go,
@@ -171,6 +194,7 @@ export function createJam(ctx, { onStart } = {}) {
         h('div.jam__opt', null, h('span.jam__lbl', null, 'Style'), styleSeg),
         h('div.jam__opt', null, h('span.jam__lbl', null, 'Each chord'),
           seg(LENGTHS, opt.bars, (id) => { opt.bars = id; save(); if (playing) rechart(); })),
+        h('div.jam__opt', null, h('span.jam__lbl', null, 'Seat'), seg(SEATS, opt.seat, setSeat)),
         h('div.jam__opt', null, h('span.jam__lbl', null, 'Guide'), seg(GUIDES, opt.guide, setGuide))),
 
       h('div.jam__stage', null,
@@ -345,15 +369,18 @@ export function createJam(ctx, { onStart } = {}) {
       chart = compose(AHEAD + 4);
       const r = await api.post('/api/band/start', {
         chart: wire(chart), style: opt.style, bpm: opt.bpm, volume: opt.volume, drums: opt.drums,
+        ...parts(),
       });
       if (destroyed) { api.post('/api/band/stop').catch(() => {}); return; }
       clock = { pos: -LEAD_MS / r.bar_ms, at: performance.now(), barMs: r.bar_ms };
       playing = true;
       yielded = false;
       lastNote = null;
+      lastBass = null;
       cross = null;
       ahead = false;
       heard = null;
+      holding = null;
       shownBar = -1;
       el.go.textContent = 'Stop';
       el.go.classList.remove('btn--primary');
@@ -423,6 +450,27 @@ export function createJam(ctx, { onStart } = {}) {
     shownBar = -1;
   }
 
+  /* Which of the band's parts play: the one you sit in for does not. */
+  const parts = () => ({ bass: opt.seat !== 'bass', comp: opt.seat !== 'chords' });
+
+  /* Solo / Bass / Chords. The band hears about it from its next unqueued bar; the keys
+     change on the next repaint, with the way across worked out again for the new hand. */
+  function setSeat(id) {
+    opt.seat = id;
+    save();
+    if (playing) configure(parts());
+    cross = null;
+    heard = null;
+    holding = null;
+    shownCross = '?';
+    paintHeard();
+    paintStats();
+  }
+
+  /* The seat's notes over one chord, and the keys its hand plays (harmony.js). */
+  const target = (e) => seatTarget(opt.seat, e.pal);
+  const zone = () => seatZone(opt.seat, ctx.kb?.low ?? 21, ctx.kb?.high ?? 108);
+
   /* Keep the band's copy of the chart AHEAD bars past where you are. */
   let topping = false;
   function topUp(bar) {
@@ -459,7 +507,14 @@ export function createJam(ctx, { onStart } = {}) {
       const changed = bar !== shownBar && chart[bar] !== chart[shownBar];
       shownBar = bar;
       shownCross = key;
-      if (changed) paintChord();
+      if (changed) {
+        paintChord();
+        // By entry, not by repaint: a rechart or a Guide change repaints the same chord.
+        if (countedFor !== chart[bar]) { countedFor = chart[bar]; tally.chords++; }
+        // The keys you are holding are judged against the chord now playing.
+        if (opt.seat === 'chords') { judgeHold(); paintHeard(); }
+        paintStats();
+      }
       paintCoach();
       paintKeys();
     }
@@ -473,8 +528,9 @@ export function createJam(ctx, { onStart } = {}) {
     while (k < chart.length && chart[k] === chart[bar]) k++;
     const to = chart[k];
     if (to && k - pos <= WARN && (!cross || cross.bar !== k)) {
-      const c = crossing(chart[bar].pal.chord, to.pal.chord, lastNote,
-        { low: ctx.kb?.low ?? 21, high: ctx.kb?.high ?? 108 });
+      // In the seat's own hand and register: the bass crosses root to root.
+      const c = crossing(target(chart[bar]).tone, target(to).tone,
+        opt.seat === 'bass' ? lastBass : lastNote, zone());
       cross = { bar: k, to, ...c, hit: false };
     }
     if (cross && pos >= cross.bar + 1 / BEATS) cross = null;
@@ -490,10 +546,12 @@ export function createJam(ctx, { onStart } = {}) {
 
   /* ── what you play ─────────────────────────────────────────────────────── */
   function frame(f) {
-    if (!playing || !f.on) return;
+    if (!playing) return;
     const now = chart[Math.max(0, shownBar)];
     if (!now) return;
-    for (const [n] of f.on) {
+    if (f.held) held = { notes: f.held, sus: !!f.sus };
+    if (opt.seat === 'chords' && f.held) judgeHold();
+    for (const [n] of f.on || []) {
       const pc = n % 12;
       const fit = now.pal.chord.includes(pc) ? 'chord' : now.pal.color.includes(pc) ? 'color'
         : now.scale.includes(pc) ? 'rub' : 'out';
@@ -501,10 +559,46 @@ export function createJam(ctx, { onStart } = {}) {
       if (cross && !cross.hit && pc === cross.land % 12) { cross.hit = true; tally.landed++; }
       heard = { n, fit, name: pretty(now.byPc.get(pc) || noteName(n)) };
       lastNote = n;
+      if (opt.seat === 'bass' && n < MIDDLE_C) judgeBass(n, now);
       flash(pc, fit);
     }
+    if (!f.on && opt.seat !== 'chords') return;
     paintHeard();
     paintStats();
+  }
+
+  /* Bass seat: a low note against the root. "On the one" is a root within half a beat
+     of a bar line, judged against the chord of the bar it is nearest -- a root played a
+     hair early is on the next one, not off this one. A count for this sitting, not a grade. */
+  function judgeBass(n, now) {
+    lastBass = n;
+    const pc = n % 12;
+    const root = now.chord.pcs[0];
+    heard.bass = pc === root ? 'root' : pc === (root + 7) % 12 ? 'fifth' : 'other';
+    heard.root = pretty(now.byPc.get(root) || NAMES[root]);
+    if (pc === root && rootedFor !== now) { rootedFor = now; tally.rooted++; }
+    const pos = position();
+    const b = Math.round(pos);
+    if (b !== oneBar && Math.abs(pos - b) <= 0.5 / BEATS && chart[b]?.chord.pcs[0] === pc) {
+      oneBar = b;
+      tally.one++;
+    }
+  }
+
+  /* Chords seat: what the keys you are holding make of this chord. f.held is the keys
+     physically down, so with the pedal down a chord you have let go of is still ringing
+     and is still the chord you made: the last full one stands until the pedal comes up. */
+  function judgeHold() {
+    const now = chart[Math.max(0, shownBar)];
+    if (!now) return;
+    const pcs = [...new Set(held.notes.map((n) => n % 12))];
+    const want = now.pal.chord;
+    const missing = want.filter((pc) => !pcs.includes(pc));
+    if (held.sus && holding?.entry === now && holding.full && (missing.length || !pcs.length)) return;
+    if (!pcs.length) { holding = null; return; }
+    holding = { entry: now, full: !missing.length, missing,
+      have: want.filter((pc) => pcs.includes(pc)), extra: pcs.filter((pc) => !want.includes(pc)) };
+    if (holding.full && madeFor !== now) { madeFor = now; tally.made++; }
   }
 
   const NAMES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
@@ -537,10 +631,12 @@ export function createJam(ctx, { onStart } = {}) {
     // drawing them; the way across is simply not shown past level 0.
     jamEl.dataset.guide = String(level);
     const next = ahead && !level ? cross.to : null;
+    const t = now ? target(now) : null;
+    const nt = next ? target(next) : null;
     octKeys.forEach((k, pc) => {
-      const tone = now ? now.pal.chord.indexOf(pc) : -1;
-      const color = !!now && now.pal.color.includes(pc);
-      const inNext = !!next && next.pal.chord.includes(pc);
+      const tone = t ? t.tone.indexOf(pc) : -1;
+      const color = !!t && t.color.includes(pc);
+      const inNext = !!nt && nt.tone.includes(pc);
       k.classList.toggle('is-chord', tone >= 0);
       k.classList.toggle('is-color', color);
       k.classList.toggle('is-next', inNext);
@@ -549,7 +645,8 @@ export function createJam(ctx, { onStart } = {}) {
       const named = !now || tone >= 0 || color || inNext;
       k.children[1].textContent = named
         ? pretty((inNext && next.byPc.get(pc)) || now?.byPc.get(pc) || NAMES[pc]) : '';
-      k.children[2].textContent = tone >= 0 ? TONE_ROLE[tone] : '';
+      // Named by its place in the chord, so the bass seat's dim fifth says "5th" too.
+      k.children[2].textContent = tone >= 0 || color ? TONE_ROLE[now.pal.chord.indexOf(pc)] || '' : '';
     });
   }
 
@@ -594,35 +691,67 @@ export function createJam(ctx, { onStart } = {}) {
     if (!playing || !now) return;
     const say = (lead, name, why) => el.coach.replaceChildren(
       h('span.jam__try', null, lead, h('b', null, name)), h('span.jam__why', null, why));
+    const names = (pcs) => pcs.map((pc) => pretty(now.byPc.get(pc) || NAMES[pc])).join(' · ');
+    const bass = opt.seat === 'bass';
     const level = levelOf(now);
     if (level >= 2) {
-      el.coach.replaceChildren(h('span.jam__muted', null, level === 2
-        ? 'The keys are dark. The name is the chord: find its notes by ear.'
-        : 'Just the beat. Listen to the band for where the chord goes.'));
+      el.coach.replaceChildren(h('span.jam__muted', null, level === 3
+        ? 'Just the beat. Listen to the band for where the chord goes.'
+        : bass ? 'The keys are dark. A chord\'s name starts with its root: find it low.'
+          : 'The keys are dark. The name is the chord: find its notes by ear.'));
       return;
     }
-    if (level === 1) {
-      say('Rest on ', now.pal.chord.map((pc) => pretty(now.byPc.get(pc) || NAMES[pc])).join(' · '),
-        'Only the chord is lit this time round. The colour notes are still there: find them by ear.');
-      return;
-    }
-    if (cross) {
+    if (cross && !level) {
       const name = pretty(cross.to.byPc.get(cross.land % 12) || noteName(cross.land));
       const kept = cross.keep.includes(cross.land % 12);
-      if (ahead) say(kept ? 'Hold ' : 'Head for ', name, `${cross.to.symbol} is next: ${cross.why}.`);
+      if (bass) {
+        if (ahead) say(kept ? 'Stay on ' : 'Head for ', name, `${cross.to.symbol} is next: ${kept ? 'the same root' : 'its root'}.`);
+        else say('Land on ', name, `${cross.to.symbol}, right on the one.`);
+      } else if (ahead) say(kept ? 'Hold ' : 'Head for ', name, `${cross.to.symbol} is next: ${cross.why}.`);
       else say('Land on ', name, `${cross.to.symbol}, right on the change.`);
       return;
     }
-    say('Rest on ', now.pal.chord.map((pc) => pretty(now.byPc.get(pc) || NAMES[pc])).join(' · '),
-      'Every lit key sounds good. Bright is the chord, dim adds colour.');
+    if (bass) {
+      say('Root: ', names([now.chord.pcs[0]]), level
+        ? 'the chord\'s floor. Play it low, with your left hand.'
+        : 'the chord\'s floor. Play it low, with your left hand; the dim key is its fifth.');
+    } else if (opt.seat === 'chords') {
+      say('Chord: ', names(now.pal.chord),
+        'Any of these, in any order, in any octave of the lit keys. All of them together is the chord.');
+    } else if (level === 1) {
+      say('Rest on ', names(now.pal.chord),
+        'Only the chord is lit this time round. The colour notes are still there: find them by ear.');
+    } else {
+      say('Rest on ', names(now.pal.chord), 'Every lit key sounds good. Bright is the chord, dim adds colour.');
+    }
   }
 
   function paintHeard() {
+    const line = (fit, text) => el.heard.replaceChildren(h('span.jam__fit.jam__fit--' + fit, null, text));
+    if (opt.seat === 'chords') {
+      if (!holding) { el.heard.replaceChildren(); return; }
+      const e = holding.entry;
+      const names = (pcs) => pcs.map((pc) => pretty(e.byPc.get(pc) || NAMES[pc])).join(' ');
+      // In the dark it says whether, not which: naming the missing note is a light.
+      const dark = levelOf(e) >= 2;
+      const extra = holding.extra.length ? `, and ${names(holding.extra)} on top` : '';
+      if (holding.full) line('chord', `${names(holding.have)}: the whole ${e.symbol} chord${extra}`);
+      else line('color', dark ? 'Not the whole chord yet' : holding.have.length
+        ? `${names(holding.have)}: no ${names(holding.missing)} yet${extra}`
+        : `None of ${e.symbol} yet: ${names(e.pal.chord)}`);
+      return;
+    }
     if (!heard) { el.heard.replaceChildren(); return; }
+    if (heard.bass) {
+      const dark = levelOf(chart[Math.max(0, shownBar)]) >= 2;
+      if (heard.bass === 'root') line('chord', `${heard.name}: the root`);
+      else if (heard.bass === 'fifth') line('color', `${heard.name}: the fifth. It fits; the root says the chord more clearly`);
+      else line('rub', dark ? `${heard.name}: not the root` : `${heard.name}: not the root. That is ${heard.root}`);
+      return;
+    }
     const words = { chord: 'in the chord', color: 'adds colour', rub: 'rubs against this chord: step off it',
       out: 'outside the key — spicy' };
-    el.heard.replaceChildren(h('span.jam__fit.jam__fit--' + heard.fit, null,
-      `You played ${heard.name}: ${words[heard.fit]}`));
+    line(heard.fit, `You played ${heard.name}: ${words[heard.fit]}`);
   }
 
   function paintKeys() {
@@ -630,18 +759,29 @@ export function createJam(ctx, { onStart } = {}) {
     const kb = ctx.kb;
     const now = chart[Math.max(0, shownBar)];
     if (!kb || !now || !playing) return;
-    const every = (pcs) => {
-      const out = [];
-      for (let m = kb.low; m <= kb.high; m++) if (pcs.includes(m % 12)) out.push(m);
-      return out;
-    };
+    const every = (pcs) => keysIn(pcs, kb);
     const level = levelOf(now);
-    // Always marked, even in the dark: the held-key colours read these classes, and a
-    // key without them is painted spicy. kb--nocolor and kb--dark only stop the drawing.
-    kb.setMarks('scale', every(now.pal.color));
-    kb.setMarks('tone', every(now.pal.chord));
+    const z = zone();
+    // Always the whole palette over the whole keyboard, in every seat and at every level:
+    // the held-key colours read these classes, and a key without them is painted spicy.
+    // What is DRAWN is narrowed afterwards -- the seat marks the rest quiet, and
+    // kb--nocolor / kb--dark turn the guide down -- with the classes left in place.
+    let tone = every(now.pal.chord);
+    let scale = every(now.pal.color);
+    let quiet = [];
+    if (opt.seat !== 'solo') {
+      const t = target(now);
+      const dim = new Set(keysIn(t.color, z));             // the bass seat's fifth
+      const lit = new Set([...keysIn(t.tone, z), ...dim]);
+      tone = tone.filter((m) => !dim.has(m));
+      scale = scale.concat([...dim]);
+      quiet = tone.concat(scale).filter((m) => !lit.has(m));
+    }
+    kb.setMarks('scale', scale);
+    kb.setMarks('tone', tone);
+    kb.setMarks('quiet', quiet);
     kb.setMarks('suggest', cross && !level ? [cross.land] : []);
-    kb.setMarks('suggest2', ahead && !level ? every(cross.to.pal.chord) : []);
+    kb.setMarks('suggest2', ahead && !level ? keysIn(target(cross.to).tone, z) : []);
     kb.clearLabels();
     if (cross && !level) kb.setKeyLabel(cross.land, pretty(cross.to.byPc.get(cross.land % 12) || noteName(cross.land)));
     kb.setMode('flow', true);
@@ -653,6 +793,17 @@ export function createJam(ctx, { onStart } = {}) {
   function paintStats() {
     const all = tally.chord + tally.color + tally.rub + tally.out;
     const s = (n) => (n === 1 ? '' : 's');
+    if (opt.seat === 'bass' && all) {
+      el.stats.replaceChildren(h('span', null,
+        h('b.jam__ok', null, String(tally.one)), ` root${s(tally.one)} on the one · `,
+        h('b', null, String(tally.rooted)), ` of ${tally.chords} chords found their root`));
+      return;
+    }
+    if (opt.seat === 'chords' && (all || tally.made)) {
+      el.stats.replaceChildren(h('span', null,
+        h('b.jam__ok', null, String(tally.made)), ` of ${tally.chords} chords made, every note down at once`));
+      return;
+    }
     el.stats.replaceChildren(all
       ? h('span', null,
         h('b.jam__ok', null, String(tally.chord)), ` chord note${s(tally.chord)} · `,

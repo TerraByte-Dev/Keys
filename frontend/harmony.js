@@ -256,6 +256,48 @@ export function crossing(chord, next, from = null, { low = 57, high = 84 } = {})
     why: dist <= 2 ? 'one step from where you are, into the next chord' : 'the next chord\'s nearest note' };
 }
 
+/* ── sitting in: what the seat you take plays ───────────────────────────── */
+
+// Where each seat's hand plays, as MIDI: the bass under middle C, the chords either side of it.
+export const SEAT_ZONE = { bass: [36, 55], chords: [48, 72] };
+
+/**
+ * What the player in `seat` plays over one chord, as pitch classes: `tone` is drawn
+ * bright, `color` dim. `pal` is the chord's palette(). Solo: the chord and the notes that
+ * add colour. Bass: the root, and its fifth. Chords: the chord's own notes -- a set to
+ * choose from in any octave, never one shape to copy.
+ */
+export function seatTarget(seat, pal) {
+  if (seat === 'bass') {
+    const root = pal.chord[0];
+    const five = (root + 7) % 12;
+    return { tone: [root], color: pal.chord.includes(five) ? [five] : [] };
+  }
+  if (seat === 'chords') return { tone: pal.chord, color: [] };
+  return { tone: pal.chord, color: pal.color };
+}
+
+/**
+ * The keys a seat lights, { low, high } in MIDI: the whole keyboard for Solo, the seat's
+ * register otherwise, clamped to the keyboard -- or, when the keyboard does not reach
+ * that register, its bottom end the same span wide. Never less than an octave, so every
+ * note of a chord has a key.
+ */
+export function seatZone(seat, low, high) {
+  const z = SEAT_ZONE[seat];
+  if (!z) return { low, high };
+  const lo = Math.max(low, z[0]);
+  const hi = Math.min(high, z[1]);
+  return hi - lo >= 11 ? { low: lo, high: hi } : { low, high: Math.min(high, low + z[1] - z[0]) };
+}
+
+/* Every key from `low` to `high` whose pitch class is in `pcs`. */
+export function keysIn(pcs, { low, high }) {
+  const out = [];
+  for (let m = low; m <= high; m++) if (pcs.includes(m % 12)) out.push(m);
+  return out;
+}
+
 /* ── Lights Out: how much of the guide to draw ───────────────────────────── */
 
 /**

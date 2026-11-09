@@ -144,6 +144,11 @@ const CSS = `
 .keys-kb.kb--flow.kb--dark .key--black.is-tone:not(.is-held){fill:var(--key-black,#16171b)}
 .keys-kb.kb--flow.kb--nocolor .key.is-scale.is-sustained:not(.is-held),
 .keys-kb.kb--flow.kb--dark .key.is-tone.is-sustained:not(.is-held){fill:var(--key-sustain,#6f5bd6)}
+/* Jam's seats: "quiet" is a key that is marked (so it is coloured right when you hold
+   it) but outside the seat's hand -- the right hand's notes while you play bass. */
+.keys-kb.kb--flow .key--white.is-quiet:not(.is-held){fill:var(--key-white,#f2f2ef)}
+.keys-kb.kb--flow .key--black.is-quiet:not(.is-held){fill:var(--key-black,#16171b)}
+.keys-kb.kb--flow .key.is-quiet.is-sustained:not(.is-held){fill:var(--key-sustain,#6f5bd6)}
 .keys-kb .key-label{pointer-events:none;font-family:var(--key-font,ui-sans-serif,system-ui,sans-serif);font-size:9px;text-anchor:middle;fill:var(--key-label,#7a8290)}
 .keys-kb .key-label--black{fill:var(--key-label-black,#8d94a1)}
 .keys-kb.kb--labels-none .key-label{display:none}
