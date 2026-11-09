@@ -15,6 +15,10 @@ are the key minus the ones that rub (a half step above a chord note), and the wa
 a change always lands on the next chord, close to your hand, holding a shared note when
 one is near.
 
+Lights Out (the Guide setting) is checked the same way: the level over every chord
+the composer plays falls one step per time through a progression -- the Canon's single
+pass included -- and comes back to full on a new key or a new progression.
+
 The band is checked against a recording sequencer: it keeps off the zones' channels,
 plays the chart's chords in the right registers, never rewrites a queued bar, keeps its
 place through a tempo change, and stops by itself when nothing tops up its chart.
@@ -23,6 +27,7 @@ place through a tempo change, and stops by itself when nothing tops up its chart
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -49,7 +54,7 @@ def ok(label: str, passed: bool, detail: str = "") -> None:
 
 
 DRIVER = r"""
-import { createProgression, crossing, palette, PALETTE, PHRASES, chordPcs } from './harmony.js';
+import { createProgression, crossing, guideLevel, palette, PALETTE, PHRASES, chordPcs } from './harmony.js';
 
 const keys = JSON.parse(process.env.JAM_KEYS);
 const out = [];
@@ -227,6 +232,52 @@ function seeded(seed) {
      && JSON.stringify(chordPcs(am.pcs, 'v')) === '[4,7,11]', `${chordPcs(am.pcs, 'V')}`);
 }
 
+/* 8. Lights Out. The level, by times through a progression since the lights came back. */
+{
+  const row = (g) => [0, 1, 2, 3, 4, 9].map((t) => guideLevel(t, g)).join('');
+  ok('Full is always level 0, Dark always 3, Fading 0 1 2 3 then stays dark',
+     row('full') === '000000' && row('dark') === '333333' && row('fading') === '012333',
+     `${row('full')} ${row('dark')} ${row('fading')}`);
+
+  // jam.js's counter, driven over real progressions: +1 at each phrase start (step 0),
+  // back to -1 on a new key or a new progression. The level may only ever go down one
+  // step at a time, and a reset must bring the very next chord back to full.
+  let skips = 0, chords = 0, canons = 0, resets = 0, resetOk = 0;
+  for (const k of keys.slice(0, 4)) {
+    const mode = k.mode === 'major' ? 'major' : 'minor';
+    for (const seed of [2, 8, 77]) {
+      const rng = seeded(seed);
+      let p = createProgression({ mode, scale: k.pcs, rng });
+      let times = -1, prev = 0, prevChord = null;
+      for (let i = 0; i < 400; i++) {
+        if (i % 97 === 96) {                      // a wander, a key change or New progression
+          if (rng() < 0.5) p = createProgression({ mode, scale: k.pcs, rng });
+          else p.skipPhrase();
+          times = -1; prev = 0; resets++;
+          const c = p.next();
+          if (c.step === 0) times++;
+          if (guideLevel(Math.max(0, times), 'fading') === 0) resetOk++;
+          prevChord = c;
+          continue;
+        }
+        const c = p.next();
+        if (c.step === 0) times++;
+        const lv = guideLevel(Math.max(0, times), 'fading');
+        chords++;
+        if (lv - prev > 1 || lv < prev) skips++;
+        if (c.phrase.id === 'canon' && c.step === 0) canons++;
+        prev = lv;
+        prevChord = c;
+      }
+    }
+  }
+  // The Canon is in there: played once, keyed on pass it would skip a level.
+  ok('Fading goes down one level per time through, never skipping one (the Canon included)',
+     !skips && canons > 0, `${skips} jumps in ${chords} chords, ${canons} Canons`);
+  ok('a new key or a new progression brings the lights back on its first chord',
+     resets > 0 && resetOk === resets, `${resetOk} of ${resets}`);
+}
+
 console.log(JSON.stringify(out));
 """
 
@@ -385,6 +436,17 @@ def source_checks() -> None:
     ok("jam.js offers the keys this check covers", True, f"{len(KEYS)} keys")
     styles = [line.split("'")[1] for line in src.splitlines() if line.strip().startswith("{ id: '") and "bpm:" in line]
     ok("jam.js offers exactly the band's styles", sorted(styles) == sorted(band_mod.STYLES), str(styles))
+    # Lights Out's counter lives in jam.js (the driver above runs the same rule): it
+    # counts at each phrase start in compose() and goes back to "before the first" on
+    # every road to a fresh progression.
+    def body(name: str) -> str:
+        m = re.search(r"\n  (?:async )?function " + name + r"\([^)]*\) \{\n(.*?)\n  \}\n", src, re.S)
+        return m.group(1) if m else ""
+    ok("compose() counts times through at each phrase start and stamps the level",
+       "if (c.step === 0) times++;" in body("compose") and "guideLevel(" in body("compose"))
+    missing = [f for f in ("wander", "setKey", "newPhrase", "start") if "times = -1;" not in body(f)]
+    ok("a wander, a new key, New progression and Start each bring the lights back", not missing,
+       f"no reset in {missing}" if missing else "")
     server = (ROOT / "backend" / "server.py").read_text(encoding="utf-8")
     ok("panic stops the band", "self.band.stop()" in server)
     ok("shutdown stops the band", "self.band.shutdown()" in server)

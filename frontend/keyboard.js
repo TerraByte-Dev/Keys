@@ -133,6 +133,17 @@ const CSS = `
 /* A chord tone outside the key — minor V's raised third, G sharp in A minor — is still
    the chord, so this comes after the spicy rule. */
 .keys-kb.kb--flow .key.is-held.is-tone{fill:var(--key-good,#74cf86)}
+/* Jam's guide turned down: kb--nocolor stops drawing the colour notes, kb--dark the
+   chord as well. The marks stay on the keys, because the held rules above read them
+   and a held key without is-scale is spicy -- a right note must never turn red just
+   because the lights are off. Only unheld fills go back to a plain key; a hidden one
+   still ringing on the pedal looks like any other ringing key. */
+.keys-kb.kb--flow.kb--nocolor .key--white.is-scale:not(.is-held),
+.keys-kb.kb--flow.kb--dark .key--white.is-tone:not(.is-held){fill:var(--key-white,#f2f2ef)}
+.keys-kb.kb--flow.kb--nocolor .key--black.is-scale:not(.is-held),
+.keys-kb.kb--flow.kb--dark .key--black.is-tone:not(.is-held){fill:var(--key-black,#16171b)}
+.keys-kb.kb--flow.kb--nocolor .key.is-scale.is-sustained:not(.is-held),
+.keys-kb.kb--flow.kb--dark .key.is-tone.is-sustained:not(.is-held){fill:var(--key-sustain,#6f5bd6)}
 .keys-kb .key-label{pointer-events:none;font-family:var(--key-font,ui-sans-serif,system-ui,sans-serif);font-size:9px;text-anchor:middle;fill:var(--key-label,#7a8290)}
 .keys-kb .key-label--black{fill:var(--key-label-black,#8d94a1)}
 .keys-kb.kb--labels-none .key-label{display:none}

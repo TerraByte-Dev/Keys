@@ -135,6 +135,40 @@ FOCUS = """() => {
 }"""
 
 
+# Dark: a white chord key, held and unheld, against an unmarked white key held (that
+# one IS spicy -- the reference colour) and unheld (a plain key).
+DARK = """async () => {
+  const kb = (await import('/app.js')).ctx.kb;
+  const svg = document.querySelector('#dock .keys-kb');
+  const tones = [...svg.querySelectorAll('.key--white.is-tone')];
+  const plain = [...svg.querySelectorAll('.key--white:not(.is-tone):not(.is-scale)')];
+  if (tones.length < 2 || plain.length < 2) return { error: 'nothing marked' };
+  const all = [tones[0], tones[1], plain[0], plain[1]];
+  for (const k of all) k.style.transition = 'none';
+  const [tHeld, tFree, pHeld, pFree] = all.map((k) => +k.dataset.midi);
+  kb.noteOn(tHeld, 100); kb.noteOn(pHeld, 100);
+  const fill = (k) => getComputedStyle(k).fill;
+  const out = {
+    dark: svg.classList.contains('kb--dark'),
+    hidden: fill(tones[1]) === fill(plain[1]),
+    held: fill(tones[0]), spicy: fill(plain[0]),
+    guide: document.querySelector('.jam').dataset.guide,
+  };
+  kb.noteOff(tHeld); kb.noteOff(pHeld);
+  for (const k of all) k.style.transition = '';
+  return out;
+}"""
+
+
+def pick(page, opt: str, label: str, wait: int = 500) -> None:
+    """Click one button of a Jam segment, found by the label above it."""
+    page.evaluate("""([opt, label]) => [...document.querySelectorAll('.jam__opt')]
+      .find((o) => o.querySelector('.jam__lbl')?.textContent === opt)
+      .querySelectorAll('.seg__btn').forEach((b) => { if (b.textContent === label) b.click(); })""",
+                  [opt, label])
+    page.wait_for_timeout(wait)
+
+
 def jam_checks(browser, port: int, errs: list[str]) -> list[str]:
     """Jam with the band playing: focus in and out by every door."""
     fails: list[str] = []
@@ -178,6 +212,15 @@ def jam_checks(browser, port: int, errs: list[str]) -> list[str]:
     a = page.evaluate(AUDIT)
     bad = a.get("over", []) + a.get("junk", []) + a.get("hollow", [])
     check("...and Practice comes back laid out as it was", not a.get("error") and not bad, "; ".join(bad))
+
+    # Lights Out. Dark hides the lit keys but keeps their marks: the held-key colours
+    # read them, and a held key with none is painted spicy.
+    pick(page, "Guide", "Dark")
+    dark = page.evaluate(DARK)
+    check("Guide Dark: the chord is marked but not drawn", dark["dark"] and dark["hidden"] and dark["guide"] == "3",
+          str(dark))
+    check("...and a held chord note is not painted spicy", dark["held"] != dark["spicy"], str(dark))
+    pick(page, "Guide", "Full")
 
     press("g")
     press("v", 300)
