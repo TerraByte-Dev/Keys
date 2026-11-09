@@ -2574,6 +2574,19 @@ body.has-update #gear::after { top: 2px; right: 1px; }
 .strip__key.is-keep .strip__both { display: block; }
 .strip__key--black .strip__both { bottom: auto; top: 6px; }
 
+/* The guide turned down (jam.js data-guide, harmony.js guideLevel). Like the dock, the
+   strip keeps its classes and only stops drawing them: 1 hides the colour notes, 2 the
+   chord and every name, 3 the chord cards and the phrase as well. A played note still
+   flashes in the colour of how it fit, because that comes from what you played. */
+.jam[data-guide="1"] .strip__key.is-color,
+.jam:is([data-guide="2"], [data-guide="3"]) .strip__key:is(.is-chord, .is-color) {
+  background: color-mix(in oklab, var(--key-white) 30%, var(--panel-2)); }
+.jam[data-guide="1"] .strip__key--black.is-color,
+.jam:is([data-guide="2"], [data-guide="3"]) .strip__key--black:is(.is-chord, .is-color) {
+  background: color-mix(in oklab, var(--key-black) 70%, var(--panel-2)); color: var(--ink); }
+.jam:is([data-guide="2"], [data-guide="3"]) :is(.strip__name, .strip__role) { visibility: hidden; }
+.jam[data-guide="3"] :is(.jam__sym, .jam__role, .jam__phrase) { visibility: hidden; }
+
 .jam__phrase {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 30px;
   font-size: 13px; color: var(--ink-dim);

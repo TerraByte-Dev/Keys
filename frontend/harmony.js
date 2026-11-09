@@ -255,3 +255,25 @@ export function crossing(chord, next, from = null, { low = 57, high = 84 } = {})
   return { keep, land: moved,
     why: dist <= 2 ? 'one step from where you are, into the next chord' : 'the next chord\'s nearest note' };
 }
+
+/* ── Lights Out: how much of the guide to draw ───────────────────────────── */
+
+/**
+ * How much of Jam's guide to draw over one chord, from 0 (all of it) to 3 (the beat).
+ *
+ *   0: everything -- the chord bright, the colour dim, the way across each change.
+ *   1: the chord's own notes and nothing else.
+ *   2: the chord's name and what it does (home, away, pull), no keys lit.
+ *   3: the beat.
+ *
+ * `guide` is 'full' (always 0), 'dark' (always 3) or 'fading'. Fading goes down one
+ * level each time through a progression: `times` counts those since the lights last
+ * came back (a new key, a new progression, Start), 0 the first time. Counted by times
+ * through and not by pass, because a long phrase like the Canon is played once, and
+ * keyed on pass it would skip the second level.
+ */
+export function guideLevel(times, guide) {
+  if (guide === 'dark') return 3;
+  if (guide !== 'fading') return 0;
+  return Math.max(0, Math.min(3, Math.floor(times) || 0));
+}

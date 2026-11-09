@@ -16,13 +16,18 @@
  * on the 1 Hz status frame and is interpolated in between, so the keys change on the bar
  * line you hear, not on a timer of our own that would drift away from it.
  *
+ * The guide can be turned down (harmony.js guideLevel): Fading takes the lights away
+ * a step each time through a progression, Dark plays by ear from the start. The marks
+ * stay on the keys either way and only stop being drawn, because the keyboard says how
+ * a held note fit by reading them -- see kb--dark in keyboard.js.
+ *
  * Spelling comes from the server (/api/theory/scale): the frontend owns no mode table.
  * Nothing here is graded or saved; the counts are for this sitting only.
  */
 
 import { api, h, info, mod, slider, toast, toggle } from './ui.js';
 import { ghostArmed, onPanic } from './app.js';
-import { createProgression, crossing, palette } from './harmony.js';
+import { createProgression, crossing, guideLevel, palette } from './harmony.js';
 
 /* The keys on offer, easiest first. The hint is what a beginner actually wants to
    know about a key: how many black keys it uses. */
@@ -47,6 +52,7 @@ const STYLES = [
   { id: 'rock', label: 'Rock', bpm: 112 },
 ];
 const LENGTHS = [{ id: 1, label: '1 bar' }, { id: 2, label: '2 bars' }];
+const GUIDES = [{ id: 'full', label: 'Full' }, { id: 'fading', label: 'Fading' }, { id: 'dark', label: 'Dark' }];
 const PC = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 const pcOf = (name) => (PC[name[0]] + (name.match(/#/g) || []).length
   - (name.slice(1).match(/b/g) || []).length + 12) % 12;
@@ -61,13 +67,14 @@ const WARN = 0.5;          // bars before a change that the way across is shown 
 const AHEAD = 12;          // bars of chart the band always has in hand
 const LEAD_MS = 200;       // the band's lead-in before bar 0 (metronome LEAD_IN_MS + 80)
 const DEFAULTS = { key: 'C-major', style: 'pop', bpm: 96, bars: 1, volume: 0.7, drums: true,
-  coach: true, wander: false };
+  coach: true, wander: false, guide: 'full' };
 
 export function createJam(ctx, { onStart } = {}) {
   const saved = ctx.state?.settings?.ui?.jam || {};
   const opt = { ...DEFAULTS, ...saved };
   if (!KEYS.some((k) => k.id === opt.key)) opt.key = DEFAULTS.key;
   if (!STYLES.some((s) => s.id === opt.style)) opt.style = DEFAULTS.style;
+  if (!GUIDES.some((g) => g.id === opt.guide)) opt.guide = DEFAULTS.guide;
 
   const plans = new Map();     // key id -> loaded plan
   const loading = new Map();   // key id -> its request, so two callers share one
@@ -80,6 +87,9 @@ export function createJam(ctx, { onStart } = {}) {
   let shownBar = -1, shownCross = '';
   let raf = 0;
   let phrasesInKey = 0;
+  // Times through a progression since the lights came back (harmony.js guideLevel).
+  // -1 until the first one starts. Not phrasesInKey: that only counts with Wander on.
+  let times = -1;
   let lastNote = null;         // the last note you played (MIDI)
   let cross = null;            // the change ahead: { bar, to, keep, land, why, hit }
   let ahead = false;           // inside the two beats before that change
@@ -145,6 +155,13 @@ export function createJam(ctx, { onStart } = {}) {
     info('The progressions are the ones songs are built on (the pop four, the fifties, ii–V–I, ',
       'Pachelbel...), each played twice, then flowing into the next. ', h('strong', null, 'Wander'),
       ' moves to a neighbouring key now and then, a key that changes only one note.'),
+    info(h('strong', null, 'Guide'), ' sets how much is lit. ', h('strong', null, 'Full'),
+      ' shows everything, every time. ', h('strong', null, 'Fading'), ' turns the lights down ',
+      'each time round, so your ear does a little more each pass: the first time through a ',
+      'progression everything is lit, the second time only the chord, the third time only its ',
+      'name, and after that just the beat. A new key or a new progression brings the lights back. ',
+      h('strong', null, 'Dark'), ' is the beat alone from the start. Whatever you play still ',
+      'flashes on the strip in the colour of how it fit, and the count still runs.'),
     h('div.jam', null,
       h('div.jam__top', null,
         el.go,
@@ -153,7 +170,8 @@ export function createJam(ctx, { onStart } = {}) {
         h('label.jam__opt', null, h('span.jam__lbl', null, 'Key'), keySelect),
         h('div.jam__opt', null, h('span.jam__lbl', null, 'Style'), styleSeg),
         h('div.jam__opt', null, h('span.jam__lbl', null, 'Each chord'),
-          seg(LENGTHS, opt.bars, (id) => { opt.bars = id; save(); if (playing) rechart(); }))),
+          seg(LENGTHS, opt.bars, (id) => { opt.bars = id; save(); if (playing) rechart(); })),
+        h('div.jam__opt', null, h('span.jam__lbl', null, 'Guide'), seg(GUIDES, opt.guide, setGuide))),
 
       h('div.jam__stage', null,
         h('div.jam__card', null, h('div.jam__lbl', null, 'Now'), el.nowSym, el.nowRole),
@@ -170,6 +188,7 @@ export function createJam(ctx, { onStart } = {}) {
         toggle('Wander', opt.wander, (on) => { opt.wander = on; save(); }),
         h('button.btn', { onclick: () => newPhrase() }, 'New progression')),
       el.stats)));
+  const jamEl = root.querySelector('.jam');
 
   function keyLabel(k) {
     const name = `${pretty(k.key)} ${k.mode === 'major' ? 'major' : 'minor'}`;
@@ -255,7 +274,12 @@ export function createJam(ctx, { onStart } = {}) {
         phrasesInKey++;
         if (phrasesInKey >= 3 && Math.random() < 0.5) wander();
       }
-      const e = entry(prog.next());
+      const c = prog.next();
+      if (c.step === 0) times++;
+      const e = entry(c);
+      // Stamped now, so a bar re-laid by rechart() keeps the level it was charted with.
+      e.times = Math.max(0, times);
+      e.level = guideLevel(e.times, opt.guide);
       for (let i = 0; i < opt.bars; i++) out.push(e);
     }
     return out;
@@ -274,6 +298,7 @@ export function createJam(ctx, { onStart } = {}) {
     opt.key = pick.k.id;
     keySelect.value = opt.key;
     phrasesInKey = 0;
+    times = -1;
     prog = createProgression({ mode: modeOf(plan), scale: plan.pcs });
     const added = plan.pcs.filter((pc) => !before.has(pc));
     const names = plan.chords.flatMap((c) => c.names);
@@ -301,6 +326,7 @@ export function createJam(ctx, { onStart } = {}) {
     if (destroyed || opt.key !== id) return;
     plan = p;
     phrasesInKey = 0;
+    times = -1;
     prog = createProgression({ mode: modeOf(plan), scale: plan.pcs });
     prefetchNeighbours();
     if (playing) rechart(true);
@@ -315,6 +341,7 @@ export function createJam(ctx, { onStart } = {}) {
       if (!plan) await setKey(opt.key);
       if (!plan || destroyed) return;
       onStart?.();
+      times = -1;
       chart = compose(AHEAD + 4);
       const r = await api.post('/api/band/start', {
         chart: wire(chart), style: opt.style, bpm: opt.bpm, volume: opt.volume, drums: opt.drums,
@@ -382,8 +409,18 @@ export function createJam(ctx, { onStart } = {}) {
   function newPhrase() {
     if (!prog) return;
     prog.skipPhrase();
+    times = -1;
     if (playing) rechart(true);
     else start();
+  }
+
+  /* Full / Fading / Dark. The chart already composed is re-levelled from the times
+     through each chord was stamped with, so the change shows from the next repaint. */
+  function setGuide(id) {
+    opt.guide = id;
+    save();
+    for (const e of new Set(chart)) e.level = guideLevel(e.times, opt.guide);
+    shownBar = -1;
   }
 
   /* Keep the band's copy of the chart AHEAD bars past where you are. */
@@ -490,9 +527,16 @@ export function createJam(ctx, { onStart } = {}) {
     return k;
   });
 
+  /* How much of the guide this chord gets (harmony.js guideLevel). 0 when stopped. */
+  const levelOf = (e) => (playing && e ? e.level : 0);
+
   function paintOctave() {
     const now = playing ? chart[Math.max(0, shownBar)] : null;
-    const next = ahead ? cross.to : null;
+    const level = levelOf(now);
+    // The strip keeps its chord and colour classes at every level and style.css stops
+    // drawing them; the way across is simply not shown past level 0.
+    jamEl.dataset.guide = String(level);
+    const next = ahead && !level ? cross.to : null;
     octKeys.forEach((k, pc) => {
       const tone = now ? now.pal.chord.indexOf(pc) : -1;
       const color = !!now && now.pal.color.includes(pc);
@@ -501,7 +545,7 @@ export function createJam(ctx, { onStart } = {}) {
       k.classList.toggle('is-color', color);
       k.classList.toggle('is-next', inNext);
       k.classList.toggle('is-keep', !!next && cross.keep.includes(pc));
-      k.classList.toggle('is-land', !!cross && cross.land % 12 === pc);
+      k.classList.toggle('is-land', !!cross && !level && cross.land % 12 === pc);
       const named = !now || tone >= 0 || color || inNext;
       k.children[1].textContent = named
         ? pretty((inNext && next.byPc.get(pc)) || now?.byPc.get(pc) || NAMES[pc]) : '';
@@ -550,6 +594,18 @@ export function createJam(ctx, { onStart } = {}) {
     if (!playing || !now) return;
     const say = (lead, name, why) => el.coach.replaceChildren(
       h('span.jam__try', null, lead, h('b', null, name)), h('span.jam__why', null, why));
+    const level = levelOf(now);
+    if (level >= 2) {
+      el.coach.replaceChildren(h('span.jam__muted', null, level === 2
+        ? 'The keys are dark. The name is the chord: find its notes by ear.'
+        : 'Just the beat. Listen to the band for where the chord goes.'));
+      return;
+    }
+    if (level === 1) {
+      say('Rest on ', now.pal.chord.map((pc) => pretty(now.byPc.get(pc) || NAMES[pc])).join(' · '),
+        'Only the chord is lit this time round. The colour notes are still there: find them by ear.');
+      return;
+    }
     if (cross) {
       const name = pretty(cross.to.byPc.get(cross.land % 12) || noteName(cross.land));
       const kept = cross.keep.includes(cross.land % 12);
@@ -579,13 +635,18 @@ export function createJam(ctx, { onStart } = {}) {
       for (let m = kb.low; m <= kb.high; m++) if (pcs.includes(m % 12)) out.push(m);
       return out;
     };
+    const level = levelOf(now);
+    // Always marked, even in the dark: the held-key colours read these classes, and a
+    // key without them is painted spicy. kb--nocolor and kb--dark only stop the drawing.
     kb.setMarks('scale', every(now.pal.color));
     kb.setMarks('tone', every(now.pal.chord));
-    kb.setMarks('suggest', cross ? [cross.land] : []);
-    kb.setMarks('suggest2', ahead ? every(cross.to.pal.chord) : []);
+    kb.setMarks('suggest', cross && !level ? [cross.land] : []);
+    kb.setMarks('suggest2', ahead && !level ? every(cross.to.pal.chord) : []);
     kb.clearLabels();
-    if (cross) kb.setKeyLabel(cross.land, pretty(cross.to.byPc.get(cross.land % 12) || noteName(cross.land)));
+    if (cross && !level) kb.setKeyLabel(cross.land, pretty(cross.to.byPc.get(cross.land % 12) || noteName(cross.land)));
     kb.setMode('flow', true);
+    kb.setMode('nocolor', level >= 1);
+    kb.setMode('dark', level >= 2);
     drawn = true;
   }
 
@@ -609,6 +670,8 @@ export function createJam(ctx, { onStart } = {}) {
     ctx.kb?.clearMarks();
     ctx.kb?.clearLabels();
     ctx.kb?.setMode('flow', false);
+    ctx.kb?.setMode('nocolor', false);
+    ctx.kb?.setMode('dark', false);
   }
 
   function idle() {
