@@ -60,7 +60,6 @@ const STYLES = [
 const LENGTHS = [{ id: 1, label: '1 bar' }, { id: 2, label: '2 bars' }];
 const GUIDES = [{ id: 'full', label: 'Full' }, { id: 'fading', label: 'Fading' }, { id: 'dark', label: 'Dark' }];
 const SEATS = [{ id: 'solo', label: 'Solo' }, { id: 'bass', label: 'Bass' }, { id: 'chords', label: 'Chords' }];
-const MIDDLE_C = 60;       // the bass seat counts what you play under it
 const PC = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 const pcOf = (name) => (PC[name[0]] + (name.match(/#/g) || []).length
   - (name.slice(1).match(/b/g) || []).length + 12) % 12;
@@ -99,8 +98,10 @@ export function createJam(ctx, { onStart } = {}) {
   // Times through a progression since the lights came back (harmony.js guideLevel).
   // -1 until the first one starts. Not phrasesInKey: that only counts with Wander on.
   let times = -1;
+  // Where Fading started counting from: picking Fading mid-song starts it at full.
+  let fadeFrom = 0;
   let lastNote = null;         // the last note you played (MIDI)
-  let lastBass = null;         // ...and the last one under middle C, for the bass seat
+  let lastBass = null;         // ...and the last one in the bass seat's register
   let cross = null;            // the change ahead: { bar, to, keep, land, why, hit }
   let ahead = false;           // inside the two beats before that change
   let heard = null;            // the last note you played and how it fit
@@ -190,12 +191,14 @@ export function createJam(ctx, { onStart } = {}) {
         el.go,
         h('button.btn.btn--lg.jam__focus', { onclick: () => ctx.toggleFocus?.(undefined, root),
           title: 'Just Jam and the keys, full screen (G). Esc comes back; the band keeps playing.' }, 'Focus'),
-        h('label.jam__opt', null, h('span.jam__lbl', null, 'Key'), keySelect),
-        h('div.jam__opt', null, h('span.jam__lbl', null, 'Style'), styleSeg),
-        h('div.jam__opt', null, h('span.jam__lbl', null, 'Each chord'),
-          seg(LENGTHS, opt.bars, (id) => { opt.bars = id; save(); if (playing) rechart(); })),
-        h('div.jam__opt', null, h('span.jam__lbl', null, 'Seat'), seg(SEATS, opt.seat, setSeat)),
-        h('div.jam__opt', null, h('span.jam__lbl', null, 'Guide'), seg(GUIDES, opt.guide, setGuide))),
+        // Laid out as part of the row; in focus, an overlay that takes no room (style.css).
+        h('div.jam__opts', null,
+          h('label.jam__opt', null, h('span.jam__lbl', null, 'Key'), keySelect),
+          h('div.jam__opt', null, h('span.jam__lbl', null, 'Style'), styleSeg),
+          h('div.jam__opt', null, h('span.jam__lbl', null, 'Each chord'),
+            seg(LENGTHS, opt.bars, (id) => { opt.bars = id; save(); if (playing) rechart(); })),
+          h('div.jam__opt', null, h('span.jam__lbl', null, 'Seat'), seg(SEATS, opt.seat, setSeat)),
+          h('div.jam__opt', null, h('span.jam__lbl', null, 'Guide'), seg(GUIDES, opt.guide, setGuide)))),
 
       h('div.jam__stage', null,
         h('div.jam__card', null, h('div.jam__lbl', null, 'Now'), el.nowSym, el.nowRole),
@@ -303,7 +306,7 @@ export function createJam(ctx, { onStart } = {}) {
       const e = entry(c);
       // Stamped now, so a bar re-laid by rechart() keeps the level it was charted with.
       e.times = Math.max(0, times);
-      e.level = guideLevel(e.times, opt.guide);
+      e.level = guideLevel(e.times - fadeFrom, opt.guide);
       for (let i = 0; i < opt.bars; i++) out.push(e);
     }
     return out;
@@ -323,6 +326,7 @@ export function createJam(ctx, { onStart } = {}) {
     keySelect.value = opt.key;
     phrasesInKey = 0;
     times = -1;
+    fadeFrom = 0;
     prog = createProgression({ mode: modeOf(plan), scale: plan.pcs });
     const added = plan.pcs.filter((pc) => !before.has(pc));
     const names = plan.chords.flatMap((c) => c.names);
@@ -351,6 +355,7 @@ export function createJam(ctx, { onStart } = {}) {
     plan = p;
     phrasesInKey = 0;
     times = -1;
+    fadeFrom = 0;
     prog = createProgression({ mode: modeOf(plan), scale: plan.pcs });
     prefetchNeighbours();
     if (playing) rechart(true);
@@ -366,6 +371,7 @@ export function createJam(ctx, { onStart } = {}) {
       if (!plan || destroyed) return;
       onStart?.();
       times = -1;
+      fadeFrom = 0;
       chart = compose(AHEAD + 4);
       const r = await api.post('/api/band/start', {
         chart: wire(chart), style: opt.style, bpm: opt.bpm, volume: opt.volume, drums: opt.drums,
@@ -437,16 +443,19 @@ export function createJam(ctx, { onStart } = {}) {
     if (!prog) return;
     prog.skipPhrase();
     times = -1;
+    fadeFrom = 0;
     if (playing) rechart(true);
     else start();
   }
 
   /* Full / Fading / Dark. The chart already composed is re-levelled from the times
-     through each chord was stamped with, so the change shows from the next repaint. */
+     through each chord was stamped with, so the change shows from the next repaint.
+     Fading counts from the time through playing now, so picking it mid-song starts lit. */
   function setGuide(id) {
     opt.guide = id;
     save();
-    for (const e of new Set(chart)) e.level = guideLevel(e.times, opt.guide);
+    if (id === 'fading') fadeFrom = playing ? chart[Math.max(0, shownBar)]?.times ?? 0 : 0;
+    for (const e of new Set(chart)) e.level = guideLevel(e.times - fadeFrom, opt.guide);
     shownBar = -1;
   }
 
@@ -454,7 +463,8 @@ export function createJam(ctx, { onStart } = {}) {
   const parts = () => ({ bass: opt.seat !== 'bass', comp: opt.seat !== 'chords' });
 
   /* Solo / Bass / Chords. The band hears about it from its next unqueued bar; the keys
-     change on the next repaint, with the way across worked out again for the new hand. */
+     change on the next repaint, with the way across worked out again for the new hand.
+     The seat's count starts again, from the chord playing now. */
   function setSeat(id) {
     opt.seat = id;
     save();
@@ -462,6 +472,9 @@ export function createJam(ctx, { onStart } = {}) {
     cross = null;
     heard = null;
     holding = null;
+    tally.chords = tally.rooted = tally.one = tally.made = 0;
+    rootedFor = madeFor = countedFor = null;
+    oneBar = -1;
     shownCross = '?';
     paintHeard();
     paintStats();
@@ -507,14 +520,14 @@ export function createJam(ctx, { onStart } = {}) {
       const changed = bar !== shownBar && chart[bar] !== chart[shownBar];
       shownBar = bar;
       shownCross = key;
-      if (changed) {
-        paintChord();
-        // By entry, not by repaint: a rechart or a Guide change repaints the same chord.
-        if (countedFor !== chart[bar]) { countedFor = chart[bar]; tally.chords++; }
-        // The keys you are holding are judged against the chord now playing.
-        if (opt.seat === 'chords') { judgeHold(); paintHeard(); }
-        paintStats();
-      }
+      if (changed) paintChord();
+      // By entry, not by repaint: a rechart or a Guide change repaints the same chord.
+      // Not only on a change: a new seat clears countedFor and counts the chord it starts in.
+      const fresh = countedFor !== chart[bar];
+      if (fresh) { countedFor = chart[bar]; tally.chords++; }
+      // The keys you are holding are judged against the chord now playing.
+      if (changed && opt.seat === 'chords') { judgeHold(); paintHeard(); }
+      if (changed || fresh) paintStats();
       paintCoach();
       paintKeys();
     }
@@ -529,8 +542,9 @@ export function createJam(ctx, { onStart } = {}) {
     const to = chart[k];
     if (to && k - pos <= WARN && (!cross || cross.bar !== k)) {
       // In the seat's own hand and register: the bass crosses root to root.
+      const z = zone();
       const c = crossing(target(chart[bar]).tone, target(to).tone,
-        opt.seat === 'bass' ? lastBass : lastNote, zone());
+        opt.seat === 'bass' ? lastBass ?? z.low + 7 : lastNote, z);
       cross = { bar: k, to, ...c, hit: false };
     }
     if (cross && pos >= cross.bar + 1 / BEATS) cross = null;
@@ -559,7 +573,8 @@ export function createJam(ctx, { onStart } = {}) {
       if (cross && !cross.hit && pc === cross.land % 12) { cross.hit = true; tally.landed++; }
       heard = { n, fit, name: pretty(now.byPc.get(pc) || noteName(n)) };
       lastNote = n;
-      if (opt.seat === 'bass' && n < MIDDLE_C) judgeBass(n, now);
+      // Judged in the register the seat lights, which on a small keyboard reaches past middle C.
+      if (opt.seat === 'bass' && n <= zone().high) judgeBass(n, now);
       flash(pc, fit);
     }
     if (!f.on && opt.seat !== 'chords') return;
@@ -567,19 +582,23 @@ export function createJam(ctx, { onStart } = {}) {
     paintStats();
   }
 
-  /* Bass seat: a low note against the root. "On the one" is a root within half a beat
-     of a bar line, judged against the chord of the bar it is nearest -- a root played a
-     hair early is on the next one, not off this one. A count for this sitting, not a grade. */
+  /* Bass seat: a low note against the root. Within half a beat of a bar line it is
+     judged against the chord of the bar it is nearest -- a root played a hair early is
+     the next chord's root, on the next one, not off this one. A count for this sitting,
+     not a grade. */
   function judgeBass(n, now) {
     lastBass = n;
     const pc = n % 12;
-    const root = now.chord.pcs[0];
-    heard.bass = pc === root ? 'root' : pc === (root + 7) % 12 ? 'fifth' : 'other';
-    heard.root = pretty(now.byPc.get(root) || NAMES[root]);
-    if (pc === root && rootedFor !== now) { rootedFor = now; tally.rooted++; }
     const pos = position();
     const b = Math.round(pos);
-    if (b !== oneBar && Math.abs(pos - b) <= 0.5 / BEATS && chart[b]?.chord.pcs[0] === pc) {
+    const near = Math.abs(pos - b) <= 0.5 / BEATS && chart[b];
+    const e = near || now;
+    const root = e.chord.pcs[0];
+    heard.name = pretty(e.byPc.get(pc) || noteName(n));
+    heard.bass = pc === root ? 'root' : pc === (root + 7) % 12 ? 'fifth' : 'other';
+    heard.root = pretty(e.byPc.get(root) || NAMES[root]);
+    if (pc === root && rootedFor !== e) { rootedFor = e; tally.rooted++; }
+    if (near && pc === root && b !== oneBar) {
       oneBar = b;
       tally.one++;
     }

@@ -550,7 +550,11 @@ export function toggleFocus(on, { target = null, keepFullscreen = false } = {}) 
     document.body.classList.remove('is-focusing');
     fullWindow(false, { keepFullscreen });
   }
+  // route() leaves focus and then mounts another view before this frame runs: the
+  // scroll and the marks belong to the view that was focused, not to that one.
+  const view = current;
   requestAnimationFrame(() => {
+    if (current !== view) return;
     // Hidden panels come back from display:none. layout.js's ResizeObserver repacks
     // them, but kick it once so the restore does not hang on observer timing.
     if (!focusing) {
