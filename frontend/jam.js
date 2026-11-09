@@ -31,7 +31,7 @@
  * Nothing here is graded or saved; the counts are for this sitting only.
  */
 
-import { api, h, info, mod, slider, toast, toggle } from './ui.js';
+import { api, focusBtn, h, info, mod, slider, toast, toggle } from './ui.js';
 import { ghostArmed, onPanic } from './app.js';
 import { createProgression, crossing, guideLevel, keysIn, palette, seatTarget, seatZone } from './harmony.js';
 
@@ -189,8 +189,6 @@ export function createJam(ctx, { onStart } = {}) {
     h('div.jam', null,
       h('div.jam__top', null,
         el.go,
-        h('button.btn.btn--lg.jam__focus', { onclick: () => ctx.toggleFocus?.(undefined, root),
-          title: 'Just Jam and the keys, full screen (G). Esc comes back; the band keeps playing.' }, 'Focus'),
         // Laid out as part of the row; in focus, an overlay that takes no room (style.css).
         h('div.jam__opts', null,
           h('label.jam__opt', null, h('span.jam__lbl', null, 'Key'), keySelect),
@@ -215,6 +213,8 @@ export function createJam(ctx, { onStart } = {}) {
         toggle('Wander', opt.wander, (on) => { opt.wander = on; save(); }),
         h('button.btn', { onclick: () => newPhrase() }, 'New progression')),
       el.stats)));
+  root.querySelector('.mod__head').append(focusBtn(() => ctx.toggleFocus?.(undefined, root),
+    'Just Jam and the keys, full screen (G). Esc comes back; the band keeps playing.'));
   const jamEl = root.querySelector('.jam');
 
   function keyLabel(k) {
