@@ -107,6 +107,15 @@ SPY = """() => {
   };
 }"""
 
+BAR = """() => {
+  const b = document.querySelector('.jam__opts'), r = b.getBoundingClientRect();
+  const kids = [...b.children].filter(k => k.offsetParent);
+  const right = Math.max(...kids.map(k => k.getBoundingClientRect().right));
+  return { h: Math.round(r.height), top: Math.round(r.top), opacity: +getComputedStyle(b).opacity,
+    rows: (c => Math.max(...c) - Math.min(...c) <= 6 ? 1 : 2)(kids.map(k => k.getBoundingClientRect().top + k.offsetHeight / 2)),
+    right: Math.round(right), exit: Math.round(document.querySelector('#focus-exit').getBoundingClientRect().left) };
+}"""
+
 FOCUS = """() => {
   const vis = (s) => { const e = document.querySelector(s); return !!e && getComputedStyle(e).display !== 'none'; };
   const st = document.getElementById('stage').getBoundingClientRect();
@@ -215,7 +224,7 @@ def jam_checks(browser, port: int, errs: list[str]) -> list[str]:
     page.wait_for_timeout(1600)
     check("the band starts", page.evaluate(BAND).get("running") is True)
 
-    page.click(".jam__focus")
+    page.click(".mod:has(.jam) .mod__focus")
     page.wait_for_timeout(400)
     f = page.evaluate(FOCUS)
     check("Focus puts Jam alone on the stage", f["on"] and f["jam"] and not f["chrome"],
@@ -225,6 +234,12 @@ def jam_checks(browser, port: int, errs: list[str]) -> list[str]:
     check("...big enough to read from the bench", f["strip"] >= 150 and f["sym"] >= 72,
           f"strip {f['strip']}px, chord {f['sym']}px")
     check("...the keys stay, and EXIT is on top", f["kb"] > 0 and f["exit"], f"keyboard {f['kb']}px")
+    page.mouse.move(700, 400)
+    page.mouse.move(720, 420)
+    page.wait_for_timeout(700)
+    bar = page.evaluate(BAR)
+    check("...the options are one thin line across the top, clear of EXIT", bar["h"] <= 48 and bar["top"] == 0
+          and bar["rows"] == 1 and bar["opacity"] > 0.9 and bar["right"] <= bar["exit"], str(bar))
 
     press("Escape", 1300)
     f = page.evaluate(FOCUS)
@@ -240,7 +255,7 @@ def jam_checks(browser, port: int, errs: list[str]) -> list[str]:
     for w, h in FOCUS_SIZES:
         page.set_viewport_size({"width": w, "height": h})
         page.wait_for_timeout(300)
-        page.click(".jam__focus")
+        page.click(".mod:has(.jam) .mod__focus")
         page.wait_for_timeout(400)
         spill = page.evaluate(SPILL)
         check(f"Focus at {w}x{h}: nothing in the stage spills onto the rest", not spill, "; ".join(spill))
@@ -293,7 +308,7 @@ def jam_checks(browser, port: int, errs: list[str]) -> list[str]:
     page.evaluate("document.querySelector('#ex-host .build .btn')?.click()")
     page.wait_for_timeout(600)
     check("opening an exercise leaves focus", not page.evaluate(FOCUS)["on"])
-    page.click(".exrun__focus")
+    page.click(".exrun .mod__focus")
     page.wait_for_timeout(300)
     run = page.evaluate("""() => ({
       on: !!document.querySelector('[data-focus="on"].exrun'),

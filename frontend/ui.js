@@ -64,6 +64,18 @@ export function mod(title, aside, ...kids) {
   return el;
 }
 
+/* The way into focus, for a panel's header: EXIT's corners and lettering, at the size of
+ * the header's other buttons. Sits at the far right (style.css .mod__focus), so the
+ * resize arrows that appear on hover land beside it rather than pushing it about. */
+export function focusBtn(onclick, title) {
+  const svg = new DOMParser().parseFromString(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 12 12" fill="none" '
+    + 'stroke="currentColor" stroke-width="1.4" aria-hidden="true">'
+    + '<path d="M4.2 1H1v3.2M11 4.2V1H7.8M7.8 11H11V7.8M1 7.8V11h3.2"/></svg>', 'image/svg+xml').documentElement;
+  return h('button.mod__focus', { type: 'button', title, onclick: (e) => { e.stopPropagation(); onclick(); } },
+    svg, 'FOCUS');
+}
+
 /* An explanation: what a panel is for, how to use it, why it works the way it does.
  * Not a warning and not a live readout -- those stay on the panel as a plain .note,
  * because they are what you need without asking. */

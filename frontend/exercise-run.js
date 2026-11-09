@@ -12,7 +12,7 @@
  * advances.
  */
 
-import { api, field, h, mod, noteName, slider, stat, toast, toggle } from './ui.js';
+import { api, field, focusBtn, h, mod, noteName, slider, stat, toast, toggle } from './ui.js';
 import { markStep, renderStaff } from './staff.js';
 
 /**
@@ -46,14 +46,14 @@ export function createRunner(ex, ctx, onExit, initial = null) {
       h('div.btnrow', { style: { marginTop: '12px' } },
         h('button.btn.btn--lg', { onclick: start }, 'Start'),
         h('button.btn', { onclick: () => finish() }, 'Stop'),
-        h('button.btn', { onclick: exit }, 'Back to the shelf'),
-        h('button.btn.exrun__focus', { onclick: () => ctx.toggleFocus?.(undefined, el),
-          title: 'Just this and the keys, full screen (G)' }, 'Focus')))),
+        h('button.btn', { onclick: exit }, 'Back to the shelf')))),
 
     h('div.col-5.exrun__setup', null, mod('Setup',
       ex.timed_default ? 'with the metronome' : 'at your own pace', formHost)),
 
     h('div.col-7.exrun__run', null, mod('This run', null, statsHost, resultHost)));
+  el.querySelector('.mod__head').append(focusBtn(() => ctx.toggleFocus?.(undefined, el),
+    'Just this and the keys, full screen (G)'));
 
   paintStaff();
   paintStats();

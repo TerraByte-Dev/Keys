@@ -970,6 +970,20 @@ body::after {
 }
 .mod__btn:hover { color: var(--amber); border-color: var(--amber-deep); }
 
+/* The way into focus (ui.js focusBtn): EXIT's recipe (corners, spaced capitals,
+   raised border) at the height of the arrows above. Last in the header whatever order
+   it was appended in, so it holds the top-right corner and the arrows fade in beside it. */
+.mod__focus {
+  order: 99; height: 22px; padding: 0 8px; flex: none;
+  display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+  font-family: var(--font-panel); font-size: 9px; letter-spacing: .16em; line-height: 1;
+  color: var(--ink-dim); background: var(--panel-1);
+  border: 1px solid var(--hairline-hi); border-radius: 6px;
+  transition: color .15s var(--ease), border-color .15s var(--ease);
+}
+.mod__focus:hover, .mod__focus:focus-visible { color: var(--amber); border-color: var(--amber-deep); }
+.mod__head .mod__grip { order: 98; }
+
 .is-dragging .mod {
   border-color: var(--amber-deep);
   box-shadow: 0 18px 40px var(--shadow-deep), 0 0 0 1px var(--amber-deep);
@@ -2567,8 +2581,10 @@ body.has-update #gear::after { top: 2px; right: 1px; }
 .strip__key--black .strip__name { font-size: 12px; }
 .strip__role { font-size: 10.5px; font-weight: 600; opacity: .7; min-height: 12px; }
 .strip__key--black .strip__role { display: none; }
+/* Above the black keys: on a short strip (focus in a small window) its white key's
+   open stretch is narrower than the badge, and a black key would cover it. */
 .strip__both {
-  position: absolute; bottom: 44px; left: 50%; transform: translateX(-50%);
+  position: absolute; z-index: 2; bottom: 44px; left: 50%; transform: translateX(-50%);
   padding: 1px 6px; border-radius: 999px; font-size: 10px; font-weight: 700;
   background: var(--key-suggest); color: #1b1d22; display: none;
 }
@@ -2671,7 +2687,7 @@ body.is-focusing .mod__head { cursor: default; }
 body.is-focusing .focus__exit { display: flex; }
 body.is-focusing.is-stirring .focus__exit, .focus__exit:hover, .focus__exit:focus-visible { opacity: 1; }
 .focus__exit:hover { color: var(--amber); border-color: var(--amber-deep); }
-body.is-focusing .jam__focus, body.is-focusing .exrun__focus { display: none; }
+body.is-focusing .mod__focus { display: none; }
 
 /* Jam from the piano bench, about a metre away: nothing you read mid-phrase under
    32px. Height is the tight side (the dock takes a fifth of it), so sizes follow vh.
@@ -2680,19 +2696,37 @@ body.is-focusing .jam__focus, body.is-focusing .exrun__focus { display: none; }
 body.is-focusing .mod:has(> .jam) > .mod__head { display: none; }
 body.is-focusing .jam { flex: 1; min-height: 0; gap: clamp(12px, 2.4vh, 28px); }
 body.is-focusing .jam__mix { display: none; }          /* set once; leave focus to change it */
-/* Key, style and the rest fade with the mouse like the rollbar; Start/Stop never does.
-   They lie over the stage rather than in the row, so they take no height however many
-   lines they wrap to, and stop short of EXIT. Faded, they let clicks through. */
-body.is-focusing .jam__top { position: relative; }
+/* Key, style and the rest: one thin line across the top of the window that fades with
+   the mouse, the rollbar's recipe (a wash, not a box). Start/Stop stays in the stage and
+   never fades. The bar takes no room from the stage, stops short of EXIT (whose middle
+   it shares), and when it is faded it lets clicks through. Labels sit beside their
+   controls, and go first when the window is too narrow for one line. */
 body.is-focusing .jam__opts {
-  position: absolute; z-index: 5; top: 0; left: 192px; right: calc(96px - clamp(20px, 4vw, 64px));
-  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 22px; padding-bottom: 12px;
-  background: var(--panel-0); box-shadow: 0 16px 24px -12px var(--shadow-deep);
+  position: fixed; z-index: 55; top: 0; left: 0; right: 0; height: 44px;   /* under .focus__exit (60) */
+  display: flex; flex-wrap: nowrap; align-items: center; gap: 22px;
+  padding: 0 112px 0 clamp(20px, 4vw, 64px); overflow: hidden;
+  background: linear-gradient(180deg, var(--panel-0) 55%, transparent);
   opacity: 0; pointer-events: none; transition: opacity .5s var(--ease);
 }
 body.is-focusing.is-stirring .jam__opts,
-body.is-focusing .jam__top:hover .jam__opts,
+body.is-focusing .jam__opts:hover,
 body.is-focusing .jam__opts:focus-within { opacity: 1; pointer-events: auto; }
+body.is-focusing .jam__opts .jam__opt { flex-direction: row; align-items: center; gap: 7px; flex: none; }
+body.is-focusing .jam__opts .jam__lbl {
+  font-family: var(--font-panel); font-size: 9px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink-faint);
+}
+body.is-focusing .jam__opts .seg { padding: 2px; border-radius: 7px; }
+body.is-focusing .jam__opts .seg__btn { min-height: 22px; padding: 2px 9px; font-size: 11px; border-radius: 5px; }
+body.is-focusing .jam__opts .jam__select {
+  min-width: 0; max-width: 210px; height: 26px; padding-top: 0; padding-bottom: 0; font-size: 12px;
+}
+@media (max-width: 1360px) { body.is-focusing .jam__opts .jam__lbl { display: none; } }
+@media (max-width: 1100px) { body.is-focusing .jam__opts { gap: 12px; } }
+/* EXIT on the bar's centre line, and the stage starts below the bar, so a bar coming
+   up never lands on Start/Stop. */
+body.is-focusing .focus__exit { top: 8px; }
+body.is-focusing .stage:has([data-focus="on"] .jam) { padding-top: 52px; }
 
 /* One row the height of the stage, and the cards and the middle held inside it: on a
    short window the strip gives up height first (it is the only thing that can). */
