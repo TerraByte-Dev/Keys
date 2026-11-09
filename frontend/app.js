@@ -53,6 +53,10 @@ export const ctx = {
   api,
   toast,
   refresh,            // re-pull /api/state and re-render the current view
+  // Focus: one practice panel and the keys, full screen. `el` is the panel asking;
+  // without one the view's own focusTarget() is used. See toggleFocus.
+  toggleFocus: (on, el) => toggleFocus(on, { target: el }),
+  isFocusing: () => focusing,
   keySignature: () => ctx.state?.settings?.ui?.key_signature || 'C',
   // Live touch tracking. The P-71B ships with Touch Sensitivity on Fixed, which sends
   // velocity 64 for every note however hard you hit it, and the only way to know
@@ -410,6 +414,8 @@ async function route() {
   const view = VIEWS[id] || VIEWS.play;
   if (currentId === id) return;
 
+  // Before unmount: the view is about to empty the stage its marked panel lives in.
+  toggleFocus(false);
   current?.unmount?.();
   ctx.kb.setHighlight([]);
   ctx.kb.setGhost([]);
@@ -474,6 +480,9 @@ let stirTimer = 0;
 
 export function toggleImmersive(on) {
   const want = on === undefined ? !immersive : !!on;
+  // One full-window mode at a time. Fullscreen is kept for the roll to inherit: an exit
+  // that lands after `immersive` is set would read as "fullscreen ended" and close it.
+  if (want && focusing) toggleFocus(false, { keepFullscreen: true });
   if (want && !rollOpen) openRoll(true);
   // Leaving full screen ends a play-along, by every route out -- Escape, F11, the
   // window chrome. There is no smaller roll for it to fall back into.
@@ -488,15 +497,70 @@ export function toggleImmersive(on) {
   requestAnimationFrame(() => roll?.remeasure());
 
   if (immersive) {
-    closeSettings();               // the gear it was opened from is about to vanish
-    document.documentElement.requestFullscreen?.().catch(() => {});
+    fullWindow(true);
     setRollSpeed(rollPx);          // paint the speed slider now the bar is visible
-    stir();
   } else {
     openRoll(false);
-    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    fullWindow(false);
   }
   return immersive;
+}
+
+/* What the roll and focus share: real fullscreen when the browser allows it, and the
+   controls shown for a moment on the way in. Settings closes because the gear it was
+   opened from is about to vanish. */
+function fullWindow(on, { keepFullscreen = false } = {}) {
+  if (on) {
+    closeSettings();
+    document.documentElement.requestFullscreen?.().catch(() => {});
+    stir();
+  } else if (!keepFullscreen && document.fullscreenElement) {
+    document.exitFullscreen?.().catch(() => {});
+  }
+}
+
+/* Focus: one practice panel and the keys, nothing else. The panel is not moved -- it
+   and its ancestors are marked and CSS hides the rest, so layout.js's observers have
+   nothing to react to and leaving is removing a class. Leaving does not stop the band:
+   unlike the roll, Jam has a smaller view to fall back into. */
+let focusing = false;
+let focusScroll = 0;
+let focusLeftAt = -1e9;
+
+export function toggleFocus(on, { target = null, keepFullscreen = false } = {}) {
+  const want = on === undefined ? !focusing : !!on;
+  if (want === focusing) return focusing;
+  if (want) {
+    if (immersive) return false;
+    const el = target || current?.focusTarget?.();
+    if (!el || !stage.contains(el)) return false;
+    focusScroll = stage.scrollTop;
+    el.dataset.focus = 'on';
+    for (let n = el.parentElement; n && n !== stage; n = n.parentElement) n.dataset.focus = 'path';
+    focusing = true;
+    document.body.classList.add('is-focusing');
+    stage.scrollTop = 0;
+    // A focused "Focus" button and the next Space would toggle straight back out.
+    document.activeElement?.blur?.();
+    fullWindow(true);
+  } else {
+    for (const n of stage.querySelectorAll('[data-focus]')) delete n.dataset.focus;
+    focusing = false;
+    focusLeftAt = performance.now();
+    document.body.classList.remove('is-focusing');
+    fullWindow(false, { keepFullscreen });
+  }
+  requestAnimationFrame(() => {
+    // Hidden panels come back from display:none. layout.js's ResizeObserver repacks
+    // them, but kick it once so the restore does not hang on observer timing.
+    if (!focusing) {
+      for (const g of stage.querySelectorAll('.grid')) g.repack?.();
+      stage.scrollTop = focusScroll;
+    }
+    // The dock just changed size: put the marks back now, not on the next status frame.
+    current?.refocus?.();
+  });
+  return focusing;
 }
 
 /* Show the way out for a moment whenever the mouse moves, then let it fade. */
@@ -505,12 +569,14 @@ function stir() {
   clearTimeout(stirTimer);
   stirTimer = setTimeout(() => document.body.classList.remove('is-stirring'), 2400);
 }
-document.addEventListener('mousemove', () => { if (immersive) stir(); });
+document.addEventListener('mousemove', () => { if (immersive || focusing) stir(); });
 
 // Leaving fullscreen by any route -- F11, the window button, Esc handled by the
 // browser -- has to bring the layout back with it, or the app is left pretending.
 document.addEventListener('fullscreenchange', () => {
-  if (!document.fullscreenElement && immersive) toggleImmersive(false);
+  if (document.fullscreenElement) return;
+  if (immersive) toggleImmersive(false);
+  else if (focusing) toggleFocus(false);
 });
 
 /* Build the roll and give it the panel. Internal: nothing opens the roll without
@@ -848,6 +914,7 @@ $('#oct-up')?.addEventListener('click', () => shiftOctave(1));
 $('#oct-value')?.addEventListener('click', () => { if (inst.octave) shiftOctave(-inst.octave); });
 $('#roll-toggle')?.addEventListener('click', () => toggleRoll());
 $('#roll-exit')?.addEventListener('click', () => toggleImmersive(false));
+$('#focus-exit')?.addEventListener('click', () => toggleFocus(false));
 
 let speedTimer = 0;
 $('#vol')?.addEventListener('input', (e) => setVolume(e.target.value));
@@ -970,9 +1037,9 @@ export const ACTIONS = [
   })),
   {
     id: 'panic', label: 'Stop everything', group: 'Do', key: 'Escape', always: true,
-    // The one exception to "panic always fires": in immersive there is no visible
-    // control to leave by, and Esc is what everyone will press. Panic keeps its
-    // meaning everywhere the button is on screen.
+    // The one exception to "panic always fires": in immersive and focus there is no
+    // panic button on screen, and Esc is what everyone will press to leave. Panic keeps
+    // its meaning everywhere the button is on screen.
     run: () => {
       // Peel one layer at a time. Escape with the drawer open means "close the
       // drawer", not "throw me out of the piece I am halfway through".
@@ -980,6 +1047,12 @@ export const ACTIONS = [
       // An open (i) closes itself on this same Esc; reading one is not an emergency.
       if (document.querySelector('.tip__pop:popover-open')) return;
       if (immersive) { toggleImmersive(false); return; }
+      // Focus first: the band keeps playing, and the second Esc is panic. In real
+      // fullscreen the browser takes Esc itself and fullscreenchange has already left
+      // focus by the time this keydown arrives -- the same press, not a second one, so
+      // it must not stop the band.
+      if (focusing) { toggleFocus(false); return; }
+      if (performance.now() - focusLeftAt < 250) return;
       panic();
     },
   },
@@ -997,6 +1070,12 @@ export const ACTIONS = [
     // and it has always meant this. V and F are two names for one door now.
     id: 'immersive', label: 'The roll (same as V)', group: 'Do', key: 'f',
     run: () => toggleImmersive(),
+  },
+  {
+    // F and V already mean the roll, so focus has its own key. Off Practice there is
+    // nothing to focus and it does nothing.
+    id: 'focus', label: 'Focus — just this practice mode and the keys', group: 'Do', key: 'g',
+    run: () => toggleFocus(),
   },
   {
     id: 'songs', label: 'Your songs — import and pick', group: 'Do', key: 's',

@@ -79,6 +79,14 @@
 <!-- ── the view ──────────────────────────────────────────────────────────── -->
 <main class="stage" id="stage" tabindex="-1"></main>
 
+<!-- The way out of focus. Fixed and opaque, never gone: see the note on .roll__exit. -->
+<button class="focus__exit" id="focus-exit" title="Back to the app (Esc)">
+  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+    <path d="M4.2 1H1v3.2M11 4.2V1H7.8M7.8 11H11V7.8M1 7.8V11h3.2"/>
+  </svg>
+  EXIT
+</button>
+
 <!-- ── the roll. Full screen or not at all — there is no half. ───────────── -->
 <section class="roll" id="roll" aria-hidden="true">
   <button class="roll__exit" id="roll-exit" title="Back to the app (Esc)">

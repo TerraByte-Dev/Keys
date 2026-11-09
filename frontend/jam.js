@@ -148,6 +148,8 @@ export function createJam(ctx, { onStart } = {}) {
     h('div.jam', null,
       h('div.jam__top', null,
         el.go,
+        h('button.btn.btn--lg.jam__focus', { onclick: () => ctx.toggleFocus?.(undefined, root),
+          title: 'Just Jam and the keys, full screen (G). Esc comes back; the band keeps playing.' }, 'Focus'),
         h('label.jam__opt', null, h('span.jam__lbl', null, 'Key'), keySelect),
         h('div.jam__opt', null, h('span.jam__lbl', null, 'Style'), styleSeg),
         h('div.jam__opt', null, h('span.jam__lbl', null, 'Each chord'),
@@ -672,6 +674,8 @@ export function createJam(ctx, { onStart } = {}) {
     },
     /* Stop and hand the keyboard back -- an exercise is about to draw on it. */
     stop() { stop(); },
+    /* The dock changed size (focus): put the marks straight back. */
+    repaint() { if (playing) paintKeys(); },
     get playing() { return playing; },
     destroy() {
       if (destroyed) return;

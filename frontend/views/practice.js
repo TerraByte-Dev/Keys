@@ -72,6 +72,12 @@ export default {
     jam?.frame(f);
   },
 
+  // What focus (G, or a panel's Focus button) puts full screen: the open run, else Jam.
+  focusTarget() { return current?.el || jam?.el || null; },
+
+  // Focus came or went and the dock changed size with it.
+  refocus() { jam?.repaint(); },
+
   status(s, ctx) {
     paintHud(s.practice || {});
     paintTiming(s.timing);
@@ -196,6 +202,7 @@ function card(ex, ctx) {
 /* ── switching between the shelf and a run ────────────────────────────────── */
 // Named openRun, not open: a bare `open` at module scope shadows window.open.
 function openRun(ex, ctx, initial = null) {
+  ctx.toggleFocus?.(false);
   jam?.stop();
   current?.destroy?.();
   current = createRunner(ex, ctx, () => back(ctx), initial);
@@ -203,6 +210,9 @@ function openRun(ex, ctx, initial = null) {
 }
 
 function back(ctx) {
+  // A focused run is about to leave the page, and a focused page with nothing marked
+  // on it is a blank screen.
+  if (current?.el?.dataset.focus) ctx.toggleFocus?.(false);
   current?.destroy?.();
   current = null;
   paintShelf(ctx);
