@@ -16,6 +16,10 @@ rather than stopping the band.
 the sequencer tick now. It goes out on the status heartbeat and the page interpolates
 between frames, which is plenty for lighting keys: nobody sees 10 ms.
 
+**A seat for you.** Bass and comp can each be switched off, like the drums, so you can
+sit in as the band's bass player or its keyboard player. Like every other change, a
+part switched on or off lands on the first bar that is not queued yet.
+
 **Its own channels.** Three of 1-8, picked fresh at start from the ones no zone uses
 (0-9 zones, 10-14 loop station, 15 metronome). Band notes go from the sequencer straight
 to the synth, so they never reach the held-key list, the keyboard lamps or your stats.
@@ -119,6 +123,8 @@ class Band:
         self.bpm = 96.0
         self.volume = 0.7
         self.drums_on = True
+        self.bass_on = True
+        self.comp_on = True
         self._channels: dict[str, int] = {}
 
         # bar index -> {"root": pc, "pcs": [pc...], "bass": pc}
@@ -154,7 +160,8 @@ class Band:
 
     # ---------------------------------------------------------------- control
     def start(self, chart: list[dict[str, Any]], style: str = "pop", bpm: float | None = None,
-              volume: float = 0.7, drums: bool = True) -> dict[str, Any]:
+              volume: float = 0.7, drums: bool = True, bass: bool = True,
+              comp: bool = True) -> dict[str, Any]:
         seq = self.engine.sequencer
         if self.engine.fs is None or seq is None:
             raise RuntimeError("engine not started")
@@ -165,6 +172,8 @@ class Band:
             self.bpm = _clamp(float(bpm or STYLES[self.style]["bpm"]), 40, 200)
             self.volume = _clamp(float(volume), 0.0, 1.0)
             self.drums_on = bool(drums)
+            self.bass_on = bool(bass)
+            self.comp_on = bool(comp)
             self._chart = [self._clean(c) for c in chart][:256]
             self._prepare()
             if self._client is None:
@@ -195,7 +204,8 @@ class Band:
             return at
 
     def configure(self, bpm: float | None = None, volume: float | None = None,
-                  style: str | None = None, drums: bool | None = None) -> dict[str, Any]:
+                  style: str | None = None, drums: bool | None = None,
+                  bass: bool | None = None, comp: bool | None = None) -> dict[str, Any]:
         """Takes effect from the next bar that is not queued yet. A tempo change re-anchors
         the timeline there, so position() never jumps."""
         with self._lock:
@@ -214,6 +224,10 @@ class Band:
                 self.volume = _clamp(float(volume), 0.0, 1.0)
             if drums is not None:
                 self.drums_on = bool(drums)
+            if bass is not None:
+                self.bass_on = bool(bass)
+            if comp is not None:
+                self.comp_on = bool(comp)
             if self._running:
                 self._prepare()
         self._wake.set()
@@ -248,6 +262,8 @@ class Band:
             "bpm": self.bpm,
             "volume": self.volume,
             "drums": self.drums_on,
+            "bass": self.bass_on,
+            "comp": self.comp_on,
             "pos": pos,
             "bar_ms": self.bar_ms(),
             "queued_to": self._next_bar,
@@ -357,38 +373,40 @@ class Band:
             for step, key, v in hits:
                 note(ch, key, v, step, 1)
 
-        ch = self._channels["bass"]
-        root = bass_note(chord["bass"])
-        for step, steps, what in st["bass"]:
-            if what == "root":
-                key = root
-            elif what == "fifth":
-                five = (chord["root"] + 7) % 12
-                key = root + ((five - root) % 12) if (five in chord["pcs"]) else root
-            elif what == "octave":
-                key = root + 12
-            else:                                   # approach the next bar's root
-                target = bass_note(nxt["bass"])
-                if target == root:
-                    key = root + 7 if root + 7 <= BASS_RANGE[1] + 5 else root - 5
-                else:
-                    key = target - 1 if target > root else target + 2
-            note(ch, key, 92, step, steps)
+        if self.bass_on:
+            ch = self._channels["bass"]
+            root = bass_note(chord["bass"])
+            for step, steps, what in st["bass"]:
+                if what == "root":
+                    key = root
+                elif what == "fifth":
+                    five = (chord["root"] + 7) % 12
+                    key = root + ((five - root) % 12) if (five in chord["pcs"]) else root
+                elif what == "octave":
+                    key = root + 12
+                else:                                   # approach the next bar's root
+                    target = bass_note(nxt["bass"])
+                    if target == root:
+                        key = root + 7 if root + 7 <= BASS_RANGE[1] + 5 else root - 5
+                    else:
+                        key = target - 1 if target > root else target + 2
+                note(ch, key, 92, step, steps)
 
-        ch = self._channels["comp"]
-        voicing = voice_comp(chord["pcs"], chord["root"])
-        for step, steps, what in st["comp"]:
-            if what == "chord":
-                for i, key in enumerate(voicing):
-                    note(ch, key, 66 if i else 72, step, steps)
-            elif what == "power":
-                r = COMP_LOW - 12 + ((chord["root"] - COMP_LOW) % 12)   # an octave down: power chords are low
-                for key in (r, r + 7, r + 12):
-                    note(ch, key, 78, step, steps)
-            else:
-                i = int(what.split(":")[1])
-                ladder = voicing + [n + 12 for n in voicing]
-                note(ch, ladder[min(i, len(ladder) - 1)], 62, step, steps)
+        if self.comp_on:
+            ch = self._channels["comp"]
+            voicing = voice_comp(chord["pcs"], chord["root"])
+            for step, steps, what in st["comp"]:
+                if what == "chord":
+                    for i, key in enumerate(voicing):
+                        note(ch, key, 66 if i else 72, step, steps)
+                elif what == "power":
+                    r = COMP_LOW - 12 + ((chord["root"] - COMP_LOW) % 12)   # an octave down: power chords are low
+                    for key in (r, r + 7, r + 12):
+                        note(ch, key, 78, step, steps)
+                else:
+                    i = int(what.split(":")[1])
+                    ladder = voicing + [n + 12 for n in voicing]
+                    note(ch, ladder[min(i, len(ladder) - 1)], 62, step, steps)
 
         # One callback per bar keeps the scheduler fed even if a doorbell is missed.
         if self._client is not None:

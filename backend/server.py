@@ -954,7 +954,8 @@ def band_start(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
     volume = _num(body, "volume")
     return {"ok": True, **app_state.band.start(
         _chart(body), style=style if style in BAND_STYLES else "pop", bpm=_num(body, "bpm"),
-        volume=0.7 if volume is None else volume, drums=bool(body.get("drums", True)))}
+        volume=0.7 if volume is None else volume, drums=bool(body.get("drums", True)),
+        bass=bool(body.get("bass", True)), comp=bool(body.get("comp", True)))}
 
 
 @api.post("/api/band/chart")
@@ -973,7 +974,9 @@ def band_config(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
     return {"ok": True, **app_state.band.configure(
         bpm=_num(body, "bpm"), volume=_num(body, "volume"),
         style=str(style) if style in BAND_STYLES else None,
-        drums=None if body.get("drums") is None else bool(body["drums"]))}
+        drums=None if body.get("drums") is None else bool(body["drums"]),
+        bass=None if body.get("bass") is None else bool(body["bass"]),
+        comp=None if body.get("comp") is None else bool(body["comp"]))}
 
 
 @api.post("/api/band/stop")

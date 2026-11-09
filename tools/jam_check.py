@@ -19,14 +19,22 @@ Lights Out (the Guide setting) is checked the same way: the level over every cho
 the composer plays falls one step per time through a progression -- the Canon's single
 pass included -- and comes back to full on a new key or a new progression.
 
+The seats (sitting in as the bass or the chords player) light the right keys on every
+keyboard size: the chords seat the chord's whole set in every octave of its window --
+never one shape to copy, which Tate turned down in 0.10.0 -- and the bass seat the root
+and its fifth, low, crossing root to root.
+
 The band is checked against a recording sequencer: it keeps off the zones' channels,
 plays the chart's chords in the right registers, never rewrites a queued bar, keeps its
-place through a tempo change, and stops by itself when nothing tops up its chart.
+place through a tempo change, and stops by itself when nothing tops up its chart. A
+part switched off for a seat plays nothing at all, leaves the others exactly as they
+were, and goes quiet from the first bar not already queued.
 """
 
 from __future__ import annotations
 
 import json
+import random
 import re
 import shutil
 import subprocess
@@ -54,7 +62,7 @@ def ok(label: str, passed: bool, detail: str = "") -> None:
 
 
 DRIVER = r"""
-import { createProgression, crossing, guideLevel, palette, PALETTE, PHRASES, chordPcs } from './harmony.js';
+import { createProgression, crossing, guideLevel, keysIn, palette, seatTarget, seatZone, PALETTE, PHRASES, chordPcs } from './harmony.js';
 
 const keys = JSON.parse(process.env.JAM_KEYS);
 const out = [];
@@ -278,6 +286,48 @@ function seeded(seed) {
      resets > 0 && resetOk === resets, `${resetOk} of ${resets}`);
 }
 
+/* 9. Sitting in, on keyboards from 88 keys down to 25 (and one that starts at middle C). */
+{
+  const boards = [[21, 108], [28, 103], [36, 96], [36, 84], [48, 72], [60, 84]];
+  let n = 0, chordBad = [], bassBad = [];
+  const rnd = seeded(13);
+  for (const k of keys) {
+    const mode = k.mode === 'major' ? 'major' : 'minor';
+    const p = createProgression({ mode, scale: k.pcs, rng: seeded(4) });
+    let c = p.next();
+    for (let i = 0; i < 100; i++) {
+      const nx = p.next();
+      const pal = palette(c.pcs, k.pcs), npal = palette(nx.pcs, k.pcs);
+      for (const [lo, hi] of boards) {
+        n++;
+        const z = seatZone('chords', lo, hi);
+        const lit = keysIn(seatTarget('chords', pal).tone, z);
+        if (z.low < lo || z.high > hi || z.high - z.low < 11) chordBad.push(`${lo}-${hi}: window ${z.low}-${z.high}`);
+        for (let m = z.low; m <= z.high; m++) {
+          if (c.pcs.includes(m % 12) !== lit.includes(m)) chordBad.push(`${k.name} ${c.roman} on ${lo}-${hi}: key ${m}`);
+        }
+        // Two octaves of window means every chord note twice: a set to choose from.
+        if (z.high - z.low >= 23 && !c.pcs.every((pc) => lit.filter((m) => m % 12 === pc).length >= 2)) {
+          chordBad.push(`${k.name} ${c.roman}: a note lit only once`);
+        }
+        const bz = seatZone('bass', lo, hi);
+        const bt = seatTarget('bass', pal);
+        if (bz.low < lo || bz.high > hi || bz.high - bz.low < 11) bassBad.push(`${lo}-${hi}: register ${bz.low}-${bz.high}`);
+        if (JSON.stringify(bt.tone) !== JSON.stringify([c.pcs[0]])
+            || JSON.stringify(bt.color) !== JSON.stringify([(c.pcs[0] + 7) % 12])) bassBad.push(`${k.name} ${c.roman}: not root and fifth`);
+        const from = rnd() < 0.2 ? null : bz.low + Math.floor(rnd() * (bz.high - bz.low + 1));
+        const x = crossing(bt.tone, seatTarget('bass', npal).tone, from, bz);
+        if (x.land % 12 !== nx.pcs[0] || x.land < bz.low || x.land > bz.high) bassBad.push(`${k.name}: lands ${x.land} for ${nx.roman}`);
+      }
+      c = nx;
+    }
+  }
+  ok('the chords seat lights every key of the chord in its window, every octave, never one shape',
+     !chordBad.length, chordBad.length ? chordBad.slice(0, 3).join('; ') : `${n} chords x keyboards, ${keys.length} keys`);
+  ok('the bass seat lights the root and its fifth, low, and crosses root to root in its register',
+     !bassBad.length, bassBad.length ? bassBad.slice(0, 3).join('; ') : `${n} changes`);
+}
+
 console.log(JSON.stringify(out));
 """
 
@@ -326,13 +376,14 @@ def band_checks() -> None:
     Am = {"root": 9, "pcs": [9, 0, 4]}
     F = {"root": 5, "pcs": [5, 9, 0]}
 
-    def fresh(style="pop", chart=None, bpm=120):
+    def fresh(style="pop", chart=None, bpm=120, **parts):
         b = band_mod.Band(eng)
         b._thread = SimpleNamespace(is_alive=lambda: True)    # we drive _fill() ourselves
+        b._rng = random.Random(3)                             # the same velocities every run
         seq.notes.clear()
         fs.log.clear()
         seq.tick = 1000
-        b.start(chart or [C, G, Am, F] * 2, style=style, bpm=bpm)
+        b.start(chart or [C, G, Am, F] * 2, style=style, bpm=bpm, **parts)
         return b
 
     b = fresh()
@@ -411,6 +462,42 @@ def band_checks() -> None:
         ok(f"{style}: four bars, every part, sane notes",
            b._next_bar >= 4 and {n[1] for n in notes} == set(b._channels.values())
            and all(0 <= n[2] <= 127 and 1 <= n[3] <= 127 for n in notes), f"{len(notes)} notes")
+    # A seat: the part you sit in for plays nothing, and the others play exactly what they
+    # would have. Velocities aside -- the muted part no longer draws from the jitter.
+    def sounding(style, **parts):
+        b = fresh(style=style, bpm=band_mod.STYLES[style]["bpm"], **parts)
+        for i in range(4):
+            seq.tick = int(b._anchor_tick + b.bar_ms() * i - 100)
+            b._fill()
+        return {part: [(n[0], n[2], n[4]) for n in seq.notes if n[1] == c] for part, c in b._channels.items()}
+
+    for muted, kept in (("bass", ("drums", "comp")), ("comp", ("drums", "bass"))):
+        bad = []
+        for style in band_mod.STYLES:
+            full, less = sounding(style), sounding(style, **{muted: False})
+            if not full[muted] or less[muted]:
+                bad.append(f"{style}: {len(less[muted])} {muted} notes")
+            bad += [f"{style}: {p} changed" for p in kept if less[p] != full[p]]
+        ok(f"{muted} off: not one note on its channel, the other parts unchanged, in every style",
+           not bad, "; ".join(bad))
+
+    # Switched off mid-play: the bars already queued play as written, then silence.
+    b = fresh()
+    b._fill()
+    seq.tick = int(b._anchor_tick + b.bar_ms() * 0.9)
+    b._fill()
+    at = b._next_bar
+    b.configure(bass=False)
+    for i in range(1, 6):
+        seq.tick = int(b._anchor_tick + b.bar_ms() * i - 100)
+        b._fill()
+    bars = sorted({int((n[0] - b._anchor_tick) // b.bar_ms()) for n in seq.notes if n[1] == b._channels["bass"]})
+    drums = {int((n[0] - b._anchor_tick) // b.bar_ms()) for n in seq.notes if n[1] == b._channels["drums"]}
+    ok("a part switched off mid-play goes quiet from the first bar not yet queued",
+       at >= 1 and bars == list(range(at)) and drums >= set(range(5)), f"queued to {at}, bass in bars {bars}")
+    ok("the band's status says which parts are playing",
+       b.status()["bass"] is False and b.status()["comp"] is True and b.status()["drums"] is True)
+
     b = fresh(style="lofi", bpm=80)
     b._fill()
     six = b.bar_ms() / 16
@@ -448,6 +535,11 @@ def source_checks() -> None:
     ok("a wander, a new key, New progression and Start each bring the lights back", not missing,
        f"no reset in {missing}" if missing else "")
     server = (ROOT / "backend" / "server.py").read_text(encoding="utf-8")
+    ok("a seat reaches the band: jam.js sends the parts, the server passes them on, as with drums",
+       "...parts()," in body("start") and "configure(parts())" in src
+       and 'bass=bool(body.get("bass", True)), comp=bool(body.get("comp", True))' in server
+       and 'bass=None if body.get("bass") is None else bool(body["bass"])' in server
+       and 'comp=None if body.get("comp") is None else bool(body["comp"])' in server)
     ok("panic stops the band", "self.band.stop()" in server)
     ok("shutdown stops the band", "self.band.shutdown()" in server)
 
