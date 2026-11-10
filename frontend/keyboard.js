@@ -127,6 +127,11 @@ const CSS = `
 @keyframes kb-suggest{0%,100%{fill:var(--key-suggest,#ffa62b)}50%{fill:color-mix(in oklab,var(--key-suggest,#ffa62b) 45%,var(--key-white,#f2f2ef))}}
 .keys-kb.kb--flow .key.is-suggest{fill:var(--key-suggest,#ffa62b);animation:kb-suggest 1.1s ease-in-out infinite}
 .keys-kb.kb--flow .key.is-suggest2{stroke:var(--key-suggest,#ffa62b);stroke-width:2.6}
+/* Jam's modes. "sig" rings the note that gives a mode its colour (or the blues its blue
+   note) -- a stroke, so it shows through any fill. "lead" is a note the band's own melody
+   is playing right now. */
+.keys-kb.kb--flow .key.is-sig{stroke:var(--key-sig,#b98cff);stroke-width:2.6}
+.keys-kb.kb--flow .key.is-lead:not(.is-held){fill:var(--key-lead,#ff8fd0)}
 .keys-kb.kb--flow .key.is-held{animation:none}
 .keys-kb.kb--flow .key.is-held.is-scale{fill:var(--key-held,#3f9dff)}
 .keys-kb.kb--flow .key.is-held:not(.is-scale){fill:var(--key-spicy,#ff5f4d)}

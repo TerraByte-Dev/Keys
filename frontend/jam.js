@@ -29,11 +29,28 @@
  *
  * Spelling comes from the server (/api/theory/scale): the frontend owns no mode table.
  * Nothing here is graded or saved; the counts are for this sitting only.
+ *
+ * What the band plays is the Play setting, and every one of them goes through the same
+ * chart, strip, guide and seat:
+ *   Songs   the progressions above.
+ *   Modal   a two-chord vamp in a mode, with the note that makes the mode ringed.
+ *   Blues   the 12-bar form, judged against the blues rather than the key, so the blue
+ *           note (ringed) counts as colour instead of "outside".
+ *   Answer  the band plays a two-bar question; you answer for two and end at home.
+ *   Echo    the band plays a one-bar lick; you play it back in the next bar. The licks
+ *           grow a note after two clean echoes and shrink one after two misses.
+ * Answer and Echo are the band's own melody, on a lead voice (band.py). Each charted
+ * entry can carry `lead` and `turns` per bar it spans: who plays that bar, the band
+ * ('call') or you ('you'). Notes you play in your bars are collected on the entry's
+ * `ask`, one object per exchange, and judged once your bars are over.
  */
 
 import { api, focusBtn, h, info, mod, slider, toast, toggle } from './ui.js';
 import { ghostArmed, onPanic } from './app.js';
-import { createProgression, crossing, guideLevel, keysIn, palette, seatTarget, seatZone } from './harmony.js';
+import {
+  ROOMS, bluesChord, bluesNote, bluesScale, createAsks, createBlues, createProgression, createVamp,
+  crossing, echoScore, guideLevel, keysIn, lick, palette, question, roomScale, roomSig, seatTarget, seatZone,
+} from './harmony.js';
 
 /* The keys on offer, easiest first. The hint is what a beginner actually wants to
    know about a key: how many black keys it uses. */
@@ -56,7 +73,15 @@ const STYLES = [
   { id: 'pop', label: 'Pop', bpm: 96 },
   { id: 'lofi', label: 'Lo-fi', bpm: 80 },
   { id: 'rock', label: 'Rock', bpm: 112 },
+  { id: 'shuffle', label: 'Shuffle', bpm: 84 },
 ];
+const MODES = [{ id: 'songs', label: 'Songs' }, { id: 'modal', label: 'Modal' }, { id: 'blues', label: 'Blues' },
+  { id: 'answer', label: 'Answer' }, { id: 'echo', label: 'Echo' }];
+// Where the band plays its own melody, there is no seat to take: you are the other soloist.
+const DUET = new Set(['answer', 'echo']);
+// A note played this much of a bar early counts toward the bar it is reaching for.
+const EARLY = 0.06;
+const FLATS = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
 const LENGTHS = [{ id: 1, label: '1 bar' }, { id: 2, label: '2 bars' }];
 const GUIDES = [{ id: 'full', label: 'Full' }, { id: 'fading', label: 'Fading' }, { id: 'dark', label: 'Dark' }];
 const SEATS = [{ id: 'solo', label: 'Solo' }, { id: 'bass', label: 'Bass' }, { id: 'chords', label: 'Chords' }];
@@ -74,7 +99,7 @@ const WARN = 0.5;          // bars before a change that the way across is shown 
 const AHEAD = 12;          // bars of chart the band always has in hand
 const LEAD_MS = 200;       // the band's lead-in before bar 0 (metronome LEAD_IN_MS + 80)
 const DEFAULTS = { key: 'C-major', style: 'pop', bpm: 96, bars: 1, volume: 0.7, drums: true,
-  coach: true, wander: false, guide: 'full', seat: 'solo' };
+  coach: true, wander: false, guide: 'full', seat: 'solo', mode: 'songs', room: 'dorian' };
 
 export function createJam(ctx, { onStart } = {}) {
   const saved = ctx.state?.settings?.ui?.jam || {};
@@ -83,13 +108,15 @@ export function createJam(ctx, { onStart } = {}) {
   if (!STYLES.some((s) => s.id === opt.style)) opt.style = DEFAULTS.style;
   if (!GUIDES.some((g) => g.id === opt.guide)) opt.guide = DEFAULTS.guide;
   if (!SEATS.some((s) => s.id === opt.seat)) opt.seat = DEFAULTS.seat;
+  if (!MODES.some((m) => m.id === opt.mode)) opt.mode = DEFAULTS.mode;
+  if (!ROOMS.some((r) => r.id === opt.room)) opt.room = DEFAULTS.room;
 
   const plans = new Map();     // key id -> loaded plan
   const loading = new Map();   // key id -> its request, so two callers share one
   let plan = null;
   let prog = null;
   let chart = [];              // bar -> entry (see entry()); an entry spans opt.bars bars
-  let playing = false, starting = false, destroyed = false;
+  let playing = false, starting = false, destroyed = false, stale = false;
   let drawn = false, yielded = false;
   let clock = null;            // { pos, at, barMs }: bar `pos` was heard at performance.now() `at`
   let shownBar = -1, shownCross = '';
@@ -110,7 +137,13 @@ export function createJam(ctx, { onStart } = {}) {
   // Counted once per chord, so holding a root or a chord is not a stream of points.
   let rootedFor = null, madeFor = null, countedFor = null, oneBar = -1;
   const tally = { chord: 0, color: 0, rub: 0, out: 0, landed: 0,
-    chords: 0, rooted: 0, one: 0, made: 0 };
+    chords: 0, rooted: 0, one: 0, made: 0, sig: 0, asked: 0, home: 0, root: 0, exact: 0 };
+  // Answer and Echo: an exchange whose bars are over and is waiting to be judged, the
+  // last verdict, and how long Echo's licks are now.
+  let pending = null, verdict = null, overCall = false;
+  let gen = 0;                 // bumped by restart(): asks from before it are not judged
+  const echo = { size: 3, streak: 0, misses: 0, from: 72 };
+  let leadShown = '';
 
   /* ── the panel ─────────────────────────────────────────────────────────── */
   const seg = (items, current, onpick) => {
@@ -137,13 +170,20 @@ export function createJam(ctx, { onStart } = {}) {
     oninput: (v) => { volValue.textContent = `${v}%`; },
     onchange: (v) => { opt.volume = v / 100; save(); if (playing) configure({ volume: opt.volume }); },
   });
-  const styleSeg = seg(STYLES, opt.style, (id) => {
+  const pickStyle = (id) => {
     opt.style = id;
     opt.bpm = STYLES.find((s) => s.id === id).bpm;
     bpm.value = opt.bpm; bpm.dispatchEvent(new Event('input'));
+    STYLES.forEach((s, i) => styleSeg.children[i].classList.toggle('is-on', s.id === id));
     save();
     if (playing) configure({ style: id, bpm: opt.bpm });
-  });
+  };
+  const styleSeg = seg(STYLES, opt.style, pickStyle);
+  const roomSelect = h('select.jam__select', { onchange: (e) => setRoom(e.target.value) },
+    ROOMS.map((r) => h('option', { value: r.id, selected: r.id === opt.room }, `${r.name} — ${r.sigName}`)));
+  // The options that only some modes use, so applyMode() can show the right ones.
+  const only = {};
+  const tag = (name, node) => { only[name] = node; node.classList.add(`jam__opt--${name}`); return node; };
 
   const el = {
     go: h('button.btn.btn--lg.btn--primary.jam__go', { onclick: () => (playing ? stop() : start()) }, 'Start the band'),
@@ -186,16 +226,30 @@ export function createJam(ctx, { onStart } = {}) {
       'either side of middle C, and any of them, in any order and any octave there, is right. In ',
       'Rock the band\'s chords are low power chords, and those are what you are replacing. A new ',
       'seat starts at the next bar the band has not already lined up.'),
+    info(h('strong', null, 'Play'), ' is what the band plays. ', h('strong', null, 'Songs'),
+      ' is the progressions above. ', h('strong', null, 'Modal'), ' is a room: two chords back and ',
+      'forth forever, all on the white keys, with a different note as home. The ', h('strong', null, 'ringed'),
+      ' key is the one note that gives the mode its colour, the ♮6 of Dorian or the ♭2 of Phrygian: ',
+      'find it and lean on it. ', h('strong', null, 'Blues'), ' is the 12-bar blues in the key you pick, ',
+      'best with the Shuffle style. Its ringed key is the blue note, and here it counts as colour, not ',
+      'as outside the key. ', h('strong', null, 'Answer'), ' is a conversation: the band plays a two-bar ',
+      'question that ends up in the air, then the next two bars are yours. End on a home note and the ',
+      'phrase sounds finished. ', h('strong', null, 'Echo'), ' is ear training: the band plays a one-bar ',
+      'lick and you play it back in the next bar, in any octave. Two clean echoes in a row and the licks ',
+      'grow a note; two misses and they shrink one. With the guide on Full, the band\'s notes light up ',
+      'as it plays them. In Answer and Echo you are the other soloist, so there is no seat to take.'),
     h('div.jam', null,
       h('div.jam__top', null,
         el.go,
         // Laid out as part of the row; in focus, an overlay that takes no room (style.css).
         h('div.jam__opts', null,
-          h('label.jam__opt', null, h('span.jam__lbl', null, 'Key'), keySelect),
+          h('div.jam__opt', null, h('span.jam__lbl', null, 'Play'), seg(MODES, opt.mode, setMode)),
+          tag('key', h('label.jam__opt', null, h('span.jam__lbl', null, 'Key'), keySelect)),
+          tag('room', h('label.jam__opt', null, h('span.jam__lbl', null, 'Room'), roomSelect)),
           h('div.jam__opt', null, h('span.jam__lbl', null, 'Style'), styleSeg),
-          h('div.jam__opt', null, h('span.jam__lbl', null, 'Each chord'),
-            seg(LENGTHS, opt.bars, (id) => { opt.bars = id; save(); if (playing) rechart(); })),
-          h('div.jam__opt', null, h('span.jam__lbl', null, 'Seat'), seg(SEATS, opt.seat, setSeat)),
+          tag('bars', h('div.jam__opt', null, h('span.jam__lbl', null, 'Each chord'),
+            seg(LENGTHS, opt.bars, (id) => { opt.bars = id; save(); if (playing) rechart(); }))),
+          tag('seat', h('div.jam__opt', null, h('span.jam__lbl', null, 'Seat'), seg(SEATS, opt.seat, setSeat))),
           h('div.jam__opt', null, h('span.jam__lbl', null, 'Guide'), seg(GUIDES, opt.guide, setGuide)))),
 
       h('div.jam__stage', null,
@@ -210,12 +264,24 @@ export function createJam(ctx, { onStart } = {}) {
         h('label.field.jam__field', null, h('span.field__label', null, h('span', null, 'Band volume'), volValue), volume),
         toggle('Drums', opt.drums, (on) => { opt.drums = on; save(); if (playing) configure({ drums: on }); }),
         toggle('Show the change', opt.coach, (on) => { opt.coach = on; save(); shownCross = '?'; }),
-        toggle('Wander', opt.wander, (on) => { opt.wander = on; save(); }),
-        h('button.btn', { onclick: () => newPhrase() }, 'New progression')),
+        tag('wander', toggle('Wander', opt.wander, (on) => { opt.wander = on; save(); })),
+        tag('fresh', h('button.btn', { onclick: () => newPhrase() }, 'New progression'))),
       el.stats)));
   root.querySelector('.mod__head').append(focusBtn(() => ctx.toggleFocus?.(undefined, root),
     'Just Jam and the keys, full screen (G). Esc comes back; the band keeps playing.'));
   const jamEl = root.querySelector('.jam');
+
+  /* Which options this mode uses. The rest are hidden, not disabled: an option that does
+     nothing here is noise. */
+  const USES = {
+    key: (m) => m !== 'modal', room: (m) => m === 'modal', bars: (m) => m === 'songs' || m === 'modal',
+    seat: (m) => !DUET.has(m), wander: (m) => m === 'songs', fresh: (m) => m === 'songs' || m === 'echo',
+  };
+  function applyMode() {
+    jamEl.dataset.mode = opt.mode;
+    for (const [name, node] of Object.entries(only)) node.style.display = USES[name](opt.mode) ? '' : 'none';
+  }
+  applyMode();
 
   function keyLabel(k) {
     const name = `${pretty(k.key)} ${k.mode === 'major' ? 'major' : 'minor'}`;
@@ -291,28 +357,127 @@ export function createJam(ctx, { onStart } = {}) {
     return { chord, plan: p, scale, symbol: sp.symbol, byPc, pal: palette(chord.pcs, scale) };
   }
 
+  /* ── the modes ─────────────────────────────────────────────────────────── */
+  const room = () => ROOMS.find((r) => r.id === opt.room) || ROOMS[0];
+  const seat = () => (DUET.has(opt.mode) ? 'solo' : opt.seat);
+  const bassOf = (e) => e.chord.bass ?? e.chord.pcs[0];
+
+  /* The chord stream for the mode. Every mode but Modal needs the key loaded first. */
+  function freshGen() {
+    if (opt.mode === 'modal') return createVamp(room());
+    if (!plan) return null;
+    const mode = modeOf(plan);
+    if (opt.mode === 'blues') return createBlues({ tonic: pcOf(plan.key), minor: mode === 'minor' });
+    if (opt.mode === 'answer') return createAsks({ mode, scale: plan.pcs });
+    return createProgression({ mode, scale: plan.pcs });
+  }
+
+  // A name for a note outside the key: the blues' flat 7ths and blue notes are flats.
+  const nameIn = (p, pc) => p.chords.flatMap((c) => c.names).find((n) => pcOf(n) === pc) || FLATS[pc];
+
+  /* Modal: every room is on the white keys, so the names are the letters. */
+  function modalEntry(c) {
+    const r = room();
+    const scale = roomScale(r);
+    const sym = (root, suffix, bass) => NAMES[root] + suffix + (bass !== root ? `/${NAMES[bass]}` : '');
+    return { chord: c, plan: null, scale, symbol: sym(c.root, c.suffix, c.bass),
+      byPc: new Map(scale.map((pc) => [pc, NAMES[pc]])), pal: palette(c.pcs, scale),
+      sig: [roomSig(r)], sigName: r.sigName, kind: 'modal', room: r,
+      chips: r.vamp.map((v) => {
+        const root = (r.tonic + v.at) % 12;
+        return sym(root, v.suffix, v.bass === undefined ? root : (r.tonic + v.bass) % 12);
+      }) };
+  }
+
+  /* Blues: judged against the chord's own scale and the blues scale (harmony.js). */
+  function bluesEntry(c, p = plan) {
+    const tonic = pcOf(p.key);
+    const minor = modeOf(p) === 'minor';
+    const scale = bluesScale(tonic, c.roman, minor);
+    const byPc = new Map(scale.map((pc) => [pc, nameIn(p, pc)]));
+    const suffix = (r) => (r.startsWith('i') ? 'm7' : '7');
+    return { chord: c, plan: p, scale, symbol: pretty(nameIn(p, c.pcs[0])) + c.suffix, byPc,
+      pal: palette(c.pcs, scale), sig: [bluesNote(tonic, minor)], sigName: 'blue', kind: 'blues', minor,
+      chips: c.phrase.seq.map((r) => pretty(nameIn(p, bluesChord(tonic, r)[0])) + suffix(r)) };
+  }
+
+  function entryFor(c) {
+    if (opt.mode === 'modal') return modalEntry(c);
+    if (opt.mode === 'blues') return bluesEntry(c);
+    const e = entry(c);
+    if (opt.mode === 'echo') {
+      const notes = lick({ pal: e.pal, size: echo.size, from: echo.from });
+      echo.from = notes[notes.length - 1].key;
+      e.ask = { lick: notes, played: [], gen, entry: e };
+      e.lead = [notes, []];
+      e.turns = ['call', 'you'];
+    } else if (opt.mode === 'answer') {
+      const a = c.ask;
+      if (!a.call) {
+        // The question needs the second chord too: it is the next one out.
+        const home = [plan.pcs[0], plan.pcs[2], plan.pcs[4]];
+        a.call = question({ pals: [e.pal, entry(prog.peek()).pal], home });
+        a.bars = [a.call.filter((n) => n.step < 16), a.call.filter((n) => n.step >= 16)
+          .map((n) => ({ ...n, step: n.step - 16 }))];
+        a.home = home;
+        a.played = [];
+        a.gen = gen;
+      }
+      a.entry = e;                // spelled from the last chord of the exchange, home
+      e.ask = a;
+      e.lead = [c.turn === 'call' ? a.bars[c.step] : []];
+      e.turns = [c.turn];
+    }
+    return e;
+  }
+
+  // Bars per chord: Echo's chord spans the lick and your echo; Blues and Answer count bars.
+  const barsFor = () => (opt.mode === 'echo' ? 2 : opt.mode === 'blues' || opt.mode === 'answer' ? 1 : opt.bars);
+  // How far ahead the band's chart is kept. Echo keeps it short, so a lick is written only
+  // a couple of exchanges before it is played and its length can follow how you are doing.
+  const ahead_ = () => (opt.mode === 'echo' ? 4 : AHEAD);
+
   /* The next `n` bars of music, continuing the progression. A wander is decided at a
      phrase boundary, so the new key starts on a phrase's first chord. */
   function compose(n) {
     const out = [];
     while (out.length < n) {
       const upcoming = prog.peek();
-      if (opt.wander && upcoming.step === 0 && upcoming.pass === 1) {
+      if (opt.mode === 'songs' && opt.wander && upcoming.step === 0 && upcoming.pass === 1) {
         phrasesInKey++;
         if (phrasesInKey >= 3 && Math.random() < 0.5) wander();
       }
       const c = prog.next();
-      if (c.step === 0) times++;
-      const e = entry(c);
+      // A vamp is two chords: Modal counts a time through every fourth time round it.
+      if (c.step === 0 && (c.cycle ?? 0) % 4 === 0) times++;
+      const e = entryFor(c);
       // Stamped now, so a bar re-laid by rechart() keeps the level it was charted with.
       e.times = Math.max(0, times);
       e.level = guideLevel(e.times - fadeFrom, opt.guide);
-      for (let i = 0; i < opt.bars; i++) out.push(e);
+      for (let i = 0, k = barsFor(); i < k; i++) out.push(e);
     }
     return out;
   }
 
-  const wire = (bars) => bars.map((e) => ({ root: e.chord.pcs[0], pcs: e.chord.pcs, bass: e.chord.pcs[0] }));
+  /* The same chord, charted twice in a row -- the blues' first four bars -- is no change:
+     there is nothing to cross to and nothing new to show as Next. */
+  const same = (a, b) => !!a && !!b && (a === b || a.symbol === b.symbol);
+
+  /* Which of its bars `bar` is, for an entry that spans several. */
+  const offsetIn = (bars, i) => {
+    let o = 0;
+    while (i - o - 1 >= 0 && bars[i - o - 1] === bars[i]) o++;
+    return o;
+  };
+  const turnAt = (bar) => chart[bar]?.turns?.[offsetIn(chart, bar)] ?? null;
+
+  // The shuffle's walking bass climbs to a sixth: the one in the chord's own scale (A in C,
+  // A flat over A minor's i), or its fifth again where the scale has neither.
+  const sixth = (e) => [9, 8, 7].map((s) => (bassOf(e) + s) % 12)
+    .find((pc) => e.scale.includes(pc) || e.pal.chord.includes(pc)) ?? (bassOf(e) + 7) % 12;
+  const wire = (bars) => bars.map((e, i) => ({ root: e.chord.pcs[0], pcs: e.chord.pcs, bass: bassOf(e),
+    six: sixth(e),
+    lead: (e.lead?.[offsetIn(bars, i)] || []).map((n) => [n.step, n.len, n.key, 84]) }));
 
   function wander() {
     const choices = neighbours(opt.key).filter((x) => plans.has(x.k.id));
@@ -327,7 +492,7 @@ export function createJam(ctx, { onStart } = {}) {
     phrasesInKey = 0;
     times = -1;
     fadeFrom = 0;
-    prog = createProgression({ mode: modeOf(plan), scale: plan.pcs });
+    prog = freshGen();
     const added = plan.pcs.filter((pc) => !before.has(pc));
     const names = plan.chords.flatMap((c) => c.names);
     const what = added.length
@@ -356,9 +521,10 @@ export function createJam(ctx, { onStart } = {}) {
     phrasesInKey = 0;
     times = -1;
     fadeFrom = 0;
-    prog = createProgression({ mode: modeOf(plan), scale: plan.pcs });
+    prog = freshGen();
     prefetchNeighbours();
     if (playing) rechart(true);
+    else if (starting) stale = true;
     else idle();
   }
 
@@ -366,13 +532,19 @@ export function createJam(ctx, { onStart } = {}) {
   async function start() {
     if (starting || playing || destroyed) return;
     starting = true;
+    stale = false;
     try {
       if (!plan) await setKey(opt.key);
       if (!plan || destroyed) return;
       onStart?.();
       times = -1;
       fadeFrom = 0;
-      chart = compose(AHEAD + 4);
+      // A conversation starts with the band's turn, not halfway through the last one.
+      if (DUET.has(opt.mode) || !prog) prog = freshGen();
+      pending = verdict = null;
+      overCall = false;
+      Object.assign(echo, { size: 3, streak: 0, misses: 0, from: 72 });
+      chart = compose(ahead_() + 4);
       const r = await api.post('/api/band/start', {
         chart: wire(chart), style: opt.style, bpm: opt.bpm, volume: opt.volume, drums: opt.drums,
         ...parts(),
@@ -392,6 +564,7 @@ export function createJam(ctx, { onStart } = {}) {
       el.go.classList.remove('btn--primary');
       ctx.kb.setMode('flow', true);
       if (!raf) raf = requestAnimationFrame(tick);
+      if (stale) { stale = false; rechart(true); }
     } catch (err) {
       toast('the band could not start: ' + err.message, 'bad');
     } finally {
@@ -418,10 +591,16 @@ export function createJam(ctx, { onStart } = {}) {
      re-laid at a new length. */
   async function rechart(fresh = false) {
     if (!playing) return;
+    // A top-up in flight was written from the old stream: let it land first, so this one
+    // overwrites it rather than the other way round.
+    recharting = true;
+    if (inflight) await inflight;
+    recharting = false;
+    if (!playing) return;
     const bar = Math.max(0, Math.floor(position()) + 1);
     let bars;
     if (fresh) {
-      bars = compose(AHEAD);
+      bars = compose(ahead_());
     } else {
       const seen = [];
       for (const e of chart.slice(bar)) if (seen[seen.length - 1] !== e) seen.push(e);
@@ -459,8 +638,52 @@ export function createJam(ctx, { onStart } = {}) {
     shownBar = -1;
   }
 
+  /* Songs / Modal / Blues / Answer / Echo. A new chord stream from the next bar the band
+     has not queued, with the lights back on and the count started again. Blues brings the
+     Shuffle with it; any style can be picked after. */
+  function setMode(id) {
+    opt.mode = id;
+    save();
+    applyMode();
+    if (id === 'blues' && opt.style !== 'shuffle') pickStyle('shuffle');
+    restart();
+    if (playing) configure(parts());
+  }
+
+  function setRoom(id) {
+    opt.room = id;
+    save();
+    restart();
+  }
+
+  /* A fresh stream for the mode, the lights back on, the count from zero. */
+  function restart() {
+    gen++;
+    prog = freshGen();
+    times = -1;
+    fadeFrom = 0;
+    resetCount();
+    if (!prog) return;
+    if (playing) rechart(true);
+    else if (starting) stale = true;       // start() charted the old one: it recharts when up
+    else idle();
+  }
+
+  function resetCount() {
+    for (const k of Object.keys(tally)) tally[k] = 0;
+    rootedFor = madeFor = countedFor = null;
+    oneBar = -1;
+    heard = holding = pending = verdict = null;
+    overCall = false;
+    Object.assign(echo, { size: 3, streak: 0, misses: 0, from: 72 });
+    cross = null;
+    shownCross = '?';
+    paintHeard();
+    paintStats();
+  }
+
   /* Which of the band's parts play: the one you sit in for does not. */
-  const parts = () => ({ bass: opt.seat !== 'bass', comp: opt.seat !== 'chords' });
+  const parts = () => ({ bass: seat() !== 'bass', comp: seat() !== 'chords' });
 
   /* Solo / Bass / Chords. The band hears about it from its next unqueued bar; the keys
      change on the next repaint, with the way across worked out again for the new hand.
@@ -481,20 +704,21 @@ export function createJam(ctx, { onStart } = {}) {
   }
 
   /* The seat's notes over one chord, and the keys its hand plays (harmony.js). */
-  const target = (e) => seatTarget(opt.seat, e.pal);
-  const zone = () => seatZone(opt.seat, ctx.kb?.low ?? 21, ctx.kb?.high ?? 108);
+  // A slash chord's bass is not its root: F under G is what the bass seat plays in Lydian.
+  const target = (e) => (seat() === 'bass' && bassOf(e) !== e.chord.pcs[0]
+    ? { tone: [bassOf(e)], color: [] } : seatTarget(seat(), e.pal));
+  const zone = () => seatZone(seat(), ctx.kb?.low ?? 21, ctx.kb?.high ?? 108);
 
   /* Keep the band's copy of the chart AHEAD bars past where you are. */
-  let topping = false;
+  let inflight = null, recharting = false;
   function topUp(bar) {
-    if (topping || chart.length > bar + AHEAD) return;
-    topping = true;
+    if (inflight || recharting || chart.length > bar + ahead_()) return;
     const from = chart.length;
-    const more = compose(8);
-    api.post('/api/band/chart', { from, chart: wire(more) })
+    const more = compose(opt.mode === 'echo' ? 2 : 8);
+    inflight = api.post('/api/band/chart', { from, chart: wire(more) })
       .then((r) => { chart = chart.slice(0, r.from).concat(more); })
       .catch(() => {})
-      .finally(() => { topping = false; });
+      .finally(() => { inflight = null; });
   }
 
   const position = () => (clock ? clock.pos + (performance.now() - clock.at) / clock.barMs : -1);
@@ -515,36 +739,117 @@ export function createJam(ctx, { onStart } = {}) {
     paintBeats(Math.floor((pos - bar) * BEATS));
     topUp(bar);
     track(pos, bar);
+    if (bar !== shownBar) turned(bar);
+    if (pending && pos >= pending.at) { judgeAsk(pending.ask); pending = null; }
+    paintLead(pos, bar);
     const key = cross ? `${cross.bar}${ahead ? '<' : '>'}` : '';
     if (bar !== shownBar || key !== shownCross) {
       const changed = bar !== shownBar && chart[bar] !== chart[shownBar];
+      const turn = bar !== shownBar && turnAt(bar) !== turnAt(shownBar);
       shownBar = bar;
       shownCross = key;
       if (changed) paintChord();
+      if (turn) paintHeard();
       // By entry, not by repaint: a rechart or a Guide change repaints the same chord.
       // Not only on a change: a new seat clears countedFor and counts the chord it starts in.
       const fresh = countedFor !== chart[bar];
       if (fresh) { countedFor = chart[bar]; tally.chords++; }
       // The keys you are holding are judged against the chord now playing.
-      if (changed && opt.seat === 'chords') { judgeHold(); paintHeard(); }
+      if (changed && seat() === 'chords') { judgeHold(); paintHeard(); }
       if (changed || fresh) paintStats();
       paintCoach();
       paintKeys();
     }
   }
 
+  /* Answer and Echo: the bar line from `shownBar` into `bar`. Leaving your last bar of an
+     exchange queues it to be judged -- a moment into the next bar, so a last note played
+     a hair late still counts. */
+  function turned(bar) {
+    const was = chart[shownBar];
+    // An exchange from before a mode, key or room change is dropped, not judged as this one.
+    if (was?.ask?.gen === gen && turnAt(shownBar) === 'you' && !(turnAt(bar) === 'you' && chart[bar]?.ask === was.ask)) {
+      pending = { ask: was.ask, at: bar + EARLY };
+    }
+    if (turnAt(bar) !== turnAt(shownBar)) overCall = false;
+  }
+
+  /* The band's own notes, lit as it plays them: on the keyboard and on the strip. Only
+     with the guide all the way up -- past that, the melody is for your ear. */
+  function paintLead(pos, bar) {
+    const e = chart[bar];
+    const notes = e?.lead?.[offsetIn(chart, bar)] || [];
+    const s = (pos - bar) * 16;
+    const keys = notes.length && levelOf(e) === 0
+      ? notes.filter((n) => s >= n.step && s < n.step + n.len).map((n) => n.key) : [];
+    const k = keys.join(',');
+    if (k === leadShown) return;
+    leadShown = k;
+    ctx.kb?.setMarks('lead', keys);
+    octKeys.forEach((key, pc) => key.classList.toggle('is-lead', keys.some((m) => m % 12 === pc)));
+  }
+
+  /* An exchange is over: how did it go? Playing nothing is sitting one out, not a miss. */
+  function judgeAsk(a) {
+    const got = a.played;
+    if (a.lick) {
+      const want = a.lick.map((n) => n.key);
+      const names = (ms, e) => ms.map((m) => pretty(e.byPc.get(m % 12) || NAMES[m % 12])).join(' ');
+      const e = a.entry;
+      if (!got.length) {
+        verdict = { fit: 'color', text: `Sat that one out. It was ${names(want, e)}` };
+      } else {
+        tally.asked++;
+        const sc = echoScore(want, got);
+        if (sc.exact) {
+          tally.exact++;
+          echo.misses = 0;
+          if (++echo.streak >= 2 && echo.size < 6) { echo.size++; echo.streak = 0; toast(`Licks are ${echo.size} notes now`, 'good'); }
+          verdict = { fit: 'chord', text: `${names(want, e)}: note for note` };
+        } else {
+          echo.streak = 0;
+          if (sc.matched / sc.of < 0.6 && ++echo.misses >= 2 && echo.size > 2) { echo.size--; echo.misses = 0; }
+          verdict = { fit: sc.matched / sc.of >= 0.6 ? 'color' : 'rub',
+            text: `${sc.matched} of ${sc.of}: it was ${names(want, e)}, you played ${names(got.slice(0, 8), e)}` };
+        }
+      }
+    } else if (a.home) {
+      const e = a.entry;
+      const homeNames = a.home.map((pc) => pretty(e.byPc.get(pc) || NAMES[pc])).join(' · ');
+      if (!got.length) {
+        verdict = { fit: 'color', text: 'No answer that time. The two bars after the question are yours.' };
+      } else {
+        tally.asked++;
+        const last = got[got.length - 1] % 12;
+        const name = pretty(e.byPc.get(last) || NAMES[last]);
+        if (last === a.home[0]) {
+          tally.home++; tally.root++;
+          verdict = { fit: 'chord', text: `You ended on ${name}: home, on the root. That answer finishes it.` };
+        } else if (a.home.includes(last)) {
+          tally.home++;
+          verdict = { fit: 'chord', text: `You ended on ${name}: home. The root, ${homeNames.split(' · ')[0]}, would close it all the way.` };
+        } else {
+          verdict = { fit: 'rub', text: `You ended on ${name}: still open, it wants to go on. Home is ${homeNames}.` };
+        }
+      }
+    }
+    paintHeard();
+    paintStats();
+  }
+
   /* The change ahead. The way across is worked out once, when the two-beat warning
      starts, and kept through the first beat of the new chord -- the beat you land on. */
   function track(pos, bar) {
-    if (!opt.coach) { cross = null; ahead = false; return; }
+    // Echo's job is copying the lick, and a "head for" pointing elsewhere would fight it.
+    if (!opt.coach || opt.mode === 'echo') { cross = null; ahead = false; return; }
     let k = bar + 1;
-    while (k < chart.length && chart[k] === chart[bar]) k++;
+    while (k < chart.length && same(chart[k], chart[bar])) k++;
     const to = chart[k];
     if (to && k - pos <= WARN && (!cross || cross.bar !== k)) {
       // In the seat's own hand and register: the bass crosses root to root.
       const z = zone();
       const c = crossing(target(chart[bar]).tone, target(to).tone,
-        opt.seat === 'bass' ? lastBass ?? z.low + 7 : lastNote, z);
+        seat() === 'bass' ? lastBass ?? z.low + 7 : lastNote, z);
       cross = { bar: k, to, ...c, hit: false };
     }
     if (cross && pos >= cross.bar + 1 / BEATS) cross = null;
@@ -564,20 +869,34 @@ export function createJam(ctx, { onStart } = {}) {
     const now = chart[Math.max(0, shownBar)];
     if (!now) return;
     if (f.held) held = { notes: f.held, sus: !!f.sus };
-    if (opt.seat === 'chords' && f.held) judgeHold();
+    if (seat() === 'chords' && f.held) judgeHold();
     for (const [n] of f.on || []) {
       const pc = n % 12;
-      const fit = now.pal.chord.includes(pc) ? 'chord' : now.pal.color.includes(pc) ? 'color'
+      // The ringed note is the mode's colour, even where palette() calls it a rub:
+      // Phrygian's F over E minor is the whole point of Phrygian.
+      const sig = !!now.sig?.includes(pc) && !now.pal.chord.includes(pc);
+      const fit = now.pal.chord.includes(pc) ? 'chord' : now.pal.color.includes(pc) || sig ? 'color'
         : now.scale.includes(pc) ? 'rub' : 'out';
       tally[fit]++;
+      if (sig) tally.sig++;
       if (cross && !cross.hit && pc === cross.land % 12) { cross.hit = true; tally.landed++; }
-      heard = { n, fit, name: pretty(now.byPc.get(pc) || noteName(n)) };
+      heard = { n, fit, sig, name: pretty(now.byPc.get(pc) || noteName(n)) };
+      // Answer and Echo: whose turn is it? A note a hair early counts toward the bar it
+      // reaches for, and one a hair late still belongs to the turn that just ended.
+      if (now.ask || DUET.has(opt.mode)) {
+        const pos = position();
+        const b = Math.floor(pos + EARLY);
+        const t = turnAt(b);
+        if (pending && pos < pending.at) pending.ask.played.push(n);
+        else if (t === 'you' && chart[b].ask) { chart[b].ask.played.push(n); verdict = null; overCall = false; }
+        else if (t === 'call') overCall = true;
+      }
       lastNote = n;
       // Judged in the register the seat lights, which on a small keyboard reaches past middle C.
-      if (opt.seat === 'bass' && n <= zone().high) judgeBass(n, now);
+      if (seat() === 'bass' && n <= zone().high) judgeBass(n, now);
       flash(pc, fit);
     }
-    if (!f.on && opt.seat !== 'chords') return;
+    if (!f.on && seat() !== 'chords') return;
     paintHeard();
     paintStats();
   }
@@ -593,7 +912,7 @@ export function createJam(ctx, { onStart } = {}) {
     const b = Math.round(pos);
     const near = Math.abs(pos - b) <= 0.5 / BEATS && chart[b];
     const e = near || now;
-    const root = e.chord.pcs[0];
+    const root = bassOf(e);
     heard.name = pretty(e.byPc.get(pc) || noteName(n));
     heard.bass = pc === root ? 'root' : pc === (root + 7) % 12 ? 'fifth' : 'other';
     heard.root = pretty(e.byPc.get(root) || NAMES[root]);
@@ -627,7 +946,7 @@ export function createJam(ctx, { onStart } = {}) {
 
   /* One octave, C to B, built once; painting only flips classes and labels. */
   const WHITE = [0, 2, 4, 5, 7, 9, 11];
-  const TONE_ROLE = ['root', '3rd', '5th'];
+  const TONE_ROLE = ['root', '3rd', '5th', '7th'];
   const octKeys = Array.from({ length: 12 }, (_, pc) => {
     const black = BLACK.has(pc);
     const k = h('div.strip__key' + (black ? '.strip__key--black' : ''), null,
@@ -652,22 +971,36 @@ export function createJam(ctx, { onStart } = {}) {
     const next = ahead && !level ? cross.to : null;
     const t = now ? target(now) : null;
     const nt = next ? target(next) : null;
+    const sigs = sigOf(now, level);
+    const hint = echoHint(now, level).map((m) => m % 12);
     octKeys.forEach((k, pc) => {
       const tone = t ? t.tone.indexOf(pc) : -1;
       const color = !!t && t.color.includes(pc);
-      const inNext = !!nt && nt.tone.includes(pc);
+      const inNext = (!!nt && nt.tone.includes(pc)) || hint.includes(pc);
+      const sig = sigs.includes(pc);
       k.classList.toggle('is-chord', tone >= 0);
       k.classList.toggle('is-color', color);
       k.classList.toggle('is-next', inNext);
+      k.classList.toggle('is-sig', sig);
       k.classList.toggle('is-keep', !!next && cross.keep.includes(pc));
       k.classList.toggle('is-land', !!cross && !level && cross.land % 12 === pc);
-      const named = !now || tone >= 0 || color || inNext;
+      const named = !now || tone >= 0 || color || inNext || sig;
       k.children[1].textContent = named
-        ? pretty((inNext && next.byPc.get(pc)) || now?.byPc.get(pc) || NAMES[pc]) : '';
-      // Named by its place in the chord, so the bass seat's dim fifth says "5th" too.
-      k.children[2].textContent = tone >= 0 || color ? TONE_ROLE[now.pal.chord.indexOf(pc)] || '' : '';
+        ? pretty((nt?.tone.includes(pc) && next.byPc.get(pc)) || now?.byPc.get(pc) || NAMES[pc]) : '';
+      // Named by its place in the chord, so the bass seat's dim fifth says "5th" too. The
+      // ringed note says what it is to the mode -- unless it is in the chord right now.
+      const inChord = now ? now.pal.chord.indexOf(pc) : -1;
+      k.children[2].textContent = inChord >= 0 && (tone >= 0 || color) ? TONE_ROLE[inChord] || ''
+        : sig ? now.sigName : '';
     });
   }
+
+  /* The ringed note (Modal's mode note, Blues' blue note), shown while any colour is. */
+  const sigOf = (e, level) => (e?.sig && level <= 1 ? e.sig : []);
+
+  /* Echo, your bar, guide all the way up: the lick's keys, its first note pulsing. */
+  const echoHint = (e, level) => (playing && e?.ask?.lick && !level && turnAt(shownBar) === 'you'
+    ? e.ask.lick.map((n) => n.key) : []);
 
   /* What you just played, on the strip: a short flash in the colour of how it fit. */
   function flash(pc, fit) {
@@ -682,7 +1015,7 @@ export function createJam(ctx, { onStart } = {}) {
     const now = chart[shownBar];
     if (!now) return;
     let k = shownBar + 1;
-    while (chart[k] === now) k++;
+    while (same(chart[k], now)) k++;
     const nxt = chart[k];
     el.nowSym.textContent = now.symbol;
     el.nowRole.replaceChildren(role(now.chord));
@@ -694,8 +1027,10 @@ export function createJam(ctx, { onStart } = {}) {
       ...ph.seq.map((r, i) => {
         const live = i === now.chord.step;
         const roman = live ? now.chord.roman : r;
+        // Answer marks whose bars are whose: the band's two, then yours.
+        const who = now.ask?.home ? (i < 2 ? 'band' : 'you') : roman;
         return h('span.jam__chip' + (live ? '.is-on' : ''), null,
-          h('b', null, spell(roman, now.plan).symbol), h('small', null, roman));
+          h('b', null, now.chips?.[i] ?? spell(roman, now.plan).symbol), h('small', null, who));
       }),
       h('span.jam__pblurb', null, ph.blurb));
   }
@@ -711,8 +1046,25 @@ export function createJam(ctx, { onStart } = {}) {
     const say = (lead, name, why) => el.coach.replaceChildren(
       h('span.jam__try', null, lead, h('b', null, name)), h('span.jam__why', null, why));
     const names = (pcs) => pcs.map((pc) => pretty(now.byPc.get(pc) || NAMES[pc])).join(' · ');
-    const bass = opt.seat === 'bass';
+    const bass = seat() === 'bass';
     const level = levelOf(now);
+    const turn = turnAt(Math.max(0, shownBar));
+    if (turn === 'call') {
+      el.coach.replaceChildren(h('span.jam__try', null, 'Listen'), h('span.jam__why', null, now.ask?.lick
+        ? `The band plays a lick${level ? '' : ', its keys lighting as it goes'}. Copy it in the next bar, any octave.`
+        : 'The band asks a question that ends up in the air. The next two bars are yours.'));
+      return;
+    }
+    if (turn === 'you' && now.ask?.lick) {
+      if (level) say('Your turn: ', 'play it back', 'By ear, in any octave.');
+      else say('Your turn: ', names(now.ask.lick.map((n) => n.key % 12)), 'The outlined keys were the lick, and the pulsing one is where it started.');
+      return;
+    }
+    if (turn === 'you' && !(cross && !level)) {
+      if (level >= 2) say('Your turn: ', 'answer it', 'End somewhere that sounds finished.');
+      else say('Your turn: end on ', names(now.ask.home), 'Answer the question, then finish on a home note. The root closes it all the way.');
+      return;
+    }
     if (level >= 2) {
       el.coach.replaceChildren(h('span.jam__muted', null, level === 3
         ? 'Just the beat. Listen to the band for where the chord goes.'
@@ -731,12 +1083,20 @@ export function createJam(ctx, { onStart } = {}) {
       return;
     }
     if (bass) {
-      say('Root: ', names([now.chord.pcs[0]]), level
+      say('Root: ', names([bassOf(now)]), level
         ? 'the chord\'s floor. Play it low, with your left hand.'
         : 'the chord\'s floor. Play it low, with your left hand; the dim key is its fifth.');
-    } else if (opt.seat === 'chords') {
+    } else if (seat() === 'chords') {
       say('Chord: ', names(now.pal.chord),
         'Any of these, in any order, in any octave of the lit keys. All of them together is the chord.');
+    } else if (now.sig) {
+      const sig = names(now.sig);
+      // By the chord's own kind, not the setting: after a switch, a bar or two of the old
+      // mode is still on its way.
+      say('Rest on ', names(now.pal.chord), now.kind === 'modal'
+        ? `Ringed: ${sig}, ${now.room.name.split(' ')[1]}'s ${now.sigName}, ${now.room.sigWhy}`
+        : `Ringed: ${sig}, the blue note. ${now.minor ? 'Slip through it, 4th to 5th.'
+          : `Slide off it onto ${names([(now.sig[0] + 1) % 12])}.`}`);
     } else if (level === 1) {
       say('Rest on ', names(now.pal.chord),
         'Only the chord is lit this time round. The colour notes are still there: find them by ear.');
@@ -747,7 +1107,7 @@ export function createJam(ctx, { onStart } = {}) {
 
   function paintHeard() {
     const line = (fit, text) => el.heard.replaceChildren(h('span.jam__fit.jam__fit--' + fit, null, text));
-    if (opt.seat === 'chords') {
+    if (seat() === 'chords') {
       if (!holding) { el.heard.replaceChildren(); return; }
       const e = holding.entry;
       const names = (pcs) => pcs.map((pc) => pretty(e.byPc.get(pc) || NAMES[pc])).join(' ');
@@ -760,6 +1120,12 @@ export function createJam(ctx, { onStart } = {}) {
         : `None of ${e.symbol} yet: ${names(e.pal.chord)}`);
       return;
     }
+    // Answer and Echo: outside your bars, how the last exchange went -- or, if you are
+    // playing over the band's turn, a nudge to let it finish.
+    if (DUET.has(opt.mode) && playing && turnAt(Math.max(0, shownBar)) !== 'you') {
+      if (overCall) { line('rub', opt.mode === 'echo' ? 'Listen first: copy it in the next bar.' : 'Let the question finish, then answer.'); return; }
+      if (verdict) { line(verdict.fit, verdict.text); return; }
+    }
     if (!heard) { el.heard.replaceChildren(); return; }
     if (heard.bass) {
       const dark = levelOf(chart[Math.max(0, shownBar)]) >= 2;
@@ -770,6 +1136,12 @@ export function createJam(ctx, { onStart } = {}) {
     }
     const words = { chord: 'in the chord', color: 'adds colour', rub: 'rubs against this chord: step off it',
       out: 'outside the key — spicy' };
+    const now = chart[Math.max(0, shownBar)];
+    if (heard.sig && now?.sigName) {
+      line('color', now.kind === 'blues' ? `You played ${heard.name}: the blue note`
+        : `You played ${heard.name}: the ${now.sigName}, the note that makes ${now.room.name.split(' ')[1]}`);
+      return;
+    }
     line(heard.fit, `You played ${heard.name}: ${words[heard.fit]}`);
   }
 
@@ -788,19 +1160,26 @@ export function createJam(ctx, { onStart } = {}) {
     let tone = every(now.pal.chord);
     let scale = every(now.pal.color);
     let quiet = [];
-    if (opt.seat !== 'solo') {
+    if (seat() !== 'solo') {
       const t = target(now);
       const dim = new Set(keysIn(t.color, z));             // the bass seat's fifth
       const lit = new Set([...keysIn(t.tone, z), ...dim]);
       tone = tone.filter((m) => !dim.has(m));
+      // A slash chord's bass is the seat's note even though it is not in the chord.
+      tone = tone.concat(keysIn(t.tone, z).filter((m) => !tone.includes(m)));
       scale = scale.concat([...dim]);
       quiet = tone.concat(scale).filter((m) => !lit.has(m));
     }
-    kb.setMarks('scale', scale);
     kb.setMarks('tone', tone);
     kb.setMarks('quiet', quiet);
-    kb.setMarks('suggest', cross && !level ? [cross.land] : []);
-    kb.setMarks('suggest2', ahead && !level ? keysIn(target(cross.to).tone, z) : []);
+    // The ringed note is never spicy when held, even where it rubs (Phrygian's F over E minor).
+    const sigs = every(now.sig || []).filter((m) => !tone.includes(m));
+    scale = scale.concat(sigs.filter((m) => !scale.includes(m)));
+    kb.setMarks('scale', scale);
+    kb.setMarks('sig', every(sigOf(now, level)));
+    const hint = echoHint(now, level);
+    kb.setMarks('suggest', cross && !level ? [cross.land] : hint.slice(0, 1));
+    kb.setMarks('suggest2', ahead && !level ? keysIn(target(cross.to).tone, z) : hint);
     kb.clearLabels();
     if (cross && !level) kb.setKeyLabel(cross.land, pretty(cross.to.byPc.get(cross.land % 12) || noteName(cross.land)));
     kb.setMode('flow', true);
@@ -812,13 +1191,25 @@ export function createJam(ctx, { onStart } = {}) {
   function paintStats() {
     const all = tally.chord + tally.color + tally.rub + tally.out;
     const s = (n) => (n === 1 ? '' : 's');
-    if (opt.seat === 'bass' && all) {
+    if (opt.mode === 'answer' && tally.asked) {
+      el.stats.replaceChildren(h('span', null,
+        h('b.jam__ok', null, String(tally.home)), ` of ${tally.asked} answer${s(tally.asked)} ended home · `,
+        h('b', null, String(tally.root)), ' on the root'));
+      return;
+    }
+    if (opt.mode === 'echo' && tally.asked) {
+      el.stats.replaceChildren(h('span', null,
+        h('b.jam__ok', null, String(tally.exact)), ` of ${tally.asked} lick${s(tally.asked)} note for note · `,
+        `licks are ${echo.size} notes now`));
+      return;
+    }
+    if (seat() === 'bass' && all) {
       el.stats.replaceChildren(h('span', null,
         h('b.jam__ok', null, String(tally.one)), ` root${s(tally.one)} on the one · `,
         h('b', null, String(tally.rooted)), ` of ${tally.chords} chords found their root`));
       return;
     }
-    if (opt.seat === 'chords' && (all || tally.made)) {
+    if (seat() === 'chords' && (all || tally.made)) {
       el.stats.replaceChildren(h('span', null,
         h('b.jam__ok', null, String(tally.made)), ` of ${tally.chords} chords made, every note down at once`));
       return;
@@ -829,6 +1220,8 @@ export function createJam(ctx, { onStart } = {}) {
         h('b', null, String(tally.color)), ' colour · ',
         h('b.jam__rub', null, String(tally.rub)), ` rub${s(tally.rub)} · `,
         h('b.jam__spicy', null, String(tally.out)), ' spicy',
+        opt.mode === 'modal' || opt.mode === 'blues'
+          ? ` · ${tally.sig} ${opt.mode === 'blues' ? 'blue note' + s(tally.sig) : `on the ${room().sigName}`}` : '',
         opt.coach ? ` · ${tally.landed} change${s(tally.landed)} landed` : '')
       : h('span', null, 'Counted for this sitting only, never saved.'));
   }
@@ -847,12 +1240,21 @@ export function createJam(ctx, { onStart } = {}) {
   function idle() {
     el.go.textContent = 'Start the band';
     el.go.classList.add('btn--primary');
-    el.nowSym.textContent = plan ? pretty(plan.key) : '';
-    el.nowRole.replaceChildren(h('span.jam__muted', null, plan ? plan.title : ''));
+    const modal = opt.mode === 'modal';
+    el.nowSym.textContent = modal ? NAMES[room().tonic] : plan ? pretty(plan.key) : '';
+    el.nowRole.replaceChildren(h('span.jam__muted', null, modal ? room().name
+      : plan ? `${plan.title}${opt.mode === 'blues' ? ' blues' : ''}` : ''));
+    leadShown = '';
+    for (const k of octKeys) k.classList.remove('is-lead');
     el.nextSym.textContent = '';
     el.nextRole.replaceChildren();
-    el.coach.replaceChildren(h('span.jam__muted', null,
-      'Start the band, then play any lit key, in any octave.'));
+    el.coach.replaceChildren(h('span.jam__muted', null, {
+      songs: 'Start the band, then play any lit key, in any octave.',
+      modal: `${room().mood} Start the band and find the ringed key.`,
+      blues: 'Start the band: twelve bars, round and round. Shuffle suits it.',
+      answer: 'Start the band. It asks a two-bar question; you answer it.',
+      echo: 'Start the band. It plays a short lick; you play it back.',
+    }[opt.mode]));
     el.heard.replaceChildren();
     el.phrase.replaceChildren();
     cross = null;
@@ -880,7 +1282,7 @@ export function createJam(ctx, { onStart } = {}) {
   loadPlan(opt.key).then((p) => {
     if (destroyed || plan) return;
     plan = p;
-    prog = createProgression({ mode: modeOf(plan), scale: plan.pcs });
+    prog = freshGen();
     prefetchNeighbours();
     if (!playing) idle();
   }).catch(() => {});

@@ -71,6 +71,10 @@
      the chord, or rubbing against it. */
   --key-tone: var(--cyan);
   --key-suggest: var(--amber);
+  /* Jam's modes: the ring on a mode's colour note (or the blue note), and the band's
+     own melody as it plays. Neither may look like anything above. */
+  --key-sig: #b98cff;
+  --key-lead: #ff8fd0;
   --key-good: var(--green);
   --key-spicy: var(--red);
   --key-ghost: #46525a;
@@ -2570,6 +2574,11 @@ body.has-update #gear::after { top: 2px; right: 1px; }
 .strip__key.is-chord { background: color-mix(in oklab, var(--key-tone) 80%, var(--key-white)); }
 .strip__key--black.is-chord { background: var(--key-tone); color: #0d0f12; }
 .strip__key.is-next { outline: 3px solid var(--key-suggest); outline-offset: -3px; }
+/* Jam's modes: the mode's colour note (or the blue note) ringed, and the band's own
+   melody lighting the keys it plays. */
+.strip__key.is-sig { box-shadow: inset 0 0 0 3px var(--key-sig, #b98cff); }
+.strip__key.is-sig .strip__role { opacity: 1; color: color-mix(in oklab, var(--key-sig, #b98cff) 70%, #1b1d22); }
+.strip__key.is-lead { background: var(--key-lead, #ff8fd0); color: #1b1d22; }
 @keyframes strip-land { 0%, 100% { background: var(--key-suggest); } 50% { background: color-mix(in oklab, var(--key-suggest) 45%, var(--key-white)); } }
 .strip__key.is-land { animation: strip-land 1.1s ease-in-out infinite; color: #1b1d22; }
 @keyframes strip-hit { from { box-shadow: inset 0 0 0 40px var(--hit); } to { box-shadow: inset 0 0 0 40px transparent; } }
@@ -2721,8 +2730,20 @@ body.is-focusing .jam__opts .seg__btn { min-height: 22px; padding: 2px 9px; font
 body.is-focusing .jam__opts .jam__select {
   min-width: 0; max-width: 210px; height: 26px; padding-top: 0; padding-bottom: 0; font-size: 12px;
 }
-@media (max-width: 1360px) { body.is-focusing .jam__opts .jam__lbl { display: none; } }
-@media (max-width: 1100px) { body.is-focusing .jam__opts { gap: 12px; } }
+@media (max-width: 1600px) { body.is-focusing .jam__opts .jam__lbl { display: none; } }
+@media (max-width: 1360px) {
+  body.is-focusing .jam__opts { gap: 14px; }
+  body.is-focusing .jam__opts .seg__btn { padding: 2px 7px; }
+  body.is-focusing .jam__opts .jam__select { max-width: 180px; }
+}
+/* Under 1100px the line is too short for every option: the buttons tighten, the key
+   names shorten, and Each chord goes (set it out of focus, like the mix). */
+@media (max-width: 1100px) {
+  body.is-focusing .jam__opts { gap: 10px; }
+  body.is-focusing .jam__opts .seg__btn { padding: 2px 6px; font-size: 10.5px; }
+  body.is-focusing .jam__opts .jam__select { max-width: 150px; }
+  body.is-focusing .jam__opts .jam__opt--bars { display: none !important; }
+}
 /* EXIT on the bar's centre line, and the stage starts below the bar, so a bar coming
    up never lands on Start/Stop. */
 body.is-focusing .focus__exit { top: 8px; }

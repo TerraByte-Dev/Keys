@@ -84,6 +84,19 @@ def human(n: int) -> str:
     return f"{n / 1048576:.1f} MB" if n >= 1048576 else f"{n / 1024:.0f} KB"
 
 
+def committed() -> bool:
+    """The spec bundles frontend/ and backend/ wholesale, so whatever is on disk ships --
+    0.12.0 went out carrying five untracked files from an unfinished feature. A release
+    is built from what is committed, or not at all."""
+    out = subprocess.run(["git", "status", "--porcelain", "--untracked-files=all", "--",
+                          "frontend", "backend", "packaging"],
+                         cwd=str(ROOT), capture_output=True, text=True)
+    stray = out.stdout.strip().splitlines()
+    step("nothing uncommitted would ship", out.returncode == 0 and not stray,
+         "; ".join(stray[:6]) + (f" (+{len(stray) - 6} more)" if len(stray) > 6 else ""))
+    return out.returncode == 0 and not stray
+
+
 def build() -> bool:
     print("1. building (a few minutes)")
     for path in (ROOT / "build", ROOT / "dist"):
@@ -347,7 +360,7 @@ def package() -> None:
 
 
 def main() -> int:
-    if "--verify" not in sys.argv and not build():
+    if "--verify" not in sys.argv and not (committed() and build()):
         return 1
     verify()
     if "--no-smoke" not in sys.argv:

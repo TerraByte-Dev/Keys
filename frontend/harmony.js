@@ -319,3 +319,282 @@ export function guideLevel(times, guide) {
   if (guide !== 'fading') return 0;
   return Math.max(0, Math.min(3, Math.floor(times) || 0));
 }
+
+/* ── the modal room: one vamp, one note that makes it ───────────────────── */
+
+/* Each room is two chords and a home note, all on the white keys -- the same seven notes
+   as C major every time. What changes is where home is, and that alone changes the
+   mood. `sig` is the note that makes the mode (semitones above home): the one a C major
+   ear does not expect. A vamp is the two chords back and forth, forever: nothing to
+   follow, so all your attention goes to colour. */
+export const ROOMS = [
+  { id: 'dorian', name: 'D Dorian', tonic: 2, steps: [0, 2, 3, 5, 7, 9, 10], sig: 9, sigName: '♮6',
+    mood: 'Minor, but hopeful. Oye Como Va, So What, a lot of funk.',
+    sigWhy: 'minor with a bright 6th. Lean on it.',
+    vamp: [{ at: 0, iv: [0, 3, 7, 10], suffix: 'm7', roman: 'i7', role: 'home' },
+      { at: 5, iv: [0, 4, 7, 10], suffix: '7', roman: 'IV7', role: 'away' }] },
+  { id: 'mixolydian', name: 'G Mixolydian', tonic: 7, steps: [0, 2, 4, 5, 7, 9, 10], sig: 10, sigName: '♭7',
+    mood: 'Major, but loose and bluesy. Classic rock lives here.',
+    sigWhy: 'major with a flat 7th. No pull home.',
+    vamp: [{ at: 0, iv: [0, 4, 7], suffix: '', roman: 'I', role: 'home' },
+      { at: 10, iv: [0, 4, 7], suffix: '', roman: '♭VII', role: 'away' }] },
+  { id: 'lydian', name: 'F Lydian', tonic: 5, steps: [0, 2, 4, 6, 7, 9, 11], sig: 6, sigName: '♯4',
+    mood: 'Major, floating, dreamy. Film scores and space.',
+    sigWhy: 'major with a raised 4th. It floats.',
+    vamp: [{ at: 0, iv: [0, 4, 7, 11], suffix: 'maj7', roman: 'Imaj7', role: 'home' },
+      { at: 2, iv: [0, 4, 7], suffix: '', roman: 'II', role: 'away', bass: 0 }] },
+  { id: 'aeolian', name: 'A Aeolian', tonic: 9, steps: [0, 2, 3, 5, 7, 8, 10], sig: 8, sigName: '♭6',
+    mood: 'Plain minor: sad and serious.',
+    sigWhy: 'the dark 6th. Let it fall to the 5th.',
+    vamp: [{ at: 0, iv: [0, 3, 7], suffix: 'm', roman: 'i', role: 'home' },
+      { at: 8, iv: [0, 4, 7], suffix: '', roman: '♭VI', role: 'away' }] },
+  { id: 'phrygian', name: 'E Phrygian', tonic: 4, steps: [0, 1, 3, 5, 7, 8, 10], sig: 1, sigName: '♭2',
+    mood: 'Dark and Spanish. Metal riffs and flamenco.',
+    sigWhy: 'a half step over home. Lean, then fall back.',
+    vamp: [{ at: 0, iv: [0, 3, 7], suffix: 'm', roman: 'i', role: 'home' },
+      { at: 1, iv: [0, 4, 7], suffix: '', roman: '♭II', role: 'away' }] },
+];
+
+export const roomScale = (room) => room.steps.map((s) => (room.tonic + s) % 12);
+export const roomSig = (room) => (room.tonic + room.sig) % 12;
+
+/* The room's vamp as an endless stream, shaped like createProgression's chords. */
+export function createVamp(room) {
+  const seq = room.vamp.map((c) => c.roman);
+  const phrase = { id: room.id, name: `${room.name} vamp`, seq, blurb: room.mood };
+  let i = 0;
+  const chord = (k) => {
+    const c = room.vamp[k];
+    const root = (room.tonic + c.at) % 12;
+    return { roman: c.roman, pcs: c.iv.map((s) => (root + s) % 12), root,
+      bass: c.bass === undefined ? root : (room.tonic + c.bass) % 12, suffix: c.suffix,
+      role: c.role, phrase, step: k, pass: 1, varied: false, cycle };
+  };
+  let cycle = 0;              // times round the vamp
+  return {
+    next() {
+      const c = chord(i);
+      i = (i + 1) % room.vamp.length;
+      if (!i) cycle++;
+      return c;
+    },
+    peek() { return chord(i); },
+    skipPhrase() { i = 0; cycle = 0; },
+  };
+}
+
+/* ── the blues: twelve bars, and its own idea of what sounds good ──────── */
+
+export const BLUES_FORMS = {
+  major: [
+    { id: 'blues', name: '12-bar blues', w: 2,
+      seq: ['I7', 'I7', 'I7', 'I7', 'IV7', 'IV7', 'I7', 'I7', 'V7', 'IV7', 'I7', 'V7'],
+      blurb: 'Four bars home, two away and two home, then the turnaround: pull, away, home, pull.' },
+    { id: 'quick-change', name: '12-bar blues, quick change', w: 1,
+      seq: ['I7', 'IV7', 'I7', 'I7', 'IV7', 'IV7', 'I7', 'I7', 'V7', 'IV7', 'I7', 'V7'],
+      blurb: 'The same twelve bars with a visit to IV in bar 2.' },
+  ],
+  minor: [
+    { id: 'minor-blues', name: 'Minor blues', w: 1,
+      seq: ['i7', 'i7', 'i7', 'i7', 'iv7', 'iv7', 'i7', 'i7', 'VI7', 'V7', 'i7', 'V7'],
+      blurb: 'The blues in a minor key: The Thrill Is Gone. The turnaround sinks a half step into V.' },
+  ],
+};
+// Root (semitones over home) and shape of each blues chord: every one a seventh chord,
+// because in the blues even home has a 7th on it.
+const BLUES_CHORD = { I7: [0, 0], IV7: [5, 0], V7: [7, 0], VI7: [8, 0], i7: [0, 1], iv7: [5, 1] };
+const SHAPE = [[0, 4, 7, 10], [0, 3, 7, 10]];
+const BLUES_ROLE = { I7: 'home', i7: 'home', IV7: 'away', iv7: 'away', VI7: 'away', V7: 'pull' };
+const BLUES = [0, 3, 5, 6, 7, 10];          // the blues scale, over home
+
+export function bluesChord(tonic, roman) {
+  const [at, minor] = BLUES_CHORD[roman];
+  return SHAPE[minor].map((s) => (tonic + at + s) % 12);
+}
+
+/* The blue note: the minor 3rd sung over a major key -- or, in a minor blues, where the
+   3rd is already minor, the flat 5th. */
+export const bluesNote = (tonic, minor) => (tonic + (minor ? 6 : 3)) % 12;
+
+/**
+ * What a blues chord is judged against: its own scale (Mixolydian over a 7th chord,
+ * Dorian over a minor 7th) together with the blues scale on home. Judged against the
+ * key alone, the blue note -- the most blues note there is -- came out "outside the
+ * key". palette() then finds the rubs the usual way.
+ */
+export function bluesScale(tonic, roman, keyMinor = false) {
+  const [at, minor] = BLUES_CHORD[roman];
+  // In a minor blues, V7 is harmonic minor's: its own scale keeps the key's flat 3rd and 6th,
+  // where Mixolydian would light the major ones. VI7 is Lydian dominant, which keeps the key's 2nd.
+  const shape = minor ? [0, 2, 3, 5, 7, 9, 10]
+    : keyMinor && roman === 'V7' ? [0, 1, 4, 5, 7, 8, 10]
+      : keyMinor && roman === 'VI7' ? [0, 2, 4, 6, 7, 9, 10] : [0, 2, 4, 5, 7, 9, 10];
+  const own = shape.map((s) => (tonic + at + s) % 12);
+  return [...new Set([...own, ...BLUES.map((s) => (tonic + s) % 12)])].sort((a, b) => a - b);
+}
+
+/* Chorus after chorus, one chord a bar. */
+export function createBlues({ tonic, minor = false, rng = Math.random }) {
+  const forms = BLUES_FORMS[minor ? 'minor' : 'major'];
+  let form = null, i = 0;
+  const chord = () => {
+    if (!form) form = pickWeighted(forms, (f) => f.w, rng);
+    const roman = form.seq[i];
+    return { roman, pcs: bluesChord(tonic, roman), role: BLUES_ROLE[roman],
+      suffix: roman.startsWith('i') ? 'm7' : '7', phrase: form, step: i, pass: 1, varied: false };
+  };
+  return {
+    next() {
+      const c = chord();
+      if (++i >= form.seq.length) { i = 0; form = null; }
+      return c;
+    },
+    peek() { return chord(); },
+    skipPhrase() { i = 0; form = null; },
+  };
+}
+
+/* ── a melody of the band's own: the question, and the lick to echo ─────── */
+
+// Where the notes fall in one bar, in sixteenths, by how many there are. Mostly eighths,
+// starting on or near the beat, finished by beat 4 so there is a breath before your turn.
+export const RHYTHMS = {
+  2: [[0, 8], [0, 6], [4, 8], [0, 4]],
+  3: [[0, 4, 8], [0, 2, 4], [0, 6, 8], [4, 6, 8], [0, 4, 6], [2, 4, 8]],
+  4: [[0, 2, 4, 8], [0, 4, 6, 8], [0, 2, 4, 6], [0, 3, 6, 8], [2, 4, 6, 8], [0, 4, 8, 10]],
+  5: [[0, 2, 4, 6, 8], [0, 2, 4, 8, 10], [0, 4, 6, 8, 10], [2, 4, 6, 8, 10], [0, 2, 3, 4, 8]],
+  6: [[0, 2, 4, 6, 8, 10], [0, 2, 4, 6, 8, 12], [0, 1, 2, 4, 6, 8], [0, 2, 4, 5, 6, 8]],
+};
+// The second bar of a question: few notes, the last one held. It is left hanging.
+const QUESTION_END = [[0, 4], [0, 2, 4], [0], [0, 6, 8], [2, 4, 8], [0, 2, 8]];
+const pick = (xs, rng) => xs[Math.floor(rng() * xs.length) % xs.length];
+
+/**
+ * A singable line: mostly steps, the odd small leap, chord notes on the strong beats,
+ * heading one way for a while before turning. `at(step)` gives { chord, ok } for the
+ * chord sounding at that sixteenth; `end` is the pitch classes the last note must be on.
+ * Returns MIDI numbers, one per onset, all between `low` and `high`.
+ */
+export function line({ onsets, at, end, rng = Math.random, low = 64, high = 81, from = 72 }) {
+  const out = [];
+  let dir = rng() < 0.5 ? -1 : 1;
+  const near = (pcs, to, skip) => {
+    for (let d = 0; d <= 24; d++) {
+      for (const m of [to - d, to + d]) {
+        if (m >= low && m <= high && m !== skip && pcs.includes(m % 12)) return m;
+      }
+    }
+    return Math.min(high, Math.max(low, to));
+  };
+  onsets.forEach((s, i) => {
+    const { chord, ok } = at(s);
+    const last = i === onsets.length - 1;
+    const pool = last ? end : i === 0 ? chord : ok;
+    const prev = out[i - 1];
+    if (i > 0 && rng() < 0.25) dir = -dir;
+    if (prev >= high - 2) dir = -1;
+    if (prev <= low + 2) dir = 1;
+    const cands = [];
+    for (let m = low; m <= high; m++) {
+      if (!pool.includes(m % 12)) continue;
+      if (i === 0) {
+        const d = Math.abs(m - from);
+        if (d <= 6) cands.push([m, 7 - d]);
+        continue;
+      }
+      const d = m - prev, ad = Math.abs(d);
+      if (ad === 0 || ad > (last ? 7 : 5)) continue;
+      let w = ad <= 2 ? 4 : ad <= 4 ? 2 : 1;
+      if (Math.sign(d) === dir) w *= 1.6;
+      if (!last && s % 8 === 0 && chord.includes(m % 12)) w *= 2.5;
+      // The note before the last heads for a step away from where the line has to end.
+      if (i === onsets.length - 2 && end.some((pc) => [1, 2].some((k) => (m + k) % 12 === pc
+        || (m - k + 12) % 12 === pc))) w *= 2;
+      cands.push([m, w]);
+    }
+    out.push(cands.length ? pickWeighted(cands, (c) => c[1], rng)[0] : near(pool, prev ?? from, prev));
+  });
+  return out;
+}
+
+/**
+ * Echo's lick: one bar, `size` notes, only notes that sound good over the chord, ending
+ * on one of the chord's own. `pal` is the chord's palette(). Returns [{ step, len, key }].
+ */
+export function lick({ pal, size = 3, rng = Math.random, low = 64, high = 81, from = 72 }) {
+  const n = Math.max(2, Math.min(6, size));
+  const onsets = pick(RHYTHMS[n], rng);
+  const ok = pal.chord.concat(pal.color);
+  const keys = line({ onsets, at: () => ({ chord: pal.chord, ok }), end: pal.chord, rng, low, high, from });
+  return onsets.map((step, i) => ({ step, key: keys[i],
+    len: i + 1 < n ? onsets[i + 1] - step : Math.max(2, Math.min(14, step + 6) - step) }));
+}
+
+/**
+ * Finish the Phrase's question: two bars over two chords, left hanging -- it ends on a
+ * note of the second chord that is NOT in the home chord, so it sounds unfinished and
+ * asks for an answer. `pals` are the two chords' palettes, `home` the home chord's
+ * notes. Returns [{ step, len, key }], steps 0-31 across both bars.
+ */
+export function question({ pals, home, rng = Math.random, low = 64, high = 81, from = 72 }) {
+  const [p1, p2] = pals;
+  const onsets = pick(RHYTHMS[pick([3, 4, 5], rng)], rng)
+    .concat(pick(QUESTION_END, rng).map((s) => s + 16));
+  let end = p2.chord.filter((pc) => !home.includes(pc));
+  if (!end.length) end = p2.chord.filter((pc) => pc !== home[0]);
+  const at = (s) => {
+    const p = s < 16 ? p1 : p2;
+    return { chord: p.chord, ok: p.chord.concat(p.color) };
+  };
+  const keys = line({ onsets, at, end, rng, low, high, from });
+  return onsets.map((step, i) => ({ step, key: keys[i],
+    len: i + 1 < onsets.length ? onsets[i + 1] - step : Math.max(2, 30 - step) }));
+}
+
+/* The question-and-answer frames: two bars of question over the first pair, two of
+   answer over the second -- which always ends at home, so there is somewhere to land. */
+export const ASKS = {
+  major: [{ call: ['I', 'V'], answer: ['V', 'I'], w: 3 }, { call: ['I', 'IV'], answer: ['V', 'I'], w: 2 },
+    { call: ['vi', 'IV'], answer: ['V', 'I'], w: 1.5 }, { call: ['IV', 'V'], answer: ['IV', 'I'], w: 1 }],
+  minor: [{ call: ['i', 'V'], answer: ['V', 'i'], w: 3 }, { call: ['i', 'iv'], answer: ['V', 'i'], w: 2 },
+    { call: ['VI', 'VII'], answer: ['V', 'i'], w: 1.5 }, { call: ['i', 'VII'], answer: ['iv', 'i'], w: 1 }],
+};
+
+/* Four chords at a time: question, question, answer, answer. Shaped like
+   createProgression's, plus `turn` ('call' | 'you') and `ask`, one object per exchange. */
+export function createAsks({ mode = 'major', scale, rng = Math.random }) {
+  const roles = ROLE[mode];
+  let queue = [];
+  const plan = () => {
+    const f = pickWeighted(ASKS[mode], (x) => x.w, rng);
+    const seq = f.call.concat(f.answer);
+    const phrase = { id: `ask-${seq.join('-')}`, name: 'Question and answer', seq,
+      blurb: 'The band asks for two bars. You answer for two, and end somewhere that sounds finished.' };
+    const ask = { phrase };
+    return seq.map((roman, step) => ({ roman, pcs: chordPcs(scale, roman), role: roles[roman],
+      phrase, step, pass: 1, varied: false, ask, turn: step < 2 ? 'call' : 'you' }));
+  };
+  return {
+    next() { if (!queue.length) queue = plan(); return queue.shift(); },
+    peek() { if (!queue.length) queue = plan(); return queue[0]; },
+    skipPhrase() { queue = []; },
+  };
+}
+
+/**
+ * How close an echo came: the most notes of the lick you played in its order (the
+ * longest common subsequence of pitch classes, so any octave counts). `exact` is note
+ * for note: the same notes, in order, and nothing else.
+ */
+export function echoScore(want, got) {
+  const a = want.map((n) => ((n % 12) + 12) % 12);
+  const b = got.map((n) => ((n % 12) + 12) % 12);
+  const t = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      t[i][j] = a[i - 1] === b[j - 1] ? t[i - 1][j - 1] + 1 : Math.max(t[i - 1][j], t[i][j - 1]);
+    }
+  }
+  const matched = t[a.length][b.length];
+  return { matched, of: a.length, exact: matched === a.length && b.length === a.length };
+}
