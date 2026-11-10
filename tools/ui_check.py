@@ -200,6 +200,73 @@ def pick(page, opt: str, label: str, wait: int = 500) -> None:
     page.wait_for_timeout(wait)
 
 
+# Play a note into Jam the way the websocket frame does: practice.js hands frames down.
+PLAY = """async (ns) => {
+  const view = (await import('/views/practice.js')).default;
+  for (const n of ns) { view.frame({ on: [[n, 96]] }); await new Promise((r) => setTimeout(r, 180)); }
+}"""
+
+# The names in the coach's bold text ("C · E · G"), as MIDI around middle C, in order.
+COACHED = """() => {
+  const PC = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  const b = document.querySelector('.jam__coach b');
+  return (b ? b.textContent : '').split('·').map((s) => s.trim()).filter(Boolean)
+    .map((s) => 72 + ((PC[s[0]] + (s.includes('♯') ? 1 : 0) - (s.includes('♭') ? 1 : 0) + 12) % 12));
+}"""
+
+
+def mode_checks(page, check) -> list[str]:
+    """Play: every mode starts from the next free bar, and the duets judge what you play."""
+    def until(js: str, ms: int = 12000) -> bool:
+        try:
+            page.wait_for_function(js, timeout=ms)
+            return True
+        except Exception:  # noqa: BLE001 -- a timeout is the failure being reported
+            return False
+
+    text = "(s) => document.querySelector(s)?.textContent || ''"
+    pick(page, "Play", "Modal", 300)
+    shown = page.evaluate("""() => [...document.querySelectorAll('.jam__opt')]
+      .filter((o) => o.style.display !== 'none').map((o) => o.querySelector('.jam__lbl').textContent)""")
+    check("Modal: a room instead of a key", "Room" in shown and "Key" not in shown, str(shown))
+    ringed = until("document.querySelector('#dock .key.is-sig') && document.querySelector('.strip__key.is-sig')")
+    role = page.evaluate("() => document.querySelector('.strip__key.is-sig .strip__role')?.textContent")
+    check("...the note that makes the mode is ringed, on the keys and the strip", ringed and role, f"labelled {role!r}")
+
+    pick(page, "Play", "Blues", 300)
+    twelve = until("document.querySelectorAll('.jam__chip').length === 12")
+    chips = page.evaluate("document.querySelectorAll('.jam__chip').length")
+    style = page.evaluate(BAND).get("style")
+    check("Blues: twelve bars, on the Shuffle", twelve and style == "shuffle", f"{chips} chips, {style}")
+    check("...with the blue note ringed", until("[...document.querySelectorAll('.strip__key.is-sig .strip__role')]"
+                                                ".some((e) => e.textContent === 'blue')"))
+
+    pick(page, "Play", "Answer", 300)
+    shown = page.evaluate("""() => [...document.querySelectorAll('.jam__opt')]
+      .filter((o) => o.style.display !== 'none').map((o) => o.querySelector('.jam__lbl').textContent)""")
+    check("Answer: no seat to take", "Seat" not in shown and page.evaluate(BAND).get("bass") is True, str(shown))
+    check("...the band's question lights the keys as it plays", until("document.querySelector('#dock .key.is-lead')", 15000))
+    turn = until("document.querySelector('.jam__coach').textContent.startsWith('Your turn')", 15000)
+    home = page.evaluate(COACHED)
+    check("...then it is your turn, told where home is", turn and len(home) == 3, page.evaluate(text, ".jam__coach"))
+    page.evaluate(PLAY, [home[0] - 5 if home else 67, home[0] if home else 72])
+    judged = until("document.querySelector('.jam__heard').textContent.includes('on the root')", 8000)
+    check("...and an answer ending on the root is heard as home", judged, page.evaluate(text, ".jam__heard"))
+
+    pick(page, "Play", "Echo", 300)
+    turn = until("document.querySelector('.jam__coach').textContent.startsWith('Your turn')", 15000)
+    lick = page.evaluate(COACHED)
+    check("Echo: after the lick, your turn, with its notes", turn and 2 <= len(lick) <= 6, str(lick))
+    page.evaluate(PLAY, lick)
+    judged = until("document.querySelector('.jam__heard').textContent.includes('note for note')", 8000)
+    check("...and playing it back note for note counts", judged and "1 of 1" in page.evaluate(text, ".jam__stats"),
+          f"{page.evaluate(text, '.jam__heard')} / {page.evaluate(text, '.jam__stats')}")
+
+    pick(page, "Play", "Songs", 1500)
+    check("back to Songs, the band still playing", page.evaluate(BAND).get("running") is True)
+    return []
+
+
 def jam_checks(browser, port: int, errs: list[str]) -> list[str]:
     """Jam with the band playing: focus in and out by every door."""
     fails: list[str] = []
@@ -259,6 +326,12 @@ def jam_checks(browser, port: int, errs: list[str]) -> list[str]:
         page.wait_for_timeout(400)
         spill = page.evaluate(SPILL)
         check(f"Focus at {w}x{h}: nothing in the stage spills onto the rest", not spill, "; ".join(spill))
+        page.mouse.move(w // 2, h // 2)
+        page.mouse.move(w // 2 + 20, h // 2 + 20)
+        page.wait_for_timeout(600)
+        bar = page.evaluate(BAR)
+        check("...and the options still make one line, clear of EXIT", bar["rows"] == 1 and bar["right"] <= bar["exit"],
+              str(bar))
         press("Escape", 600)
     page.set_viewport_size({"width": 1600, "height": 1000})
     page.wait_for_timeout(300)
@@ -266,6 +339,10 @@ def jam_checks(browser, port: int, errs: list[str]) -> list[str]:
     # Lights Out. Dark hides the lit keys but keeps their marks: the held-key colours
     # read them, and a held key with none is painted spicy.
     pick(page, "Guide", "Dark")
+    # Over some chords every white key is marked (F or Dm in C major: nothing rubs), and
+    # the probe needs an unmarked one to compare against. Wait for a chord that has one.
+    page.wait_for_function("""() => document.querySelectorAll('#dock .key--white:not(.is-tone):not(.is-scale)').length >= 2
+      && document.querySelectorAll('#dock .key--white.is-tone').length >= 2""", timeout=15000)
     dark = page.evaluate(DARK)
     check("Guide Dark: the chord is marked but not drawn", dark["dark"] and dark["hidden"] and dark["guide"] == "3",
           str(dark))
@@ -287,6 +364,8 @@ def jam_checks(browser, port: int, errs: list[str]) -> list[str]:
               and band.get("bass") is want["bass"] and band.get("comp") is want["comp"], f"sent {sent}")
         check(f"...lit only in {lo}-{hi}", lit and all(lo <= m <= hi for m in lit)
               and (seat != "Chords" or len(lit) >= 6), f"{len(lit)} keys, {min(lit, default=0)}-{max(lit, default=0)}")
+
+    fails.extend(mode_checks(page, check))
 
     press("g")
     press("v", 300)

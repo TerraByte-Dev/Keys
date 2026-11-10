@@ -20,7 +20,12 @@ between frames, which is plenty for lighting keys: nobody sees 10 ms.
 sit in as the band's bass player or its keyboard player. Like every other change, a
 part switched on or off lands on the first bar that is not queued yet.
 
-**Its own channels.** Three of 1-8, picked fresh at start from the ones no zone uses
+**A lead voice.** A bar can also carry a melody -- the question Finish the Phrase asks, or
+the lick Echo plays for you to copy -- as (step, length, key, velocity) on the sixteenth
+grid. It plays on a fourth channel, in every seat: it is the other player, not a part
+you can sit in for.
+
+**Its own channels.** Four of 1-8, picked fresh at start from the ones no zone uses
 (0-9 zones, 10-14 loop station, 15 metronome). Band notes go from the sequencer straight
 to the synth, so they never reach the held-key list, the keyboard lamps or your stats.
 """
@@ -77,6 +82,16 @@ STYLES: dict[str, dict[str, Any]] = {
         "bass": [(0, 6, "root"), (7, 2, "fifth"), (10, 5, "root"), (15, 1, "approach")],
         "comp": [(0, 7, "chord"), (10, 5, "chord")],
     },
+    # Blues. Swing at 1.0 puts the off-beat eighth on the last triplet: a shuffle. The bass
+    # walks the chord up root, third, fifth, sixth -- the boogie line under a thousand blues.
+    "shuffle": {
+        "label": "Shuffle", "bpm": 84, "swing": 1.0,
+        "comp_program": 16, "bass_program": 32, "kit": 0,
+        "drums": [(0, KICK, 86), (8, KICK, 78), (4, SNARE, 80), (12, SNARE, 86)]
+        + [(s, RIDE, 64 if s % 4 == 0 else 46) for s in range(0, 16, 2)],
+        "bass": [(0, 3, "root"), (4, 3, "third"), (8, 3, "fifth"), (12, 3, "sixth")],
+        "comp": [(0, 3, "chord"), (6, 2, "chord"), (12, 3, "chord")],
+    },
     "rock": {
         "label": "Rock", "bpm": 112, "swing": 0.0,
         "comp_program": 29, "bass_program": 34, "kit": 0,
@@ -88,6 +103,8 @@ STYLES: dict[str, dict[str, Any]] = {
 }
 
 BASS_RANGE = (36, 50)            # C2..D3
+LEAD_PROGRAM = 11                # vibraphone: clear, and never mistaken for your piano
+MAX_LEAD = 24                    # notes in one bar
 COMP_LOW = 52                    # E3: the comp lives in E3..D#4, under the melody
 
 
@@ -127,7 +144,7 @@ class Band:
         self.comp_on = True
         self._channels: dict[str, int] = {}
 
-        # bar index -> {"root": pc, "pcs": [pc...], "bass": pc}
+        # bar index -> {"root": pc, "pcs": [pc...], "bass": pc, "lead": [(step, len, key, vel)]}
         self._chart: list[dict[str, Any]] = []
         self._next_bar = 0                 # first bar not yet scheduled
         self._anchor_tick = 0.0            # tick where bar `_anchor_bar` starts
@@ -276,7 +293,13 @@ class Band:
         pcs = [int(p) % 12 for p in (c.get("pcs") or [0, 4, 7])][:6]
         root = int(c.get("root", pcs[0])) % 12
         bass = int(c.get("bass", root)) % 12
-        return {"root": root, "pcs": pcs, "bass": bass}
+        lead = []
+        for n in (c.get("lead") or [])[:MAX_LEAD]:
+            step, length, key, vel = (list(n) + [0, 0, 0, 0])[:4]
+            lead.append((int(_clamp(int(step), 0, STEPS - 1)), int(_clamp(int(length), 1, 4 * STEPS)),
+                         int(_clamp(int(key), 0, 127)), int(_clamp(int(vel) or 84, 1, 127))))
+        six = int(c["six"]) % 12 if c.get("six") is not None else (bass + 9) % 12
+        return {"root": root, "pcs": pcs, "bass": bass, "lead": lead, "six": six}
 
     def _prepare(self) -> None:
         fs = self.engine.fs
@@ -286,7 +309,11 @@ class Band:
         free = [c for c in SPARE_CHANNELS if c not in busy] or list(SPARE_CHANNELS)
         while len(free) < 3:
             free.append(free[-1])
-        self._channels = {"drums": free[0], "bass": free[1], "comp": free[2]}
+        # The lead only gets a channel of its own when there is a fourth one to spare;
+        # otherwise it plays on the comp's, in the comp's sound, rather than take it over.
+        self._channels = {"drums": free[0], "bass": free[1], "comp": free[2],
+                          "lead": free[3] if len(free) > 3 else free[2]}
+        shared = self._channels["lead"] == self._channels["comp"]
         sfid = self.engine.load_soundfont(config.DEFAULT_SOUNDFONT)
         st = STYLES[self.style]
         if sfid != -1:
@@ -294,11 +321,15 @@ class Band:
                 fs.program_select(self._channels["drums"], sfid, DRUM_BANK, 0)
             fs.program_select(self._channels["bass"], sfid, 0, st["bass_program"])
             fs.program_select(self._channels["comp"], sfid, 0, st["comp_program"])
+            if not shared:
+                fs.program_select(self._channels["lead"], sfid, 0, LEAD_PROGRAM)
         vol = int(round(self.volume * 127))
-        mix = {"drums": 0.85, "bass": 0.95, "comp": 0.7}
+        mix = {"drums": 0.85, "bass": 0.95, "comp": 0.7, "lead": 1.0}
         for part, ch in self._channels.items():
+            if part == "lead" and shared:
+                continue
             fs.cc(ch, 7, int(vol * mix[part]))
-            fs.cc(ch, 91, 30 if part == "comp" else 18)
+            fs.cc(ch, 91, 30 if part in ("comp", "lead") else 18)
 
     def _flush(self) -> None:
         seq = self.engine.sequencer
@@ -358,9 +389,10 @@ class Band:
         def vel(v: int) -> int:
             return int(_clamp(v + rnd.randint(-6, 6), 1, 127))
 
-        def note(ch: int, key: int, v: int, step: int, steps: float) -> None:
+        def note(ch: int, key: int, v: int, step: int, steps: float, swung: bool = True) -> None:
             dur = max(30, int(steps * sixteenth) - 12)
-            seq.note(at(step), ch, key, vel(v), dur, source=src, dest=dest)
+            when = at(step) if swung else int(round(t0 + step * sixteenth))
+            seq.note(when, ch, key, vel(v), dur, source=src, dest=dest)
 
         if self.drums_on:
             ch = self._channels["drums"]
@@ -384,6 +416,11 @@ class Band:
                     key = root + ((five - root) % 12) if (five in chord["pcs"]) else root
                 elif what == "octave":
                     key = root + 12
+                elif what == "third":                   # the chord's own third, major or minor
+                    pcs = chord["pcs"]
+                    key = root + ((pcs[1] - chord["root"]) % 12 if len(pcs) > 1 else 4)
+                elif what == "sixth":                   # the scale's sixth, sent with the chord
+                    key = root + (chord["six"] - chord["bass"]) % 12
                 else:                                   # approach the next bar's root
                     target = bass_note(nxt["bass"])
                     if target == root:
@@ -407,6 +444,14 @@ class Band:
                     i = int(what.split(":")[1])
                     ladder = voicing + [n + 12 for n in voicing]
                     note(ch, ladder[min(i, len(ladder) - 1)], 62, step, steps)
+
+        # Only a bar that was written: a chart run dry repeats its last chord, not its melody.
+        if chord["lead"] and bar < len(self._chart):
+            ch = self._channels["lead"]
+            # Straight, not swung: the page lights these on the straight grid, and a swung
+            # 16th rhythm squashes notes together.
+            for step, steps, key, v in chord["lead"]:
+                note(ch, key, v, step, steps, swung=False)
 
         # One callback per bar keeps the scheduler fed even if a doorbell is missed.
         if self._client is not None:

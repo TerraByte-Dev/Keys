@@ -62,9 +62,12 @@ def ok(label: str, passed: bool, detail: str = "") -> None:
 
 
 DRIVER = r"""
-import { createProgression, crossing, guideLevel, keysIn, palette, seatTarget, seatZone, PALETTE, PHRASES, chordPcs } from './harmony.js';
+import { createProgression, crossing, guideLevel, keysIn, palette, seatTarget, seatZone, PALETTE, PHRASES, chordPcs,
+  ROOMS, roomScale, roomSig, createVamp, BLUES_FORMS, bluesChord, bluesNote, bluesScale, createBlues,
+  lick, question, createAsks, echoScore } from './harmony.js';
 
 const keys = JSON.parse(process.env.JAM_KEYS);
+const rooms = JSON.parse(process.env.JAM_ROOMS);
 const out = [];
 const ok = (label, passed, detail = '') => out.push({ label, passed: !!passed, detail });
 
@@ -328,6 +331,119 @@ function seeded(seed) {
      !bassBad.length, bassBad.length ? bassBad.slice(0, 3).join('; ') : `${n} changes`);
 }
 
+/* 7. The modal rooms: on the white keys, true to the server's modes, one ringed note. */
+{
+  const WHITE = [0, 2, 4, 5, 7, 9, 11];
+  const SCALE = { major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10], dorian: [0, 2, 3, 5, 7, 9, 10] };
+  const AGAINST = { dorian: 'minor', phrygian: 'minor', aeolian: 'dorian', lydian: 'major', mixolydian: 'major' };
+  const bad = [];
+  const sorted = (xs) => JSON.stringify([...xs].sort((a, b) => a - b));
+  for (const r of ROOMS) {
+    const sc = roomScale(r);
+    if (sorted(sc) !== sorted(rooms[r.id])) bad.push(`${r.id}: not the server's scale`);
+    if (!sc.every((pc) => WHITE.includes(pc))) bad.push(`${r.id}: leaves the white keys`);
+    const plain = SCALE[AGAINST[r.id]].map((s) => (r.tonic + s) % 12);
+    const odd = sc.filter((pc) => !plain.includes(pc));
+    if (odd.length !== 1 || odd[0] !== roomSig(r)) bad.push(`${r.id}: ringed ${roomSig(r)}, differs on ${odd}`);
+    const v = createVamp(r);
+    const a = v.next(), b = v.next(), c = v.next();
+    if (a.pcs[0] !== r.tonic || a.role !== 'home') bad.push(`${r.id}: the vamp does not start at home`);
+    if (sorted(c.pcs) !== sorted(a.pcs) || sorted(a.pcs) === sorted(b.pcs)) bad.push(`${r.id}: not two chords back and forth`);
+    for (const x of [a, b]) {
+      if (!x.pcs.every((pc) => sc.includes(pc)) || !sc.includes(x.bass)) bad.push(`${r.id}: ${x.roman} leaves the mode`);
+    }
+  }
+  ok("every modal room is on the white keys, matches the server's mode, and rings the one note that makes it",
+     !bad.length, bad.length ? bad.slice(0, 3).join('; ') : `${ROOMS.length} rooms`);
+}
+
+/* 8. The blues: twelve bars of seventh chords, judged so the blue note is colour. */
+{
+  const bad = [];
+  let n = 0;
+  for (const k of keys) {
+    const minor = k.mode !== 'major';
+    const tonic = k.pcs[0];
+    const blue = bluesNote(tonic, minor);
+    for (const f of BLUES_FORMS[minor ? 'minor' : 'major']) {
+      if (f.seq.length !== 12 || !f.seq[11].startsWith('V') || !/^(I|i)7$/.test(f.seq[0])) bad.push(`${f.id}: not a 12-bar form`);
+    }
+    const g = createBlues({ tonic, minor, rng: seeded(tonic + 1) });
+    for (let i = 0; i < 48; i++) {
+      const c = g.next();
+      n++;
+      const sc = bluesScale(tonic, c.roman);
+      const pal = palette(c.pcs, sc);
+      if (c.pcs.length !== 4 || !sc.includes(c.pcs[0])) bad.push(`${k.name} ${c.roman}: not a seventh chord`);
+      const all = [...pal.chord, ...pal.color, ...pal.rub].sort((a, b) => a - b);
+      if (JSON.stringify(all) !== JSON.stringify(sc)) bad.push(`${k.name} ${c.roman}: palette is not the scale`);
+      const home = /^(I|i)7$/.test(c.roman);
+      if ((home || (!minor && c.roman === 'IV7')) && !pal.chord.concat(pal.color).includes(blue)) {
+        bad.push(`${k.name} ${c.roman}: the blue note is not lit`);
+      }
+      if (!minor && c.roman === 'I7' && !pal.rub.includes((tonic + 5) % 12)) bad.push(`${k.name}: the 4th over I7 is not a rub`);
+    }
+  }
+  ok('every blues chorus is twelve bars of 7th chords, and the blue note is lit over home (and IV)',
+     !bad.length, bad.length ? bad.slice(0, 3).join('; ') : `${n} chords, ${keys.length} keys`);
+}
+
+/* 9. The band's melody: licks and questions are singable and say what they should. */
+{
+  const lickBad = [], qBad = [];
+  let licks = 0, qs = 0;
+  for (const k of keys) {
+    const mode = k.mode === 'major' ? 'major' : 'minor';
+    const rnd = seeded(k.pcs[0] * 31 + 7);
+    const prog = createProgression({ mode, scale: k.pcs, rng: rnd });
+    for (let i = 0; i < 60; i++) {
+      const c = prog.next();
+      const pal = palette(c.pcs, k.pcs);
+      const size = 2 + (i % 5);
+      const l = lick({ pal, size, rng: rnd });
+      licks++;
+      const fits = pal.chord.concat(pal.color);
+      const where = `${k.name} ${c.roman} x${size}`;
+      if (l.length !== size) lickBad.push(`${where}: ${l.length} notes`);
+      if (!l.every((x, j) => x.step >= 0 && x.len >= 1 && (j === 0 || x.step > l[j - 1].step))) lickBad.push(`${where}: steps out of order`);
+      if (l[l.length - 1].step + l[l.length - 1].len > 16) lickBad.push(`${where}: runs past the bar`);
+      if (!l.every((x) => x.key >= 64 && x.key <= 81)) lickBad.push(`${where}: out of range`);
+      if (!l.every((x) => fits.includes(x.key % 12))) lickBad.push(`${where}: a note that does not sound good`);
+      if (!pal.chord.includes(l[0].key % 12) || !pal.chord.includes(l[l.length - 1].key % 12)) lickBad.push(`${where}: does not start and end on the chord`);
+      if (l.some((x, j) => j && (x.key === l[j - 1].key || Math.abs(x.key - l[j - 1].key) > (j === l.length - 1 ? 7 : 5)))) lickBad.push(`${where}: a repeat or a leap`);
+    }
+    const asks = createAsks({ mode, scale: k.pcs, rng: rnd });
+    const home = [k.pcs[0], k.pcs[2], k.pcs[4]];
+    for (let i = 0; i < 20; i++) {
+      const four = [asks.next(), asks.next(), asks.next(), asks.next()];
+      qs++;
+      const where = `${k.name} ${four.map((c) => c.roman).join('-')}`;
+      if (four.map((c) => c.turn).join() !== 'call,call,you,you' || new Set(four.map((c) => c.ask)).size !== 1) qBad.push(`${where}: turns`);
+      if (four[3].roman !== PALETTE[mode][0]) qBad.push(`${where}: the answer does not end at home`);
+      const sc = (c) => { const s2 = k.pcs.slice(); if (c.roman === 'V' && mode === 'minor') s2[6] = c.pcs[1]; return s2; };
+      const p1 = palette(four[0].pcs, sc(four[0])), p2 = palette(four[1].pcs, sc(four[1]));
+      const q = question({ pals: [p1, p2], home, rng: rnd });
+      const one = q.filter((x) => x.step < 16), two = q.filter((x) => x.step >= 16);
+      const last = q[q.length - 1];
+      if (!one.length || !two.length) qBad.push(`${where}: a bar with no notes`);
+      if (last.step + last.len > 30) qBad.push(`${where}: no breath before your turn`);
+      if (!one.every((x) => p1.chord.concat(p1.color).includes(x.key % 12))) qBad.push(`${where}: bar 1 note does not fit`);
+      if (!two.slice(0, -1).every((x) => p2.chord.concat(p2.color).includes(x.key % 12))) qBad.push(`${where}: bar 2 note does not fit`);
+      const open = p2.chord.filter((pc) => !home.includes(pc));
+      if (!p2.chord.includes(last.key % 12) || (open.length && !open.includes(last.key % 12))) qBad.push(`${where}: ends on ${last.key % 12}, not left hanging`);
+    }
+  }
+  ok('every lick is in the bar, in range, all notes that fit, starting and ending on the chord, no leaps',
+     !lickBad.length, lickBad.length ? lickBad.slice(0, 3).join('; ') : `${licks} licks`);
+  ok('every question is two bars that fit, left hanging off home, with the answer ending at home',
+     !qBad.length, qBad.length ? qBad.slice(0, 3).join('; ') : `${qs} questions`);
+  const e = (a, b) => echoScore(a, b);
+  ok('an echo is scored by the notes in order, any octave', e([60, 62, 64], [72, 74, 76]).exact
+     && e([60, 62, 64], [60, 64]).matched === 2 && !e([60, 62, 64], [60, 64]).exact
+     && e([60, 62, 64], [60, 62, 64, 65]).matched === 3 && !e([60, 62, 64], [60, 62, 64, 65]).exact
+     && e([60, 62], []).matched === 0 && e([64, 60], [60, 64]).matched === 1);
+}
+
 console.log(JSON.stringify(out));
 """
 
@@ -389,14 +505,15 @@ def band_checks() -> None:
     b = fresh()
     b._fill()
     ch = b._channels
-    ok("the band takes three channels no zone is using",
-       len(set(ch.values())) == 3 and not set(ch.values()) & {0, 1} and all(1 <= c <= 8 for c in ch.values()),
+    ok("the band takes four channels no zone is using",
+       len(set(ch.values())) == 4 and not set(ch.values()) & {0, 1} and all(1 <= c <= 8 for c in ch.values()),
        str(ch))
     ok("the drums are on a drum kit", ("prog", ch["drums"], 128, 0) in fs.log)
     bar_ms = b.bar_ms()
     t0 = b._anchor_tick
     bar0 = [n for n in seq.notes if t0 <= n[0] < t0 + bar_ms]
-    ok("bar 0 has drums, bass and chords", {n[1] for n in bar0} == set(ch.values()), f"{len(bar0)} notes")
+    ok("bar 0 has drums, bass and chords", {n[1] for n in bar0} == {ch["drums"], ch["bass"], ch["comp"]},
+       f"{len(bar0)} notes")
     bass = [n for n in bar0 if n[1] == ch["bass"]]
     lo, hi = band_mod.BASS_RANGE
     ok("the bass plays C's root and fifth, low", bass and all(n[2] % 12 in (0, 7, 11, 6) for n in bass)
@@ -460,7 +577,7 @@ def band_checks() -> None:
             b._fill()
         notes = list(seq.notes)
         ok(f"{style}: four bars, every part, sane notes",
-           b._next_bar >= 4 and {n[1] for n in notes} == set(b._channels.values())
+           b._next_bar >= 4 and {n[1] for n in notes} == {c for p, c in b._channels.items() if p != "lead"}
            and all(0 <= n[2] <= 127 and 1 <= n[3] <= 127 for n in notes), f"{len(notes)} notes")
     # A seat: the part you sit in for plays nothing, and the others play exactly what they
     # would have. Velocities aside -- the muted part no longer draws from the jitter.
@@ -505,6 +622,55 @@ def band_checks() -> None:
     ok("lo-fi swings its off-beat eighths late", any(abs(h - 2 * six) > 5 and h < 4 * six for h in hats),
        str([round(h) for h in hats[:3]]))
 
+    # The lead voice: the band's own melody, on its own channel, in every seat.
+    lead = [[0, 4, 72, 84], [8, 4, 76, 90]]
+    b = fresh(chart=[{**C, "lead": lead}, G, Am, F], bass=False, comp=False)
+    for i in range(4):
+        seq.tick = int(b._anchor_tick + b.bar_ms() * i - 100)
+        b._fill()
+    six = b.bar_ms() / 16
+    mel = [(round((n[0] - b._anchor_tick) / six), n[2]) for n in seq.notes if n[1] == b._channels["lead"]]
+    ok("a bar's melody plays on the lead channel, on its sixteenths, even with you in a seat",
+       mel == [(0, 72), (8, 76)], str(mel))
+    ok("...on a vibraphone", ("prog", b._channels["lead"], 0, band_mod.LEAD_PROGRAM) in fs.log)
+    b = fresh(chart=[{**C, "lead": lead}])
+    for i in range(4):
+        seq.tick = int(b._anchor_tick + b.bar_ms() * i - 100)
+        b._fill()
+    bars = {int((n[0] - b._anchor_tick) // b.bar_ms()) for n in seq.notes if n[1] == b._channels["lead"]}
+    ok("a chart run dry repeats its last chord, not its melody", bars == {0}, str(sorted(bars)))
+    ok("a melody note out of bounds is clamped, not trusted",
+       band_mod.Band._clean({"pcs": [0], "lead": [[99, 0, 300, 0]]})["lead"] == [(15, 1, 127, 84)])
+    server = (ROOT / "backend" / "server.py").read_text(encoding="utf-8")
+    ok("the server passes a bar's melody on", '"lead": [[int(x) for x in n][:4]' in server)
+
+    # Few channels free: the lead shares the comp's channel and leaves its sound alone.
+    eng.active_channels = (0, 1, 2, 3, 4, 5)
+    b = fresh()
+    b._fill()
+    ch = b._channels
+    ok("with only three channels free, the lead shares the comp's and does not turn it into a vibraphone",
+       ch["lead"] == ch["comp"] and ("prog", ch["comp"], 0, band_mod.LEAD_PROGRAM) not in fs.log, str(ch))
+    eng.active_channels = (0, 1)
+
+    # The sixth the walking bass climbs to is the one the page sends: A flat over A minor.
+    Am7 = {"root": 9, "pcs": [9, 0, 4], "six": 5}
+    b = fresh(style="shuffle", chart=[Am7, Am7], bpm=84)
+    b._fill()
+    walk6 = [n[2] % 12 for n in sorted(seq.notes) if n[1] == b._channels["bass"]]
+    ok("the shuffle's sixth is the key's own, not always a major sixth", walk6[3:4] == [5], str(walk6))
+
+    # The shuffle walks the boogie line and swings on the triplet.
+    C7 = {"root": 0, "pcs": [0, 4, 7, 10]}
+    b = fresh(style="shuffle", chart=[C7, C7], bpm=84)
+    b._fill()
+    walk = [n[2] % 12 for n in sorted(seq.notes) if n[1] == b._channels["bass"]]
+    ok("the shuffle's bass walks root, third, fifth, sixth", walk[:4] == [0, 4, 7, 9], str(walk))
+    six = b.bar_ms() / 16
+    rides = sorted(n[0] - b._anchor_tick for n in seq.notes if n[1] == b._channels["drums"] and n[2] == band_mod.RIDE)
+    ok("...and its off-beats land on the last triplet", any(abs(r - 4 * 2 / 3 * six) < 3 for r in rides),
+       str([round(r / six, 2) for r in rides[:3]]))
+
     eng.fs = None
     try:
         band_mod.Band(eng).start([C])
@@ -530,7 +696,7 @@ def source_checks() -> None:
         m = re.search(r"\n  (?:async )?function " + name + r"\([^)]*\) \{\n(.*?)\n  \}\n", src, re.S)
         return m.group(1) if m else ""
     ok("compose() counts times through at each phrase start and stamps the level",
-       "if (c.step === 0) times++;" in body("compose") and "guideLevel(" in body("compose"))
+       "if (c.step === 0" in body("compose") and "times++;" in body("compose") and "guideLevel(" in body("compose"))
     missing = [f for f in ("wander", "setKey", "newPhrase", "start") if "times = -1;" not in body(f)]
     ok("a wander, a new key, New progression and Start each bring the lights back", not missing,
        f"no reset in {missing}" if missing else "")
@@ -556,11 +722,17 @@ def main() -> int:
         keys.append({"name": f"{key} {mode}", "mode": mode, "pcs": plan["pcs"],
                      "chords": [c["pcs"] for c in plan["chords"]]})
 
+    names = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]
+    room_modes = {"dorian": (2, "dorian"), "phrygian": (4, "phrygian"), "lydian": (5, "lydian"),
+                  "mixolydian": (7, "mixolydian"), "aeolian": (9, "natural_minor")}
+    rooms = {rid: theory.scale_plan(names[t], m)["pcs"] for rid, (t, m) in room_modes.items()}
+
     driver = FRONTEND / "_jam_check.mjs"
     driver.write_text(DRIVER, encoding="utf-8")
     try:
         proc = subprocess.run([node, str(driver)], capture_output=True, text=True,
-                              env={**__import__("os").environ, "JAM_KEYS": json.dumps(keys)})
+                              env={**__import__("os").environ, "JAM_KEYS": json.dumps(keys),
+                                   "JAM_ROOMS": json.dumps(rooms)})
     finally:
         driver.unlink(missing_ok=True)
     if proc.returncode != 0:

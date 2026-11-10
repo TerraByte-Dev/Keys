@@ -931,7 +931,9 @@ def _chart(body: dict[str, Any]) -> list[dict[str, Any]]:
         raise HTTPException(400, "chart must be a list of chords")
     try:
         return [{"root": int(c.get("root", 0)), "bass": int(c.get("bass", c.get("root", 0))),
-                 "pcs": [int(p) for p in c.get("pcs", [])]} for c in chart]
+                 "pcs": [int(p) for p in c.get("pcs", [])],
+                 "lead": [[int(x) for x in n][:4] for n in (c.get("lead") or [])[:32]],
+                 **({"six": int(c["six"])} if c.get("six") is not None else {})} for c in chart]
     except (TypeError, ValueError):
         raise HTTPException(400, "chords are pitch classes 0-11") from None
 
