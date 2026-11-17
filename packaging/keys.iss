@@ -1,0 +1,103 @@
+; Inno Setup script for Keys-Setup-<version>.exe. Build with tools/build_exe.py, which
+; passes the three defines below; by hand:
+;
+;   ISCC /DAppVersion=0.13.0 /DSourceDir=dist\Keys /DOutputDir=dist packaging\keys.iss
+;
+; The installer wraps the same directory the release zip holds; it adds a Start menu
+; entry, a desktop icon and an uninstaller, and nothing else. Three choices matter:
+;
+;   * Per-user, no admin, fixed folder: %LOCALAPPDATA%\Programs\Keys. The in-app updater
+;     rewrites the application directory and stages next to it, so the folder and its
+;     parent must be writable without elevation -- Program Files would turn every update
+;     into "access denied". The folder page is hidden so nobody points it at Downloads.
+;   * The updater only ever touches Keys.exe and _internal\, so unins000.exe/.dat in
+;     the same folder survive every in-app update.
+;   * The data in %LOCALAPPDATA%\Keys is never touched: not on install, not on uninstall.
+
+#ifndef AppVersion
+  #error Pass /DAppVersion=<x.y.z>
+#endif
+#ifndef SourceDir
+  #error Pass /DSourceDir=<path to dist\Keys>
+#endif
+#ifndef OutputDir
+  #define OutputDir "."
+#endif
+
+[Setup]
+; Never change AppId: it is how a later installer finds this install to upgrade.
+AppId={{23A2B197-4D31-42A7-9AC2-1BF132A82827}
+AppName=Keys
+AppVersion={#AppVersion}
+AppPublisher=TerraByte-Dev
+AppPublisherURL=https://github.com/TerraByte-Dev/Keys
+AppSupportURL=https://github.com/TerraByte-Dev/Keys/issues
+AppUpdatesURL=https://github.com/TerraByte-Dev/Keys/releases/latest
+PrivilegesRequired=lowest
+DefaultDirName={autopf}\Keys
+DisableDirPage=yes
+DisableProgramGroupPage=yes
+UsePreviousAppDir=no
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
+OutputDir={#OutputDir}
+; Not "Keys-<version>-win-x64-setup.exe": GitHub lists assets alphabetically, and every
+; Keys up to 0.13.0 downloads the FIRST .exe/.msi/.zip it sees. That name sorts before
+; the zip ('-' < '.'), so those builds would fetch the installer and fail to extract it.
+; "Keys-Setup-" sorts after "Keys-0".."Keys-9". tools/build_exe.py asserts this.
+OutputBaseFilename=Keys-Setup-{#AppVersion}
+SetupIconFile=keys.ico
+UninstallDisplayIcon={app}\Keys.exe
+UninstallDisplayName=Keys
+WizardStyle=modern
+Compression=lzma2/max
+SolidCompression=yes
+CloseApplications=yes
+
+[Tasks]
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
+
+[InstallDelete]
+; A fresh _internal every install. Installing over a copy the updater has since moved to
+; a different version would otherwise leave that version's extra files mixed in.
+Type: filesandordirs; Name: "{app}\_internal"
+
+[Files]
+Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+[Icons]
+Name: "{autoprograms}\Keys"; Filename: "{app}\Keys.exe"
+Name: "{autodesktop}\Keys"; Filename: "{app}\Keys.exe"; Tasks: desktopicon
+
+[Run]
+Filename: "{app}\Keys.exe"; Description: "{cm:LaunchProgram,Keys}"; Flags: nowait postinstall skipifsilent
+
+[UninstallDelete]
+; An in-app update replaces _internal with files this installer never logged, so its
+; own uninstall log cannot remove them. Named exactly; never {app} wholesale.
+Type: filesandordirs; Name: "{app}\_internal"
+
+[Code]
+// Keys opens in its own window through Microsoft Edge WebView2, and falls back to a
+// browser tab without it. Windows 11 ships it; some Windows 10 machines do not.
+function WebView2Installed(): Boolean;
+var
+  Version: String;
+begin
+  Result :=
+    (RegQueryStringValue(HKLM, 'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', Version) and (Version <> '') and (Version <> '0.0.0.0')) or
+    (RegQueryStringValue(HKCU, 'Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', Version) and (Version <> '') and (Version <> '0.0.0.0'));
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ErrorCode: Integer;
+begin
+  if (CurStep = ssPostInstall) and not WizardSilent() and not WebView2Installed() then
+    if MsgBox('Keys opens in its own window using Microsoft Edge WebView2, which this PC ' +
+              'does not have. Without it, Keys opens in your browser instead.' + #13#10#13#10 +
+              'Open the WebView2 download page now? (Choose "Evergreen Bootstrapper".)',
+              mbConfirmation, MB_YESNO) = IDYES then
+      ShellExec('open', 'https://developer.microsoft.com/microsoft-edge/webview2/',
+                '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
+end;

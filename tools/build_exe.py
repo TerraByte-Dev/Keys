@@ -67,6 +67,7 @@ def _version() -> str:
 # which build this is -- a mismatch there tells someone they are up to date when the
 # file they downloaded is not the one they are running.
 ZIP = ROOT / "dist" / f"Keys-{_version()}-win-x64.zip"
+SETUP = ROOT / "dist" / f"Keys-Setup-{_version()}.exe"
 # Not 8770: the whole point is to test the build, and colliding with the app you have
 # open would either fail confusingly or -- worse -- test the app instead of the build.
 SMOKE_PORT = int(os.environ.get("KEYS_SMOKE_PORT", "8791"))
@@ -359,6 +360,48 @@ def package() -> None:
     print(f"         {digest}")
 
 
+def _iscc() -> Path | None:
+    """Inno Setup's compiler: KEYS_ISCC, then PATH, then winget's per-user and machine
+    installs (`winget install JRSoftware.InnoSetup`)."""
+    env = os.environ.get
+    candidates = [env("KEYS_ISCC", ""), shutil.which("ISCC") or "",
+                  f"{env('LOCALAPPDATA', '')}\\Programs\\Inno Setup 6\\ISCC.exe",
+                  f"{env('ProgramFiles(x86)', '')}\\Inno Setup 6\\ISCC.exe",
+                  f"{env('ProgramFiles', '')}\\Inno Setup 6\\ISCC.exe"]
+    return next((Path(c) for c in candidates if c and Path(c).is_file()), None)
+
+
+def installer() -> None:
+    """Wrap dist/Keys in Keys-Setup-<version>.exe: Start menu, desktop icon, uninstaller.
+
+    The zip stays the release's update payload; this is only the front door for a first
+    install. Its name is load-bearing -- see the next assertion and packaging/keys.iss.
+    """
+    print("8. the installer")
+    SETUP.unlink(missing_ok=True)
+    # Every Keys up to 0.13.0 takes the first .exe/.msi/.zip in GitHub's asset list,
+    # which is alphabetical. If the installer sorted first, all of them would download
+    # it as their update and fail to extract it.
+    step("installer sorts after the zip in the release", sorted([ZIP.name, SETUP.name])[0]
+         == ZIP.name, f"{SETUP.name} vs {ZIP.name}")
+    iscc = _iscc()
+    step("Inno Setup found", iscc is not None,
+         str(iscc) if iscc else "winget install JRSoftware.InnoSetup, or set KEYS_ISCC")
+    if iscc is None or not ok:
+        return
+    result = subprocess.run(
+        [str(iscc), "/Q", f"/DAppVersion={_version()}", f"/DSourceDir={DIST}",
+         f"/DOutputDir={SETUP.parent}", str(ROOT / "packaging" / "keys.iss")],
+        cwd=str(ROOT), capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        print(result.stdout[-3000:])
+        print(result.stderr[-3000:])
+    step("installer written", result.returncode == 0 and SETUP.exists(),
+         f"{SETUP.name} -- {human(SETUP.stat().st_size)}" if SETUP.exists()
+         else f"ISCC exit {result.returncode}")
+
+
 def main() -> int:
     if "--verify" not in sys.argv and not (committed() and build()):
         return 1
@@ -370,6 +413,8 @@ def main() -> int:
     # worse than no zip: the hash makes it look like something was checked.
     if ok:
         package()
+    if ok:
+        installer()
     print()
     if ok:
         print("  BUILD GOOD")
@@ -378,6 +423,7 @@ def main() -> int:
         print()
         print(f"  Ship it: {ZIP.name}")
         print(f"           {ZIP.name}.sha256")
+        print(f"           {SETUP.name}")
         print("  Upload both to the release yourself -- nothing here publishes.")
     else:
         print("  FAILURES ABOVE")
