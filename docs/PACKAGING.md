@@ -9,15 +9,20 @@ replaces itself when a new version exists, and what is still missing.
 ```
 
 That produces `dist/Keys/` — 90.7 MB across 330 files, runnable — and then, only if every
-check below it passed, the two files a release is made of:
+check below it passed, the three files a release is made of:
 
 - **`dist/Keys-<version>-win-x64.zip`** — ~55 MB. The application directory with
   **nothing above it**: `Keys.exe` and `_internal/` sit at the root of the archive.
 - **`dist/Keys-<version>-win-x64.zip.sha256`** — one line in `sha256sum` format, so
   `sha256sum -c` and a person reading it both work.
+- **`dist/Keys-Setup-<version>.exe`**: the per-user installer (`packaging/keys.iss`, Inno
+  Setup 6: `winget install JRSoftware.InnoSetup`). It is the front door for a first
+  install; the zip stays the update payload. Its name must sort **after** the zip,
+  because Keys up to 0.13.0 downloads the first `.exe`/`.msi`/`.zip` GitHub lists, and
+  GitHub lists alphabetically. The build asserts this.
 
-Both names come from `VERSION` in `backend/version.py`, so the zip cannot claim a
-version the app does not. Upload both to the GitHub release **by hand** — nothing in
+All names come from `VERSION` in `backend/version.py`, so the zip cannot claim a
+version the app does not. Upload all three to the GitHub release **by hand** — nothing in
 this repository publishes anything, and that is deliberate.
 
 The "no wrapper folder" rule is a **gate, not an assertion**: `dist/Keys` is checked for

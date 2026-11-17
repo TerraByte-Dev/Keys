@@ -3,8 +3,9 @@
     .venv\\Scripts\\python.exe tools\\build_exe.py            # build
     .venv\\Scripts\\python.exe tools\\build_exe.py --verify   # verify an existing build
 
-Produces `dist/Keys/` and, beside it, the two files a release is made of:
-`Keys-<version>-win-x64.zip` and its `.sha256` sidecar. The zip is the application
+Produces `dist/Keys/` and, beside it, the three files a release is made of:
+`Keys-<version>-win-x64.zip`, its `.sha256` sidecar, and `Keys-Setup-<version>.exe` (the
+installer for a first install; the zip stays the update payload). The zip is the application
 directory with nothing above it, because that is what the in-app updater extracts
 straight over an existing install -- and the reason backend/config.py keeps your
 database somewhere else entirely. Nothing here uploads anything; publishing stays
@@ -397,12 +398,17 @@ def installer() -> None:
     if result.returncode != 0:
         print(result.stdout[-3000:])
         print(result.stderr[-3000:])
+        SETUP.unlink(missing_ok=True)
     step("installer written", result.returncode == 0 and SETUP.exists(),
          f"{SETUP.name} -- {human(SETUP.stat().st_size)}" if SETUP.exists()
          else f"ISCC exit {result.returncode}")
 
 
 def main() -> int:
+    # Any earlier run's release files go first, so a run that fails at any step leaves
+    # nothing on disk named like a release.
+    for artefact in (ZIP, ZIP.with_name(ZIP.name + ".sha256"), SETUP):
+        artefact.unlink(missing_ok=True)
     if "--verify" not in sys.argv and not (committed() and build()):
         return 1
     verify()
@@ -424,7 +430,7 @@ def main() -> int:
         print(f"  Ship it: {ZIP.name}")
         print(f"           {ZIP.name}.sha256")
         print(f"           {SETUP.name}")
-        print("  Upload both to the release yourself -- nothing here publishes.")
+        print("  Upload all three to the release yourself -- nothing here publishes.")
     else:
         print("  FAILURES ABOVE")
     return 0 if ok else 1
