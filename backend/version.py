@@ -88,7 +88,11 @@ def check() -> dict[str, Any]:
     result["url"] = str(data.get("html_url") or RELEASES_PAGE)
     result["notes"] = str(data.get("body") or "")[:2000]
     assets = data.get("assets") or []
-    for asset in assets:
+    # The zip is the update; since 0.13.0 a release also carries Keys-Setup-<v>.exe for
+    # first installs, which updater.py cannot extract. Try zips first so the order
+    # GitHub lists assets in never decides which one gets downloaded.
+    payloads = sorted(assets, key=lambda a: not str(a.get("name", "")).lower().endswith(".zip"))
+    for asset in payloads:
         name = str(asset.get("name", ""))
         if name.lower().endswith((".exe", ".msi", ".zip")):
             result["download"] = str(asset.get("browser_download_url", ""))

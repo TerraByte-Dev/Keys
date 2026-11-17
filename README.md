@@ -51,12 +51,18 @@ records everything** so you can look back and see which keys, chords and scales 
 
 **Install the release** — Windows, no Python and nothing else to install.
 
-Download `Keys-<version>-win-x64.zip` from
-[Releases](https://github.com/TerraByte-Dev/Keys/releases/latest), extract it **into a folder of its
-own**, and run `Keys.exe`. The folder matters: the zip's root *is* the application — `Keys.exe` and
-`_internal/` with no wrapper folder above them — so "Extract Here" empties it into whatever folder
-you were standing in, and that folder is the one an in-app update rewrites. The build is unsigned,
-so SmartScreen says "Windows protected your PC" the first time: *More info → Run anyway*.
+Download **`Keys-Setup-<version>.exe`** from
+[Releases](https://github.com/TerraByte-Dev/Keys/releases/latest) and run it. No admin needed: it installs
+to `%LOCALAPPDATA%\Programs\Keys`, adds Keys to the Start menu and the desktop, and uninstalls from
+*Settings → Apps*. The build is unsigned, so SmartScreen says "Windows protected your PC" the first time:
+*More info → Run anyway*. Keys opens in its own window via Microsoft Edge WebView2, which Windows 11
+already has; on a Windows 10 PC without it the installer offers the download, and until then Keys opens
+in your browser instead.
+
+*Prefer no installer?* `Keys-<version>-win-x64.zip` is the same app. Extract it **into a folder of its
+own** and run `Keys.exe`. The folder matters: the zip's root *is* the application (`Keys.exe` and
+`_internal/` with no wrapper folder above them), so "Extract Here" empties it into whatever folder you
+were standing in, and that folder is the one an in-app update rewrites.
 
 After that, Keys updates itself in place: **Settings → About → Check for updates**, then **Download**,
 then **Restart and install**. Three separate presses, nothing on launch and nothing on a timer, and
