@@ -1,7 +1,9 @@
 ; Inno Setup script for Keys-Setup-<version>.exe. Build with tools/build_exe.py, which
 ; passes the three defines below; by hand:
 ;
-;   ISCC /DAppVersion=0.13.0 /DSourceDir=dist\Keys /DOutputDir=dist packaging\keys.iss
+;   ISCC /DAppVersion=0.13.0 /DSourceDir=..\dist\Keys /DOutputDir=..\dist packaging\keys.iss
+;
+; (Relative /D paths resolve against this file's folder, hence the ..\.)
 ;
 ; The installer wraps the same directory the release zip holds; it adds a Start menu
 ; entry, a desktop icon and an uninstaller, and nothing else. Three choices matter:
@@ -52,7 +54,12 @@ UninstallDisplayName=Keys
 WizardStyle=modern
 Compression=lzma2/max
 SolidCompression=yes
-CloseApplications=yes
+; force, not yes: a Keys with no window (--browser, --no-browser, or the browser
+; fallback on a PC without WebView2) is an RmUnknownApp, which Restart Manager can only
+; force-close. With `yes` it survived, [InstallDelete] then gutted the _internal it was
+; running from, and Abort left both broken. A kill is safe: SQLite is in WAL mode and the
+; update lock clears itself.
+CloseApplications=force
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
@@ -74,8 +81,11 @@ Filename: "{app}\Keys.exe"; Description: "{cm:LaunchProgram,Keys}"; Flags: nowai
 
 [UninstallDelete]
 ; An in-app update replaces _internal with files this installer never logged, so its
-; own uninstall log cannot remove them. Named exactly; never {app} wholesale.
+; own uninstall log cannot remove them. Named exactly; never {app} wholesale. The
+; .old-<hex> entries are what the updater's helper sets aside and could not delete.
 Type: filesandordirs; Name: "{app}\_internal"
+Type: filesandordirs; Name: "{app}\_internal.old-*"
+Type: files; Name: "{app}\Keys.exe.old-*"
 
 [Code]
 // Keys opens in its own window through Microsoft Edge WebView2, and falls back to a
@@ -87,6 +97,41 @@ begin
   Result :=
     (RegQueryStringValue(HKLM, 'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', Version) and (Version <> '') and (Version <> '0.0.0.0')) or
     (RegQueryStringValue(HKCU, 'Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', Version) and (Version <> '') and (Version <> '0.0.0.0'));
+end;
+
+// A downloaded-but-not-installed update lives BESIDE the app ({app}.new and
+// {app}.update.zip), outside anything the uninstall log covers. Same rule as
+// updater._clear_staging(): only a tree carrying .keys-staged, or an empty one, is ours.
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  NewDir: String;
+  FindRec: TFindRec;
+  Ours: Boolean;
+begin
+  if CurUninstallStep <> usPostUninstall then
+    Exit;
+  NewDir := ExpandConstant('{app}') + '.new';
+  if not DirExists(NewDir) then
+    Exit;
+  Ours := FileExists(NewDir + '\.keys-staged');
+  if not Ours then
+  begin
+    Ours := True;
+    if FindFirst(NewDir + '\*', FindRec) then
+    try
+      repeat
+        if (FindRec.Name <> '.') and (FindRec.Name <> '..') then
+          Ours := False;
+      until (not Ours) or (not FindNext(FindRec));
+    finally
+      FindClose(FindRec);
+    end;
+  end;
+  if Ours then
+  begin
+    DeleteFile(ExpandConstant('{app}') + '.update.zip');
+    DelTree(NewDir, True, True, True);
+  end;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
