@@ -417,7 +417,7 @@ async function route() {
   // Before unmount: the view is about to empty the stage its marked panel lives in.
   toggleFocus(false);
   current?.unmount?.();
-  ctx.kb.setHighlight([]);
+  ctx.kb.clearHighlights();
   ctx.kb.setGhost([]);
   ctx.kb.clearLabels();
   stage.replaceChildren();

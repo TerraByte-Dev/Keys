@@ -138,12 +138,17 @@ export default {
 
   frame() { paintTouch(); },
 
-  status(s) {
+  status(s, ctx) {
     backing?.status(s);
     paintPedal(s.pedal);
+    // A range change rebuilt the dock and dropped what these two had lit.
+    theory?.repaint();
+    if (showTouchKeys && touchRange !== `${ctx.kb.low}:${ctx.kb.high}`) paintTouchKeys(ctx);
   },
 
   unmount() {
+    // Inside a page, this view can go while others stay, so it takes back only what it lit.
+    if (showTouchKeys) { appCtx.kb.setHighlight([], 'touch'); appCtx.kb.clearLabels(); }
     showTouchKeys = false;
     backing?.destroy();
     theory?.destroy();
@@ -281,22 +286,23 @@ const TOUCH_KEYS = [
   [60, 'HARD'],
 ];
 let showTouchKeys = false;
+let touchRange = '';
 
 function paintTouchKeys(ctx) {
   if (!showTouchKeys) {
-    ctx.kb.setHighlight([]);
+    // Its own highlight owner, so turning these off leaves Chords & scales (and, in a
+    // page, Play's scale highlighter) lit exactly as they were.
+    ctx.kb.setHighlight([], 'touch');
     // clearLabels() puts every forced key back to its default text, and the label MODE
     // is state the keyboard keeps for itself -- so there is nothing here to restore.
-    // This used to also un-highlight the scale and clear #scale-toggle, which lived in
-    // the same view. Scale highlighter stayed in Play: the two can no longer be on
-    // screen at once, so there is nothing to turn off on the way out.
     ctx.kb.clearLabels();
     return;
   }
   // Highlight, not ghost: the ghost layer is a muted grey that reads as "dimmed" more
   // than "look here", and the printed label sits at the bottom edge of a white key
   // where a short dock can clip it. The key itself has to carry the signal.
-  ctx.kb.setHighlight(TOUCH_KEYS.map(([n]) => n));
+  ctx.kb.setHighlight(TOUCH_KEYS.map(([n]) => n), 'touch');
+  touchRange = `${ctx.kb.low}:${ctx.kb.high}`;
   for (const [note, label] of TOUCH_KEYS) ctx.kb.setKeyLabel(note, label);
 }
 

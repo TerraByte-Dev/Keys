@@ -78,9 +78,7 @@ export function createTheory() {
       : plan.title;
 
     kb?.setHighlight(plan.midi);
-    // The same shape on the keyboard you actually play, so the jump from this
-    // panel to the piano is not a jump.
-    dock?.setHighlight(plan.midi);
+    paintDock();
 
     buildRoots();      // the lit chip follows what came back, not what was clicked
     drawRibbon();
@@ -89,6 +87,22 @@ export function createTheory() {
     drawOpts();
     if (plan.kind === 'scale') drawChords();
     chordsEl.style.display = plan.kind === 'scale' && plan.chords?.length ? '' : 'none';
+  }
+
+  /* The keyboard you actually play gets EVERY key of the scale or chord, in every
+     octave it has -- not the one run the small board draws. A tester improvising over
+     the dock wanted to see where B minor pentatonic is anywhere under the hands, and
+     one octave from middle C answered a different question. The small board stays the
+     diagram of the shape; this is the map. Its own highlight owner, so the touch keys
+     and Play's scale highlighter on the same dock neither wipe it nor are wiped. */
+  let painted = '';
+  function paintDock() {
+    if (!dock || !plan) return;
+    const pcs = new Set(plan.pcs);
+    const keys = [];
+    for (let n = dock.low; n <= dock.high; n++) if (pcs.has(n % 12)) keys.push(n);
+    dock.setHighlight(keys, 'theory');
+    painted = `${dock.low}:${dock.high}`;
   }
 
   /* The ribbon: note, gap, note, gap. The gap is the big number. */
@@ -282,8 +296,15 @@ export function createTheory() {
       await refresh();
     },
 
+    /* setRange() rebuilds the dock and drops every layer with it; the status beat
+       calls this so a range changed in another tab (or by a new keyboard) gets the
+       keys back within a second. A no-op while the range is the one painted. */
+    repaint() {
+      if (dock && plan && painted !== `${dock.low}:${dock.high}`) paintDock();
+    },
+
     destroy() {
-      dock?.setHighlight([]);       // this panel borrowed the dock; give it back
+      dock?.setHighlight([], 'theory');   // this panel borrowed the dock; give it back
       kb?.destroy?.();
       kb = null; dock = null; plan = null; vocab = null;
     },

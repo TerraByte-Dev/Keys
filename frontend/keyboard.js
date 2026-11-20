@@ -193,6 +193,7 @@ class Keyboard {
     this._heldSpare = new Set();       // swapped with _held, never reallocated
     this._highlight = new Set();
     this._highlightSpare = new Set();
+    this._owners = new Map();          // owner -> Set of midi, see setHighlight()
     this._ghost = new Set();
     this._ghostSpare = new Set();
     this._dead = new Set();
@@ -396,9 +397,42 @@ class Keyboard {
     this._syncAria();
   }
 
-  setHighlight(midiArray) {
+  /* One highlight set per OWNER, and the keys show their union. Several panels light
+     the dock at once -- Play's scale highlighter, Chords & scales, the touch-setting
+     keys -- and with one shared set the last writer wiped the others, so turning the
+     touch keys off blanked the scale you had just picked. Each writer now replaces and
+     clears only its own owner; clearHighlights() is the router's "everything off".
+     Not on the frame path: written on a click or a range change, never per frame. */
+  setHighlight(midiArray, owner = 'main') {
     if (this._destroyed) return;
-    const next = this._layer(midiArray || [], this._highlight, this._highlightSpare, 'is-highlight');
+    let own = this._owners.get(owner);
+    if (!own) this._owners.set(owner, (own = new Set()));
+    own.clear();
+    const list = midiArray || [];
+    for (let i = 0; i < list.length; i++) {
+      const n = list[i] | 0;
+      if (this._el[n]) own.add(n);
+    }
+    this._paintHighlight();
+  }
+
+  clearHighlights() {
+    if (this._destroyed) return;
+    for (const own of this._owners.values()) own.clear();
+    this._paintHighlight();
+  }
+
+  // The union of every owner, diffed against what is drawn like any other layer.
+  _paintHighlight() {
+    const next = this._highlightSpare;
+    next.clear();
+    for (const own of this._owners.values()) for (const n of own) next.add(n);
+    for (const n of next) {
+      if (!this._highlight.has(n)) this._el[n].classList.add('is-highlight');
+    }
+    for (const n of this._highlight) {
+      if (!next.has(n)) this._el[n].classList.remove('is-highlight');
+    }
     this._highlightSpare = this._highlight;
     this._highlight = next;
   }
@@ -502,6 +536,7 @@ class Keyboard {
                        this._ghost, this._ghostSpare, this._dead, this._deadSpare,
                        this._sustained, this._forced]) set.clear();
     for (const m of this._marks.values()) { m.cur.clear(); m.spare.clear(); }
+    for (const own of this._owners.values()) own.clear();
 
     this.low = lo;
     this.high = hi;
