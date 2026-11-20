@@ -193,7 +193,7 @@ export default {
     try {
       instruments = (await api.get('/api/instruments')).instruments || [];
     } catch { instruments = []; }
-    fillInstSelects();
+    fillInstSelects(root);
     render(ctx);
   },
 
@@ -231,7 +231,9 @@ function instSelect(id, defaultProgram, label) {
       h('option', { value: '0' }, 'loading...')));
 }
 
-function fillInstSelects() {
+// Scoped to this view's own root: inside a page, Practice's `.build` cards share the
+// document, and a document-wide `.build select` would reach into them.
+function fillInstSelects(root) {
   /* Everything the Instruments browser has, grouped the same way.
    *
    * This used to hide the drum kits on the grounds that a kit "belongs on channel 9,
@@ -248,7 +250,7 @@ function fillInstSelects() {
     if (!byFamily.has(fam)) byFamily.set(fam, []);
     byFamily.get(fam).push(i);
   }
-  for (const el of $$('.build select')) {
+  for (const el of $$('.build select', root)) {
     const want = Number(el.dataset.default || 0);
     el.replaceChildren(...[...byFamily.entries()].map(([fam, list]) =>
       h('optgroup', { label: `${fam} (${list.length})` },

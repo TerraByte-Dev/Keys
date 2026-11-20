@@ -4,7 +4,8 @@
  *   1. the websocket (realtime frames in, nothing out -- control is REST),
  *   2. the keyboard in the dock and the readout strip above it, which are global and
  *      stay live no matter which view is showing,
- *   3. a hash router that mounts one view module at a time.
+ *   3. a hash router that mounts one view module at a time -- or, on a page you built
+ *      yourself (pages.js), up to four of them side by side, each in its own pane.
  *
  * Frames arrive about 60 times a second. Nothing in the frame path allocates a
  * subtree or re-renders a view; it toggles classes and sets text on nodes that
@@ -16,6 +17,8 @@ import { createRoll } from './roll.js';
 import { createGhost } from './ghost.js';
 import { createSongs } from './songs.js';
 import { attachLayout, primeLayout } from './layout.js';
+import { MAX_PAGES, fullWidth, pageBuilder, pageShell, pickPanels, savePages,
+  validPages } from './pages.js';
 import { $, api, h, hms, noteName, paint as paintSlider, toast } from './ui.js';
 import { startTour, tourOpen } from './tour.js';
 import { closeSettings, openSettings, settingsOpen } from './settings-overlay.js';
@@ -87,8 +90,14 @@ export function resetTouch() {
   ctx.touch.hist.fill(0);
 }
 
-let current = null;
-let currentId = null;
+/* What is up: one entry for a tab, one per pane on a page. Each has its own ctx whose
+   refresh() remounts only that view, so loading a preset in a page's Play pane does
+   not tear down the Jam beside it (and stop the band with it). */
+let mounted = [];       // [{ id, view, root, ctx, layoutKey, panels }]
+let currentId = null;   // the route: a view id, or 'page/<id>' / 'page/<id>/edit'
+let routeSeq = 0;
+let pages = [];         // ui.pages, validated
+let lastRoute = 'play'; // where Cancel on a new page goes back to
 let lastZoneSig = null;
 
 /* ── keyboard + readout (global, always live) ─────────────────────────────── */
@@ -169,7 +178,7 @@ export async function shiftOctave(by) {
 }
 
 /* Anyone who needs to see the raw keys as they are struck, wherever they are mounted.
-   The router hands frames to the ONE view that is up (`current.frame`), which is right
+   The router hands frames to the views that are up (`m.view.frame`), which is right
    for a panel and wrong for anything that outlives a view -- the tutorial card and the
    gear overlay both float above whatever is routed. One Set, called from applyFrame,
    rather than a second frame channel per floating thing. */
@@ -285,7 +294,10 @@ function applyFrame(f) {
   if (f.names) els.notes.textContent = f.names.join('   ');
   roll?.frame(f);
   ghostModel?.frame(f);
-  current?.frame?.(f, ctx);
+  for (let i = 0; i < mounted.length; i++) {
+    const m = mounted[i];
+    m.view.frame?.(f, m.ctx);
+  }
 }
 
 /* The dot on the gear. Painted from the heartbeat rather than once at boot, because
@@ -360,7 +372,7 @@ function applyStatus(s) {
   const p = s.practice || {};
   els.todayClock.textContent = hms(p.today_seconds || 0);
   els.playingDot.classList.toggle('is-live', p.session_active && !p.idle);
-  current?.status?.(s, ctx);
+  for (const m of mounted) m.view.status?.(s, m.ctx);
 }
 
 function lamp(id, cls, value) {
@@ -411,34 +423,137 @@ const stage = $('#stage');
 async function route() {
   const id = (location.hash.replace('#', '') || 'play');
   if (ALIASES[id]) { location.hash = ALIASES[id]; return; }   // re-enters via hashchange
-  const view = VIEWS[id] || VIEWS.play;
   if (currentId === id) return;
+
+  // A page, its builder, or a view. An unknown page goes to Play rather than a blank.
+  const pm = /^page\/([a-z0-9-]+)(\/edit)?$/.exec(id);
+  const isNew = pm?.[1] === 'new';
+  const page = pm && !isNew ? pages.find((p) => p.id === pm[1]) : null;
+  if (pm && !page && (!isNew || pages.length >= MAX_PAGES)) { location.hash = 'play'; return; }
 
   // Before unmount: the view is about to empty the stage its marked panel lives in.
   toggleFocus(false);
-  current?.unmount?.();
+  unmountAll();
   ctx.kb.clearHighlights();
   ctx.kb.setGhost([]);
   ctx.kb.clearLabels();
   stage.replaceChildren();
-
-  current = view;
+  const seq = ++routeSeq;
   currentId = id;
-  document.documentElement.dataset.view = id;
-  for (const a of document.querySelectorAll('.nav__item')) {
-    a.classList.toggle('is-active', a.dataset.view === id);
-  }
-  await view.mount?.(stage, ctx);
-  // After mount, so it operates on the DOM the view actually built. No view knows
-  // this exists; a new panel is rearrangeable without being registered anywhere.
-  for (const grid of stage.querySelectorAll('.grid')) attachLayout(grid, id);
-  if (ctx.status) view.status?.(ctx.status, ctx);
+  if (!pm || (page && !pm[2])) lastRoute = id;
+  document.documentElement.dataset.view = pm ? 'page' : id;
+  paintNav(id);
+
+  if (isNew || pm?.[2]) { openBuilder(page); return; }
+  if (page) { await mountPage(page, seq); return; }
+  const known = VIEWS[id] ? id : 'play';
+  await mountView(known, VIEWS[known], stage, id, seq);
 }
 
-async function refresh() {
+/* `layoutKey` is what layout.js saves the arrangement under: the view id on its own
+   tab, `page:<id>:<view>` in a page pane, so a page never rearranges the real tab. */
+async function mountView(id, view, root, layoutKey, seq, panels = null) {
+  const m = { id, view, root, layoutKey, panels, ctx: viewCtx(id) };
+  mounted.push(m);
+  await view.mount?.(root, m.ctx);
+  // Routed away (or remounted) while mount() was awaiting: the pane is not ours now.
+  if (seq !== routeSeq || !mounted.includes(m)) return;
+  if (panels) fullWidth(root);
+  // After mount, so it operates on the DOM the view actually built. No view knows
+  // this exists; a new panel is rearrangeable without being registered anywhere.
+  for (const grid of root.querySelectorAll('.grid')) attachLayout(grid, layoutKey);
+  if (panels) pickPanels(root, panels);
+  if (ctx.status) view.status?.(ctx.status, m.ctx);
+}
+
+/* Each pane's view mounts in pane order, exactly as it would on its own tab, into the
+   pane instead of the stage. A route away mid-way stops at the next pane. */
+async function mountPage(page, seq) {
+  const shell = pageShell(page, { onEdit: () => { location.hash = `page/${page.id}/edit`; } });
+  stage.append(shell.el);
+  for (const pane of shell.panes) {
+    if (seq !== routeSeq) return;
+    await mountView(pane.view, VIEWS[pane.view], pane.el, `page:${page.id}:${pane.view}`, seq,
+                    pane.panels);
+  }
+}
+
+function unmountAll() {
+  const was = mounted;
+  mounted = [];
+  for (const m of was) m.view.unmount?.(m.ctx);
+}
+
+function viewCtx(id) {
+  return Object.create(ctx, { refresh: { value: () => refresh(id) } });
+}
+
+/* Re-pull /api/state and rebuild. From a view on a page, only that view's pane. */
+async function refresh(viewId = null) {
   ctx.state = await api.get('/api/state');
-  currentId = null;          // force a rebuild against the new state
-  await route();
+  const m = viewId && currentId?.startsWith('page/')
+    ? mounted.find((x) => x.id === viewId) : null;
+  if (!m) {
+    currentId = null;          // force a rebuild against the new state
+    await route();
+    return;
+  }
+  if (focusing && m.root.querySelector('[data-focus="on"]')) toggleFocus(false);
+  mounted = mounted.filter((x) => x !== m);
+  m.view.unmount?.(m.ctx);
+  m.root.replaceChildren();
+  await mountView(m.id, m.view, m.root, m.layoutKey, routeSeq, m.panels);
+}
+
+/* ── custom pages ─────────────────────────────────────────────────────────── */
+const navPages = $('#nav-pages');
+const navNew = $('#nav-new-page');
+
+function paintNav(id = currentId) {
+  const pageId = /^page\/([a-z0-9-]+)/.exec(id || '')?.[1];
+  navPages?.replaceChildren(...pages.map((p, i) => h('a.nav__item.nav__item--page', {
+    href: `#page/${p.id}`, 'data-page': p.id, title: p.name,
+  },
+    h('span.nav__dot'),
+    i < 3 && binds[`page:${i + 1}`] ? h('span.nav__key', null, binds[`page:${i + 1}`]) : null,
+    h('span.nav__label', null, p.name))));
+  for (const a of document.querySelectorAll('.nav__item')) {
+    a.classList.toggle('is-active', pageId ? a.dataset.page === pageId : a.dataset.view === id);
+  }
+  navNew?.toggleAttribute('hidden', pages.length >= MAX_PAGES);
+}
+
+function openBuilder(page) {
+  stage.append(pageBuilder(page, {
+    count: pages.length,
+    onCancel: () => { location.hash = page ? `page/${page.id}` : lastRoute; },
+    onSave: async (next) => {
+      const list = page ? pages.map((p) => (p.id === page.id ? next : p)) : [...pages, next];
+      if (await storePages(list)) location.hash = `page/${next.id}`;
+    },
+    onDelete: async () => {
+      if (await storePages(pages.filter((p) => p.id !== page.id))) location.hash = 'play';
+    },
+  }));
+}
+
+async function storePages(list) {
+  try {
+    const settings = await savePages(list);
+    ctx.state.settings = settings;
+    pages = validPages(settings?.ui?.pages);
+    paintNav();
+    return true;
+  } catch (err) {
+    toast(err.message, 'bad');
+    return false;
+  }
+}
+
+function goPage(n) {
+  const p = pages[n - 1];
+  if (p) location.hash = `page/${p.id}`;
+  else toast(`No page ${n} yet. + New page, under the tabs, makes one.`, '', 2600);
 }
 
 /* ── keyboard shortcuts ───────────────────────────────────────────────────── */
@@ -525,6 +640,7 @@ function fullWindow(on, { keepFullscreen = false } = {}) {
    unlike the roll, Jam has a smaller view to fall back into. */
 let focusing = false;
 let focusScroll = 0;
+let focusScroller = null;
 let focusLeftAt = -1e9;
 
 export function toggleFocus(on, { target = null, keepFullscreen = false } = {}) {
@@ -532,9 +648,11 @@ export function toggleFocus(on, { target = null, keepFullscreen = false } = {}) 
   if (want === focusing) return focusing;
   if (want) {
     if (immersive) return false;
-    const el = target || current?.focusTarget?.();
+    const el = target || focusTarget();
     if (!el || !stage.contains(el)) return false;
-    focusScroll = stage.scrollTop;
+    // On a page the pane scrolls, not the stage; that is the position to come back to.
+    focusScroller = el.closest('.page__pane') || stage;
+    focusScroll = focusScroller.scrollTop;
     el.dataset.focus = 'on';
     for (let n = el.parentElement; n && n !== stage; n = n.parentElement) n.dataset.focus = 'path';
     focusing = true;
@@ -552,19 +670,30 @@ export function toggleFocus(on, { target = null, keepFullscreen = false } = {}) 
   }
   // route() leaves focus and then mounts another view before this frame runs: the
   // scroll and the marks belong to the view that was focused, not to that one.
-  const view = current;
+  const seq = routeSeq;
   requestAnimationFrame(() => {
-    if (current !== view) return;
+    if (routeSeq !== seq) return;
     // Hidden panels come back from display:none. layout.js's ResizeObserver repacks
     // them, but kick it once so the restore does not hang on observer timing.
     if (!focusing) {
       for (const g of stage.querySelectorAll('.grid')) g.repack?.();
-      stage.scrollTop = focusScroll;
+      if (focusScroller) focusScroller.scrollTop = focusScroll;
     }
     // The dock just changed size: put the marks back now, not on the next status frame.
-    current?.refocus?.();
+    for (const m of mounted) m.view.refocus?.();
   });
   return focusing;
+}
+
+/* The first mounted view that has something to focus, and that something is on screen:
+   on a page Practice can be up with Jam not picked, and focusing a hidden panel is a
+   blank window. */
+function focusTarget() {
+  for (const m of mounted) {
+    const el = m.view.focusTarget?.();
+    if (el && !el.closest('.is-unpicked')) return el;
+  }
+  return null;
 }
 
 /* Show the way out for a moment whenever the mouse moves, then let it fade. */
@@ -1039,6 +1168,14 @@ export const ACTIONS = [
     key: String(i + 1),
     run: () => { location.hash = view; },
   })),
+  // Your first three pages, after the six tabs. Rebindable like everything else.
+  ...[1, 2, 3].map((n) => ({
+    id: `page:${n}`,
+    label: `Page ${n} (your own)`,
+    group: 'Go to',
+    key: String(ORDER.length + n),
+    run: () => goPage(n),
+  })),
   {
     id: 'panic', label: 'Stop everything', group: 'Do', key: 'Escape', always: true,
     // The one exception to "panic always fires": in immersive and focus there is no
@@ -1114,6 +1251,7 @@ export function setBinds(map) {
   for (const [id, key] of Object.entries(map || {})) {
     if (id in DEFAULT_BINDS && key) binds[id] = normalKey(key);
   }
+  paintNav();          // the page items print their key
   return { ...binds };
 }
 
@@ -1161,6 +1299,8 @@ window.addEventListener('beforeunload', () => { if (ws) { ws.onclose = null; ws.
   // it is now the whole window, and an app that opens into full screen because of
   // something you did last week is an app that has taken a decision off you.
   primeLayout(ctx.state);
+  pages = validPages(ctx.state?.settings?.ui?.pages);
+  paintNav('');
   for (const problem of ctx.state.errors || []) toast(problem, 'bad', 12000);
   await route();
   connect();
