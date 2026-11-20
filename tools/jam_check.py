@@ -64,9 +64,11 @@ def ok(label: str, passed: bool, detail: str = "") -> None:
 DRIVER = r"""
 import { createProgression, crossing, guideLevel, keysIn, palette, seatTarget, seatZone, PALETTE, PHRASES, chordPcs,
   ROOMS, roomScale, roomSig, createVamp, BLUES_FORMS, bluesChord, bluesNote, bluesScale, createBlues,
-  lick, question, createAsks, echoScore } from './harmony.js';
+  lick, question, createAsks, echoScore, pinSafe, wanderDue, BLUES_LEVELS, SAFE_PHRASES,
+  createLoop, loopRole, loopRoman, loopScale } from './harmony.js';
 
 const keys = JSON.parse(process.env.JAM_KEYS);
+const allKeys = JSON.parse(process.env.JAM_ALL_KEYS);
 const rooms = JSON.parse(process.env.JAM_ROOMS);
 const out = [];
 const ok = (label, passed, detail = '') => out.push({ label, passed: !!passed, detail });
@@ -444,6 +446,212 @@ function seeded(seed) {
      && e([60, 62], []).matched === 0 && e([64, 60], [60, 64]).matched === 1);
 }
 
+/* 10. Levels. The beginner loops are the spec's, written here, not read from harmony.js. */
+const DEG = { I: 0, ii: 1, iii: 2, IV: 3, V: 4, vi: 5, i: 0, III: 2, iv: 3, v: 4, VI: 5, VII: 6 };
+const BEGIN = { major: ['pop', 'sad-pop', 'fifties', 'three-chord'], minor: ['epic', 'andalusian', 'watchtower', 'minor-three'] };
+{
+  const bad = [];
+  let skips = 0;
+  for (const k of keys) {
+    const mode = k.mode === 'major' ? 'major' : 'minor';
+    for (const seed of [1, 5, 23]) {
+      const p = createProgression({ mode, scale: k.pcs, rng: seeded(seed), level: 1 });
+      const first = p.next();
+      if (first.roman !== PALETTE[mode][0]) bad.push(`${k.name}: opens on ${first.roman}`);
+      for (let round = 0; round < 4; round++) {
+        const ids = new Set();
+        const c0 = round ? p.next() : first;
+        ids.add(c0.phrase.id);
+        for (let i = 0; i < 59; i++) {
+          const c = p.next();
+          ids.add(c.phrase.id);
+          if (c.varied) bad.push(`${k.name}: L1 varied a chord`);
+          if (c.phrase.seq.length !== 4) bad.push(`${k.name}: L1 played ${c.phrase.id}`);
+        }
+        const [id] = [...ids];
+        if (ids.size !== 1) bad.push(`${k.name}: L1 played ${[...ids]} without New progression`);
+        if (!BEGIN[mode].includes(id)) bad.push(`${k.name}: ${id} is not a beginner loop`);
+        p.skipPhrase();
+        // The rest of the bar's loop is dropped: the next chord is a new loop's first.
+        const nx = p.peek();
+        if (nx.phrase.id === id || nx.step !== 0) bad.push(`${k.name}: New progression kept ${id}`);
+        else skips++;
+      }
+    }
+  }
+  ok('level 1: one beginner loop, over and over, unvaried, opening on home, until New progression picks another',
+     !bad.length, bad.length ? bad.slice(0, 3).join('; ') : `${skips} new progressions`);
+}
+{
+  const bad = [];
+  const seen = { major: new Set(), minor: new Set() };
+  for (const k of keys) {
+    const mode = k.mode === 'major' ? 'major' : 'minor';
+    const p = createProgression({ mode, scale: k.pcs, rng: seeded(k.pcs[0] + 3), level: 2 });
+    for (let i = 0; i < 800; i++) {
+      const c = p.next();
+      seen[mode].add(c.phrase.id);
+      if (c.phrase.seq.length !== 4 || c.step > 3) bad.push(`${k.name}: L2 played ${c.phrase.id}`);
+      if (c.varied) bad.push(`${k.name}: L2 varied a chord`);
+    }
+  }
+  const fours = (m) => PHRASES[m].filter((ph) => ph.seq.length === 4).map((ph) => ph.id);
+  const missing = ['major', 'minor'].flatMap((m) => fours(m).filter((id) => !seen[m].has(id)));
+  ok('level 2: every four-chord loop and nothing longer, none varied', !bad.length && !missing.length
+     && !seen.major.has('canon'), bad.length ? bad.slice(0, 3).join('; ') : `missing ${missing}`);
+}
+{
+  // Level 4: a key change at every second phrase boundary, never on a coin. jam.js's
+  // counter: +1 at each phrase start, back to 0 on a change.
+  const boundary = (level, on, n, rng) => {
+    const at = [];
+    let count = 0;
+    for (let b = 1; b <= n; b++) {
+      count++;
+      if (wanderDue(level, on, count, rng)) { at.push(b); count = 0; }
+    }
+    return at;
+  };
+  const four = boundary(4, false, 20, seeded(3));
+  const want = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20];
+  const one = boundary(1, true, 200, seeded(3));
+  const off = boundary(3, false, 200, seeded(3));
+  const three = boundary(3, true, 200, seeded(3));
+  ok('level 4 changes key at every second phrase boundary; level 1 and Wander off never do',
+     JSON.stringify(four) === JSON.stringify(want) && !one.length && !off.length,
+     `L4 ${four}; L1 ${one.length}; off ${off.length}`);
+  ok('...and levels 2-3 with Wander on still wait three phrases and toss a coin',
+     three.length > 5 && three.every((b, i) => b - (three[i - 1] || 0) >= 3)
+     && three.some((b, i) => b - (three[i - 1] || 0) > 3), `${three.slice(0, 8)}`);
+}
+
+/* 11. The scale pin. Every key, both modes; the pin's notes and the rub test are written
+       here as arithmetic, never taken from harmony.js. */
+const SHAPES = { major_pentatonic: [0, 2, 4, 7, 9], minor_pentatonic: [0, 3, 5, 7, 10], blues: [0, 3, 5, 6, 7, 10] };
+const at = (tonic, steps) => steps.map((s) => (tonic + s) % 12);
+function pinOf(kind, mode, tonic) {
+  if (kind === 'penta') return { pcs: at(tonic, SHAPES[mode === 'major' ? 'major_pentatonic' : 'minor_pentatonic']), blue: null };
+  // Blues: on the tonic in minor; in major the relative minor's, whose b5 is the major's b3.
+  return mode === 'major' ? { pcs: at(tonic + 9, SHAPES.blues), blue: (tonic + 3) % 12 }
+    : { pcs: at(tonic, SHAPES.blues), blue: (tonic + 6) % 12 };
+}
+const rubs = (chord, pin, blue) => pin.filter((pc) => pc !== blue && !chord.includes(pc)
+  && chord.includes((pc + 11) % 12));
+{
+  const bad = [];
+  let n = 0;
+  const loops = {};
+  const safeSets = { major: new Set(), minor: new Set() };
+  for (const k of allKeys) {
+    const mode = k.mode === 'major' ? 'major' : 'minor';
+    const tonic = k.pcs[0];
+    for (const kind of ['penta', 'blues']) {
+      const { pcs: pin, blue } = pinOf(kind, mode, tonic);
+      const allowed = pinSafe(k.pcs, mode, pin, blue);
+      safeSets[mode].add(allowed.map((r) => r).join(' '));
+      for (const level of [1, 2, 3, 4]) {
+        const p = createProgression({ mode, scale: k.pcs, rng: seeded(tonic * 13 + level), level, allowed });
+        const ids = new Set();
+        const count = level === 3 ? 2000 : 600;
+        for (let i = 0; i < count; i++) {
+          const c = p.next();
+          n++;
+          ids.add(c.phrase.id);
+          if (i === 0 && c.roman !== PALETTE[mode][0]) bad.push(`${k.name} ${kind} L${level}: opens on ${c.roman}`);
+          const r = rubs(c.pcs, pin, blue);
+          if (r.length) bad.push(`${k.name} ${kind} L${level}: ${c.roman} rubs on ${r}`);
+          const want = k.chords[DEG[c.roman]];
+          if (JSON.stringify(c.pcs) !== JSON.stringify(want)) bad.push(`${k.name} ${c.roman}: ${c.pcs} is not the server's ${want}`);
+          if (level === 1 && i % 50 === 49) p.skipPhrase();
+        }
+        const key = `${mode} L${level}`;
+        loops[key] = Math.min(loops[key] ?? 99, ids.size);
+      }
+    }
+  }
+  ok('under a Pentatonic or Blues pin no chord rubs against the pin, in every key, both modes, every level',
+     !bad.length, bad.length ? bad.slice(0, 3).join('; ') : `${n} chords, ${allKeys.length} keys`);
+  ok('...and every chord is still the server\'s chord on its degree (the safe phrases included)', !bad.some((b) => b.includes('server')));
+  ok('major pentatonic allows exactly I ii IV vi; minor pentatonic i III iv VI (computed, every key)',
+     [...safeSets.major].join('|') === 'I ii IV vi' && [...safeSets.minor].join('|') === 'i III iv VI',
+     `${[...safeSets.major]} / ${[...safeSets.minor]}`);
+  const thin = Object.entries(loops).filter(([key, v]) => !key.endsWith('L4') && v < 3);
+  ok('levels 1-3 have at least three loops to play under a pin, in both modes', !thin.length,
+     JSON.stringify(loops));
+  const safeIds = ['major', 'minor'].flatMap((m) => SAFE_PHRASES[m].map((ph) => `${m}:${ph.id}:${ph.seq[0]}`));
+  ok('every pin-safe phrase starts at home', safeIds.every((s) => /:(I|i)$/.test(s)), safeIds.join(' '));
+}
+{
+  // An unplayable filter still gives a phrase: nothing in the songbook fits these chords.
+  let crashed = '';
+  try {
+    for (const level of [1, 2, 3]) {
+      const p = createProgression({ mode: 'major', scale: keys[0].pcs, rng: seeded(1), level, allowed: ['ii', 'iii'] });
+      for (let i = 0; i < 20; i++) if (!p.next()) throw new Error('no chord');
+    }
+  } catch (err) { crashed = String(err); }
+  ok('a pool with nothing that fits still yields a phrase, never a crash', !crashed, crashed);
+}
+
+/* 12. Blues by level. Chords by arithmetic: a dominant 7th is 0 4 7 10 on its root. */
+{
+  const bad = [];
+  const dom = (r) => at(r, [0, 4, 7, 10]), min7 = (r) => at(r, [0, 3, 7, 10]);
+  for (const k of keys) {
+    const minor = k.mode !== 'major';
+    const tonic = k.pcs[0];
+    const distinct = (level) => {
+      const g = createBlues({ tonic, minor, rng: seeded(tonic + level), level });
+      const seqs = new Set(), chords = new Set();
+      for (let i = 0; i < 96; i++) {
+        const c = g.next();
+        chords.add(c.pcs.join(','));
+        seqs.add(c.phrase.seq.join(' '));
+        const sc = bluesScale(tonic, c.roman, minor);
+        if (!c.pcs.every((pc) => sc.includes(pc))) bad.push(`${k.name} L${level} ${c.roman}: chord outside its scale`);
+      }
+      return { chords, seqs: [...seqs] };
+    };
+    const one = distinct(1);
+    const home = (minor ? min7 : dom)(tonic).join(','), four = (minor ? min7 : dom)(tonic + 5).join(',');
+    if (one.chords.size !== 2 || !one.chords.has(home) || !one.chords.has(four)) bad.push(`${k.name} L1: ${[...one.chords]}`);
+    if (one.seqs.length !== 1 || one.seqs[0].split(' ').length !== 8) bad.push(`${k.name} L1: not four bars each`);
+    const two = distinct(2);
+    const s2 = two.seqs[0]?.split(' ') || [];
+    if (two.seqs.length !== 1 || s2.length !== 12 || s2[1] !== s2[0] || two.chords.size !== 3) bad.push(`${k.name} L2: ${two.seqs}`);
+    const four4 = distinct(4);
+    const s4 = four4.seqs[0]?.split(' ') || [];
+    if (s4.length !== 12 || s4[1] === s4[0] || s4[11][0] !== 'V') bad.push(`${k.name} L4: ${four4.seqs}`);
+    // The turnaround moves: a chord the plain twelve bars never play.
+    if (![...four4.chords].some((c) => !two.chords.has(c))) bad.push(`${k.name} L4: nothing new in the turnaround`);
+    if (!minor && !four4.chords.has(dom(tonic + 9).join(','))) bad.push(`${k.name} L4: no VI7 (A7 in C)`);
+  }
+  ok('blues level 1 is two chords, 2 the plain 12-bar on three, 4 the quick change with a moving turnaround',
+     !bad.length, bad.slice(0, 3).join('; '));
+}
+
+/* 13. My chords: the loop cycles, and each chord gets a role, a numeral and a scale. */
+{
+  const C = [0, 2, 4, 5, 7, 9, 11];
+  const mine = [{ roman: 'I', pcs: [0, 4, 7], root: 0, role: 'home' }, { roman: 'II7', pcs: [2, 6, 9, 0], root: 2, role: 'pull' },
+    { roman: 'IV', pcs: [5, 9, 0], root: 5, role: 'away' }];
+  const g = createLoop(mine);
+  const got = Array.from({ length: 7 }, () => g.next().roman).join(' ');
+  ok('your loop plays your chords in order, round and round', got === 'I II7 IV I II7 IV I', got);
+  const roles = [[0, '', 'home'], [7, '', 'pull'], [7, '7', 'pull'], [2, '7', 'pull'], [5, '', 'away'], [9, 'm', 'away'], [11, 'dim', 'pull']]
+    .map(([r, q, want]) => [loopRole(r, q, 0), want]);
+  ok('a chord on home is home, one that pulls to it pulls, the rest are away', roles.every(([a, b]) => a === b),
+     JSON.stringify(roles));
+  const romans = [[0, ''], [2, 'm7'], [7, '7'], [10, ''], [6, 'dim'], [3, 'maj7']].map(([r, q]) => loopRoman(r, q, C)).join(' ');
+  ok('numerals by degree: I ii7 V7 ♭VII ♯iv° ♭IIImaj7 in C', romans === 'I ii7 V7 ♭VII ♯iv° ♭IIImaj7', romans);
+  const D7 = [2, 6, 9, 0], Dm = [2, 5, 9], Bb = [10, 2, 5];
+  const choice = [loopScale(Dm, 'm', C), loopScale(D7, '7', C), loopScale(Bb, '', C), loopScale([3, 7, 10, 2], 'maj7', C),
+    loopScale([6, 9, 0], 'dim', C), loopScale([4, 7, 11, 2], 'm7', [4, 6, 7, 9, 11, 0, 2]), loopScale([2, 7, 9], 'sus4', [1, 3, 5, 6, 8, 10, 0]),
+    loopScale(D7, '7', C, true)].join(' ');
+  ok('a chord in the key is judged by the key; out of it by its quality; under a pin by the pin',
+     choice === 'key mixolydian major major locrian key mixolydian pin', choice);
+}
+
 console.log(JSON.stringify(out));
 """
 
@@ -723,6 +931,14 @@ def main() -> int:
                      "chords": [c["pcs"] for c in plan["chords"]]})
 
     names = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]
+    # The pin is checked on every tonic in both modes, not only the keys Jam offers:
+    # a wander or a new key list must not find one where the pin rubs.
+    all_keys = []
+    for name in names:
+        for mode in ("major", "natural_minor"):
+            plan = theory.scale_plan(name, mode)
+            all_keys.append({"name": f"{name} {mode}", "mode": mode, "pcs": plan["pcs"],
+                             "chords": [c["pcs"] for c in plan["chords"]]})
     room_modes = {"dorian": (2, "dorian"), "phrygian": (4, "phrygian"), "lydian": (5, "lydian"),
                   "mixolydian": (7, "mixolydian"), "aeolian": (9, "natural_minor")}
     rooms = {rid: theory.scale_plan(names[t], m)["pcs"] for rid, (t, m) in room_modes.items()}
@@ -732,7 +948,8 @@ def main() -> int:
     try:
         proc = subprocess.run([node, str(driver)], capture_output=True, text=True,
                               env={**__import__("os").environ, "JAM_KEYS": json.dumps(keys),
-                                   "JAM_ROOMS": json.dumps(rooms)})
+                                   "JAM_ROOMS": json.dumps(rooms),
+                                   "JAM_ALL_KEYS": json.dumps(all_keys)})
     finally:
         driver.unlink(missing_ok=True)
     if proc.returncode != 0:
