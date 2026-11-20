@@ -22,6 +22,7 @@
 let toolkit = null;          // the Verovio instance, built once
 let loading = null;          // in-flight load, so two clicks make one download
 let loadedId = '';           // which score is currently parsed into the toolkit
+let measures = null;         // measureMap()'s answer for that score
 
 /* Verovio's own options. Page width/height are in tenths of a staff space -- its unit,
    not pixels -- and the SVG then scales to whatever box we put it in. */
@@ -73,6 +74,7 @@ export async function loadScore(id) {
   // Cleared first: a failed load leaves the toolkit holding whatever it had, and a
   // stale id would then hand the previous score's pages to the next caller.
   loadedId = '';
+  measures = null;          // element ids are minted per load, so the map dies with it
   const ok = isZip
     ? tk.loadZipDataBuffer(raw)
     : tk.loadData(new TextDecoder().decode(bytes));
@@ -91,4 +93,32 @@ export async function loadScore(id) {
 export async function renderPage(id, page) {
   await loadScore(id);
   return toolkit.renderToSVG(page);
+}
+
+/**
+ * Every measure of a score in document order: the id its `<g>` carries in the SVG
+ * (`data-id`), the number written on it, and the page it lands on.
+ *
+ * This is the measure-level following ARCHITECTURE.md calls the honest route, and the
+ * only toolkit queries it makes are structural -- which measures exist, what they are
+ * numbered, which page holds each. Nothing here touches Verovio's millisecond timemap,
+ * which disagrees with score.py's quarter-note timeline on repeats, pickups and grace
+ * notes; the CLOCK stays ghost.js's, and this only says where its bars are printed.
+ *
+ * Built from the MEI Verovio already holds rather than by rendering every page: one
+ * serialisation per load, then one page lookup per measure. Cached until the next load,
+ * because the ids are generated per load and a stale map would point at nothing.
+ */
+export async function measureMap(id) {
+  await loadScore(id);
+  if (measures) return measures;
+  const out = [];
+  for (const [tag] of toolkit.getMEI().matchAll(/<measure\b[^>]*>/g)) {
+    const mid = /xml:id="([^"]+)"/.exec(tag)?.[1];
+    if (!mid) continue;
+    const n = /\sn="([^"]*)"/.exec(tag)?.[1] ?? '';
+    out.push({ id: mid, n, page: toolkit.getPageWithElement(mid) || 1 });
+  }
+  measures = out;
+  return out;
 }
