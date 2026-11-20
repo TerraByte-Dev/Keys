@@ -23,6 +23,12 @@ window is not the only one anybody uses.
 **Then Jam, with the band running.** The app here is silent (ui_sandbox's zero gain),
 so the band really plays. Focus has to fill the window, leave by Esc without stopping
 the band, and hand over to the roll without the two fighting over fullscreen.
+
+**Then pages.** The builder's panel list against the panels the views really render,
+each starter made through the builder and audited pane by pane at all three widths, and
+the dock's highlight owners: Chords & scales across the whole keyboard, the touch keys
+and Play's scale highlighter on top of it without wiping it, all of it back after a
+range change.
 """
 
 from __future__ import annotations
@@ -409,6 +415,238 @@ def jam_checks(browser, port: int, errs: list[str]) -> list[str]:
     return fails
 
 
+
+# ── custom pages, and the highlight owners they need ─────────────────────────────────
+# The same audit, aimed at one pane's grid at a time: a page holds several.
+PANE_AUDIT = AUDIT.replace(
+    "() => {\n  const grid = document.querySelector('#stage .grid');\n"
+    "  if (!grid) return { error: 'no grid in #stage' };",
+    "(sel) => {\n  const grid = document.querySelector(sel);\n"
+    "  if (!grid) return { error: 'no grid at ' + sel };")
+assert PANE_AUDIT != AUDIT, "AUDIT's opening changed; PANE_AUDIT has to follow it"
+
+# What a view's own grid says its panels are: layout.js's data-panel on each panel, and
+# the data-slot of a nested grid that is not one (Practice's exercise shelf).
+DOM_PANELS = """() => [...document.querySelector('#stage > .grid').children]
+  .map((e) => e.dataset.panel || e.dataset.slot).filter(Boolean)"""
+
+# Every dock key that is lit, and every dock key there is.
+LIT = """() => ({
+  lit: [...document.querySelectorAll('#dock .key.is-highlight')].map((k) => +k.dataset.midi),
+  all: [...document.querySelectorAll('#dock .key')].map((k) => +k.dataset.midi) })"""
+
+# Per pane: which panels show, read off the DOM.
+SHOWN = """() => [...document.querySelectorAll('.page__pane')].map((p) => ({
+  view: p.dataset.view,
+  shown: [...p.querySelectorAll(':scope > .grid > *')]
+    .filter((e) => e.getBoundingClientRect().height > 0)
+    .map((e) => e.dataset.panel || e.dataset.slot).filter(Boolean) }))"""
+
+# The three starters as the spec words them -- not read from pages.js, which is what is
+# being tested. Blank gets two panels ticked by hand.
+STARTER_WANT = {
+    "solo": {"practice": ["jam"], "play": ["scale-highlighter", "tempo"], "tools": ["chords-scales"]},
+    "everything": None,          # every panel of all four views: checked against the DOM
+    "blank": {"tools": ["pedal"], "practice": ["now"]},
+}
+
+
+def pages_checks(browser, port: int, errs: list[str]) -> list[str]:
+    """Pages: the registry against the DOM, the builder, panes, hotkeys, reload; and
+    Chords & scales lighting the whole dock without the touch keys wiping it."""
+    fails: list[str] = []
+    page = browser.new_page(viewport={"width": 1600, "height": 1000})
+    page.on("pageerror", lambda e: errs.append(str(e)))
+
+    def check(label: str, passed: bool, detail: str = "") -> None:
+        print(f"  [{'PASS' if passed else 'FAIL'}] {label}" + (f" -- {detail}" if detail else ""))
+        if not passed:
+            fails.append(f"pages: {label} {detail}".strip())
+
+    def go(hash_: str, wait: int = 2200) -> None:
+        page.evaluate(f"location.hash = '{hash_}'")
+        page.wait_for_timeout(wait)
+
+    print("\npages, and the dock's highlight owners")
+    page.goto(f"http://127.0.0.1:{port}/", wait_until="networkidle")
+    page.wait_for_timeout(1600)
+
+    # 1. The builder's panel list is the panels the views really render.
+    registry = page.evaluate("async () => (await import('/pages.js')).PANELS")
+    every = {}
+    for view in ("play", "practice", "layers", "tools"):
+        go(view)
+        dom = page.evaluate(DOM_PANELS)
+        every[view] = dom
+        reg = [p["slug"] for p in registry if p["view"] == view]
+        check(f"registry = the panels {view} renders", sorted(dom) == sorted(reg),
+              f"DOM {dom} vs registry {reg}")
+
+    # 2. Chords & scales lights every key of the scale across the dock (spec D).
+    go("tools")
+    page.click("#th-roots button:text-is('B')")
+    page.wait_for_timeout(400)
+    page.select_option("#th-shape", "minor_pentatonic")
+    page.wait_for_timeout(800)
+    want_pcs = {11, 2, 4, 6, 9}            # B D E F# A
+    k = page.evaluate(LIT)
+    want = sorted(n for n in k["all"] if n % 12 in want_pcs)
+    check("B minor pentatonic lights every B D E F# A on the dock, and nothing else",
+          sorted(k["lit"]) == want and len(want) > 20, f"{len(k['lit'])} lit, {len(want)} expected")
+    page.click("#touch-show")
+    page.wait_for_timeout(300)
+    on = page.evaluate(LIT)["lit"]
+    check("...touch keys add theirs on top", set(on) == set(want) | {57, 58, 59, 60}, f"{len(on)} lit")
+    page.click("#touch-show")
+    page.wait_for_timeout(300)
+    off = page.evaluate(LIT)["lit"]
+    check("...and turning them off leaves the scale exactly as it was", sorted(off) == want,
+          f"{len(off)} lit")
+    # A new range rebuilds the dock and drops every layer; the status beat puts it back.
+    page.evaluate("async () => (await import('/app.js')).ctx.kb.setRange(36, 96)")
+    page.wait_for_timeout(1600)
+    k = page.evaluate(LIT)
+    narrow = sorted(n for n in range(36, 97) if n % 12 in want_pcs)
+    check("...and after a range change it comes back within a beat, over the new range",
+          sorted(k["lit"]) == narrow, f"{len(k['lit'])} lit, {len(narrow)} expected")
+    page.evaluate("""async () => { const a = await import('/app.js');
+      a.ctx.kb.setRange(a.instrument().low, a.instrument().high); }""")
+    page.wait_for_timeout(1300)
+
+    # 3. Each starter, made through the builder.
+    made = {}
+    for key in ("solo", "everything", "blank"):
+        go("page/new", 600)
+        page.click(f"#pb-start [data-start='{key}']")
+        if key == "blank":
+            for view, slugs in STARTER_WANT["blank"].items():
+                for slug in slugs:
+                    page.click(f"label:has(> input[data-view='{view}'][data-slug='{slug}'])")
+        page.fill("#pb-name", f"Test {key}")
+        page.click("#pb-save")
+        try:
+            page.wait_for_function("/^#page\\/p[a-z0-9]+$/.test(location.hash)", timeout=5000)
+        except Exception:  # noqa: BLE001 -- the failure is reported below
+            pass
+        made[key] = page.evaluate("location.hash.slice(6)")
+        page.wait_for_timeout(2600)
+        shown = {p["view"]: sorted(p["shown"]) for p in page.evaluate(SHOWN)}
+        want = STARTER_WANT[key] or every
+        want = {v: sorted(s) for v, s in want.items()}
+        check(f"{key}: the builder makes a page showing exactly what was picked",
+              made[key] and shown == want, f"shown {shown}")
+    navs = page.evaluate("[...document.querySelectorAll('#nav-pages .nav__item')].map(a => a.textContent)")
+    check("...and each is a nav item under the tabs", len(navs) == 3, str(navs))
+
+    # 4. Every page at every size, each pane audited like a tab.
+    for w, h in WIDTHS:
+        page.set_viewport_size({"width": w, "height": h})
+        for key, pid in made.items():
+            go(f"page/{pid}", 2600)
+            panes = page.evaluate("[...document.querySelectorAll('.page__pane')].map(p => p.dataset.view)")
+            bad = []
+            for v in panes:
+                a = page.evaluate(PANE_AUDIT, f".page__pane[data-view='{v}'] > .grid")
+                if a.get("error"):
+                    bad.append(f"{v}: {a['error']}")
+                    continue
+                bad += [f"{v}: {b}" for b in a["over"] + a["junk"] + a["hollow"]]
+                bad += [f"{v}: {t} has no row span" for t in a["unspanned"]]
+            check(f"{key} @{w}x{h}: {len(panes)} panes, no overlap, no gaps, nothing stringified",
+                  panes and not bad, "; ".join(bad))
+    page.set_viewport_size({"width": 1600, "height": 1000})
+
+    # 5. Solo practice: the band, Play's scale highlighter and Jam's marks on one dock.
+    go(f"page/{made['solo']}", 2600)
+    page.click(".page__pane[data-view='practice'] .jam__go")
+    # C blues on Play's highlighter, beside Chords & scales' C major: two owners whose
+    # union is checked, so neither can be hiding behind the other.
+    page.select_option("#scale-mode", "blues")
+    page.click("#scale-toggle")
+    page.wait_for_timeout(1800)
+    union = {0, 3, 5, 6, 7, 10} | {0, 2, 4, 5, 7, 9, 11}
+    k = page.evaluate(LIT)
+    want = sorted(n for n in k["all"] if n % 12 in union)
+    jam = page.evaluate("document.querySelectorAll('#dock .key.is-tone, #dock .key.is-scale').length")
+    check("Solo practice: the band plays", page.evaluate(BAND).get("running") is True)
+    check("...and the scale highlighter, Chords & scales and Jam's marks are on the dock together",
+          sorted(k["lit"]) == want and jam > 0, f"{len(k['lit'])} lit of {len(want)}, {jam} Jam marks")
+    page.evaluate("async () => (await import('/app.js')).ctx.kb.setRange(36, 96)")
+    page.wait_for_timeout(1600)
+    lit = sorted(page.evaluate(LIT)["lit"])
+    narrow = sorted(n for n in range(36, 97) if n % 12 in union)
+    check("...and both come back after a range change", lit == narrow, f"{len(lit)} lit of {len(narrow)}")
+    page.evaluate("""async () => { const a = await import('/app.js');
+      a.ctx.kb.setRange(a.instrument().low, a.instrument().high); }""")
+    page.wait_for_timeout(1300)
+    page.click(".mod:has(.jam) .mod__focus")
+    page.wait_for_timeout(400)
+    f = page.evaluate("""() => ({ on: document.body.classList.contains('is-focusing'),
+      jam: !!document.querySelector('[data-focus="on"] .jam'),
+      others: [...document.querySelectorAll('.page__pane')].filter(p => !p.dataset.focus
+        && getComputedStyle(p).display !== 'none').length,
+      fill: document.querySelector('[data-focus="on"]').getBoundingClientRect().height
+        / (() => { const s = document.getElementById('stage'), c = getComputedStyle(s);
+          return s.clientHeight - parseFloat(c.paddingTop) - parseFloat(c.paddingBottom); })() })""")
+    check("...Focus works inside a page: Jam alone, filling the stage, the other panes put away",
+          f["on"] and f["jam"] and f["others"] == 0 and f["fill"] >= 0.97, str(f))
+    page.evaluate("document.activeElement?.blur?.()")
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(1300)
+    check("...Esc leaves focus and the band plays on",
+          not page.evaluate("document.body.classList.contains('is-focusing')")
+          and page.evaluate(BAND).get("running") is True)
+
+    # A view that rebuilds itself (saving a profile does) rebuilds its own pane only:
+    # the Jam beside it, and the band, carry on.
+    go(f"page/{made['everything']}", 3000)
+    page.click(".page__pane[data-view='practice'] .jam__go")
+    page.wait_for_timeout(1200)
+    page.evaluate("document.querySelector('.jam').__kept = 1")
+    page.click("#shelf-profiles")
+    page.fill("#preset-name", "Page check")
+    page.press("#preset-name", "Enter")
+    page.wait_for_timeout(3000)
+    kept = page.evaluate("""() => ({ jam: document.querySelector('.jam')?.__kept === 1,
+      play: document.querySelectorAll('.page__pane[data-view="play"] [data-panel]').length,
+      saved: [...document.querySelectorAll('#profile-list .list__row')].some(r => r.textContent.includes('Page check')) })""")
+    check("a pane that refreshes rebuilds alone: Jam untouched, the band still playing",
+          kept["jam"] and kept["play"] == len(every["play"]) and kept["saved"] and page.evaluate(BAND).get("running") is True,
+          str(kept))
+
+    # 6. Leaving the page stops the band and clears every highlight owner.
+    go("play", 2200)
+    left = page.evaluate("document.querySelectorAll('#dock .key.is-highlight').length")
+    check("leaving the page stops the band and clears the dock",
+          page.evaluate(BAND).get("running") is not True and left == 0, f"{left} still lit")
+
+    # 7. Hotkey 7 is page 1, and a reload comes back to it.
+    page.evaluate("document.activeElement?.blur?.()")
+    page.keyboard.press("7")
+    page.wait_for_timeout(1800)
+    check("hotkey 7 opens page 1", page.evaluate("location.hash") == f"#page/{made['solo']}")
+    page.reload(wait_until="networkidle")
+    page.wait_for_timeout(2600)
+    again = page.evaluate(SHOWN)
+    check("a reload restores the page and its panes",
+          page.evaluate("location.hash") == f"#page/{made['solo']}" and len(again) == 3
+          and page.evaluate("document.querySelectorAll('#nav-pages .nav__item').length") == 3, str(again))
+
+    # 8. Edit, then delete with the inline confirm.
+    go(f"page/{made['blank']}", 1800)
+    page.click(".page__edit")
+    page.wait_for_timeout(500)
+    page.click("#pb-delete")
+    page.click("#pb-yes")
+    page.wait_for_timeout(1200)
+    names = page.evaluate("[...document.querySelectorAll('#nav-pages .nav__item')].map(a => a.textContent)")
+    saved = page.evaluate("async () => (await (await fetch('/api/state')).json()).settings.ui.pages.length")
+    check("Delete page asks inline, then the page is gone and saved gone", len(names) == 2 and saved == 2,
+          f"nav {names}, saved {saved}")
+    page.close()
+    return fails
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=0,
@@ -479,6 +717,7 @@ def main() -> int:
                               f"no gaps, nothing stringified")
                 page.close()
             fails.extend(jam_checks(browser, port, errs))
+            fails.extend(pages_checks(browser, port, errs))
             browser.close()
     finally:
         if proc is not None:
