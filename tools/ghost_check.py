@@ -716,6 +716,204 @@ const piece = (notes, measures) => ({
      `A=${solo.loopA} B=${solo.loopB}`);
 }
 
+/* -- 14. moving by bars --------------------------------------------------- */
+/* Every expected position below is a bar line written into the fixture by hand, never
+   something read back from the model. A bar step that is off by one bar, or that lands
+   a beat into the bar, fails on the number. */
+const fourFour = (count) => Array.from({ length: count }, (_, i) => (
+  { number: i + 1, onset: i * 4, beats: 4, beat_type: 4 }));
+const everyBeat = (quarters, midi = 60) => Array.from({ length: quarters }, (_, i) => [i, 1, midi + (i % 12), 1]);
+
+/* -- 14a. which bar, by index and by the number printed on it ------------- */
+{
+  // A one-beat pickup numbered 0, then 4/4 bars 1-3 starting at 1, 5 and 9.
+  const pick = [
+    { number: 0, onset: 0, beats: 1, beat_type: 4 },
+    { number: 1, onset: 1, beats: 4, beat_type: 4 },
+    { number: 2, onset: 5, beats: 4, beat_type: 4 },
+    { number: 3, onset: 9, beats: 4, beat_type: 4 },
+  ];
+  const g = createGhost(piece(everyBeat(13), pick));
+  ok('barIndex: the pickup is index 0, its written 0 notwithstanding',
+     g.barIndex(0) === 0 && g.barIndex(0.99) === 0);
+  ok('...a bar line belongs to the bar it starts', g.barIndex(1) === 1 && g.barIndex(5) === 2,
+     `${g.barIndex(1)}, ${g.barIndex(5)}`);
+  ok('...and the last beat of a bar is still that bar', g.barIndex(4.99) === 1);
+  ok('barAt reads the printed number when it is unique', g.barAt(2) === 2 && g.barAt(0) === 0,
+     `barAt(2)=${g.barAt(2)} barAt(0)=${g.barAt(0)}`);
+
+  // Numbers that repeat (a file numbering each ending from 1) name no single bar, so
+  // the typed number falls back to position.
+  const twice = [1, 2, 1, 2].map((n, i) => ({ number: n, onset: i * 4, beats: 4, beat_type: 4 }));
+  const r = createGhost(piece(everyBeat(16), twice));
+  ok('a repeated number falls back to position', r.barAt(1) === 0 && r.barAt(2) === 1,
+     `barAt(1)=${r.barAt(1)} barAt(2)=${r.barAt(2)}`);
+  ok('...and a number past the end is the last bar, not nothing', r.barAt(3) === 2 && r.barAt(99) === 3,
+     `barAt(3)=${r.barAt(3)} barAt(99)=${r.barAt(99)}`);
+  const none = createGhost(piece([[0, 1, 60, 1]], []));
+  ok('no measures: no bar to step to, and nothing thrown',
+     none.barIndex() === -1 && none.stepBar(1) === -1 && none.setLoopBars(0, 1) === false);
+}
+
+/* -- 14b. back and forward ------------------------------------------------ */
+{
+  const g = createGhost(piece(everyBeat(16), fourFour(4)));
+  g.setWait(false);
+  g.seek(5);                      // bar 2, a whole beat in
+  g.stepBar(-1);
+  ok('back from a beat into bar 2 is the top of bar 2', near(g.nowQ, 4), `nowQ=${g.nowQ}`);
+  g.stepBar(-1);
+  ok('...and pressed again from there, the top of bar 1', near(g.nowQ, 0), `nowQ=${g.nowQ}`);
+  g.stepBar(-1);
+  ok('...and from the top of bar 1 it stays there', near(g.nowQ, 0), `nowQ=${g.nowQ}`);
+  g.seek(4.4);                    // under half a beat in: you just got here
+  g.stepBar(-1);
+  ok('back from under half a beat in goes to the bar before', near(g.nowQ, 0), `nowQ=${g.nowQ}`);
+  g.seek(4.6);                    // over half a beat in
+  g.stepBar(-1);
+  ok('back from over half a beat in is this bar', near(g.nowQ, 4), `nowQ=${g.nowQ}`);
+
+  g.seek(1);
+  g.stepBar(1);
+  ok('forward is the next bar line', near(g.nowQ, 4), `nowQ=${g.nowQ}`);
+  g.stepBar(1); g.stepBar(1);
+  ok('...one bar per press', near(g.nowQ, 12), `nowQ=${g.nowQ}`);
+  g.seek(13);
+  const seq = g.seq;
+  g.stepBar(1);
+  ok('...and off the last bar it stays put rather than finishing the piece',
+     near(g.nowQ, 13) && g.seq === seq && !g.finished, `nowQ=${g.nowQ} seq ${seq}->${g.seq}`);
+
+  // Half a beat is half of THIS bar's beat: in 6/8 a beat is an eighth, 0.5 quarters.
+  const sixEight = [0, 1, 2].map((i) => ({ number: i + 1, onset: i * 3, beats: 6, beat_type: 8 }));
+  const s = createGhost(piece(everyBeat(9), sixEight));
+  s.seek(3.3);                    // 0.3 quarters in: past half an eighth (0.25)
+  s.stepBar(-1);
+  ok('in 6/8 half a beat is a sixteenth, so 0.3 in is this bar', near(s.nowQ, 3), `nowQ=${s.nowQ}`);
+  s.seek(3.2);                    // 0.2 in: under it
+  s.stepBar(-1);
+  ok('...and 0.2 in is the bar before', near(s.nowQ, 0), `nowQ=${s.nowQ}`);
+
+  const p = createGhost(piece(everyBeat(16), fourFour(4)));
+  p.setWait(false);
+  p.play();
+  p.stepBar(1);
+  const stillPlaying = p.playing;
+  p.pause();
+  p.stepBar(1);
+  ok('a bar step leaves playing as it was, both ways', stillPlaying === true && p.playing === false);
+  ok('...and bumps seq, so the roll rebuilds its cursors', p.seq >= 2, `seq=${p.seq}`);
+}
+
+/* -- 14c. bar steps in wait mode ------------------------------------------ */
+{
+  // One note per bar, on the downbeat: C, D, E, F.
+  const g = createGhost(piece([[0, 1, 60, 1], [4, 1, 62, 1], [8, 1, 64, 1], [12, 1, 65, 1]], fourFour(4)));
+  g.setTempo(120);
+  g.play();
+  g.frame({ held: [62] });        // resting on D before getting to it
+  g.seekBar(1);
+  for (let f = 0; f < 30; f++) g.advance(1 / 60);
+  ok('stepping onto a bar arms its downbeat', near(g.nowQ, 4) && g.waiting === true,
+     `nowQ=${g.nowQ} waiting=${g.waiting}`);
+  ok('...and the key already down does not open it for free', g.pending().join() === '62',
+     `pending ${g.pending()}`);
+  g.frame({ held: [] });
+  g.frame({ held: [62] });
+  for (let f = 0; f < 30; f++) g.advance(1 / 60);
+  ok('...striking it does', g.nowQ > 4 && g.waiting === false, `nowQ=${g.nowQ.toFixed(3)}`);
+
+  // Back over a gate already passed puts it back in front of you, still holding D.
+  g.stepBar(-1);                  // half a second in at 120 is a whole beat: this bar
+  for (let f = 0; f < 30; f++) g.advance(1 / 60);
+  ok('stepping back re-arms the gate you had already played', near(g.nowQ, 4) && g.waiting === true,
+     `nowQ=${g.nowQ} waiting=${g.waiting}`);
+
+  // A performance-timed file: bar 2's chord sits 0.02 quarters BEFORE its bar line.
+  // A bare seek to the line would arm the gate after it and skip the chord you came for.
+  const early = createGhost(piece([[0, 1, 60, 1], [3.98, 1, 62, 1], [8, 1, 64, 1]], fourFour(3)));
+  early.play();
+  early.seekBar(1);
+  for (let f = 0; f < 10; f++) early.advance(1 / 60);
+  ok('a downbeat played a hair early is still the one the step arms',
+     early.waiting === true && early.pending().join() === '62' && near(early.nowQ, 4),
+     `pending ${early.pending()} nowQ=${early.nowQ}`);
+}
+
+/* -- 14d. a section by bars ----------------------------------------------- */
+{
+  const g = createGhost(piece(everyBeat(20), fourFour(5)));      // total = 20
+  g.setWait(false);
+  ok('bars 2 to 3 (index 1 to 2) is A on 4 and B on 12', g.setLoopBars(1, 2) === true
+     && near(g.loopA, 4) && near(g.loopB, 12), `A=${g.loopA} B=${g.loopB}`);
+  g.setLoopBars(2, 1);
+  ok('...in either order', near(g.loopA, 4) && near(g.loopB, 12), `A=${g.loopA} B=${g.loopB}`);
+  g.setLoopBars(4, 4);
+  ok('the last bar ends at the end of the piece', near(g.loopA, 16) && near(g.loopB, 20) && g.looping,
+     `A=${g.loopA} B=${g.loopB}`);
+  ok('...and the readout names it bar 5 to 5', g.bar(g.loopA) === 5 && g.bar(g.loopB - 1e-4) === 5);
+  g.seek(9.5);
+  g.loopBar();
+  ok('Loop this bar is the bar the playhead is in', near(g.loopA, 8) && near(g.loopB, 12),
+     `A=${g.loopA} B=${g.loopB}`);
+
+  // The hang guard still holds for a section made this way: a last bar that the notes
+  // end 0.1 into is too short to be one.
+  const short = createGhost(piece([[0, 4.1, 60, 1]], fourFour(2)));   // total = 4.1
+  ok('a bar shorter than the minimum is refused here too', short.setLoopBars(1, 1) === false
+     && short.looping === false, `A=${short.loopA} B=${short.loopB}`);
+
+  // The section survives every way of moving the playhead.
+  g.setLoopBars(1, 2);
+  g.seek(0);
+  g.seekBar(3);
+  g.stepBar(-1);
+  g.stepBar(1);
+  ok('the section survives seek, seekBar and bar steps', g.looping && near(g.loopA, 4) && near(g.loopB, 12),
+     `A=${g.loopA} B=${g.loopB} looping=${g.looping}`);
+  g.seekBar(1);
+  g.setTempo(120);
+  g.play();
+  for (let f = 0; f < 60 * 5; f++) g.advance(1 / 60);
+  ok('...and the clock still wraps inside it', g.nowQ >= 4 && g.nowQ < 12, `nowQ=${g.nowQ.toFixed(3)}`);
+}
+
+/* -- 14e. a stepped section laps the same at any frame rate --------------- */
+{
+  const laps = [];
+  for (const fps of [30, 60, 100, 144]) {
+    const g = createGhost(piece(everyBeat(16), fourFour(4)));
+    g.setWait(false);
+    g.setTempo(120);                // one 4/4 bar = two seconds
+    g.setLoopBars(1, 1);
+    g.seekBar(1);
+    g.play();
+    let seen = 0;
+    let last = g.seq;
+    for (let f = 0; f < Math.round(fps * 10.5); f++) {
+      g.advance(1 / fps);
+      if (g.seq !== last) { seen++; last = g.seq; }
+    }
+    laps.push(seen);
+  }
+  ok('a one-bar section set by number laps alike at 30/60/100/144 fps',
+     laps.every((n) => n === laps[0]) && laps[0] === 5, `laps ${laps.join(', ')}`);
+}
+
+/* -- 14f. a new bar is announced once, not every frame -------------------- */
+/* The sheet's current-bar tint and page turn ride onChange. They need it once per bar
+   line crossed -- and a repaint per frame would put the readout on the 60 Hz path. */
+{
+  let calls = 0;
+  const g = createGhost(piece(everyBeat(16), fourFour(4)), { onChange: () => { calls++; } });
+  g.setWait(false);
+  g.setTempo(120);
+  g.play();
+  calls = 0;
+  for (let f = 0; f < 60 * 7; f++) g.advance(1 / 60);    // 14 quarters: lines at 4, 8, 12
+  ok('playing across three bar lines repaints three times', calls === 3, `${calls} calls in 420 frames`);
+}
+
 console.log(JSON.stringify(out));
 """
 
