@@ -673,6 +673,7 @@ class FakeSeq:
     def __init__(self) -> None:
         self.tick = 1000
         self.notes: list[tuple] = []
+        self.timers: list[int] = []
         self.sequencer = None
 
     def get_tick(self):
@@ -685,7 +686,7 @@ class FakeSeq:
         self.notes.append((at, ch, key, vel, dur, source))
 
     def timer(self, at, data=None, source=-1, dest=-1):
-        pass
+        self.timers.append(at)
 
 
 def band_checks() -> None:
@@ -878,6 +879,76 @@ def band_checks() -> None:
     rides = sorted(n[0] - b._anchor_tick for n in seq.notes if n[1] == b._channels["drums"] and n[2] == band_mod.RIDE)
     ok("...and its off-beats land on the last triplet", any(abs(r - 4 * 2 / 3 * six) < 3 for r in rides),
        str([round(r / six, 2) for r in rides[:3]]))
+
+    # Sounds. Pop's own are piano (GM 0) over an electric bass (GM 33) -- written here from
+    # the General MIDI table, not read from band.py.
+    def progs(ch):
+        return [e[3] for e in fs.log if e[0] == "prog" and e[1] == ch and e[2] == 0]
+
+    def channel_of(notes, lo, hi):
+        # The kit's keys share the bass's register: leave out the channel on the drum bank.
+        kit = {e[1] for e in fs.log if e[0] == "prog" and e[2] == 128}
+        chans = {n[1] for n in notes if lo <= n[2] <= hi and n[1] not in kit}
+        return chans.pop() if len(chans) == 1 else None
+
+    b = fresh(comp_program=48, bass_program=38)
+    b._fill()
+    comp_ch = channel_of(seq.notes, 52, 63)              # the comp's E3..D#4 window
+    bass_ch = channel_of(seq.notes, 24, 50)
+    ok("a band started with sounds picked plays them: strings on the chords' channel, synth bass on the bass's",
+       comp_ch is not None and bass_ch is not None and progs(comp_ch)[-1:] == [48] and progs(bass_ch)[-1:] == [38],
+       f"comp ch {comp_ch} {progs(comp_ch)}, bass ch {bass_ch} {progs(bass_ch)}")
+
+    b = fresh()
+    b._fill()
+    comp_ch = channel_of(seq.notes, 52, 63)
+    bass_ch = channel_of(seq.notes, 24, 50)
+    ok("left alone, the style's own sounds: Pop is piano over electric bass",
+       progs(comp_ch)[-1:] == [0] and progs(bass_ch)[-1:] == [33], f"{progs(comp_ch)} {progs(bass_ch)}")
+    seq.tick = int(b._anchor_tick + b.bar_ms() * 0.9)
+    b._fill()
+    at = b._next_bar
+    down = b._anchor_tick + at * b.bar_ms()            # the downbeat of the first unqueued bar
+    fs.log.clear()
+    seq.timers.clear()
+    b.configure(comp_program=25)
+    ok("a new sound is not put in while queued bars are still to play", 25 not in progs(comp_ch), str(progs(comp_ch)))
+    seq.tick = int(down - 40)
+    b._fill()
+    early = 25 in progs(comp_ch)
+    last_before = max(n[0] for n in seq.notes if n[0] < down)
+    seq.tick = int(down - 20)
+    b._fill()
+    ok("...it lands just before the first unqueued bar's downbeat, after the last note of the bar before",
+       not early and progs(comp_ch)[-1:] == [25] and last_before < down - 30 and any(down - 40 < t < down for t in seq.timers),
+       f"bar {at}, timers {seq.timers}, last onset {round(down - last_before)} ms before")
+    ok("...on the chords' channel only", not any(e[0] == "prog" and e[3] == 25 and e[1] != comp_ch for e in fs.log))
+    b.configure(bass_program=32)
+    b.configure(comp_program=None)
+    for i in range(1, 6):
+        seq.tick = int(b._anchor_tick + b.bar_ms() * (at + i) - 100)
+        b._fill()
+    ok("null puts the style's own sound back; a bass sound goes on the bass's channel",
+       progs(comp_ch)[-1:] == [0] and progs(bass_ch)[-1:] == [32] and b.status()["comp_program"] is None
+       and b.status()["bass_program"] == 32, f"{progs(comp_ch)} {progs(bass_ch)}")
+    fs.log.clear()
+    b.configure(style="rock")
+    seq.tick = int(b._anchor_tick + b.bar_ms() * (b._next_bar + 1))
+    b._fill()
+    ok("a new style keeps a sound you picked, and brings its own where you did not",
+       progs(bass_ch)[-1:] == [32] and progs(comp_ch)[-1:] == [29], f"{progs(comp_ch)} {progs(bass_ch)}")
+
+    from backend import server
+    refused = []
+    for bad in (True, 1.5, "25", 128, -1, [0]):
+        try:
+            server._programs({"comp_program": bad})
+        except server.HTTPException as err:
+            refused.append(err.status_code)
+    ok("the server takes a program 0-127 or null, refuses anything else, and leaves out what was not sent",
+       server._programs({"comp_program": 0, "bass_program": None}) == {"comp_program": 0, "bass_program": None}
+       and server._programs({"bass_program": 127}) == {"bass_program": 127} and server._programs({}) == {}
+       and refused == [400] * 6, str(refused))
 
     eng.fs = None
     try:
