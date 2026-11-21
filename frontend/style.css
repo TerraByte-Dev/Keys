@@ -2711,11 +2711,12 @@ body:not(.is-focusing) .jam__gbody { display: flex; flex-wrap: wrap; gap: 5px 14
   border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg);
 }
 .jam.is-band-open .jam__fold::after { margin-top: 3px; transform: rotate(-135deg); }
-/* Tempo and volume: name, slider, value on one line. */
+/* Tempo and volume: name, value, slider on one line (the slider ends the field, as
+   every slider does where its value is shown). */
 .jam__field { flex-direction: row; align-items: center; gap: 8px; width: 214px; margin-bottom: 0; }
 .jam__field .field__label { display: contents; font-size: var(--jam-lfs); }
 .jam__field .field__label > span:first-child { font-size: var(--jam-lfs); color: var(--ink-faint); white-space: nowrap; }
-.jam__field .field__value { order: 2; min-width: 4ch; font-size: 11px; }
+.jam__field .field__value { min-width: 4ch; font-size: 11px; }
 .jam__field input[type=range] { flex: 1 1 0; min-width: 60px; height: var(--jam-h); }
 
 /* My chords: a chip per chord in one row, and the picker under the one being changed.
@@ -2849,7 +2850,7 @@ body:not(.is-focusing) .jam__card--next {
   padding: 2px 10px; min-height: 28px;
   background: var(--panel-2); border: 1px solid var(--hairline); border-radius: 999px;
 }
-body:not(.is-focusing) .jam__card--next:has(.jam__sym--next:empty) { visibility: hidden; }
+body:not(.is-focusing) .jam__card--next:has(.jam__sym--next:empty) { display: none; }
 body:not(.is-focusing) .jam__card--next > .jam__lbl {
   font-family: var(--font-panel); font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-faint);
 }
@@ -3017,13 +3018,14 @@ body.is-focusing .jam__go { min-width: 170px; }
   body:not(.is-focusing) .jam__gbody { gap: 4px 10px; }
   .jam .seg { flex-wrap: wrap; }
   .jam__select { width: 100%; }
-  .jam__opt:has(> .jam__select) { flex: 1 1 130px; }
+  .jam__opt:has(> .jam__select) { flex: 1 1 100%; }   /* a key's whole name: narrower, a select holds more than it shows */
   body:not(.is-focusing) .jam__why { display: none; }    /* the why is the coach's aside; the what stays */
   body:not(.is-focusing) .jam__coach { min-height: 0; }
   body:not(.is-focusing) .jam__heard { min-height: 0; }
   body:not(.is-focusing) .jam__heard:empty { display: none; }
   body:not(.is-focusing) .jam { --jam-gap: 6px; --jam-h: min(var(--ctl-h, 24px), 24px); }
   .jam__pname { display: none; }      /* the chips are the progression; its name is the aside */
+  .jam__stats { display: none; }      /* the sitting's count: the wider panel's footnote */
   .jam__field { width: 100%; }
   body:not(.is-focusing) .jam__stage {
     grid-template-columns: auto minmax(0, 1fr);
