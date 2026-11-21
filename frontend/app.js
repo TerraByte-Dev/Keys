@@ -579,6 +579,7 @@ document.addEventListener('mousemove', () => { if (immersive || focusing) stir()
 // browser -- has to bring the layout back with it, or the app is left pretending.
 document.addEventListener('fullscreenchange', () => {
   if (document.fullscreenElement) return;
+  if (immersive && cancelRollField()) return;
   if (immersive) toggleImmersive(false);
   else if (focusing) toggleFocus(false);
 });
@@ -1157,12 +1158,15 @@ $('#ghost-loop-bar')?.addEventListener('click', () => {
 for (const id of ['#ghost-loop-from', '#ghost-loop-to']) {
   $(id)?.addEventListener('input', () => { loopDirty = true; });
   $(id)?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); applyLoopBars(); return; }
+    // Out of the field once it has been applied, or the very next Space types into a
+    // number box instead of starting the section you just set.
+    if (e.key === 'Enter') { e.preventDefault(); applyLoopBars(); e.target.blur(); return; }
     if (e.key !== 'Escape') return;
     // Esc here means "never mind", not panic -- and in the roll, panic's first step is
     // leaving the roll, which would close the song you were setting a loop in.
     e.preventDefault();
     e.stopPropagation();
+    fieldEscAt = performance.now();
     loopDirty = false;
     e.target.blur();
     paintGhost();
@@ -1189,6 +1193,24 @@ function closeGoto() {
   if (i) i.hidden = true;
 }
 $('#ghost-bar')?.addEventListener('click', openGoto);
+
+/* Esc in a roll field means "never mind" -- but in real fullscreen the browser keeps
+   Esc for itself: the field never hears it, fullscreen ends, and leaving fullscreen
+   ends the play-along. So the fullscreen exit asks this first. With a roll field
+   focused, that exit WAS the field's Esc: the field is cancelled, the song and its
+   loop are kept, and the roll stays full-window (EXIT or a second Esc still leave).
+   A host that does hand the page its Esc can do so on either side of the exit, so a
+   field that has only just eaten one counts too. */
+function cancelRollField() {
+  const el = document.activeElement;
+  if (!ghostModel) return false;
+  if (performance.now() - fieldEscAt < 250) return true;
+  if (!['ghost-bar-in', 'ghost-loop-from', 'ghost-loop-to'].includes(el?.id)) return false;
+  fieldEscAt = performance.now();
+  if (el.id === 'ghost-bar-in') closeGoto();
+  else { loopDirty = false; el.blur(); paintGhost(); }
+  return true;
+}
 $('#ghost-bar-in')?.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     e.preventDefault();
@@ -1199,6 +1221,7 @@ $('#ghost-bar-in')?.addEventListener('keydown', (e) => {
     // Kept from the global Esc chain, for the same reason as the loop fields above.
     e.preventDefault();
     e.stopPropagation();
+    fieldEscAt = performance.now();
     closeGoto();
   }
 });
@@ -1210,26 +1233,52 @@ $('#ghost-bar-in')?.addEventListener('blur', closeGoto);
    Not bound through ACTIONS: they only mean anything with a song loaded, and stealing
    keys app-wide to do nothing everywhere else is how a shortcut table rots. */
 const SONG_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'Home', ' ']);
+let spaceTaken = false;       // the Space now down was a play/pause, not a button press
+let fieldEscAt = -1e9;        // when a roll field last took an Esc, see cancelRollField
+
+/* Whether the song may have this key where focus is. Not in a text field, and not in
+   the songs drawer: its rows are buttons, and Space on one means "open this one". A
+   slider keeps its arrows and Home, but has no use for Space, so a Tempo you just
+   dragged does not switch the transport's own key off. */
+function songKeyHere(key) {
+  const el = document.activeElement;
+  if (el?.closest?.('#songs')) return false;
+  if (el?.tagName === 'INPUT' && el.type === 'range') return key === ' ';
+  return !/^(INPUT|SELECT|TEXTAREA)$/.test(el?.tagName || '');
+}
+
 document.addEventListener('keydown', (e) => {
+  // The Esc that fullscreen took from a roll field arrives after it, on whatever focus
+  // fell back to -- and there it would read as "leave the roll". It already meant
+  // "never mind"; one press is one meaning.
+  if (e.key === 'Escape' && performance.now() - fieldEscAt < 250) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    return;
+  }
   if (!ghostModel || !SONG_KEYS.has(e.key)) return;
   if (e.ctrlKey || e.altKey || e.metaKey || tourOpen() || settingsOpen()) return;
-  if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName || '')) return;
+  if (!songKeyHere(e.key)) return;
   // On the paper Home already means something: the page scrolls, and a page is taller
   // than the panel. Restarting the piece is not worth taking that away.
   if (sheetMode && e.key === 'Home') return;
   // Also what stops Space pressing whichever rollbar button was clicked last, which is
-  // what Space used to do here.
+  // what Space used to do here. And the key is the song's alone: a shortcut rebound to
+  // Space or an arrow must not fire as well, so the ACTIONS table below never sees it.
   e.preventDefault();
+  e.stopImmediatePropagation();
   if (e.key === 'Home') restartGhost();
-  else if (e.key === ' ') { if (!e.repeat) ghostModel.toggle(); }
+  else if (e.key === ' ') { spaceTaken = true; if (!e.repeat) ghostModel.toggle(); }
   else if (e.key === 'ArrowLeft') stepBar(-1);
   else if (ghostModel.waiting) ghostModel.skip();
   else stepBar(1);
 });
-// A button activates on Space's keyUP, so the keydown above is not the whole of it.
+/* A button activates on Space's keyUP, so the keydown above is not the whole of it --
+   but only the keyup of a Space that keydown actually took. Every other Space, in
+   Settings, the tour or the drawer, has to keep pressing the button it is on. */
 document.addEventListener('keyup', (e) => {
-  if (!ghostModel || e.key !== ' ') return;
-  if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName || '')) return;
+  if (e.key !== ' ' || !spaceTaken) return;
+  spaceTaken = false;
   e.preventDefault();
 });
 // Closes the SONG, not the screen. You are usually done with a piece long before you

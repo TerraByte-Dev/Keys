@@ -533,6 +533,56 @@ def transport_checks(browser, port: int, errs: list[str]) -> list[str]:
           r["play"] == "Pause" and r["bar"] == bar_text(3), f"{r['play']}, {r['bar']}")
     press("Space", 300)
 
+    # A slider keeps its arrows, but Space still plays: dragging Tempo must not switch
+    # the transport's key off until you click somewhere else.
+    page.focus("#ghost-bpm")
+    page.keyboard.press("Space")
+    page.wait_for_timeout(200)
+    on = read()["play"]
+    page.keyboard.press("Space")
+    page.wait_for_timeout(200)
+    check("Space plays and pauses with the Tempo slider focused", on == "Pause" and read()["play"] == "Play",
+          f"{on} then {read()['play']}")
+
+    # A shortcut rebound to Space must not fire on top of play/pause.
+    page.evaluate("async () => (await import('/app.js')).setBinds({ metronome: ' ' })")
+    page.evaluate("window.__posts = []")
+    press("Space", 200)
+    on = read()["play"]
+    press("Space", 200)
+    posts = page.evaluate("window.__posts.map(p => p.url)")
+    page.evaluate("async () => (await import('/app.js')).setBinds({})")
+    check("a shortcut bound to Space does not fire as well as play/pause",
+          on == "Pause" and not any("metronome" in u for u in posts), f"{on}, posts {posts}")
+
+    # Space on a focused button in the drawer, Settings or the tour presses THAT button.
+    # A Space taken for play/pause has its keyup cancelled; every other one must not be.
+    press("s", 300)
+    page.focus("#songs-close")
+    page.keyboard.press("Space")
+    page.wait_for_timeout(200)
+    shut = page.evaluate("document.querySelector('#songs').hidden")
+    check("Space on the songs drawer's close button closes it, and leaves the song paused",
+          shut and read()["play"] == "Play", f"drawer hidden {shut}, {read()['play']}")
+    press(",", 300)
+    page.focus(".prefs__item:nth-child(3)")
+    want = page.evaluate("document.activeElement?.dataset.id")
+    page.keyboard.press("Space")
+    page.wait_for_timeout(200)
+    got = page.evaluate("document.querySelector('.prefs__item.is-on')?.dataset.id")
+    page.focus(".prefs__close")
+    page.keyboard.press("Space")
+    page.wait_for_timeout(200)
+    gone = page.evaluate("!document.querySelector('#prefs')")
+    check("with a song loaded, Space still presses buttons in Settings",
+          bool(want) and got == want and gone and read()["play"] == "Play",
+          f"section {got!r} want {want!r}, closed {gone}, {read()['play']}")
+    # Put things back whatever happened, so one failure here does not cascade.
+    page.evaluate("async () => (await import('/settings-overlay.js')).closeSettings()")
+    page.evaluate("document.querySelector('#songs').hidden || document.querySelector('#songs-close').click()")
+    if read()["play"] == "Pause":
+        press("Space", 200)
+
     # -- Go to bar -----------------------------------------------------------------------
     page.click("#ghost-bar")
     page.wait_for_timeout(100)
@@ -583,6 +633,41 @@ def transport_checks(browser, port: int, errs: list[str]) -> list[str]:
     r = read()
     check("Esc in a loop field puts it back, and leaves the roll alone",
           r["from"] == "11" and r["roll"] and r["song"], f"field {r['from']!r}, roll {r['roll']}")
+
+    # Enter applies AND lets go of the field, so the next Space plays the section.
+    page.fill("#ghost-loop-from", "12")
+    page.fill("#ghost-loop-to", "12")
+    page.keyboard.press("Enter")
+    page.wait_for_timeout(150)
+    page.keyboard.press("Space")
+    page.wait_for_timeout(250)
+    r = read()
+    page.keyboard.press("Space")
+    page.wait_for_timeout(250)
+    check("after Enter in a loop field, Space plays the section",
+          r["play"] == "Pause" and r["bar"] == bar_text(12) and near_band(r, 12, 12),
+          f"{r['play']}, {r['bar']}")
+
+    # Real fullscreen keeps Esc for itself: the field never hears it, fullscreen just
+    # ends. That exit, with a roll field focused, is the field's Esc -- not "close the
+    # song". A synthetic Esc never leaves fullscreen, so the browser's half is played by
+    # leaving it for real; the Esc keydown that can trail it must not close the song
+    # either. Opened from a test, the roll did get real fullscreen -- it is checked, or
+    # this passes on an exit that never happened.
+    page.click("#ghost-loop-from")
+    page.keyboard.type("99")
+    was = page.evaluate("""async () => { const was = !!document.fullscreenElement;
+      if (was) await new Promise((done) => {
+        document.addEventListener('fullscreenchange', () => setTimeout(done), { once: true });
+        document.exitFullscreen(); });
+      return was; }""")
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(300)
+    r = read()
+    left = page.evaluate("!document.fullscreenElement")
+    check("fullscreen ending under a loop field cancels the field and keeps the song",
+          was and left and r["from"] == "12" and r["roll"] and r["song"] and near_band(r, 12, 12),
+          f"was fullscreen {was}, left {left}, field {r['from']!r}, roll {r['roll']}, song {r['song']}")
 
     # -- the scrub ---------------------------------------------------------------------
     stir()
