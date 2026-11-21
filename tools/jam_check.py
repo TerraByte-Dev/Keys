@@ -853,12 +853,22 @@ class FakeSeq:
 
 
 def band_checks() -> None:
+    real_queue = band_mod._queue_program
     removed: list[tuple] = []
-    band_mod._remove_events = lambda *a: removed.append(a)   # no real sequencer here
+    # A sound change queued on the sequencer: (tick, channel, bank, program, source).
+    queued: list[tuple] = []
+
+    def remove(seqp, src, dest, kind):            # no real sequencer here
+        removed.append((seqp, src, dest, kind))
+        if kind == band_mod.PROGRAM_SELECT:
+            queued[:] = [q for q in queued if q[0] <= seq.tick]
+    band_mod._remove_events = remove
+    band_mod._queue_program = lambda seq, at, src, dest, ch, sfid, bank, prog: queued.append(
+        (at, ch, bank, prog, src))
 
     fs, seq = FakeFS(), FakeSeq()
     eng = SimpleNamespace(fs=fs, sequencer=seq, seq_dest=1, active_channels=(0, 1),
-                          load_soundfont=lambda name: 1)
+                          load_soundfont=lambda name: 1, zone_listeners=[])
     C = {"root": 0, "pcs": [0, 4, 7]}
     G = {"root": 7, "pcs": [7, 11, 2]}
     Am = {"root": 9, "pcs": [9, 0, 4]}
@@ -870,6 +880,7 @@ def band_checks() -> None:
         b._rng = random.Random(3)                             # the same velocities every run
         seq.notes.clear()
         fs.log.clear()
+        queued.clear()
         seq.tick = 1000
         b.start(chart or [C, G, Am, F] * 2, style=style, bpm=bpm, **parts)
         return b
@@ -1045,8 +1056,10 @@ def band_checks() -> None:
 
     # Sounds. Pop's own are piano (GM 0) over an electric bass (GM 33) -- written here from
     # the General MIDI table, not read from band.py.
+    # Put in at once, then queued on the sequencer, in the order they sound.
     def progs(ch):
-        return [e[3] for e in fs.log if e[0] == "prog" and e[1] == ch and e[2] == 0]
+        return ([e[3] for e in fs.log if e[0] == "prog" and e[1] == ch and e[2] == 0]
+                + [q[3] for q in sorted(queued, key=lambda q: q[0]) if q[1] == ch and q[2] == 0])
 
     def channel_of(notes, lo, hi):
         # The kit's keys share the bass's register: leave out the channel on the drum bank.
@@ -1073,19 +1086,17 @@ def band_checks() -> None:
     at = b._next_bar
     down = b._anchor_tick + at * b.bar_ms()            # the downbeat of the first unqueued bar
     fs.log.clear()
-    seq.timers.clear()
+    queued.clear()
     b.configure(comp_program=25)
-    ok("a new sound is not put in while queued bars are still to play", 25 not in progs(comp_ch), str(progs(comp_ch)))
-    seq.tick = int(down - 40)
-    b._fill()
-    early = 25 in progs(comp_ch)
+    ok("a new sound is not put in at once while queued bars are still to play",
+       not any(e[0] == "prog" and e[3] == 25 for e in fs.log), str(fs.log))
     last_before = max(n[0] for n in seq.notes if n[0] < down)
-    seq.tick = int(down - 20)
-    b._fill()
-    ok("...it lands just before the first unqueued bar's downbeat, after the last note of the bar before",
-       not early and progs(comp_ch)[-1:] == [25] and last_before < down - 30 and any(down - 40 < t < down for t in seq.timers),
-       f"bar {at}, timers {seq.timers}, last onset {round(down - last_before)} ms before")
-    ok("...on the chords' channel only", not any(e[0] == "prog" and e[3] == 25 and e[1] != comp_ch for e in fs.log))
+    q = [x for x in queued if x[3] == 25]
+    ok("...it is queued on the sequencer, as the band's, for just before the first unqueued bar's "
+       "downbeat and after the last note of the bar before",
+       len(q) == 1 and q[0][1] == comp_ch and last_before < q[0][0] < down and q[0][0] > down - 40 and q[0][4] == 7,
+       f"bar {at}, queued {q}, last onset {round(down - last_before)} ms before")
+    ok("...on the chords' channel only", not any(x[3] == 25 and x[1] != comp_ch for x in queued))
     b.configure(bass_program=32)
     b.configure(comp_program=None)
     for i in range(1, 6):
@@ -1100,6 +1111,139 @@ def band_checks() -> None:
     b._fill()
     ok("a new style keeps a sound you picked, and brings its own where you did not",
        progs(bass_ch)[-1:] == [32] and progs(comp_ch)[-1:] == [29], f"{progs(comp_ch)} {progs(bass_ch)}")
+    # At 97 bpm a bar is 2474.2 ms: a tick that is not a whole number, which the old
+    # doorbell truncated and then never reached.
+    b97 = fresh(bpm=97)
+    b97._fill()
+    seq.tick = int(b97._anchor_tick + 240000 / 97 * 0.9)
+    b97._fill()
+    down97 = b97._anchor_tick + b97._next_bar * 240000 / 97
+    last97 = max(n[0] for n in seq.notes if n[0] < down97)
+    queued.clear()
+    b97.configure(comp_program=48)
+    q = [x for x in queued if x[3] == 48]
+    ok("...at 97 bpm too: queued between the last onset and the downbeat, whatever the fraction",
+       len(q) == 1 and isinstance(q[0][0], int) and last97 < q[0][0] < down97,
+       f"queued {q}, last onset {last97}, downbeat {down97:.2f}")
+    b97.stop()
+
+    # The queued sound change on a real sequencer: FluidSynth itself, rendering into a
+    # buffer with no audio device, so the program is read back off the synth. It must not
+    # be there a few ms before its tick and must be there a few ms after.
+    import fluidsynth
+    sf2 = ROOT / "soundfonts" / "GeneralUser-GS.sf2"
+    if not sf2.exists():
+        ok("a queued program select sounds at its tick, on FluidSynth's clock", False, f"no {sf2}")
+    else:
+        synth = fluidsynth.Synth(samplerate=48000.0)
+        rseq = fluidsynth.Sequencer(time_scale=1000, use_system_timer=False)
+        try:
+            sfid = synth.sfload(str(sf2))
+            dest = rseq.register_fluidsynth(synth)
+            src = rseq.register_client("check", lambda *a: None)
+            for c in (2, 3):
+                synth.program_select(c, sfid, 0, 0)
+            got = []
+            import ctypes
+            get = fluidsynth.cfunc("fluid_synth_get_program", ctypes.c_int, ("s", ctypes.c_void_p, 1),
+                                   ("c", ctypes.c_int, 1), ("f", ctypes.POINTER(ctypes.c_int), 1),
+                                   ("b", ctypes.POINTER(ctypes.c_int), 1), ("p", ctypes.POINTER(ctypes.c_int), 1))
+
+            def program(c):
+                f, bk, pr = ctypes.c_int(), ctypes.c_int(), ctypes.c_int()
+                get(synth.synth, c, f, bk, pr)
+                return (bk.value, pr.value)
+
+            at = rseq.get_tick() + 100
+            real_queue(rseq, at, src, dest, 2, sfid, 0, 25)
+            real_queue(rseq, at, src, dest, 3, sfid, 128, 0)
+            rseq.note(at + 40, 3, 60, 80, 50, source=src, dest=dest)
+            synth.get_samples(48 * 90)
+            got.append((rseq.get_tick(), program(2), program(3)))
+            synth.get_samples(48 * 20)
+            got.append((rseq.get_tick(), program(2), program(3)))
+            ok("a queued program select sounds at its tick, on FluidSynth's clock: not before, then guitar and a kit",
+               got[0][1:] == ((0, 0), (0, 0)) and got[0][0] < at and got[1][1:] == ((0, 25), (128, 0)), str(got))
+            # Taking back the band's pending sound changes takes back only those.
+            from backend.metronome import _remove_events as remove
+            voices = fluidsynth.cfunc("fluid_synth_get_active_voice_count", ctypes.c_int,
+                                      ("s", ctypes.c_void_p, 1))
+            at = rseq.get_tick() + 100
+            real_queue(rseq, at, src, dest, 2, sfid, 0, 48)
+            rseq.note(at, 2, 64, 80, 60, source=src, dest=dest)
+            remove(rseq.sequencer, src, -1, band_mod.PROGRAM_SELECT)
+            synth.get_samples(48 * 115)
+            ok("...and taking them back by type leaves the notes queued with them",
+               program(2) == (0, 25) and voices(synth.synth) > 0, f"{program(2)}, {voices(synth.synth)} voices")
+        finally:
+            rseq.delete()
+            synth.delete()
+
+    # The engine tells its listeners after every zone change, with the channels in place.
+    from backend.engine import Engine, Zone
+    real = Engine()
+    real.fs = FakeFS()
+    real.load_soundfont = lambda name: 1
+    heard: list[tuple] = []
+    real.zone_listeners.append(lambda: heard.append(real.active_channels))
+    real.set_zones([Zone(), Zone(id="b", channel=1)])
+    ok("set_zones tells its listeners, after the new channels are in place", heard == [(0, 1)], str(heard))
+
+    # A zone arriving on the band's channel while it plays: on a page, Layers or a profile
+    # beside Jam. Channel 1 (the drums, the lowest free one) is the one Layers hands out next.
+    eng.active_channels = (0,)
+    b = fresh()
+    b._fill()
+    was = dict(b._channels)
+    ok("the band registers to hear about zone changes", b.zones_changed in eng.zone_listeners)
+    seq.tick = int(b._anchor_tick + b.bar_ms() * 0.9)
+    b._fill()
+    from_bar = b._next_bar
+    eng.active_channels = (0, 1)
+    fs.log.clear()
+    removed.clear()
+    b.zones_changed()
+    now = dict(b._channels)
+    for i in range(1, 5):
+        seq.tick = int(b._anchor_tick + b.bar_ms() * (from_bar + i) - 100)
+        b._fill()
+    later = [n for n in seq.notes if n[0] >= b._anchor_tick + from_bar * b.bar_ms()]
+    ok("a zone on the drums' channel moves the drums to a free one, and only the drums",
+       was["drums"] == 1 and now["drums"] not in (0, 1) and now["drums"] not in (now["bass"], now["comp"], now["lead"])
+       and {p: now[p] for p in ("bass", "comp", "lead")} == {p: was[p] for p in ("bass", "comp", "lead")},
+       f"{was} -> {now}")
+    ok("...with the kit and its level put on the new channel at once",
+       ("prog", now["drums"], 128, 0) in fs.log and any(e[:3] == ("cc", now["drums"], 7) for e in fs.log), str(fs.log))
+    ok("...and from the first bar not yet queued, not one band note on the zone's channel",
+       later and not any(n[1] == 1 for n in later), f"{sum(n[1] == 1 for n in later)} of {len(later)}")
+    fs.log.clear()
+    b.stop()
+    ok("...so stopping the band does not cut the notes of the zone now on channel 1",
+       not any(e[0] == "cc" and e[1] in (0, 1) for e in fs.log), str(fs.log))
+    # A sound change still pending when its channel is taken goes to the new channel.
+    eng.active_channels = (0,)
+    b = fresh()
+    b._fill()
+    seq.tick = int(b._anchor_tick + b.bar_ms() * 0.9)
+    b._fill()
+    queued.clear()
+    b.configure(comp_program=25)
+    tick = queued[0][0] if queued else None
+    eng.active_channels = (0, b._channels["comp"])
+    removed.clear()
+    b.zones_changed()
+    q = [x for x in queued if x[3] == 25]
+    ok("a sound change still pending when a zone takes its channel is taken back and queued on the new one",
+       removed and removed[-1][3] == band_mod.PROGRAM_SELECT and [x[:2] for x in q] == [(tick, b._channels["comp"])]
+       and b._channels["comp"] not in eng.active_channels, f"{removed} {q} {b._channels}")
+    queued.clear()
+    b.configure(comp_program=48)
+    b.configure(comp_program=16)
+    q = [x for x in queued if x[1] == b._channels["comp"]]
+    ok("two sound changes before one bar: the second replaces the first, not races it at the same tick",
+       [x[3] for x in q] == [16], str(q))
+    b.stop()
+    eng.active_channels = (0, 1)
 
     from backend import server
     refused = []

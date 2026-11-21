@@ -30,18 +30,26 @@ you can sit in for.
 change is a program change on the part's channel, and it lands where every other change
 does: on the first bar not yet queued. Queued notes take the program the channel has
 when they sound, so the change goes in just ahead of that bar's downbeat -- after the
-last onset of the bar before it -- rather than the moment it is asked for.
+last onset of the bar before it -- rather than the moment it is asked for. It goes in
+as a sequencer event at that tick, like the notes: a worker woken to make it would be a
+timer for musical timing, and it missed the downbeat whenever it woke a tick early.
 
-**Its own channels.** Four of 1-8, picked fresh at start from the ones no zone uses
-(0-9 zones, 10-14 loop station, 15 metronome). Band notes go from the sequencer straight
-to the synth, so they never reach the held-key list, the keyboard lamps or your stats.
+**Its own channels.** Four of 1-8, picked at start from the ones no zone uses (0-9
+zones, 10-14 loop station, 15 metronome). A zone can arrive on one while the band plays
+(a page has Jam beside Layers and Play), so set_zones tells the band, and the parts it
+landed on move to a channel still free; the bars already queued (the lookahead) play
+out where they were. Band notes go from the sequencer straight to the synth, so they
+never reach the held-key list, the keyboard lamps or your stats.
 """
 
 from __future__ import annotations
 
+import ctypes
 import random
 import threading
 from typing import Any
+
+import fluidsynth
 
 from . import config
 from .engine import DRUM_BANK
@@ -118,6 +126,39 @@ COMP_LOW = 52                    # E3: the comp lives in E3..D#4, under the melo
 VOICE_EARLY_MS = 30.0
 _KEEP = object()                 # configure(): "leave it as it is", where None means something
 
+# pyfluidsynth wraps no program event; the DLL has one. Its type id is read off an event
+# rather than written down, so a FluidSynth that renumbers the enum cannot make the
+# band's take-back of a pending sound change remove something else.
+_program_event = fluidsynth.cfunc(
+    "fluid_event_program_select", None,
+    ("evt", ctypes.c_void_p, 1), ("channel", ctypes.c_int, 1), ("sfont_id", ctypes.c_uint, 1),
+    ("bank", ctypes.c_short, 1), ("preset", ctypes.c_short, 1))
+_event_type = fluidsynth.cfunc("fluid_event_get_type", ctypes.c_int, ("evt", ctypes.c_void_p, 1))
+
+
+def _program_select_type() -> int | None:
+    if _program_event is None or _event_type is None:
+        return None
+    evt = fluidsynth.new_fluid_event()
+    try:
+        _program_event(evt, 0, 0, 0, 0)
+        return _event_type(evt)
+    finally:
+        fluidsynth.delete_fluid_event(evt)
+
+
+PROGRAM_SELECT = _program_select_type()
+
+
+def _queue_program(seq: Any, at: int, source: int, dest: int, ch: int, sfid: int, bank: int, prog: int) -> None:
+    """A program select on `ch`, sounding at sequencer tick `at`."""
+    evt = seq._create_event(source, dest)
+    try:
+        _program_event(evt, ch, sfid, bank, prog)
+        seq._schedule_event(evt, at, True)
+    finally:
+        fluidsynth.delete_fluid_event(evt)
+
 
 def _clamp(v: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, v))
@@ -161,7 +202,7 @@ class Band:
         self.comp_program: int | None = None     # None: the style's own
         self.bass_program: int | None = None
         self._channels: dict[str, int] = {}
-        self._voice_at: float | None = None      # the tick a deferred sound change goes in
+        self._voice_at: int | None = None        # the tick a queued sound change sounds at
 
         # bar index -> {"root": pc, "pcs": [pc...], "bass": pc, "lead": [(step, len, key, vel)]}
         self._chart: list[dict[str, Any]] = []
@@ -172,6 +213,9 @@ class Band:
         # lands on the first bar not yet queued, so until the new anchor is reached
         # you are still hearing bars laid out at the old tempo.
         self._before: tuple[int, float, float] | None = None
+        listeners = getattr(engine, "zone_listeners", None)
+        if listeners is not None:
+            listeners.append(self.zones_changed)
 
     # ----------------------------------------------------------------- timing
     def bar_ms(self) -> float:
@@ -215,6 +259,7 @@ class Band:
             self.bass_program = _program(bass_program)
             self._chart = [self._clean(c) for c in chart][:256]
             self._voice_at = None
+            self._channels = {}               # picked afresh: the last run's may be a zone's now
             self._prepare()
             if self._client is None:
                 self._client = seq.register_client("band", self._on_tick)
@@ -293,6 +338,26 @@ class Band:
                 fs.cc(ch, 120, 0)
         return was
 
+    def zones_changed(self) -> None:
+        """engine.set_zones calls this. A part whose channel a zone now uses moves to one
+        still free, its sound and level put there at once (nothing of the band's is queued
+        on it), so from the first bar not yet queued the zone and the band stop sharing.
+        A sound change still pending was queued for the old channels: it is taken back
+        and queued again for the new ones."""
+        with self._lock:
+            fs, seq = self.engine.fs, self.engine.sequencer
+            if not self._running or fs is None or seq is None:
+                return
+            old = dict(self._channels)
+            self._channels = self._pick(old)
+            moved = {p for p, c in old.items() if self._channels.get(p) != c}
+            if not moved:
+                return
+            if self._voice_at is not None and seq.get_tick() < self._voice_at:
+                self._voices(at=self._voice_at)
+            self._voices(parts=moved)
+            self._levels(moved)
+
     def shutdown(self) -> None:
         self.stop()
         self._stop.set()
@@ -337,50 +402,80 @@ class Band:
         mine = self.comp_program if part == "comp" else self.bass_program
         return STYLES[self.style][f"{part}_program"] if mine is None else mine
 
+    def _pick(self, keep: dict[str, int]) -> dict[str, int]:
+        """Four channels no zone uses. Parts in `keep` stay where they are while theirs is
+        still free, so only a part a zone landed on moves."""
+        busy = set(self.engine.active_channels)
+        if keep and not busy & set(keep.values()):
+            return dict(keep)
+        free = [c for c in SPARE_CHANNELS if c not in busy] or list(SPARE_CHANNELS)
+        stay = {p: c for p, c in keep.items() if c in free}
+        rest = [c for c in free if c not in stay.values()]
+        out: dict[str, int] = {}
+        for part in ("drums", "bass", "comp"):
+            out[part] = stay[part] if part in stay else (rest.pop(0) if rest else free[-1])
+        # The lead only gets a channel of its own when there is a fourth one to spare;
+        # otherwise it plays on the comp's, in the comp's sound, rather than take it over.
+        lead = stay.get("lead")
+        if lead is None or lead in (out["drums"], out["bass"]) or (lead == out["comp"] and rest):
+            lead = rest.pop(0) if rest else out["comp"]
+        out["lead"] = lead
+        return out
+
     def _prepare(self, defer: bool = False) -> None:
         """Channels, levels and sounds. At start the sounds go in at once; while playing
-        (`defer`) they wait for the first bar not yet queued -- see _voices()."""
+        (`defer`) they are queued for the first bar not yet queued -- see _voices()."""
         fs = self.engine.fs
         if fs is None:
             return
-        busy = set(self.engine.active_channels)
-        free = [c for c in SPARE_CHANNELS if c not in busy] or list(SPARE_CHANNELS)
-        while len(free) < 3:
-            free.append(free[-1])
-        # The lead only gets a channel of its own when there is a fourth one to spare;
-        # otherwise it plays on the comp's, in the comp's sound, rather than take it over.
-        self._channels = {"drums": free[0], "bass": free[1], "comp": free[2],
-                          "lead": free[3] if len(free) > 3 else free[2]}
-        shared = self._channels["lead"] == self._channels["comp"]
+        self._channels = self._pick(self._channels)
         seq = self.engine.sequencer
-        if defer and seq is not None:
-            self._voice_at = self._bar_tick(self._next_bar) - VOICE_EARLY_MS
-            if self._client is not None:            # a doorbell for then
-                seq.timer(int(self._voice_at), dest=self._client)
+        if defer and seq is not None and self._client is not None and _program_event is not None:
+            self._voices(at=int(round(self._bar_tick(self._next_bar) - VOICE_EARLY_MS)))
         else:
             self._voices()
+        self._levels(set(self._channels))
+
+    def _levels(self, parts: set[str]) -> None:
+        fs = self.engine.fs
+        ch = self._channels
         vol = int(round(self.volume * 127))
         mix = {"drums": 0.85, "bass": 0.95, "comp": 0.7, "lead": 1.0}
-        for part, ch in self._channels.items():
-            if part == "lead" and shared:
+        for part in parts:
+            if part == "lead" and ch["lead"] == ch["comp"]:
                 continue
-            fs.cc(ch, 7, int(vol * mix[part]))
-            fs.cc(ch, 91, 30 if part in ("comp", "lead") else 18)
+            fs.cc(ch[part], 7, int(vol * mix[part]))
+            fs.cc(ch[part], 91, 30 if part in ("comp", "lead") else 18)
 
-    def _voices(self) -> None:
-        """Every part's program on its channel, now."""
-        self._voice_at = None
+    def _voices(self, at: int | None = None, parts: set[str] | None = None) -> None:
+        """Each part's program on its channel: now, or queued on the sequencer to sound
+        at tick `at`, the way the notes are."""
         fs = self.engine.fs
         sfid = self.engine.load_soundfont(config.DEFAULT_SOUNDFONT)
         if fs is None or sfid == -1:
             return
         ch = self._channels
-        if fs.program_select(ch["drums"], sfid, DRUM_BANK, STYLES[self.style]["kit"]) == -1:
-            fs.program_select(ch["drums"], sfid, DRUM_BANK, 0)
-        fs.program_select(ch["bass"], sfid, 0, self._program_of("bass"))
-        fs.program_select(ch["comp"], sfid, 0, self._program_of("comp"))
+        want = [("drums", DRUM_BANK, STYLES[self.style]["kit"]), ("bass", 0, self._program_of("bass")),
+                ("comp", 0, self._program_of("comp"))]
         if ch["lead"] != ch["comp"]:
-            fs.program_select(ch["lead"], sfid, 0, LEAD_PROGRAM)
+            want.append(("lead", 0, LEAD_PROGRAM))
+        if parts is not None:
+            want = [w for w in want if w[0] in parts]
+        if at is not None:
+            # A second change for the same bar replaces the first: two selects on one
+            # channel at one tick sound in no set order.
+            if at == self._voice_at and _remove_events is not None and PROGRAM_SELECT is not None:
+                _remove_events(self.engine.sequencer.sequencer, self._client, -1, PROGRAM_SELECT)
+            self._voice_at = at
+            for part, bank, prog in want:
+                _queue_program(self.engine.sequencer, at, self._client, self.engine.seq_dest,
+                               ch[part], sfid, bank, prog)
+            return
+        if parts is None:
+            self._voice_at = None
+        for part, bank, prog in want:
+            if fs.program_select(ch[part], sfid, bank, prog) == -1 and part == "drums":
+                fs.program_select(ch[part], sfid, DRUM_BANK, 0)
 
     def _flush(self) -> None:
         seq = self.engine.sequencer
@@ -412,8 +507,6 @@ class Band:
         if seq is None or not self._running:
             return
         now = seq.get_tick()
-        if self._voice_at is not None and now >= self._voice_at:
-            self._voices()
         # A hitch long enough to put the next bar in the past: skip ahead rather than
         # spray a burst of catch-up notes.
         while self._bar_tick(self._next_bar) < now - 50:
