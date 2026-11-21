@@ -36,6 +36,14 @@ export const ICONS = {
 export const ICON_NAMES = Object.keys(ICONS);
 export const DEFAULT_ICON = 'note';
 
+/* Plain UI glyphs for menus (the page right-click menu), same stroke. Not offered in
+   the picker and never valid as a page's icon. */
+const GLYPHS = {
+  pencil: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/>',
+  type: '<path d="M5 7V5h14v2"/><path d="M12 5v14"/><path d="M9 19h6"/>',
+  trash: '<path d="M4 7h16"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/><path d="M10 11v5M14 11v5"/>',
+};
+
 /* An <svg> for `name`, the default for anything unknown. Built through innerHTML on
    an SVG element, which parses its children in the SVG namespace. */
 export function icon(name, cls = 'nav__icon') {
@@ -48,6 +56,6 @@ export function icon(name, cls = 'nav__icon') {
   svg.setAttribute('stroke-linecap', 'round');
   svg.setAttribute('stroke-linejoin', 'round');
   svg.setAttribute('aria-hidden', 'true');
-  svg.innerHTML = (ICONS[name] || ICONS[DEFAULT_ICON]).svg;
+  svg.innerHTML = GLYPHS[name] || (ICONS[name] || ICONS[DEFAULT_ICON]).svg;
   return svg;
 }

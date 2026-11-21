@@ -582,7 +582,7 @@ navFold?.addEventListener('click', () => setFold(!navFolded));
 /* Inline, no browser dialogs: Rename turns the item's label into a field, and Delete
    asks in the menu itself. Each acts on the list as it is on disk, like the builder. */
 let navMenu = null;
-const MENU_ICONS = { edit: 'sheet', rename: 'note', delete: 'flat' };
+const MENU_ICONS = { edit: 'pencil', rename: 'type', delete: 'trash' };
 
 function closeNavMenu() {
   if (!navMenu) return;

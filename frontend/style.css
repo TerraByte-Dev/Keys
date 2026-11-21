@@ -3091,6 +3091,7 @@ body.is-focusing .exrun .stat__note { font-size: 14px; }
 .navmenu__row .btn { flex: 1; }
 .navmenu__sep { height: 1px; margin: 4px 2px; background: var(--hairline); }
 /* Rename, in place: the label becomes a field the width of the item. */
+.nav__item:has(.nav__rename) .nav__key { display: none; }
 .nav__rename {
   flex: 1; min-width: 0; height: 24px; padding: 0 6px;
   background: var(--panel-0); color: var(--ink); font: inherit; font-size: 13px;
@@ -3158,16 +3159,17 @@ body:not(.is-focusing) .page__pane .jam__opts { flex: none; }
   color: var(--ink-dim); margin: 14px 0 6px;
 }
 .pb__line .pb__lbl { margin: 0; }
-/* The panel picker is one surface split by hairlines (the 1px gaps over a hairline
-   background), not a box per tab; auto-fit so no empty track shows as a bare stripe. */
+/* The panel picker is one surface split by hairlines, not a box per tab: each group's
+   1px ring fills the 1px gap beside it and the outer edge clips the rest, so a short
+   last row leaves plain surface, not a grey block. */
 .pb__groups {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); gap: 1px;
-  background: var(--hairline); border: 1px solid var(--hairline); border-radius: var(--radius);
+  background: var(--panel-2); border: 1px solid var(--hairline); border-radius: var(--radius);
   overflow: hidden;
 }
 .pb__group {
   display: flex; flex-direction: column; gap: 4px; padding: 8px 10px 10px;
-  background: var(--panel-2);
+  box-shadow: 0 0 0 1px var(--hairline);
 }
 .pb__group--wide { grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; align-content: start; }
 .pb__group--wide .pb__gtitle { grid-column: 1 / -1; }
