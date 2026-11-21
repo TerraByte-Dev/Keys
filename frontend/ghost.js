@@ -227,6 +227,7 @@ export function createGhost(payload, opts = {}) {
   };
 
   let gi = 0;                       // index of the gate the clock is walking toward
+  let lastBar = 0;                  // barIndex() at the last onChange, see advance()
   const held = new Set();           // keys physically down, from `f.held`
 
   /* Notes already cashed in by a gate that has passed. This is the re-strike rule,
@@ -376,15 +377,20 @@ export function createGhost(payload, opts = {}) {
     let left = dt * model.qps;
 
     while (left > 0) {
-      const gate = model.wait && gi < gates.length ? gates[gi] : null;
-      const room = gate ? Math.max(0, gate.at - model.nowQ) : Infinity;
       /* The section's end, and only while the playhead is still under it. Locating
          PAST B has to be allowed to stay past it, which is what a DAW does: outside
          the loop you play on, inside it you wrap. Without that guard a scrub click
          past B is silently undone on the very next frame. */
-      const roomB = model.looping && model.nowQ < model.loopB
-        ? model.loopB - model.nowQ
-        : Infinity;
+      const inLap = model.looping && model.nowQ < model.loopB;
+      const roomB = inLap ? model.loopB - model.nowQ : Infinity;
+      let gate = model.wait && gi < gates.length ? gates[gi] : null;
+      /* A gate a chord's width before B is the NEXT bar's downbeat, played a hair
+         early by a performance-timed file -- the same rule seek()'s slack applies at
+         A. It belongs to the next lap, where the wrap's slack arms it as A's own
+         downbeat. Waited on here instead, the clock froze on a bar outside the
+         section, every lap, and the section's own first chord was never asked for. */
+      if (gate && inLap && model.loopB < total && gate.at >= model.loopB - GATE_EPS) gate = null;
+      const room = gate ? Math.max(0, gate.at - model.nowQ) : Infinity;
 
       /* Ties go to B. A gate written exactly on the section's end belongs to the next
          lap; wait for it here instead and the loop deadlocks with no way out but
@@ -395,7 +401,7 @@ export function createGhost(payload, opts = {}) {
            forward-only cursors rebuild, and spends what is held -- which is what stops
            a section that begins and ends on the same pitch from having its first gate
            opened for free by the hand you finished the last lap with. */
-        seek(model.loopA);
+        seek(model.loopA, GATE_EPS);
         continue;                     // and the rest of the step is played from A
       }
 
@@ -413,7 +419,11 @@ export function createGhost(payload, opts = {}) {
         // Frozen, and it stays frozen. The remainder of the step is NOT spent -- the
         // one place dropping it is correct, because the clock has genuinely stopped.
         // Nothing here counts how long you have been here. Take all night.
-        if (!model.waiting) { model.waiting = true; onChange(); }
+        if (!model.waiting) {
+          model.waiting = true;
+          lastBar = barIndex(here());       // this repaint already shows the bar
+          onChange();
+        }
         return;
       }
 
@@ -430,23 +440,70 @@ export function createGhost(payload, opts = {}) {
       model.playing = false;
       model.finished = true;
       onChange();
+      return;
     }
+    /* A new bar is a change worth announcing. The sheet's current-bar tint and its page
+       turn hang off onChange, and without this they would move once a second on the
+       heartbeat -- a bar late, on a page that turns after you needed it. Once per bar,
+       not per frame: a binary search here, and a repaint only when it lands elsewhere. */
+    const b = barIndex(model.nowQ);
+    if (b !== lastBar) { lastBar = b; onChange(); }
   }
 
   /* Put the playhead somewhere and rebuild everything that depended on where it was.
      Seeking is the one operation that can move time backwards, so it is the only one
-     that bumps `seq`. */
-  function seek(q) {
+     that bumps `seq`.
+
+     `slack` is for landing on a bar line: a performance-timed file can put the bar's
+     downbeat chord a few hundredths BEFORE the line, and arming "the first gate at or
+     after here" would then skip the very chord you stepped back to play. Only the bar
+     steps, the loop's wrap and restart() pass it, and only a gate's worth. */
+  function seek(q, slack = 0) {
     model.nowQ = Math.max(0, Math.min(total, +q || 0));
     model.finished = false;
     model.waiting = false;
     model.seq++;
     let i = 0;
-    while (i < gates.length && gates[i].at < model.nowQ) i++;
+    while (i < gates.length && gates[i].at < model.nowQ - slack) i++;
     arm(i);
     spendHeld();
+    lastBar = barIndex(here());
     onChange();
   }
+
+  /* Where the playhead is, for the purpose of naming its BAR. Frozen at a gate, the
+     clock is parked on the gate's onset -- and a downbeat played a hair early parks it
+     a hair before the bar line it belongs to. That chord is the next bar's, by the
+     same rule seek()'s slack uses, so the readout, the sheet's tint, a bar step and
+     "Loop this bar" all have to read it that way, or Bar >> re-arms the chord you are
+     sitting on and Loop this bar loops the bar you just finished. The tiny extra is
+     float headroom: 3.97 + 0.03 must not come out as 3.9999. */
+  function here() {
+    return model.waiting ? model.nowQ + GATE_EPS + 1e-9 : model.nowQ;
+  }
+
+  /* Which measure a position falls in, as an index into `measures` (0-based, in time
+     order). A position before the first bar line counts as the first bar. -1 only when
+     the piece has no measures at all. */
+  function barIndex(q) {
+    if (!measures.length) return -1;
+    let lo = 0;
+    let hi = measures.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (measures[mid].onset <= q) lo = mid; else hi = mid - 1;
+    }
+    return lo;
+  }
+
+  /* Where bar `i` ends: the next bar line, or the end of the piece for the last one.
+     Capped at `total` for the same reason barCeil is -- past it is unreachable. */
+  function barEnd(i) {
+    const next = measures[i + 1];
+    return Math.min(total, next ? next.onset : total);
+  }
+
+  const clampBar = (i) => Math.max(0, Math.min(measures.length - 1, Math.round(+i) || 0));
 
   return Object.assign(model, {
     advance,
@@ -472,8 +529,8 @@ export function createGhost(payload, opts = {}) {
     /* The section, stamped from wherever the playhead is. Stamping B is enough to
        start it wrapping; there is no arm button, because setting an end you then have
        to switch on is a step that exists only to be forgotten. */
-    setLoopA() { return markLoop('A', model.nowQ); },
-    setLoopB() { return markLoop('B', model.nowQ); },
+    setLoopA() { return markLoop('A', here()); },
+    setLoopB() { return markLoop('B', here()); },
     clearLoop() {
       model.loopA = 0;
       model.loopB = 0;
@@ -577,16 +634,90 @@ export function createGhost(payload, opts = {}) {
 
     /* Which bar a position is in, 1-based, for the readout. Defaults to the playhead;
        the argument is what lets the same readout name A and B. */
-    bar(q = model.nowQ) {
-      if (!measures.length) return 0;
-      let lo = 0;
-      let hi = measures.length - 1;
-      while (lo < hi) {
-        const mid = (lo + hi + 1) >> 1;
-        if (measures[mid].onset <= q) lo = mid; else hi = mid - 1;
-      }
-      return measures[lo].number;
+    bar(q = here()) {
+      const i = barIndex(q);
+      return i < 0 ? 0 : measures[i].number;
     },
     bars() { return measures.length; },
+
+    /* --- moving by bars ---------------------------------------------------------
+       Everything below places the playhead through seek(), so all of it inherits the
+       rules a seek carries: `seq` bumps, the gate at the new spot is armed, the keys
+       you are holding are spent, and `playing` is left exactly as it was. Bars are
+       addressed by INDEX (0-based, time order); barAt() turns a written number into
+       one, because a written number is what a person types and an index is what
+       cannot be ambiguous. */
+    barIndex(q = here()) { return barIndex(q); },
+
+    /* The bar a person means by a number. The written number when exactly one bar
+       carries it -- a score with a pickup numbered 0 still means "bar 12" by its
+       printed 12 -- and the position otherwise: a number used twice (a second ending
+       restarting the count, a file that numbers every part from 1) names no single
+       bar, and position is the reading that cannot be wrong about which. */
+    barAt(number) {
+      if (!measures.length) return -1;
+      const n = Math.round(+number);
+      if (!Number.isFinite(n)) return -1;
+      let hit = -1;
+      let count = 0;
+      for (let i = 0; i < measures.length; i++) {
+        if (measures[i].number === n) { hit = i; count++; }
+      }
+      return count === 1 ? hit : clampBar(n - 1);
+    },
+
+    seekBar(i) {
+      if (!measures.length) return -1;
+      const k = clampBar(i);
+      seek(measures[k].onset, GATE_EPS);
+      return k;
+    },
+
+    /* A media player's previous/next. Back goes to the top of the bar you are in --
+       unless you are within half a beat of it, which is where you land after a press,
+       so a second press walks on to the bar before instead of sticking. Forward goes
+       to the next bar line, and off the last bar there is none: it stays put rather
+       than jumping to the end and finishing the piece under you. */
+    stepBar(dir) {
+      if (!measures.length) return -1;
+      const i = barIndex(here());
+      if (dir < 0) {
+        const m = measures[i];
+        const halfBeat = (4 / m.beat_type) / 2;
+        return model.seekBar(model.nowQ - m.onset > halfBeat ? i : i - 1);
+      }
+      if (i + 1 >= measures.length) return i;
+      return model.seekBar(i + 1);
+    },
+
+    /* The section by bars: A on bar a's first line, B on bar b's closing one -- so
+       "bars 3 to 5" plays all of 5, the same reading Set B's ceiling gives. Either order;
+       a backwards pair is a slip, not a request. The playhead is not moved: a section
+       set from somewhere else is played into, or played past, by the same rule as one
+       stamped with Set A/B. */
+    setLoopBars(a, b) {
+      if (!measures.length) return false;
+      let i = clampBar(a);
+      let j = clampBar(b);
+      if (i > j) [i, j] = [j, i];
+      model.loopA = measures[i].onset;
+      model.loopB = barEnd(j);
+      model.looping = model.loopB - model.loopA >= MIN_LOOP_Q;
+      onChange();
+      return model.looping;
+    },
+
+    loopBar() {
+      const i = barIndex(here());
+      return model.setLoopBars(i, i);
+    },
+
+    /* Back to the top: of the section when one is set, of the piece otherwise. With
+       the same slack as a bar step, because A is a bar line and the chord that starts
+       the section can sit a hair before it. Restart and "play the section I just set"
+       both mean this, so they share it rather than each seeking A bare. */
+    restart() {
+      seek(model.looping ? model.loopA : 0, GATE_EPS);
+    },
   });
 }

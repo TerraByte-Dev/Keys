@@ -249,9 +249,20 @@ What is deliberately *not* built is a moving cursor on the page. Verovio's timem
 milliseconds against Verovio's reading of the file; the ghost clock is quarter notes against
 `backend/score.py`'s reading. Two readers of one file, agreeing on clean engravings and
 diverging on repeats, pickups and grace notes — the exact disagreement the engraver was kept
-out of the timeline to avoid. If following is ever wanted, the honest route is measure-level
-only: `ghost.bar()` returns a written measure number, and both sides agree on bar numbers by
-construction.
+out of the timeline to avoid.
+
+What *is* built is following at the level of the measure, and only that. After a load,
+`engrave.js`'s `measureMap()` asks the toolkit two structural questions — the MEI it holds
+(`getMEI()`: which measures exist, their ids and written numbers) and `getPageWithElement()`
+(which page prints each) — and never touches the timemap. `app.js` then gives each printed
+measure a ghost bar **by position** when the two lists are the same length (both are the first
+part's measures in document order, so position is exact), and by written number only when
+`score.py` folded a repeated number and the lengths differ. On top of that map: the current
+bar is tinted, the loop's bars are banded, clicking a measure seeks to its downbeat, and the
+page turns or scrolls to the current bar when playback starts, on each new bar while playing,
+and on any deliberate move (a bar step, Go to, a scrub, Restart). A page turned by hand
+mid-bar stays put until one of those happens. The clock is still ghost.js's alone; the page
+only says where its bars are printed.
 
 `frontend/engrave.js` owns the toolkit because there are two callers now, `loadData` mutates
 the single instance, and the symptom of a clash is the wrong music on screen rather than an

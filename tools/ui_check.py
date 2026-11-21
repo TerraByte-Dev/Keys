@@ -636,6 +636,422 @@ def jam_checks(browser, port: int, errs: list[str]) -> list[str]:
     return fails
 
 
+# -- the transport: bar steps, Go to bar, loop by bars, the scrub, the sheet ---------
+# A song written here rather than shipped: one note per beat, numbered 1..TR_BARS, long
+# enough that the engraving runs to more than one page. Every expected value below is
+# arithmetic on these constants -- bar n starts at quarter (n-1)*4 of TR_BARS*4 -- and
+# never something read back from ghost.js.
+TR_BARS = 160
+TR_STEPS = "CDEFGAB"
+
+
+def transport_fixture() -> str:
+    bars = []
+    for i in range(TR_BARS):
+        attrs = ("<attributes><divisions>1</divisions><key><fifths>0</fifths></key>"
+                 "<time><beats>4</beats><beat-type>4</beat-type></time>"
+                 "<clef><sign>G</sign><line>2</line></clef></attributes>"
+                 '<sound tempo="120"/>') if i == 0 else ""
+        notes = "".join(f"<note><pitch><step>{TR_STEPS[(i + k) % 7]}</step><octave>4</octave></pitch>"
+                        "<duration>1</duration><type>quarter</type></note>" for k in range(4))
+        bars.append(f'<measure number="{i + 1}">{attrs}{notes}</measure>')
+    return ('<?xml version="1.0" encoding="UTF-8"?><score-partwise version="3.1"><part-list>'
+            '<score-part id="P1"><part-name>Piano</part-name></score-part></part-list>'
+            '<part id="P1">' + "".join(bars) + "</part></score-partwise>")
+
+
+# Import it the way the drawer does (raw bytes, name in a header), then open it on the
+# roll through the same startGhost the song rows call.
+TR_OPEN = """async (xml) => {
+  const r = await fetch('/api/scores', { method: 'POST', headers: { 'x-filename': 'transport-check.musicxml' }, body: xml });
+  const meta = (await r.json()).score;
+  const payload = await (await fetch(`/api/scores/${meta.id}/notes`)).json();
+  (await import('/app.js')).startGhost(payload, meta);
+  return meta.measures;
+}"""
+
+TR_READ = """() => ({
+  bar: document.querySelector('#ghost-bar')?.textContent || '',
+  read: document.querySelector('#ghost-read')?.textContent || '',
+  play: document.querySelector('#ghost-play')?.textContent || '',
+  left: parseFloat(document.querySelector('#ghost-section').style.left) || 0,
+  width: parseFloat(document.querySelector('#ghost-section').style.width) || 0,
+  from: document.querySelector('#ghost-loop-from')?.value, to: document.querySelector('#ghost-loop-to')?.value,
+  roll: document.body.classList.contains('is-immersive'),
+  song: document.body.classList.contains('is-ghosting'),
+  pageN: document.querySelector('#roll-page-n')?.textContent || '',
+  now: [...document.querySelectorAll('#roll-paper g.measure.is-now')].map((g) => +g.dataset.bar),
+  loop: [...document.querySelectorAll('#roll-paper g.measure.is-loop')].map((g) => +g.dataset.bar),
+})"""
+
+
+def transport_checks(browser, port: int, errs: list[str]) -> list[str]:
+    """The roll's transport, driven like a person: keys, buttons, the scrub, the page."""
+    fails: list[str] = []
+    page = browser.new_page(viewport={"width": 1600, "height": 1000})
+    page.on("pageerror", lambda e: errs.append(str(e)))
+
+    def check(label: str, passed: bool, detail: str = "") -> None:
+        print(f"  [{'PASS' if passed else 'FAIL'}] {label}" + (f" -- {detail}" if detail else ""))
+        if not passed:
+            fails.append(f"transport: {label} {detail}".strip())
+
+    def read() -> dict:
+        return page.evaluate(TR_READ)
+
+    def press(key: str, wait: int = 150) -> None:
+        page.evaluate("document.activeElement?.blur?.()")
+        page.keyboard.press(key)
+        page.wait_for_timeout(wait)
+
+    def stir() -> None:
+        page.mouse.move(800, 600)
+        page.mouse.move(810, 610)
+
+    def bar_text(n: int) -> str:
+        return f"bar {n} / {TR_BARS}"
+
+    # Where the band for written bars a..b sits, in percent of the whole piece.
+    def band(a: int, b: int) -> tuple[float, float]:
+        total = TR_BARS * 4
+        return (a - 1) * 4 / total * 100, (b - a + 1) * 4 / total * 100
+
+    def near_band(r: dict, a: int, b: int) -> bool:
+        left, width = band(a, b)
+        return abs(r["left"] - left) < 0.02 and abs(r["width"] - width) < 0.02
+
+    print("\ntransport, a song on the roll")
+    page.goto(f"http://127.0.0.1:{port}/#play", wait_until="networkidle")
+    page.wait_for_timeout(1500)
+    page.evaluate(SPY)
+    bars = page.evaluate(TR_OPEN, transport_fixture())
+    page.wait_for_timeout(600)
+    stir()
+    r = read()
+    check("the fixture opens on the roll at bar 1", bars == TR_BARS and r["song"] and r["bar"] == bar_text(1),
+          f"{bars} bars, readout {r['bar']!r}")
+
+    # -- bar steps, by key and by button --------------------------------------------
+    press("ArrowRight")
+    check("Right is a bar forward while nothing is waiting", read()["bar"] == bar_text(2), read()["bar"])
+    press("ArrowRight")
+    press("ArrowRight")
+    page.click("#ghost-bar-fwd")
+    page.wait_for_timeout(150)
+    check("...one bar per press, key or button", read()["bar"] == bar_text(5), read()["bar"])
+    press("ArrowLeft")
+    check("Left from the top of a bar is the bar before", read()["bar"] == bar_text(4), read()["bar"])
+    page.click("#ghost-bar-back")
+    page.wait_for_timeout(150)
+    check("...and so is the button", read()["bar"] == bar_text(3), read()["bar"])
+
+    # -- Space -------------------------------------------------------------------------
+    # Wait is on and nothing is held, so playing freezes on the bar's downbeat: the bar
+    # number cannot drift between these reads.
+    press("Space", 300)
+    check("Space plays", read()["play"] == "Pause", read()["play"])
+    press("Space", 300)
+    check("...and Space again pauses", read()["play"] == "Play", read()["play"])
+    page.focus("#ghost-bar-fwd")
+    page.keyboard.press("Space")
+    page.wait_for_timeout(300)
+    r = read()
+    check("Space with a bar button focused plays rather than pressing the button",
+          r["play"] == "Pause" and r["bar"] == bar_text(3), f"{r['play']}, {r['bar']}")
+    press("Space", 300)
+
+    # A slider keeps its arrows, but Space still plays: dragging Tempo must not switch
+    # the transport's key off until you click somewhere else.
+    page.focus("#ghost-bpm")
+    page.keyboard.press("Space")
+    page.wait_for_timeout(200)
+    on = read()["play"]
+    page.keyboard.press("Space")
+    page.wait_for_timeout(200)
+    check("Space plays and pauses with the Tempo slider focused", on == "Pause" and read()["play"] == "Play",
+          f"{on} then {read()['play']}")
+
+    # A shortcut rebound to Space must not fire on top of play/pause.
+    page.evaluate("async () => (await import('/app.js')).setBinds({ metronome: ' ' })")
+    page.evaluate("window.__posts = []")
+    press("Space", 200)
+    on = read()["play"]
+    press("Space", 200)
+    posts = page.evaluate("window.__posts.map(p => p.url)")
+    page.evaluate("async () => (await import('/app.js')).setBinds({})")
+    check("a shortcut bound to Space does not fire as well as play/pause",
+          on == "Pause" and not any("metronome" in u for u in posts), f"{on}, posts {posts}")
+
+    # Space on a focused button in the drawer, Settings or the tour presses THAT button.
+    # A Space taken for play/pause has its keyup cancelled; every other one must not be.
+    press("s", 300)
+    page.focus("#songs-close")
+    page.keyboard.press("Space")
+    page.wait_for_timeout(200)
+    shut = page.evaluate("document.querySelector('#songs').hidden")
+    check("Space on the songs drawer's close button closes it, and leaves the song paused",
+          shut and read()["play"] == "Play", f"drawer hidden {shut}, {read()['play']}")
+    press(",", 300)
+    page.focus(".prefs__item:nth-child(3)")
+    want = page.evaluate("document.activeElement?.dataset.id")
+    page.keyboard.press("Space")
+    page.wait_for_timeout(200)
+    got = page.evaluate("document.querySelector('.prefs__item.is-on')?.dataset.id")
+    page.focus(".prefs__close")
+    page.keyboard.press("Space")
+    page.wait_for_timeout(200)
+    gone = page.evaluate("!document.querySelector('#prefs')")
+    check("with a song loaded, Space still presses buttons in Settings",
+          bool(want) and got == want and gone and read()["play"] == "Play",
+          f"section {got!r} want {want!r}, closed {gone}, {read()['play']}")
+    # Put things back whatever happened, so one failure here does not cascade.
+    page.evaluate("async () => (await import('/settings-overlay.js')).closeSettings()")
+    page.evaluate("document.querySelector('#songs').hidden || document.querySelector('#songs-close').click()")
+    if read()["play"] == "Pause":
+        press("Space", 200)
+
+    # -- Go to bar -----------------------------------------------------------------------
+    page.click("#ghost-bar")
+    page.wait_for_timeout(100)
+    shown = page.evaluate("() => !document.querySelector('#ghost-bar-in').hidden && document.activeElement?.id")
+    page.keyboard.type("42")
+    page.keyboard.press("Enter")
+    page.wait_for_timeout(200)
+    check("clicking the bar number opens a field, and Enter goes there",
+          shown == "ghost-bar-in" and read()["bar"] == bar_text(42), f"focus {shown!r}, {read()['bar']}")
+    page.evaluate("window.__posts = []")
+    page.click("#ghost-bar")
+    page.wait_for_timeout(100)
+    page.keyboard.type("7")
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(300)
+    r = read()
+    posts = page.evaluate("window.__posts.map(p => p.url)")
+    hidden = page.evaluate("document.querySelector('#ghost-bar-in').hidden")
+    check("Esc in it cancels: no move, no panic, still on the roll",
+          r["bar"] == bar_text(42) and hidden and r["roll"] and r["song"]
+          and not any("/api/panic" in u for u in posts), f"{r['bar']}, roll {r['roll']}, posts {posts}")
+
+    # -- loop by bars ------------------------------------------------------------------
+    page.fill("#ghost-loop-from", "10")
+    page.fill("#ghost-loop-to", "12")
+    page.click("#ghost-loop-apply")
+    page.wait_for_timeout(200)
+    r = read()
+    check("Loop bars 10 to 12 puts the band over exactly those bars", near_band(r, 10, 12),
+          f"left {r['left']}% width {r['width']}%, want {band(10, 12)}")
+    check("...the playhead moves into it, and the readout names it",
+          r["bar"] == bar_text(10) and "looping bars 10-12" in r["read"], f"{r['bar']} / {r['read']!r}")
+    press("ArrowRight")
+    page.click("#ghost-loop-bar")
+    page.wait_for_timeout(150)
+    r = read()
+    check("Loop this bar is the bar you are in", near_band(r, 11, 11) and r["from"] == "11" and r["to"] == "11",
+          f"left {r['left']}% width {r['width']}%, fields {r['from']}-{r['to']}")
+    page.click("#ghost-bar")
+    page.keyboard.type("50")
+    page.keyboard.press("Enter")
+    page.wait_for_timeout(150)
+    check("...and the section survives a seek elsewhere", near_band(read(), 11, 11) and read()["bar"] == bar_text(50))
+    page.click("#ghost-loop-from")
+    page.keyboard.type("99")
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(300)
+    r = read()
+    check("Esc in a loop field puts it back, and leaves the roll alone",
+          r["from"] == "11" and r["roll"] and r["song"], f"field {r['from']!r}, roll {r['roll']}")
+
+    # Enter applies AND lets go of the field, so the next Space plays the section.
+    page.fill("#ghost-loop-from", "12")
+    page.fill("#ghost-loop-to", "12")
+    page.keyboard.press("Enter")
+    page.wait_for_timeout(150)
+    page.keyboard.press("Space")
+    page.wait_for_timeout(250)
+    r = read()
+    page.keyboard.press("Space")
+    page.wait_for_timeout(250)
+    check("after Enter in a loop field, Space plays the section",
+          r["play"] == "Pause" and r["bar"] == bar_text(12) and near_band(r, 12, 12),
+          f"{r['play']}, {r['bar']}")
+
+    # Real fullscreen keeps Esc for itself: the field never hears it, fullscreen just
+    # ends. That exit, with a roll field focused, is the field's Esc -- not "close the
+    # song". A synthetic Esc never leaves fullscreen, so the browser's half is played by
+    # leaving it for real; the Esc keydown that can trail it must not close the song
+    # either. Opened from a test, the roll did get real fullscreen -- it is checked, or
+    # this passes on an exit that never happened.
+    page.click("#ghost-loop-from")
+    page.keyboard.type("99")
+    was = page.evaluate("""async () => { const was = !!document.fullscreenElement;
+      if (was) await new Promise((done) => {
+        document.addEventListener('fullscreenchange', () => setTimeout(done), { once: true });
+        document.exitFullscreen(); });
+      return was; }""")
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(300)
+    r = read()
+    left = page.evaluate("!document.fullscreenElement")
+    check("fullscreen ending under a loop field cancels the field and keeps the song",
+          was and left and r["from"] == "12" and r["roll"] and r["song"] and near_band(r, 12, 12),
+          f"was fullscreen {was}, left {left}, field {r['from']!r}, roll {r['roll']}, song {r['song']}")
+
+    # -- the scrub ---------------------------------------------------------------------
+    stir()
+    box = page.evaluate("""() => { const r = document.querySelector('#ghost-scrub').getBoundingClientRect();
+      return { x: r.left, y: r.top, w: r.width, h: r.height }; }""")
+    hit = page.evaluate("""([x, y]) => !!document.elementFromPoint(x, y)?.closest('#ghost-scrub')""",
+                        [box["x"] + box["w"] / 2, box["y"] + 10])
+    check("the scrub is a 12 px target over its 3 px line", box["h"] >= 12 and hit, f"{box['h']}px tall")
+
+    def at_bar(n: int) -> float:                 # x of the middle of written bar n
+        return box["x"] + ((n - 1) * 4 + 2) / (TR_BARS * 4) * box["w"]
+
+    y = box["y"] + 6
+    page.mouse.move(at_bar(30), y)
+    page.wait_for_timeout(120)
+    tip = page.evaluate("() => { const t = document.querySelector('#ghost-scrub-tip'); return t.hidden ? '' : t.textContent; }")
+    check("hovering the scrub names the bar under the pointer", tip.startswith("bar 30"), repr(tip))
+    page.mouse.move(at_bar(80), y)
+    page.mouse.down()
+    page.mouse.move(at_bar(90), y, steps=4)
+    mid = read()["bar"]
+    page.mouse.move(at_bar(100), y, steps=4)
+    page.mouse.up()
+    page.wait_for_timeout(150)
+    check("dragging the scrub moves the playhead with it", mid == bar_text(90) and read()["bar"] == bar_text(100),
+          f"mid-drag {mid}, after {read()['bar']}")
+    page.keyboard.down("Shift")
+    page.mouse.move(at_bar(20), y)
+    page.mouse.down()
+    page.mouse.move(at_bar(23), y, steps=4)
+    page.mouse.up()
+    page.keyboard.up("Shift")
+    page.wait_for_timeout(200)
+    r = read()
+    check("Shift-drag loops the bars swept, and lands in them", near_band(r, 20, 23) and r["bar"] == bar_text(20),
+          f"left {r['left']}% width {r['width']}%, {r['bar']}")
+
+    # -- the sheet ---------------------------------------------------------------------
+    page.click("#roll-mode .btn[data-mode='sheet']")
+    try:
+        page.wait_for_function("document.querySelectorAll('#roll-paper g.measure[data-bar]').length > 0",
+                               timeout=60000)
+    except Exception:  # noqa: BLE001 -- reported below
+        pass
+    page.wait_for_timeout(300)
+    r = read()
+    pages = int(r["pageN"].split("/")[1]) if "/" in r["pageN"] else 0
+    check("Sheet engraves the song with its measures matched to bars, over more than one page",
+          r["now"] == [19] and pages >= 2, f"current {r['now']}, pages {r['pageN']!r}")
+    check("...the section's bars are banded on the page", sorted(r["loop"]) == [19, 20, 21, 22], str(r["loop"]))
+    target = page.evaluate("""() => { const el = document.querySelector('#roll-paper g.measure[data-bar="5"] > .rollpaper__bar');
+      if (!el) return null;
+      el.scrollIntoView({ block: 'center' });
+      const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }""")
+    if target:
+        page.mouse.click(*target)
+        page.wait_for_timeout(200)
+    r = read()
+    check("clicking a measure seeks to it", bool(target) and r["bar"] == bar_text(6) and r["now"] == [5],
+          f"{r['bar']}, current {r['now']}")
+
+    page.click("#ghost-bar")
+    page.keyboard.type(str(TR_BARS))
+    page.keyboard.press("Enter")
+    page.wait_for_function(f"document.querySelector('#roll-page-n').textContent === '{pages}/{pages}'", timeout=8000)
+    page.wait_for_timeout(300)
+    r = read()
+    check("going to the last bar turns to the last page and marks it", r["pageN"] == f"{pages}/{pages}"
+          and r["now"] == [TR_BARS - 1], f"page {r['pageN']}, current {r['now']}")
+    page.click("#roll-page-prev")
+    page.wait_for_timeout(1600)                # past a heartbeat
+    check("...a page turned back by hand stays turned while paused",
+          read()["pageN"] == f"{pages - 1}/{pages}", read()["pageN"])
+
+    # ...but pressing Play is the music moving on. Wait is on and nothing is held, so the
+    # clock freezes on bar TR_BARS's downbeat: the page has to show it, or it waits for a
+    # chord nobody can see.
+    press("Space", 1200)
+    r = read()
+    press("Space", 200)
+    check("Play brings back the page the current bar is on", r["play"] == "Pause"
+          and r["pageN"] == f"{pages}/{pages}" and r["now"] == [TR_BARS - 1], f"{r['pageN']}, current {r['now']}")
+    page.evaluate("document.querySelector('#roll-page-prev').click()")   # no-op if disabled
+    page.wait_for_timeout(1200)
+    page.click("#ghost-bar")
+    page.keyboard.type(str(TR_BARS))
+    page.keyboard.press("Enter")
+    page.wait_for_timeout(1200)
+    check("...and so does Go to the bar you are already in", read()["pageN"] == f"{pages}/{pages}",
+          read()["pageN"])
+    page.evaluate("document.querySelector('#roll-page-prev').click()")
+    page.wait_for_timeout(1600)
+
+    # Playing over a page break turns the page. The last bar on this page comes from the
+    # page itself; the bar after it is, by construction, on the next one.
+    page.click("#ghost-loop-clear")
+    last = page.evaluate("Math.max(...[...document.querySelectorAll('#roll-paper g.measure[data-bar]')].map((g) => +g.dataset.bar))")
+    page.click("#ghost-wait")                  # wait off: the clock runs without a piano
+    page.evaluate("""() => { const s = document.querySelector('#ghost-bpm'); s.value = '240';
+      s.dispatchEvent(new Event('input', { bubbles: true })); }""")
+    page.click("#ghost-bar")
+    page.keyboard.type(str(last + 1))          # written number = index + 1 in this fixture
+    page.keyboard.press("Enter")
+    page.wait_for_timeout(400)
+    before = read()["pageN"]
+    press("Space", 1800)                       # one 4/4 bar at 240 is a second
+    r = read()
+    press("Space", 200)
+    page.click("#ghost-wait")                  # and back on, as the settings had it
+    check("playing over the page break turns the page", before == f"{pages - 1}/{pages}"
+          and r["pageN"] == f"{pages}/{pages}" and r["now"] and r["now"][0] > last,
+          f"{before} -> {r['pageN']}, current {r['now']} past {last}")
+
+    # A drag from the last bar to the first crosses every page. Engraving each one on the
+    # way is a main-thread render per page; it should be one, for where the drag ends.
+    page.evaluate("""() => { window.__renders = 0;
+      new MutationObserver((m) => { window.__renders += m.length; })
+        .observe(document.querySelector('#roll-paper'), { childList: true }); }""")
+    sb = page.evaluate("""() => { const r = document.querySelector('#ghost-scrub').getBoundingClientRect();
+      return { x: r.left, y: r.top, w: r.width, h: r.height }; }""")
+    sy = sb["y"] + sb["h"] / 2
+    page.mouse.move(sb["x"] + sb["w"] - 2, sy)
+    page.mouse.down()
+    page.mouse.move(sb["x"] + 2, sy, steps=16)
+    page.wait_for_timeout(1500)
+    during = page.evaluate("window.__renders")
+    page.mouse.up()
+    page.wait_for_function(f"document.querySelector('#roll-page-n').textContent === '1/{pages}'", timeout=8000)
+    page.wait_for_timeout(800)
+    r = read()
+    check("a scrub drag across the pages engraves once, when it lets go",
+          during == 0 and r["pageN"] == f"1/{pages}" and r["now"] == [0],
+          f"{during} renders mid-drag, then page {r['pageN']}, current {r['now']}")
+
+    # The tour over a play-along: Space on its buttons still presses them.
+    page.evaluate("""async () => { const a = await import('/app.js');
+      (await import('/tour.js')).startTutorial(a.ctx); }""")
+    page.wait_for_timeout(200)
+    page.focus("#tour .btn--lg")
+    page.keyboard.press("Space")
+    page.wait_for_timeout(200)
+    title = page.evaluate("document.querySelector('#tour .tour__title')?.textContent")
+    check("with a song loaded, Space presses the tour's Next", title == "Your keyboard", repr(title))
+    page.evaluate("document.querySelector('#tour .tour__scrim')?.click()")
+    page.close()
+    return fails
+
+
+def free_port() -> int:
+    """A port nothing is listening on. Several checkouts run this suite at once, and a
+    fixed port silently tests whichever app answered first."""
+    import socket
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=0,
@@ -657,7 +1073,7 @@ def main() -> int:
         import subprocess
         import tempfile
         import ui_sandbox
-        port = 8809
+        port = free_port()
         sandbox = Path(tempfile.mkdtemp(prefix="keys-uicheck-"))
         (sandbox / "config.local.json").write_text(
             json.dumps(ui_sandbox.SILENT_CONFIG), "utf-8")
@@ -706,6 +1122,7 @@ def main() -> int:
                               f"no gaps, nothing stringified")
                 page.close()
             fails.extend(jam_checks(browser, port, errs))
+            fails.extend(transport_checks(browser, port, errs))
             browser.close()
     finally:
         if proc is not None:

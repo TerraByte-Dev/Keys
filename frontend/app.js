@@ -317,8 +317,9 @@ function applyStatus(s) {
   // gate the frame path got wrong -- and a stuck gate looks exactly like a hang.
   if (ghostModel) {
     ghostModel.resync(s.held || []);
-    // The bar number and the scrub ride the heartbeat, the same way the score
-    // transport does. The roll is the real-time display; the readout is not.
+    // The scrub's fill rides the heartbeat; the bar readout and the sheet also
+    // repaint at each bar line, because the model announces those. The roll is
+    // the real-time display; neither of these is.
     paintGhost();
   }
   lamp('lamp-midi', s.midi?.connected ? 'on' : 'bad',
@@ -579,6 +580,7 @@ document.addEventListener('mousemove', () => { if (immersive || focusing) stir()
 // browser -- has to bring the layout back with it, or the app is left pretending.
 document.addEventListener('fullscreenchange', () => {
   if (document.fullscreenElement) return;
+  if (immersive && cancelRollField()) return;
   if (immersive) toggleImmersive(false);
   else if (focusing) toggleFocus(false);
 });
@@ -641,6 +643,7 @@ export function setVolume(percent, { persist = true } = {}) {
    this is arithmetic and pixels. That is what lets a play-along keep working with no
    SoundFont and no audio device. */
 let ghostModel = null;
+let loopDirty = false;        // the loop-bars fields hold something typed, not yet applied
 
 export function ghostArmed() { return !!ghostModel; }
 
@@ -679,7 +682,7 @@ export function startGhost(payload, meta = {}, { sheet = false } = {}) {
   }
 
   document.body.classList.add('is-ghosting');
-  for (const id of ['#ghost-song', '#ghost-close', '#ghost-scrub']) {
+  for (const id of ['#ghost-song', '#ghost-close', '#ghost-scrub', '#ghost-goto']) {
     $(id)?.removeAttribute('hidden');
   }
   songs?.setPlaying(meta.id || '');
@@ -733,6 +736,132 @@ let sheetScoreId = '';
 let sheetPage = 1;
 let sheetPages = 1;
 
+/* Measure-level following, and only measure-level -- see ARCHITECTURE.md on why there
+   is no note cursor. `sheetBars` is engrave.js's measure map with `bar` added: the
+   ghost model's index for each printed measure, so the page and the clock agree on
+   bars by construction rather than by timing. `sheetPageOf[bar]` is where it is
+   printed. */
+let sheetBars = [];
+let sheetPageOf = [];
+let sheetPaintKey = '';       // the bar + section last painted on the page
+let sheetTurnBar = -1;        // the bar the page last followed
+let sheetFollow = false;      // a deliberate move: follow it even while paused
+let sheetPlaying = false;     // g.playing at the last paint, so a start can be seen
+
+/* Which ghost bar each printed measure is. When the two lists are the same length they
+   are the same measures in the same order -- both are the first part's measures in
+   document order -- and position is exact. They differ only when score.py folded a
+   repeated number into one bar, and then the written number is the key. */
+function mapSheetBars(list) {
+  const g = ghostModel;
+  const same = list.length === g.measures.length;
+  sheetBars = list.map((m, k) => ({ ...m, bar: same ? k : g.barAt(parseInt(m.n, 10)) }));
+  sheetPageOf = [];
+  for (const m of sheetBars) {
+    if (m.bar >= 0 && sheetPageOf[m.bar] == null) sheetPageOf[m.bar] = m.page;
+  }
+}
+
+/* Give each printed measure on the page its bar and a box to tint. The box is a rect
+   at the back of the measure's own group, so it scales with the page and sits under
+   the ink; everything after this is class toggles on those groups.
+   Sized from the staff LINES, not the whole group: a group's box takes in every ledger
+   note and stem, so a system's bars would come out all different heights. The lines are
+   the same for every bar in a system, and half a staff above and below gives the notes
+   just off it room. */
+const SVGNS = 'http://www.w3.org/2000/svg';
+function staffBox(el) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const line of el.querySelectorAll(':scope > g.staff > path')) {
+    const b = line.getBBox();
+    x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y);
+    x1 = Math.max(x1, b.x + b.width); y1 = Math.max(y1, b.y + b.height);
+  }
+  if (!Number.isFinite(x0)) return el.getBBox();
+  const pad = (y1 - y0) / 2;
+  return { x: x0, y: y0 - pad, width: x1 - x0, height: y1 - y0 + 2 * pad };
+}
+function decorateSheet(paper) {
+  const byId = new Map(sheetBars.map((m) => [m.id, m]));
+  for (const el of paper.querySelectorAll('g.measure')) {
+    const m = byId.get(el.dataset.id);
+    if (!m || m.bar < 0) continue;
+    el.dataset.bar = String(m.bar);
+    let box;
+    try { box = staffBox(el); } catch { continue; }
+    const r = document.createElementNS(SVGNS, 'rect');
+    r.setAttribute('class', 'rollpaper__bar');
+    r.setAttribute('x', String(box.x));
+    r.setAttribute('y', String(box.y));
+    r.setAttribute('width', String(box.width));
+    r.setAttribute('height', String(box.height));
+    el.insertBefore(r, el.firstChild);
+  }
+  sheetPaintKey = '';
+  paintSheet();
+}
+
+/* The current bar and the section, on the page. Runs from paintGhost, which the model
+   calls once per bar line rather than once per frame. The page follows the bar --
+   turned when it is printed on another page, scrolled when it is out of view on this
+   one -- on three occasions: a deliberate move, the moment playback starts, and each
+   new bar while playing. A page you turned by hand mid-bar therefore stays put until
+   the music moves on; but pressing Play, or asking for a bar, is the music moving on,
+   even to the bar it was already in. Wait mode is why that matters: started on a page
+   that does not show the bar, the clock waits for a chord you cannot see, forever.
+
+   A turn is a synchronous engrave of a whole page. During a scrub drag it waits for
+   the pointer to come up rather than engraving every page the drag crosses. */
+function paintSheet() {
+  const g = ghostModel;
+  const paper = $('#roll-paper');
+  const started = !!g?.playing && !sheetPlaying;
+  sheetPlaying = !!g?.playing;
+  if (!sheetMode || !g || !paper || !sheetBars.length) { sheetFollow = false; return; }
+  const cur = g.barIndex();
+  const la = g.looping ? g.barIndex(g.loopA) : -1;
+  const lb = g.looping ? g.barIndex(g.loopB - 1e-4) : -2;
+  const key = `${cur}:${la}:${lb}`;
+  if (key !== sheetPaintKey) {
+    sheetPaintKey = key;
+    for (const el of paper.querySelectorAll('g.measure[data-bar]')) {
+      const b = +el.dataset.bar;
+      el.classList.toggle('is-now', b === cur);
+      el.classList.toggle('is-loop', b >= la && b <= lb);
+    }
+  }
+  if (sheetFollow || started || (g.playing && cur !== sheetTurnBar)) {
+    sheetTurnBar = cur;
+    const want = sheetPageOf[cur];
+    if (want && want !== sheetPage) {
+      if (scrubDrag) sheetTurnBar = -1;      // still owed: endScrub pays it
+      else showPage(want, cur);
+    } else revealBar(paper, cur);
+  }
+  sheetFollow = false;
+}
+
+/* Scroll the paper just far enough that the bar is in view below the rollbar. */
+function revealBar(paper, bar) {
+  const el = paper.querySelector(`g.measure[data-bar="${bar}"]`);
+  if (!el) return;
+  const pr = paper.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  const bar0 = parseFloat(getComputedStyle($('#roll')).getPropertyValue('--rollbar-h')) || 0;
+  const top = pr.top + bar0;
+  if (r.top < top || r.bottom > pr.bottom) paper.scrollTop += r.top - top - 12;
+}
+
+/* A move the player asked for -- a bar step, Go to, a scrub, Restart. The page follows
+   it even while paused, and even when it lands in the bar the page last followed:
+   "never while paused" is about not undoing a page you turned by hand, and asking for
+   bar 40 is not that. A move that changed nothing (Bar >> on the last bar) repaints
+   nothing, so the page is brought back here instead. */
+function follow(move) {
+  sheetFollow = true;
+  try { return move(); } finally { if (sheetFollow) paintSheet(); }
+}
+
 function paintSheetControls() {
   for (const b of document.querySelectorAll('#roll-mode .btn')) {
     b.classList.toggle('is-on', (b.dataset.mode === 'sheet') === sheetMode);
@@ -762,14 +891,22 @@ async function setSheetMode(on) {
   paper.replaceChildren(h('div.empty', null, 'engraving…'));
   const wanted = sheetScoreId;
   try {
-    const { loadScore, renderPage } = await import('./engrave.js');
+    const { loadScore, renderPage, measureMap } = await import('./engrave.js');
     sheetPages = await loadScore(wanted);
-    sheetPage = 1;
-    const svg = await renderPage(wanted, sheetPage);
+    const list = await measureMap(wanted);
     // The song can have been closed, or swapped, while 7 MB was downloading.
+    if (!sheetMode || sheetScoreId !== wanted || !ghostModel) return;
+    mapSheetBars(list);
+    // Open where the piece is, not on page 1: switching over from the roll halfway
+    // through lands on the bar you were playing.
+    sheetTurnBar = ghostModel.barIndex();
+    sheetPage = Math.max(1, Math.min(sheetPages, sheetPageOf[sheetTurnBar] || 1));
+    const svg = await renderPage(wanted, sheetPage);
     if (!sheetMode || sheetScoreId !== wanted) return;
     paper.innerHTML = svg;
     paintSheetControls();
+    decorateSheet(paper);
+    revealBar(paper, sheetTurnBar);
   } catch (err) {
     if (sheetMode && sheetScoreId === wanted) {
       paper.replaceChildren(h('div.empty', null, 'could not engrave that: ' + err.message));
@@ -780,6 +917,11 @@ async function setSheetMode(on) {
 async function turnPage(step) {
   const want = Math.max(1, Math.min(sheetPages, sheetPage + step));
   if (want === sheetPage || !sheetMode) return;
+  return showPage(want);
+}
+
+async function showPage(want, bar = -1) {
+  if (!sheetMode) return;
   sheetPage = want;
   paintSheetControls();
   const paper = $('#roll-paper');
@@ -789,6 +931,8 @@ async function turnPage(step) {
   if (!paper || !sheetMode || sheetScoreId !== wanted || sheetPage !== want) return;
   paper.innerHTML = svg;
   paper.scrollTop = 0;      // a page turn starts at the top of the page
+  decorateSheet(paper);
+  if (bar >= 0) revealBar(paper, bar);
 }
 
 export function stopGhost() {
@@ -798,13 +942,21 @@ export function stopGhost() {
   roll?.setGhost(null);
   ctx.kb.setGhost([]);
   document.body.classList.remove('is-ghosting');
-  for (const id of ['#ghost-song', '#ghost-close', '#ghost-scrub']) {
+  for (const id of ['#ghost-song', '#ghost-close', '#ghost-scrub', '#ghost-goto']) {
     $(id)?.setAttribute('hidden', '');
   }
+  closeGoto();
+  loopDirty = false;
+  for (const id of ['#ghost-loop-from', '#ghost-loop-to']) { const i = $(id); if (i) i.value = ''; }
   // The paper belongs to the song, not to the screen: closing one closes the other.
   sheetMode = false;
   sheetScoreId = '';
   sheetPage = sheetPages = 1;
+  sheetBars = [];
+  sheetPageOf = [];
+  sheetPaintKey = '';
+  sheetTurnBar = -1;
+  sheetPlaying = false;
   document.body.classList.remove('is-sheeting');
   $('#roll-paper')?.setAttribute('hidden', '');
   $('#roll-paper')?.replaceChildren();
@@ -890,9 +1042,26 @@ function paintGhost() {
   const loop = g.looping
     ? `  ·  looping bars ${g.bar(g.loopA)}-${g.bar(g.loopB - 1e-4)}`
     : '';
+  // "bar N / M" is its own button now -- click it to go to a bar -- and the rest of the
+  // sentence follows it.
+  const goto = $('#ghost-bar');
+  if (goto) goto.textContent = `bar ${g.bar()} / ${g.bars()}`;
   $('#ghost-read').textContent =
-    `bar ${g.bar()} / ${g.bars()}  ·  ${ahead.toFixed(1)}s ahead`
+    `${ahead.toFixed(1)}s ahead`
     + `  ·  about ${barsAhead.toFixed(1)} bars at ${g.bpm}` + loop;
+
+  // The loop-by-bars fields show the section that is set, unless you are part-way
+  // through typing a different one -- a repaint on the heartbeat must not eat that.
+  if (!loopDirty) {
+    const from = $('#ghost-loop-from');
+    const to = $('#ghost-loop-to');
+    const a = g.looping ? String(g.bar(g.loopA)) : '';
+    const b = g.looping ? String(g.bar(g.loopB - 1e-4)) : '';
+    if (from && from.value !== a) from.value = a;
+    if (to && to.value !== b) to.value = b;
+    if (from) from.placeholder = String(g.bar());
+    if (to) to.placeholder = String(g.bar());
+  }
 
   /* The notes you are being asked for, lit on the real keys. Only while the clock is
      actually held -- a permanent highlight is wallpaper.
@@ -904,6 +1073,7 @@ function paintGhost() {
      this against the live set and reuses a spare, so re-sending an unchanged array
      costs a Set walk and touches no DOM. */
   ctx.kb.setGhost(g.pending());
+  paintSheet();
 }
 
 /* The songs drawer. Built once, and it owns the import path -- a file dropped on the
@@ -937,12 +1107,20 @@ $('#roll-speed')?.addEventListener('input', (e) => {
    grinding four bars and pressing Restart means those four bars. */
 function restartGhost() {
   if (!ghostModel) return;
-  ghostModel.seek(ghostModel.looping ? ghostModel.loopA : 0);
+  follow(() => ghostModel.restart());
   if (!ghostModel.playing) ghostModel.play();
+}
+
+/* Back and forward by a bar. The rules (half a beat, no step off the end) are the
+   model's; this only makes the page follow. */
+function stepBar(dir) {
+  if (ghostModel) follow(() => ghostModel.stepBar(dir));
 }
 
 $('#ghost-play')?.addEventListener('click', () => ghostModel?.toggle());
 $('#ghost-restart')?.addEventListener('click', restartGhost);
+$('#ghost-bar-back')?.addEventListener('click', () => stepBar(-1));
+$('#ghost-bar-fwd')?.addEventListener('click', () => stepBar(1));
 $('#ghost-skip')?.addEventListener('click', () => ghostModel?.skip());
 /* markLoop refuses a section shorter than its hang guard, which the bar-ceiling rule
    leaves only one way to reach: stamping on the last bar line when that line is also
@@ -959,21 +1137,164 @@ function stampLoop(end) {
   else toast('there is no bar left to loop there', 'bad');
 }
 
-$('#ghost-loop-a')?.addEventListener('click', () => stampLoop('A'));
-$('#ghost-loop-b')?.addEventListener('click', () => stampLoop('B'));
-$('#ghost-loop-clear')?.addEventListener('click', () => ghostModel?.clearLoop());
-// Right arrow past a chord you have decided not to fight today, Home back to the top.
-// Not bound through ACTIONS: they only mean anything with a song loaded, and stealing
-// keys app-wide to do nothing everywhere else is how a shortcut table rots.
+$('#ghost-loop-a')?.addEventListener('click', () => { loopDirty = false; stampLoop('A'); });
+$('#ghost-loop-b')?.addEventListener('click', () => { loopDirty = false; stampLoop('B'); });
+$('#ghost-loop-clear')?.addEventListener('click', () => { loopDirty = false; ghostModel?.clearLoop(); });
+
+/* A section that has just been set somewhere other than where you are. Played into from
+   before A and played past from after B, by the model's rule -- right for a scrub, and
+   wrong for a section you have just asked for by number, which you mean to hear now. */
+function enterLoop() {
+  const g = ghostModel;
+  if (g?.looping && (g.nowQ < g.loopA || g.nowQ >= g.loopB)) follow(() => g.restart());
+}
+
+/* Loop bars a to b, by the numbers printed on them. One field filled is one bar. */
+function applyLoopBars() {
+  const g = ghostModel;
+  if (!g) return;
+  const a = parseInt($('#ghost-loop-from')?.value, 10);
+  const b = parseInt($('#ghost-loop-to')?.value, 10);
+  const from = Number.isFinite(a) ? a : b;
+  const to = Number.isFinite(b) ? b : a;
+  loopDirty = false;
+  if (!Number.isFinite(from)) { paintGhost(); return; }
+  if (!g.setLoopBars(g.barAt(from), g.barAt(to))) {
+    toast('there is no bar left to loop there', 'bad');
+    return;
+  }
+  enterLoop();
+}
+$('#ghost-loop-apply')?.addEventListener('click', applyLoopBars);
+$('#ghost-loop-bar')?.addEventListener('click', () => {
+  loopDirty = false;
+  if (ghostModel && !ghostModel.loopBar()) toast('there is no bar left to loop there', 'bad');
+});
+for (const id of ['#ghost-loop-from', '#ghost-loop-to']) {
+  $(id)?.addEventListener('input', () => { loopDirty = true; });
+  $(id)?.addEventListener('keydown', (e) => {
+    // Out of the field once it has been applied, or the very next Space types into a
+    // number box instead of starting the section you just set.
+    if (e.key === 'Enter') { e.preventDefault(); applyLoopBars(); e.target.blur(); return; }
+    if (e.key !== 'Escape') return;
+    // Esc here means "never mind", not panic -- and in the roll, panic's first step is
+    // leaving the roll, which would close the song you were setting a loop in.
+    e.preventDefault();
+    e.stopPropagation();
+    fieldEscAt = performance.now();
+    loopDirty = false;
+    e.target.blur();
+    paintGhost();
+  });
+}
+
+/* Go to a bar: the readout's "bar N / M" turns into a number field. Enter goes, Esc
+   (or clicking away) puts the readout back without moving anything. */
+function openGoto() {
+  const b = $('#ghost-bar');
+  const i = $('#ghost-bar-in');
+  if (!ghostModel || !b || !i) return;
+  i.value = String(ghostModel.bar());
+  i.placeholder = String(ghostModel.bar());
+  b.hidden = true;
+  i.hidden = false;
+  i.focus();
+  i.select();
+}
+function closeGoto() {
+  const b = $('#ghost-bar');
+  const i = $('#ghost-bar-in');
+  if (b) b.hidden = false;
+  if (i) i.hidden = true;
+}
+$('#ghost-bar')?.addEventListener('click', openGoto);
+
+/* Esc in a roll field means "never mind" -- but in real fullscreen the browser keeps
+   Esc for itself: the field never hears it, fullscreen ends, and leaving fullscreen
+   ends the play-along. So the fullscreen exit asks this first. With a roll field
+   focused, that exit WAS the field's Esc: the field is cancelled, the song and its
+   loop are kept, and the roll stays full-window (EXIT or a second Esc still leave).
+   A host that does hand the page its Esc can do so on either side of the exit, so a
+   field that has only just eaten one counts too. */
+function cancelRollField() {
+  const el = document.activeElement;
+  if (!ghostModel) return false;
+  if (performance.now() - fieldEscAt < 250) return true;
+  if (!['ghost-bar-in', 'ghost-loop-from', 'ghost-loop-to'].includes(el?.id)) return false;
+  fieldEscAt = performance.now();
+  if (el.id === 'ghost-bar-in') closeGoto();
+  else { loopDirty = false; el.blur(); paintGhost(); }
+  return true;
+}
+$('#ghost-bar-in')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const n = parseInt(e.target.value, 10);
+    if (ghostModel && Number.isFinite(n)) follow(() => ghostModel.seekBar(ghostModel.barAt(n)));
+    closeGoto();
+  } else if (e.key === 'Escape') {
+    // Kept from the global Esc chain, for the same reason as the loop fields above.
+    e.preventDefault();
+    e.stopPropagation();
+    fieldEscAt = performance.now();
+    closeGoto();
+  }
+});
+$('#ghost-bar-in')?.addEventListener('blur', closeGoto);
+
+/* The song's own keys. Space plays and pauses; Left is a bar back; Right is the skip
+   while Wait is holding you at a chord -- its old meaning, kept where it means
+   something -- and a bar forward otherwise; Home back to the top.
+   Not bound through ACTIONS: they only mean anything with a song loaded, and stealing
+   keys app-wide to do nothing everywhere else is how a shortcut table rots. */
+const SONG_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'Home', ' ']);
+let spaceTaken = false;       // the Space now down was a play/pause, not a button press
+let fieldEscAt = -1e9;        // when a roll field last took an Esc, see cancelRollField
+
+/* Whether the song may have this key where focus is. Not in a text field, and not in
+   the songs drawer: its rows are buttons, and Space on one means "open this one". A
+   slider keeps its arrows and Home, but has no use for Space, so a Tempo you just
+   dragged does not switch the transport's own key off. */
+function songKeyHere(key) {
+  const el = document.activeElement;
+  if (el?.closest?.('#songs')) return false;
+  if (el?.tagName === 'INPUT' && el.type === 'range') return key === ' ';
+  return !/^(INPUT|SELECT|TEXTAREA)$/.test(el?.tagName || '');
+}
+
 document.addEventListener('keydown', (e) => {
-  if (!ghostModel || (e.key !== 'ArrowRight' && e.key !== 'Home')) return;
-  if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName || '')) return;
+  // The Esc that fullscreen took from a roll field arrives after it, on whatever focus
+  // fell back to -- and there it would read as "leave the roll". It already meant
+  // "never mind"; one press is one meaning.
+  if (e.key === 'Escape' && performance.now() - fieldEscAt < 250) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    return;
+  }
+  if (!ghostModel || !SONG_KEYS.has(e.key)) return;
+  if (e.ctrlKey || e.altKey || e.metaKey || tourOpen() || settingsOpen()) return;
+  if (!songKeyHere(e.key)) return;
   // On the paper Home already means something: the page scrolls, and a page is taller
   // than the panel. Restarting the piece is not worth taking that away.
   if (sheetMode && e.key === 'Home') return;
+  // Also what stops Space pressing whichever rollbar button was clicked last, which is
+  // what Space used to do here. And the key is the song's alone: a shortcut rebound to
+  // Space or an arrow must not fire as well, so the ACTIONS table below never sees it.
   e.preventDefault();
+  e.stopImmediatePropagation();
   if (e.key === 'Home') restartGhost();
-  else ghostModel.skip();
+  else if (e.key === ' ') { spaceTaken = true; if (!e.repeat) ghostModel.toggle(); }
+  else if (e.key === 'ArrowLeft') stepBar(-1);
+  else if (ghostModel.waiting) ghostModel.skip();
+  else stepBar(1);
+});
+/* A button activates on Space's keyUP, so the keydown above is not the whole of it --
+   but only the keyup of a Space that keydown actually took. Every other Space, in
+   Settings, the tour or the drawer, has to keep pressing the button it is on. */
+document.addEventListener('keyup', (e) => {
+  if (e.key !== ' ' || !spaceTaken) return;
+  spaceTaken = false;
+  e.preventDefault();
 });
 // Closes the SONG, not the screen. You are usually done with a piece long before you
 // are done with the roll.
@@ -1000,12 +1321,75 @@ $('#ghost-shift-down')?.addEventListener('click',
 $('#ghost-shift-up')?.addEventListener('click',
   () => ghostModel?.setShift(ghostModel.shift + 1));
 /* A scrub IS a seek here, and a seek is just a number -- there is no queue to
-   rebuild, unlike the score transport. */
-$('#ghost-scrub')?.addEventListener('click', (e) => {
+   rebuild, unlike the score transport. So it can follow the pointer the whole way
+   along a drag. Pointer capture keeps the drag yours after the pointer leaves the
+   strip, which a 12 px target needs. Shift-drag sweeps a section instead: the bars
+   between where you pressed and where you are, stamped live so the band grows under
+   the pointer. */
+let scrubDrag = null;         // { loop, from } while a button is down on the strip
+function scrubQ(e) {
+  const r = $('#ghost-scrub').getBoundingClientRect();
+  return Math.max(0, Math.min(1, (e.clientX - r.left) / (r.width || 1))) * ghostModel.total;
+}
+function scrubTo(q) {
+  const g = ghostModel;
+  if (scrubDrag.loop) {
+    loopDirty = false;
+    g.setLoopBars(g.barIndex(scrubDrag.from), g.barIndex(q));
+  } else {
+    follow(() => g.seek(q));
+  }
+}
+function paintScrubTip(e, q) {
+  const tip = $('#ghost-scrub-tip');
+  const g = ghostModel;
+  if (!tip || !g) return;
+  const r = $('#ghost-scrub').getBoundingClientRect();
+  const x = Math.max(36, Math.min(r.width - 36, e.clientX - r.left));
+  tip.style.left = `${x}px`;
+  tip.textContent = scrubDrag?.loop
+    ? `loop bars ${g.bar(Math.min(scrubDrag.from, q))}-${g.bar(Math.max(scrubDrag.from, q))}`
+    : `bar ${g.bar(q)}${scrubDrag ? '' : '  ·  shift-drag to loop'}`;
+  tip.hidden = false;
+}
+const scrubEl = $('#ghost-scrub');
+scrubEl?.addEventListener('pointerdown', (e) => {
+  if (!ghostModel || e.button !== 0) return;
+  e.preventDefault();
+  scrubEl.setPointerCapture?.(e.pointerId);
+  scrubEl.classList.add('is-dragging');
+  const q = scrubQ(e);
+  scrubDrag = { loop: e.shiftKey, from: q };
+  scrubTo(q);
+  paintScrubTip(e, q);
+});
+scrubEl?.addEventListener('pointermove', (e) => {
   if (!ghostModel) return;
-  const r = e.currentTarget.getBoundingClientRect();
-  const frac = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
-  ghostModel.seek(frac * ghostModel.total);
+  const q = scrubQ(e);
+  if (scrubDrag) scrubTo(q);
+  paintScrubTip(e, q);
+});
+function endScrub() {
+  if (!scrubDrag) return;
+  const wasLoop = scrubDrag.loop;
+  scrubDrag = null;
+  scrubEl?.classList.remove('is-dragging');
+  // The one page turn the drag put off, for wherever it let go.
+  if (wasLoop) enterLoop();
+  if (ghostModel) follow(() => paintSheet());
+}
+scrubEl?.addEventListener('pointerup', endScrub);
+scrubEl?.addEventListener('pointercancel', endScrub);
+scrubEl?.addEventListener('lostpointercapture', endScrub);
+scrubEl?.addEventListener('pointerleave', () => {
+  if (!scrubDrag) $('#ghost-scrub-tip')?.setAttribute('hidden', '');
+});
+
+/* A printed measure is a place to go: click it and the playhead is on its downbeat. */
+$('#roll-paper')?.addEventListener('click', (e) => {
+  const el = e.target.closest?.('g.measure[data-bar]');
+  if (!el || !ghostModel) return;
+  follow(() => ghostModel.seekBar(+el.dataset.bar));
 });
 
 /* The paper starts below the rollbar, and the rollbar's height is not a constant --
@@ -1014,7 +1398,7 @@ $('#ghost-scrub')?.addEventListener('click', (e) => {
    is on screen. */
 if (window.ResizeObserver && $('#rollbar')) {
   new ResizeObserver(([entry]) => {
-    const px = Math.round(entry.contentRect.height + 22);   // + the bar's own padding
+    const px = Math.round(entry.contentRect.height + 24);   // + the bar's own padding
     $('#roll')?.style.setProperty('--rollbar-h', `${px}px`);
   }).observe($('#rollbar'));
 }

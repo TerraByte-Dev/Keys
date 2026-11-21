@@ -2218,8 +2218,9 @@ body.is-immersive .roll__exit { display: flex; }
 .rollbar {
   position: absolute; left: 0; right: 0; top: 0; z-index: 3;
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  /* Clear of both handles: SONGS sits at left 16, EXIT at right 16. */
-  padding: 10px 116px 12px 132px;
+  /* Clear of both handles: SONGS sits at left 16, EXIT at right 16. 12 px on top is the
+     scrub's hit strip, so a click on a button's top edge is the button's. */
+  padding: 12px 116px 12px 132px;
   transition: opacity .5s var(--ease), padding-left .18s var(--ease);
   background: linear-gradient(180deg, var(--panel-0) 40%, transparent);
   font-family: var(--font-panel); font-size: 11px;
@@ -2266,17 +2267,54 @@ body.is-drawer .rollbar { padding-left: calc(min(300px, 34vw) + 16px); }
   font-variant-numeric: tabular-nums;
 }
 /* Pinned to the very top of the panel: a progress bar is orientation, not a
-   control, and it should not compete with the notes. */
+   control, and it should not compete with the notes. The LINE stays 3 px; the box
+   around it is 12 px of invisible target, because a 3 px strip is a thing you aim at
+   twice. The line thickens under the pointer to say it can be dragged. */
 .rollbar__scrub {
-  position: absolute; left: 0; right: 0; top: 0; height: 3px; margin: 0;
+  --line: 3px;
+  position: absolute; left: 0; right: 0; top: 0; height: 12px; margin: 0;
+  background: transparent; border: 0; border-radius: 0; overflow: visible;
+  touch-action: none;
 }
+.rollbar__scrub:hover, .rollbar__scrub.is-dragging { --line: 5px; }
+.rollbar__scrub::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: var(--line);
+  background: var(--panel-0); border-bottom: 1px solid var(--hairline);
+}
+.rollbar__scrub .transport__fill { bottom: auto; height: var(--line); }
 /* The looping section, over the fill rather than under it: you want to see the
    playhead crossing the band, not the band disappearing behind it. Width 0 is how
    "no section" is drawn. */
 .rollbar__section {
-  position: absolute; top: 0; bottom: 0; width: 0;
+  position: absolute; top: 0; height: var(--line, 3px); width: 0;
   background: var(--amber-hot); opacity: .45;
 }
+/* The bar under the pointer. Below the strip, never under the finger. */
+.rollbar__tip {
+  position: absolute; top: 14px; transform: translateX(-50%);
+  padding: 2px 7px; border-radius: 4px; white-space: nowrap; pointer-events: none;
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--ink);
+  background: var(--panel-1); border: 1px solid var(--hairline-hi);
+}
+.rollbar__tip[hidden] { display: none; }
+/* "bar N / M" reads as the readout it was, and is a button you can press. */
+.rollbar__goto { display: inline-flex; align-items: center; }
+.rollbar__goto[hidden] { display: none; }
+.rollbar__bar {
+  font: inherit; font-size: 10px; letter-spacing: .06em; font-variant-numeric: tabular-nums;
+  color: var(--ink-dim); background: none; border: 0; padding: 2px 0; cursor: pointer;
+  text-decoration: underline dotted var(--ink-faint); text-underline-offset: 3px;
+}
+.rollbar__bar:hover { color: var(--amber); }
+.rollbar__bar:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.rollbar__loopbars { display: flex; align-items: center; gap: 4px; color: var(--ink-dim); }
+.rollbar input.rollbar__num {
+  width: 7ch; min-height: 30px; padding: 4px 6px; font-size: 12px; text-align: center;
+  -moz-appearance: textfield; appearance: textfield;
+}
+.rollbar input.rollbar__num::-webkit-inner-spin-button,
+.rollbar input.rollbar__num::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.rollbar input.rollbar__num[hidden] { display: none; }
 /* Ghost mode draws its own now-line on the canvas, HIT_PAD above the keys. The
    keybed rule would be a second, wrong one. */
 body.is-ghosting .roll::after { display: none; }
@@ -2324,6 +2362,16 @@ body.is-sheeting .rollbar {
   font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-dim);
   min-width: 5ch; text-align: center; font-variant-numeric: tabular-nums;
 }
+/* Measures on the page. app.js puts a rect at the back of every measure it could match
+   to a bar of the clock; it is invisible until the bar is the current one or inside the
+   section. Fill opacity rather than a translucent token, so the paper's ink stays the
+   darkest thing on it in every theme. */
+.rollpaper g.measure[data-bar] { cursor: pointer; }
+/* !important against Verovio's own sheet, which strokes every rect from an id selector. */
+.rollpaper__bar { fill: transparent; stroke: none !important; }
+.rollpaper g.measure:hover > .rollpaper__bar { fill: var(--ink-faint); fill-opacity: .08; }
+.rollpaper g.measure.is-loop > .rollpaper__bar { fill: var(--cyan); fill-opacity: .16; }
+.rollpaper g.measure.is-now > .rollpaper__bar { fill: var(--amber); fill-opacity: .24; }
 
 /* -- the songs drawer ----------------------------------------------------- */
 /* The handle. Sits on the left edge where nothing else lives, and stays reachable
