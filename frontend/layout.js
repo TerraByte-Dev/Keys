@@ -1,4 +1,6 @@
-/* Rearrangeable panels. Drag a panel by its header, resize it with the arrows.
+/* Rearrangeable panels. Drag a panel by its header, resize it with the arrows: a third,
+ * a half, two thirds or all of the row (spans 4, 6, 8, 12), never narrower than the
+ * panel measures it needs where it is (fit(), below).
  *
  * Bolted on from the outside on purpose: no view knows this exists. It walks the grid
  * a view just built, identifies each panel by the title it already renders, and
@@ -20,16 +22,20 @@
 
 import { $, api, h, toast } from './ui.js';
 
-// Quarter, half, full. Nothing else, on purpose: every row then tiles exactly --
-// 12, or 6+6, or 6+3+3, or 3+3+3+3 -- so there is no arrangement that leaves a ragged
-// column at the end. Eleven sizes let a row come to eleven twelfths, which is where
-// the leftover slivers came from. A saved layout holding one of the old spans falls
-// back to the panel's shipped size, because applySaved only honours what is in here.
-const SPANS = [3, 6, 12];
+// Third, half, two thirds, full. A quarter is gone: at 1280px it was 256px, narrower
+// than 26 of the 42 panels' own minimum content, so most of them stuck out or
+// squeezed their text a word per line at it (the 0.14 resize audit). The four pair
+// up into rows of 12 (4+4+4, 4+8, 6+6, 12), and fit() widens a panel over any columns
+// left empty beside it. A saved span from before (a 3) maps to the nearest of these
+// in applySaved.
+const SPANS = [4, 6, 8, 12];
 const DRAG_THRESHOLD = 5;   // px before a click becomes a drag
 
-// Must match .grid--packed's grid-auto-rows and .grid's gap in style.css.
-const ROW_PX = 8;
+// Must match .grid--packed's grid-auto-rows / row-gap 0 and .grid's column gap in
+// style.css. Rows of 2px and no row gap, so a panel's slot is its height plus 14px
+// rounded up to 2px: every vertical gap is 14-15px. 8px rows with a 14px gap between
+// them rounded each slot up by as much as 21px, and gaps ran from 16 to 88px.
+const ROW_PX = 2;
 const GAP_PX = 14;
 
 let saved = {};             // { viewId: [{id, span}, ...] } -- last known server state
@@ -74,6 +80,171 @@ function setSpan(col, span) {
   col.classList.add('col-' + span);
 }
 
+// The allowed span closest to n; a tie goes to the wider one.
+const nearest = (n) => SPANS.reduce((a, s) => (Math.abs(s - n) <= Math.abs(a - n) ? s : a));
+
+/* What a child of the grid occupies as rendered: fit()'s inline span on a panel (and on
+   the drag placeholder, which copies it), the class on anything else. */
+function shownSpan(el) {
+  const m = /span (\d+)/.exec(el.style.gridColumn || '');
+  return m ? Number(m[1]) : spanOf(el);
+}
+
+/* ── fit: the measured minimum, and rows that fill ────────────────────────── */
+/* The saved span is a preference, not an order. A panel has a width under which its
+ * content no longer fits -- a row of twelve root buttons, a year of days, a slider with
+ * its label -- and below it the panel either sticks out of its own box or squeezes its
+ * text a word per line. The audit found that at 26 of 42 panels' quarter width.
+ *
+ * So each panel is measured: its .mod at min-content, with the panel set to each
+ * candidate span's pixel width in turn so its container queries answer for THAT width
+ * (a narrow panel wraps and hides things, which is what lets it be narrow), the aside
+ * hidden (it truncates and goes first) and the resize arrows shown (they appear on
+ * hover and must fit then). The smallest span it fits is its minSpan; an author can
+ * raise it with data-min-span. It renders at max(saved, minSpan), inline, so the col-N
+ * class keeps the preference: on a wider window the same panel goes back to it.
+ *
+ * Measured against the grid's own width, which makes a page pane just a narrower grid:
+ * a panel in a third of a window rises to what it needs, up to the whole pane.
+ *
+ * Then rows. A panel with empty columns to its right for its whole height -- a
+ * half-width panel alone in its band, as Settings' MIDI input and Latency were -- is
+ * widened over them to the edge, so nothing leaves an empty stretch beside it. Render
+ * only, never saved. Not grid-auto-flow: dense, which would fill the holes by taking
+ * panels out of order -- tab order and slotUnder() both read the DOM.
+ *
+ * "Empty beside it" is decided on where the grid will actually put each panel
+ * (place()), not on spans summed in DOM order: this is masonry, and a half-width panel
+ * after a tall one lands beside it, under its neighbour. Counting DOM-order rows widened
+ * Play's Click kit to full width under two columns of different heights -- 184k px2 of
+ * hole where its half-width slot had 43k. */
+function minSpan(col, px) {
+  const floor = Number(col.dataset.minSpan) || 0;
+  const mod = col.firstElementChild;
+  const keep = [col.style.width, mod.style.width];
+  col.classList.add('is-measuring');
+  mod.style.width = 'min-content';
+  let found = SPANS[SPANS.length - 1];
+  for (const s of SPANS.slice(0, -1)) {
+    if (s < floor) continue;
+    col.style.width = px(s) + 'px';
+    if (mod.getBoundingClientRect().width <= px(s) + 1) { found = s; break; }
+  }
+  col.style.width = keep[0];
+  mod.style.width = keep[1];
+  col.classList.remove('is-measuring');
+  return found;
+}
+
+function fit(grid) {
+  // In focus the marked path is display:block and nothing here means anything.
+  if (getComputedStyle(grid).display !== 'grid') return;
+  const width = grid.clientWidth;
+  if (!width) return;
+  const colW = (width - 11 * GAP_PX) / 12;
+  const px = (n) => n * colW + (n - 1) * GAP_PX;
+
+  unfill(grid);                               // natural heights for place() below
+  const items = [];
+  for (const el of grid.children) {
+    if (el.classList.contains('is-dragging') || !el.getClientRects().length) continue;
+    if (el.dataset.panel) {
+      el._minSpan = minSpan(el, px);
+      items.push({ el, span: Math.min(12, Math.max(spanOf(el), el._minSpan)) });
+    } else {
+      items.push({ el, span: Math.min(12, shownSpan(el)) });
+    }
+  }
+
+  // Where the grid will put everything at these spans, each panel at the height it
+  // has at ITS span (measured there, so this does not depend on what was drawn last
+  // and cannot flip-flop between passes). Then each panel, in order, takes the columns
+  // to its right that stay empty for its whole height. A widened panel is shorter, which
+  // moves what is under it, so the placement is redone until nothing widens (at most
+  // four passes).
+  const heightAt = (el, span) => {
+    if (!el.dataset.panel) return el.getBoundingClientRect().height;
+    const keep = el.style.width;
+    el.style.width = px(span) + 'px';
+    const hgt = el.firstElementChild.getBoundingClientRect().height;
+    el.style.width = keep;
+    return hgt;
+  };
+  for (let pass = 0, grew = true; grew && pass < 4; pass++) {
+    grew = false;
+    const spots = place(items.map(({ el, span }) => ({
+      span, rows: Math.ceil((heightAt(el, span) + GAP_PX) / ROW_PX) || 1,
+    })));
+    const taken = (c, a, b, self) => spots.some((sp) => sp !== self
+      && sp.col <= c && c < sp.col + sp.span && sp.row < b && a < sp.row + sp.rows);
+    spots.forEach((sp, i) => {
+      if (!items[i].el.dataset.panel) return;
+      while (sp.col + sp.span < 12 && !taken(sp.col + sp.span, sp.row, sp.row + sp.rows, sp)) sp.span++;
+      if (sp.span !== items[i].span) { items[i].span = sp.span; grew = true; }
+    });
+  }
+
+  for (const { el, span } of items) {
+    if (!el.dataset.panel) continue;
+    if (el._shown !== span) {
+      el.style.gridColumn = 'span ' + span;
+      el._shown = span;
+    }
+    paintGrip(el);
+  }
+}
+
+/* Where CSS grid's auto-placement will put each item, so fit() can look at rows before
+ * the browser lays them out: the sparse algorithm of css-grid-1 section 8.5 on 12 columns,
+ * a cursor that only moves forward, each item at the first spot at or after it that is
+ * free for its whole span. Rows are pack()'s 2px tracks. A spot can only open up where
+ * something above ends, so a row that fits nothing jumps straight to the next end. */
+function place(items) {
+  const cols = Array.from({ length: 12 }, () => []);
+  const busy = (c, a, b) => cols[c].some(([x, y]) => x < b && a < y);
+  let row = 0;
+  let col = 0;
+  return items.map(({ span, rows }) => {
+    for (;;) {
+      if (col + span <= 12) {
+        let free = true;
+        for (let c = col; c < col + span && free; c++) free = !busy(c, row, row + rows);
+        if (free) break;
+        col++;
+        continue;
+      }
+      let next = Infinity;
+      for (const list of cols) for (const [, y] of list) if (y > row && y < next) next = y;
+      row = next === Infinity ? row + 1 : next;
+      col = 0;
+    }
+    for (let c = col; c < col + span; c++) cols[c].push([row, row + rows]);
+    const spot = { row, col, span, rows };
+    col += span;
+    return spot;
+  });
+}
+
+/* The arrows walk only the spans this panel can take here, from what it shows. */
+function stepFrom(col, delta) {
+  const min = col._minSpan || SPANS[0];
+  const cur = Math.max(spanOf(col), min);
+  return delta < 0
+    ? [...SPANS].reverse().find((s) => s < cur && s >= min)
+    : SPANS.find((s) => s > cur);
+}
+
+function paintGrip(col) {
+  const [less, more] = col.querySelectorAll(':scope > .mod > .mod__head > .mod__grip > .mod__btn');
+  if (!less || !more) return;
+  const canLess = !!stepFrom(col, -1);
+  const canMore = !!stepFrom(col, 1);
+  less.disabled = !canLess;
+  less.title = canLess ? 'narrower' : (col._minSpan > SPANS[0] ? 'too narrow here' : 'narrowest');
+  more.disabled = !canMore;
+  more.title = canMore ? 'wider' : 'full width';
+}
+
 /* ── masonry ──────────────────────────────────────────────────────────────── */
 /* Give every panel a row span matching its own content height.
  *
@@ -82,9 +253,19 @@ function setSpan(col, span) {
  * hollow, measured, in one case on Play. With it, panels stack up the columns
  * independently and there is nothing between them.
  *
- * The +GAP terms are because gap applies between every one of the 8px row tracks a
- * panel spans, so the height a span of N buys is N*ROW + (N-1)*GAP. */
+ * There is no row gap (the 2px tracks would each carry one); instead every slot is the
+ * content's height plus GAP_PX, rounded up to a whole track, so the space under each
+ * panel is the same 14-15px as the space beside it.
+ *
+ * Then the one gap that leaves: two columns of different heights over a panel that
+ * spans both. The full-width panel starts under the taller column, and the shorter one
+ * ends in a hole (82px on Play, 64px on Stats). So a panel with nothing under it until
+ * something further down is drawn to meet it: its card grows (--fill, style.css) to
+ * 14px above the next panel in its columns. The space it grows into is empty by
+ * definition -- the next occupant of those columns is where it stops -- so nothing
+ * moves. Measured from the natural heights each pass, the fills cleared first. */
 function pack(grid) {
+  unfill(grid);
   for (const el of grid.children) {
     if (el.classList.contains('is-dragging')) continue;
 
@@ -105,12 +286,36 @@ function pack(grid) {
     if (!content) continue;
     const h = content.getBoundingClientRect().height;
     if (!h) continue;                       // hidden panel; leave it alone
-    const want = 'span ' + Math.max(1, Math.ceil((h + GAP_PX) / (ROW_PX + GAP_PX)));
+    const want = 'span ' + Math.max(1, Math.ceil((h + GAP_PX) / ROW_PX));
     // Written only when it changes. An unmanaged child is observed by ITSELF, so a
     // style write on every pass is a standing invitation to a resize-observe loop;
     // no write, no new observation, no loop.
     if (el.style.gridRowEnd !== want) el.style.gridRowEnd = want;
   }
+  if (getComputedStyle(grid).display !== 'grid') return;
+
+  const boxes = [];
+  for (const el of grid.children) {
+    if (el.classList.contains('is-dragging')) continue;
+    const r = (el.dataset.panel ? el.firstElementChild : el)?.getBoundingClientRect();
+    if (r?.height) boxes.push({ el, r });
+  }
+  for (const { el, r } of boxes) {
+    if (!el.dataset.panel) continue;
+    let below = Infinity;
+    for (const o of boxes) {
+      if (o.el === el || o.r.top < r.bottom - 1) continue;
+      if (Math.min(o.r.right, r.right) - Math.max(o.r.left, r.left) > 2) below = Math.min(below, o.r.top);
+    }
+    const fill = below - GAP_PX - r.top;
+    if (below === Infinity || fill - r.height <= 2) continue;
+    el.style.setProperty('--fill', fill + 'px');
+    el.style.gridRowEnd = 'span ' + Math.ceil((fill + GAP_PX) / ROW_PX);
+  }
+}
+
+function unfill(grid) {
+  for (const el of grid.children) if (el.dataset.panel) el.style.removeProperty('--fill');
 }
 
 /* Panels change height on their own -- Stats refreshes, the loop station gains a
@@ -122,7 +327,7 @@ function watch(grid) {
   const repack = () => {
     if (queued) return;
     queued = true;
-    requestAnimationFrame(() => { queued = false; pack(grid); });
+    requestAnimationFrame(() => { queued = false; fit(grid); pack(grid); });
   };
   // Torn down and rebuilt whenever the view replaces its panels, or this keeps
   // observing detached nodes and leaks one observer per refresh.
@@ -172,6 +377,7 @@ export function attachLayout(grid, viewId) {
     // not managed here and 8px auto-rows would wreck them.
     grid.classList.add('grid--packed');
     grid.repack = watch(grid);
+    fit(grid);
     pack(grid);
     if (stage && top) stage.scrollTop = top;
   };
@@ -221,7 +427,8 @@ function applySaved(grid, viewId) {
   for (const entry of layout) {
     const col = byId.get(entry.id);
     if (!col) continue;                       // a panel that no longer exists
-    if (SPANS.includes(entry.span)) setSpan(col, entry.span);
+    // A span from an older set (the 3 that was a quarter) to the nearest one there is.
+    if (Number.isInteger(entry.span) && entry.span > 0) setSpan(col, nearest(entry.span));
     grid.append(col);                         // saved panels first, in saved order
     placed.add(col);
   }
@@ -263,9 +470,11 @@ function addControls(grid, col, viewId) {
   const head = col.querySelector('.mod__head');
   if (!head) return;
 
+  // From what the panel shows, never below its measured minimum. An authored span that
+  // is not one of SPANS (Read's 5 and 7) steps to its neighbours, not to index 2.
   const step = (delta) => {
-    const i = SPANS.indexOf(spanOf(col));
-    const next = SPANS[Math.max(0, Math.min(SPANS.length - 1, (i < 0 ? SPANS.length - 1 : i) + delta))];
+    const next = stepFrom(col, delta);
+    if (!next) return;
     setSpan(col, next);
     // Narrower means taller, so the row span has to be recomputed -- but only after
     // the browser has reflowed the content at its new width.
@@ -315,6 +524,8 @@ function startDrag(e, grid, col, viewId) {
       // signature the rebuild watcher looks for. Tell it we are mid-drag.
       grid._layoutBusy = true;
       placeholder = h('div.col-' + spanOf(col) + '.layout__slot');
+      // The width the panel showed, not its saved preference, or the row reflows.
+      placeholder.style.gridColumn = col.style.gridColumn;
       // The same row span the panel had, or the grid closes up around the hole and
       // everything below it jumps the instant you lift a panel.
       placeholder.style.gridRowEnd = col.style.gridRowEnd || 'span 1';
@@ -348,6 +559,7 @@ function startDrag(e, grid, col, viewId) {
     placeholder.replaceWith(col);
     grid._layoutBusy = false;
     col.removeAttribute('style');
+    col._shown = 0;                           // the inline span went with the style
     col.classList.remove('is-dragging');
     document.body.classList.remove('is-rearranging');
     grid.repack?.();

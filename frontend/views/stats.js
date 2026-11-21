@@ -265,13 +265,13 @@ function render(d) {
         'Idle time is already subtracted, so this is density, not diligence. ',
         'It goes up with faster pieces and down with harder ones.'))),
 
-    h('div.col-6', null, mod('Session length', null,
+    h('div.col-4', null, mod('Session length', null,
       sessionLengths(d.session_lengths))),
 
-    h('div.col-3', null, mod('Sounds you reach for', null,
+    h('div.col-4', null, mod('Sounds you reach for', null,
       presets(d.presets))),
 
-    h('div.col-3', null, mod('Sight reading', 'all attempts',
+    h('div.col-4', null, mod('Sight reading', 'all attempts',
       sightread(d.sightread))),
   );
 
