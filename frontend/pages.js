@@ -56,11 +56,12 @@ export const PANELS = [
 
 const panelsOf = (view) => PANELS.filter((p) => p.view === view).map((p) => p.slug);
 
-/* What "Start from" fills the builder with. */
+/* What "Start from" fills the builder with. Solo practice is two across, not three: a
+   third of a 1280 window gave Jam a 344px pane, and Jam in it ran 1711px tall. */
 export const STARTERS = {
   solo: {
     label: 'Solo practice',
-    cols: 3,
+    cols: 2,
     panes: [
       { view: 'practice', panels: ['jam'] },
       { view: 'play', panels: ['scale-highlighter', 'tempo'] },
@@ -304,8 +305,9 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
     });
   }
 
+  // Filtered: the DOM's own replaceChildren prints a null child as the text "null".
   function paintFoot(asking = false) {
-    foot.replaceChildren(
+    foot.replaceChildren(...[
       h('button.btn.btn--lg', { id: 'pb-save', onclick: save }, page ? 'Save' : 'Make the page'),
       h('button.btn', { id: 'pb-cancel', onclick: onCancel }, 'Cancel'),
       h('span.list__spacer'),
@@ -316,7 +318,7 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
         ? h('span.pb__ask', null, 'Delete this page? ',
             h('button.btn', { id: 'pb-yes', onclick: onDelete }, 'Yes'),
             h('button.btn', { id: 'pb-no', onclick: () => paintFoot(false) }, 'No'))
-        : null);
+        : null].filter(Boolean));
   }
 
   paint();

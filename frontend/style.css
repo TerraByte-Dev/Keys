@@ -3064,6 +3064,16 @@ body.is-focusing .exrun .stat__note { font-size: 14px; }
 /* Focus on a page: the panes are on the marked path like any other ancestor. */
 body.is-focusing .page__pane { overflow: hidden; padding: 0; }
 
+/* Jam in a pane: Start, then the stage, then the options. A pane is a few hundred px
+   tall, and with the option groups first, as on the tab, the Now chord, the strip and
+   Next sat under its bottom edge the whole time the band played. Focus lays Jam out
+   its own way. */
+body:not(.is-focusing) .page__pane .jam__top { display: contents; }
+body:not(.is-focusing) .page__pane .jam__go { order: -2; align-self: flex-start; }
+body:not(.is-focusing) .page__pane .jam__stage { order: -1; }
+body:not(.is-focusing) .page__pane :is(.jam__opts, .jam__more, .jam__stats) { order: 1; }
+body:not(.is-focusing) .page__pane .jam__opts { flex: none; }
+
 /* The builder. */
 .page__builder { max-width: 1040px; }
 .page__namein { width: 100%; max-width: 360px; }
