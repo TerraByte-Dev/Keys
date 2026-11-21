@@ -317,8 +317,9 @@ function applyStatus(s) {
   // gate the frame path got wrong -- and a stuck gate looks exactly like a hang.
   if (ghostModel) {
     ghostModel.resync(s.held || []);
-    // The bar number and the scrub ride the heartbeat, the same way the score
-    // transport does. The roll is the real-time display; the readout is not.
+    // The scrub's fill rides the heartbeat; the bar readout and the sheet also
+    // repaint at each bar line, because the model announces those. The roll is
+    // the real-time display; neither of these is.
     paintGhost();
   }
   lamp('lamp-midi', s.midi?.connected ? 'on' : 'bad',
