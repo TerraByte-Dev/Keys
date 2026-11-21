@@ -30,7 +30,7 @@ export const ICONS = {
   bolt: { label: 'Bolt', svg: '<path d="M13.5 2.5L5 13.5h6l-1 8 8.5-11h-6z"/>' },
   moon: { label: 'Moon', svg: '<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/>' },
   heart: { label: 'Heart', svg: '<path d="M12 20s-7.5-4.5-7.5-10.2A4.3 4.3 0 0 1 12 7a4.3 4.3 0 0 1 7.5 2.8C19.5 15.5 12 20 12 20z"/>' },
-  spark: { label: 'Spark', svg: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><path d="M12 8.5l1.2 2.3 2.3 1.2-2.3 1.2L12 15.5l-1.2-2.3L8.5 12l2.3-1.2z" fill="currentColor"/>' },
+  spark: { label: 'Spark', svg: '<path d="M10 3.5c.8 4.6 2.4 6.2 7 7-4.6.8-6.2 2.4-7 7-.8-4.6-2.4-6.2-7-7 4.6-.8 6.2-2.4 7-7z"/><path d="M18.5 15v5M16 17.5h5"/>' },
 };
 
 export const ICON_NAMES = Object.keys(ICONS);

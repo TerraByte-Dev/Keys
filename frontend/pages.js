@@ -251,10 +251,13 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
       h('button.seg__btn' + (key === draft.start ? '.is-on' : ''), {
         'data-start': key, onclick: () => { load(s); draft.start = key; paint(); },
       }, s.label)));
-    checks.replaceChildren(...PAGE_VIEWS.map((view) =>
-      h('div.pb__group', null,
+    // A long list (Stats has 15) takes two columns of the grid and splits into two,
+    // so no one group sets the height of the lot.
+    checks.replaceChildren(...PAGE_VIEWS.map((view) => [view, PANELS.filter((p) => p.view === view)])
+      .map(([view, list]) =>
+      h('div.pb__group' + (list.length > 9 ? '.pb__group--wide' : ''), null,
         h('div.pb__gtitle', null, VIEW_TITLES[view]),
-        PANELS.filter((p) => p.view === view).map((p) =>
+        list.map((p) =>
           h('label.toggle.pb__check', null,
             h('input', {
               type: 'checkbox', 'data-view': view, 'data-slug': p.slug,
@@ -266,16 +269,20 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
       h('button.seg__btn' + (n === draft.cols ? '.is-on' : ''), {
         onclick: () => { if (n !== draft.cols) draft.start = null; draft.cols = n; paint(); },
       }, String(n))));
+    // Across, as the page lays them out; arrows that point the way a pane moves.
+    const across = Math.max(1, Math.min(draft.cols, draft.order.length));
+    orderList.style.setProperty('--cols', String(across));
+    const [back, fwd] = across > 1 ? ['←', '→'] : ['↑', '↓'];
     orderList.replaceChildren(...(draft.order.length
       ? draft.order.map((view, i) => h('div.pb__row', { 'data-view': view },
         h('span.pb__pos', null, String(i + 1)),
         h('span.pb__rname', null, VIEW_TITLES[view]),
         h('span.pb__rsub', null, `${draft.picked[view].size} panel${draft.picked[view].size > 1 ? 's' : ''}`),
         h('span.list__spacer'),
-        h('button.btn.btn--sm', { title: 'earlier', disabled: i === 0, onclick: () => move(i, -1) }, '↑'),
+        h('button.btn.btn--sm', { title: 'earlier', disabled: i === 0, onclick: () => move(i, -1) }, back),
         h('button.btn.btn--sm', {
           title: 'later', disabled: i === draft.order.length - 1, onclick: () => move(i, 1),
-        }, '↓')))
+        }, fwd)))
       : [h('div.empty', null, 'Tick a panel above and its tab becomes a pane here.')]));
     paintWarn();
   }
@@ -337,7 +344,7 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
   // Filtered: the DOM's own replaceChildren prints a null child as the text "null".
   function paintFoot(asking = false) {
     foot.replaceChildren(...[
-      h('button.btn.btn--lg', { id: 'pb-save', onclick: save }, page ? 'Save' : 'Make the page'),
+      h('button.btn.btn--primary', { id: 'pb-save', onclick: save }, page ? 'Save' : 'Make the page'),
       h('button.btn', { id: 'pb-cancel', onclick: onCancel }, 'Cancel'),
       h('span.list__spacer'),
       page && !asking
