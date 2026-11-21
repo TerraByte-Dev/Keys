@@ -938,7 +938,8 @@ export function createJam(ctx, { onStart } = {}) {
       chart = chart.slice(0, r.from).concat(bars);
       while (chart.length < r.from) chart.push(chart[chart.length - 1]);
       // A way across worked out for the old chart may point at a chord that is gone.
-      if (cross && cross.bar >= r.from) cross = null;
+      // `ahead` goes with it: paintOctave reads cross.to whenever ahead is set.
+      if (cross && cross.bar >= r.from) { cross = null; ahead = false; }
       shownBar = -1;
     } catch (err) {
       toast('band: ' + err.message, 'bad');
@@ -1062,6 +1063,7 @@ export function createJam(ctx, { onStart } = {}) {
     overCall = false;
     Object.assign(echo, { size: 3, streak: 0, misses: 0, from: 72 });
     cross = null;
+    ahead = false;
     shownCross = '?';
     paintHeard();
     paintStats();
@@ -1078,6 +1080,7 @@ export function createJam(ctx, { onStart } = {}) {
     save();
     if (playing) configure(parts());
     cross = null;
+    ahead = false;
     heard = null;
     holding = null;
     tally.chords = tally.rooted = tally.one = tally.made = 0;
