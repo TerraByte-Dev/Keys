@@ -385,9 +385,9 @@ function pack(grid) {
 
     /* EVERY child, not just the managed panels.
      *
-     * A view is allowed to drop a plain container in the grid -- Practice puts the
-     * exercise shelf in one, a `div.grid.col-12` that isPanel() rightly refuses to
-     * make draggable. But "not a panel" was being read as "needs no row span", and
+     * A view is allowed to drop a plain container in the grid -- Practice's exercise
+     * shelf was one (a `div.grid.col-12`, before it became a slot panel) that isPanel()
+     * rightly refused to make draggable. But "not a panel" was being read as "needs no row span", and
      * under grid-auto-rows:8px an element with no span is EIGHT PIXELS TALL, not
      * auto. The shelf was 183px of content occupying one 8px track and spilling
      * 161px straight over Sheet music, which is the stacking that had to be dragged

@@ -40,9 +40,9 @@ export default {
     // other rather than painting two lessons over each other.
     jam = createJam(ctx, { onStart: () => { if (current) back(ctx); } });
     // Order is what you came here to do, then the readouts about how it went. Songs sit
-    // above Exercises in the authored order because that is where a saved layout puts
-    // them anyway -- see applySaved in layout.js, which threads unsaved panels in after
-    // their authored neighbour, and the exercise host is not a panel it can move.
+    // above Exercises in the authored order because that is where layouts saved before
+    // Exercises could be dragged put them -- see applySaved in layout.js, which threads
+    // unsaved panels in after their authored neighbour.
     root.append(h('div.grid', null,
       jam.el,
       // The shelf belongs with practising rather than with choosing a sound: it was
