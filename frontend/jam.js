@@ -293,8 +293,9 @@ export function createJam(ctx, { onStart } = {}) {
       e.currentTarget.setAttribute('aria-expanded', String(open));
     } });
   const paintFold = () => {
-    bandFold.textContent = `${STYLES.find((st) => st.id === opt.style)?.label ?? ''} · ${opt.bpm} bpm · `
-      + `${Math.round(opt.volume * 100)}%`;
+    // The volume is its own span: a quarter-width panel has room for the style and tempo.
+    bandFold.replaceChildren(h('span', null, `${STYLES.find((st) => st.id === opt.style)?.label ?? ''} · ${opt.bpm} bpm`,
+      h('span.jam__fold-vol', null, ` · ${Math.round(opt.volume * 100)}%`)));
   };
 
   const el = {
