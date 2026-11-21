@@ -160,7 +160,12 @@ def reset(conn: sqlite3.Connection | None, what: str, settings: Any) -> dict[str
             settings.update({"ui": {"layout": {k: [] for k in current}}})
             removed["layout"] = len(current)
         elif cat == "settings":
-            removed["settings"] = settings.reset_to_defaults()
+            # The Settings row keeps the pages you built; "everything" means them too.
+            if what == "everything":
+                removed["settings"] = settings.reset_to_defaults(
+                    keep=("ui.layout", "instrument.low", "instrument.high"))
+            else:
+                removed["settings"] = settings.reset_to_defaults()
 
     # Space is only handed back at a checkpoint; without this the file stays exactly
     # as large as it was and the number on screen does not move.
