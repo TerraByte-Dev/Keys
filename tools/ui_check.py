@@ -29,7 +29,7 @@ each starter made through the builder and audited pane by pane at all three widt
 the dock's highlight owners: Chords & scales across the whole keyboard, the touch keys
 and Play's scale highlighter on top of it without wiping it, all of it back after a
 range change. Every pane is held to two more rules: no control past its sides (a pane
-does not scroll sideways) and no pane cut to a sliver.
+does not scroll sideways) and no column cut to a sliver.
 
 **Then what several views in one document got wrong.** Layers beside Play following
 Play's instrument pick; Touch response's labels surviving the band; G with an exercise
