@@ -903,7 +903,6 @@ let sheetPages = 1;
    printed. */
 let sheetBars = [];
 let sheetPageOf = [];
-let sheetPageEnd = [];        // the last bar printed on each page
 let engraver = null;          // engrave.js, once Sheet has been pressed -- never before
 let sheetPaintKey = '';       // the bar + section last painted on the page
 let sheetTurnBar = -1;        // the bar the page last followed
@@ -919,10 +918,8 @@ function mapSheetBars(list) {
   const same = list.length === g.measures.length;
   sheetBars = list.map((m, k) => ({ ...m, bar: same ? k : g.barAt(parseInt(m.n, 10)) }));
   sheetPageOf = [];
-  sheetPageEnd = [];
   for (const m of sheetBars) {
     if (m.bar >= 0 && sheetPageOf[m.bar] == null) sheetPageOf[m.bar] = m.page;
-    if (m.bar >= 0) sheetPageEnd[m.page] = Math.max(sheetPageEnd[m.page] ?? -1, m.bar);
   }
 }
 
@@ -977,9 +974,9 @@ function decorateSheet(paper) {
    A turn the engraver has not got ahead of is a synchronous engrave of a whole page.
    During a scrub drag it waits for the pointer to come up rather than engraving every
    page the drag crosses -- and so does the look-ahead below; endScrub's repaint queues
-   the one after the landing page. The page after the playhead's is engraved ahead, in idle time:
-   while paused at once, since nothing is lost then, and while playing once the playhead
-   is in the last two bars of its page. */
+   the pages after the landing one. The pages after the playhead's are engraved ahead, in
+   idle time, only while the song is stopped: an engrave is ~200 ms on this thread, and
+   one done while playing costs the song that frame wherever it lands. */
 function paintSheet() {
   const g = ghostModel;
   const paper = $('#roll-paper');
@@ -1008,8 +1005,8 @@ function paintSheet() {
   }
   sheetFollow = false;
   const on = sheetPageOf[cur];
-  if (!scrubDrag && on && on < sheetPages && (!g.playing || cur >= sheetPageEnd[on] - 1)) {
-    engraver?.prerenderPage(sheetScoreId, on + 1);
+  if (!scrubDrag && on && on < sheetPages && !g.playing) {
+    engraver?.prerenderAhead(sheetScoreId, on, () => !ghostModel?.playing && !scrubDrag);
   }
 }
 
@@ -1128,7 +1125,6 @@ export function stopGhost() {
   sheetPage = sheetPages = 1;
   sheetBars = [];
   sheetPageOf = [];
-  sheetPageEnd = [];
   sheetPaintKey = '';
   sheetTurnBar = -1;
   sheetPlaying = false;

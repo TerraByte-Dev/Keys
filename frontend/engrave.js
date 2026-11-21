@@ -26,14 +26,17 @@ let measures = null;         // measureMap()'s answer for that score
 
 /* Pages already engraved, newest last. A page is a synchronous render of ~200 ms, and a
    turn mid-song used to pay it in the frame the page changed -- the roll caps a frame's
-   step at 0.1 s, so the song lost about 100 ms at every turn. The next page is engraved
-   ahead, in idle time (prerenderPage), and the turn only swaps the SVG in.
+   step at 0.1 s, so the song lost about 100 ms at every turn. Engraving the next page in
+   idle time while the song played only moved that frame a bar or two earlier: an idle
+   callback, once started, runs to the end. So the pages ahead are engraved while the
+   song is stopped (prerenderAhead), when a long frame costs it nothing, and a turn while
+   it plays only swaps the SVG in.
    Keyed by score id and page, and emptied whenever a score is parsed: the element ids
    in a page are minted per load, so a page from an earlier load of the same score would
    carry ids the measure map no longer has. The options never change after the toolkit is
    built and svgViewBox makes the SVG scale to its box, so a resize or a fullscreen
    toggle leaves every page valid; anything that ever calls setOptions must empty this. */
-const PAGES_KEPT = 4;
+const PAGES_KEPT = 24;
 const pages = new Map();     // `${id}#${page}` -> SVG
 const queued = new Set();    // keys waiting for an idle moment
 
@@ -124,23 +127,30 @@ export function cachedPage(id, page) {
 }
 
 /**
- * Engrave a page ahead, when the browser is idle, so the turn to it costs nothing.
+ * Engrave the pages after `page` ahead, one per idle moment, so a turn to any of them
+ * costs nothing. As many as the cache keeps, the page shown among them.
+ *
+ * `ok` is asked again as each one comes up, and a page whose moment has passed is
+ * dropped rather than drawn: a render started is a whole render, so one that comes up
+ * after Play is pressed must not start. The caller asks again when the moment is back.
  *
  * Only ever for the score already in the toolkit: this never loads the engraver or a
- * score, so it cannot be what downloads 7 MB, and it touches no clock -- the render
- * happens in a moment the page has to spare, and the turn reads the result.
+ * score, so it cannot be what downloads 7 MB.
  */
-export function prerenderPage(id, page) {
-  const key = `${id}#${page}`;
-  if (!toolkit || loadedId !== id || pages.has(key) || queued.has(key)) return;
-  if (page < 1 || page > (toolkit.getPageCount() || 1)) return;
-  queued.add(key);
+export function prerenderAhead(id, page, ok) {
+  if (!toolkit || loadedId !== id) return;
+  const last = Math.min(toolkit.getPageCount() || 1, page + PAGES_KEPT - 1);
   const idle = globalThis.requestIdleCallback ?? ((fn) => setTimeout(fn, 50));
-  idle(() => {
-    queued.delete(key);
-    // Another score can have been parsed while this waited.
-    if (loadedId === id && !pages.has(key)) keep(key, toolkit.renderToSVG(page));
-  });
+  for (let n = page + 1; n <= last; n++) {
+    const key = `${id}#${n}`;
+    if (pages.has(key) || queued.has(key)) continue;
+    queued.add(key);
+    idle(() => {
+      queued.delete(key);
+      // Another score can have been parsed while this waited.
+      if (ok() && loadedId === id && !pages.has(key)) keep(key, toolkit.renderToSVG(n));
+    });
+  }
 }
 
 /**

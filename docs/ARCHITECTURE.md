@@ -355,12 +355,16 @@ on opening a song — so someone who only plays along never downloads it.
 
 **A page turn swaps in a page that is already engraved.** Rendering a page is synchronous
 -- tens of milliseconds for a sparse page, ~200 ms measured on a dense one -- and the roll caps a frame's step at 0.1 s, so a turn that engraved
-in the frame it happened cost the song about 100 ms every time. `engrave.js` keeps the last
-few pages by score id and page, and `prerenderPage()` engraves the page after the playhead's
-in `requestIdleCallback`: at once while paused, and while playing once the playhead is in the
-last two bars of its page. Never during a scrub drag, which would engrave every page the drag
-crosses; the page the drag lets go on gets its next one then. It only ever renders the score already in the toolkit, so it can
-never be what downloads the engraver, and it touches no clock. The pages are emptied on every
+in the frame it happened cost the song about 100 ms every time. `engrave.js` keeps up to 24
+pages by score id and page, and `prerenderAhead()` engraves the pages after the playhead's,
+one per `requestIdleCallback`, **only while the song is stopped**. Doing it while playing,
+in the last bars before a turn, only moved the cost: an idle callback that starts a render
+runs it to the end, and that frame cost the song the same 100 ms a bar or two earlier. So
+each queued page asks again as it comes up and is dropped if Play was pressed meanwhile; a
+page that is not ready at a turn (Play pressed straight after opening) is engraved at the
+turn, as before. Never during a scrub drag, which would engrave every page the drag
+crosses; the page the drag lets go on gets its pages then. It only ever renders the score
+already in the toolkit, so it can never be what downloads the engraver, and it touches no clock. The pages are emptied on every
 parse, because Verovio mints element ids per load and the measure map is matched on them.
 The SVG scales to its box, so a resize or fullscreen changes nothing that is kept. While
 playing, the idle render is still one main-thread render: it moves from the turn itself to

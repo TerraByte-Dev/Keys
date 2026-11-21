@@ -1088,9 +1088,10 @@ def transport_checks(browser, port: int, errs: list[str]) -> list[str]:
           spy["turn"] is not None and spy["late"] == 0,
           f"{spy['late']} engrave(s) in the 200 ms before the turn, {spy['engraves']} in all")
 
-    # -- the page after the playhead's, engraved ahead ------------------------------------
+    # -- the pages ahead, engraved while the song is stopped -------------------------------
     # A longer copy of the fixture, freshly imported: a new score, so engrave.js holds none
-    # of its pages. Opened paused on page 1, which engraves page 2 ahead at once.
+    # of its pages. Played the moment page 1 is up: an engrave is one long frame wherever
+    # it lands, so nothing may engrave in idle time while the song runs.
     big = TR_BARS * 2
     page.evaluate(TR_OPEN, [transport_fixture(big), True])
     try:
@@ -1099,7 +1100,21 @@ def transport_checks(browser, port: int, errs: list[str]) -> list[str]:
                                timeout=60000)
     except Exception:  # noqa: BLE001 -- reported below
         pass
-    page.wait_for_timeout(1000)                # page 2's idle engrave
+    page.evaluate(TURN_SPY)
+    page.click("#ghost-wait")                  # wait off: the clock runs without a piano
+    page.evaluate("""() => { const s = document.querySelector('#ghost-bpm'); s.value = '240';
+      s.dispatchEvent(new Event('input', { bubbles: true })); }""")
+    press("Space", 0)
+    t_play = page.evaluate("performance.now()")
+    page.wait_for_timeout(1500)
+    playing = page.evaluate("[...window.__engraves]")
+    t_stop = page.evaluate("performance.now()")
+    press("Space", 200)
+    page.click("#ghost-wait")                  # and back on
+    during = [t for t in playing if t_play + 30 < t < t_stop]
+    check("played straight away, nothing is engraved ahead while the song runs",
+          read()["pageN"].startswith("1/") and not during, f"{len(during)} engrave(s) while playing")
+    page.wait_for_timeout(2500)                # stopped: the pages ahead, one per idle moment
 
     def last_on() -> int:                      # the last bar printed on the page shown
         return page.evaluate("Math.max(...[...document.querySelectorAll('#roll-paper g.measure[data-bar]')]"
@@ -1109,6 +1124,9 @@ def transport_checks(browser, port: int, errs: list[str]) -> list[str]:
     pages = int(r["pageN"].split("/")[1]) if "/" in r["pageN"] else 0
     end1 = last_on()
     check(f"a {big}-bar copy engraves to at least four pages", pages >= 4, r["pageN"])
+    drawn = sorted({p for p, _ in page.evaluate("window.__drawn")})
+    check("...and stopped, every page after the one shown is engraved ahead",
+          drawn == list(range(2, pages + 1)), f"engraved {drawn} of {pages}")
     page.evaluate(TURN_SPY)
 
     # A scrub drag from page 1 into page 2, held there. Each step is a seek; none may
@@ -1135,10 +1153,8 @@ def transport_checks(browser, port: int, errs: list[str]) -> list[str]:
           during == [0, 0] and r["pageN"] == f"2/{pages}" and r["now"] == [goal - 1],
           f"{during[0]} engrave(s) and {during[1]} swap(s) mid-drag, then page {r['pageN']}, current {r['now']}")
 
-    # Playing, the next page is engraved only once the playhead is in the last two bars of
-    # its own. Paused on page 2 just now, page 3 was engraved ahead; page 4 was not. Play,
-    # and while playing go to page 3 (served ready), then to five bars before its end.
-    # Page 4 must wait for the last two bars of page 3 and still be ready for the turn.
+    # Playing across two turns, page 2 to 3 by Go to and 3 to 4 by playing over the break:
+    # each turn swaps in a page engraved while stopped, and nothing engraves at all.
     page.click("#ghost-wait")                  # wait off: the clock runs without a piano
     page.evaluate("""() => { const s = document.querySelector('#ghost-bpm'); s.value = '240';
       s.dispatchEvent(new Event('input', { bubbles: true })); }""")
@@ -1161,14 +1177,9 @@ def transport_checks(browser, port: int, errs: list[str]) -> list[str]:
     press("Space", 200)
     page.click("#ghost-wait")                  # and back on, as the settings had it
     spy = page.evaluate(TURN_READ)
-    # The readout counts written bars, index + 1. Page 3's last two bars are indices
-    # end3 - 1 and end3: written end3 and end3 + 1.
-    ahead = [int(b.split()[1]) for p, b in spy["drawn"] if p == 4 and b.startswith("bar ")]
-    check("playing, the next page is engraved in the last two bars of the page, not before",
-          bool(ahead) and min(ahead) >= end3 and r["pageN"] == f"4/{pages}",
-          f"page 4 engraved at bar(s) {ahead}, page 3 ends at bar {end3 + 1}, now {r['pageN']}")
-    check("...so the turn to it engraves nothing", spy["turn"] is not None and spy["late"] == 0
-          and spy["before"] >= 1, f"{spy['late']} engrave(s) in the 200 ms before the turn, {spy['before']} before it")
+    check("playing over two turns engraves nothing: both pages were engraved while stopped",
+          r["pageN"] == f"4/{pages}" and spy["turn"] is not None and spy["engraves"] == 0,
+          f"now {r['pageN']}, {spy['engraves']} engrave(s) while playing, at {spy['drawn']}")
 
     # The tour over a play-along: Space on its buttons still presses them.
     page.evaluate("""async () => { const a = await import('/app.js');
