@@ -30,9 +30,10 @@ SoundFont at `soundfonts/GeneralUser-GS.sf2`. Node is optional and only used by 
 
 ## Before you open a PR
 
-Run the suite locally. It is eighteen scripts, needs no test runner, and takes about two minutes. Thirteen of
-them need nothing plugged in and no browser, and carry 947 assertions between them; `ui_check` also wants
-Playwright, and the last four want the audio device:
+Run the suite locally. It is twenty-one scripts and needs no test runner. Sixteen of them need nothing plugged
+in and no browser, and carry 1,192 assertions between them (`midi_check` adds more if it finds a MIDI corpus);
+`ui_check` drives a real browser through Playwright, 166 assertions in about six minutes; and the last four want
+the audio device:
 
 ```bash
 .venv\Scripts\python tools\music_check.py       # theory: spelling, intervals, chords, scales
@@ -47,8 +48,11 @@ Playwright, and the last four want the audio device:
 .venv\Scripts\python tools\score_check.py       # the score library: import, list, rename, remove
 .venv\Scripts\python tools\midi_check.py        # .mid to MusicXML, over a whole corpus if you have one
 .venv\Scripts\python tools\ghost_check.py       # ghost mode: gates, the re-strike rule, the falling projection
-.venv\Scripts\python tools\ui_check.py          # the DOM helpers the views are built from
+.venv\Scripts\python tools\jam_check.py         # Jam: every chord in the key, levels, the scale pin, the band
+.venv\Scripts\python tools\security_check.py    # the localhost guard and the file-name rules
+.venv\Scripts\python tools\midi_ports_check.py  # MIDI port binding, against a simulated two-port controller
 .venv\Scripts\python tools\frontend_check.py    # ES module syntax + asset wiring
+.venv\Scripts\python tools\ui_check.py          # every tab, Jam, the transport and pages, in a real browser
 .venv\Scripts\python tools\audio_check.py       # the device, the buffer, and the port FluidSynth must not steal
 .venv\Scripts\python tools\engine_check.py      # zones, presets, drum banks, metronome timing
 .venv\Scripts\python tools\pipeline_check.py    # end-to-end above the MIDI port
