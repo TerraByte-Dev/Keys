@@ -3184,6 +3184,40 @@ body.is-focusing .jam__go { min-width: 170px; }
    stretches it: the console keeps its rows, the stage keeps its two sides down to the
    compact tier, and what goes first is secondary text (the blurb, the slot count, the
    Start button's long name). */
+/* Wide: the stage in three, the way focus has it. Now on the left with the coach under
+   it, the beat and the strip centred, Next on the right with the key change coming and
+   what was heard under it. Two sides left a whole-tab Jam with the chord against one
+   edge, the strip against the other and an empty middle. Now's card dissolves too, so
+   its key-change line can sit with Next; when that line is only the pinned scale's
+   name, the strip already prints it under itself, so here it goes. */
+@container panel (min-width: 900px) {
+  body:not(.is-focusing) .jam__stage {
+    --strip-h: clamp(108px, 9cqi, 132px);
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 1.6fr) minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas: "now beats next" "coach strip note" "coach strip heard";
+    gap: 6px 32px; padding: 10px 18px 10px 18px;
+  }
+  body:not(.is-focusing) .jam__stage .strip { justify-self: center; max-width: 500px; }
+  body:not(.is-focusing) .jam__card--now { display: contents; }
+  body:not(.is-focusing) .jam__card--now > .jam__line { grid-area: now; align-self: center; }
+  body:not(.is-focusing) .jam__beats { align-self: end; padding-bottom: 2px; }
+  /* Next answers Now from across the strip: a chord you can read, not a chip. */
+  body:not(.is-focusing) .jam__card--next {
+    grid-area: next; justify-self: end; align-self: center; gap: 10px;
+    padding: 0; min-height: 0; background: none; border: 0; border-radius: 0;
+  }
+  body:not(.is-focusing) .jam__sym--next { font-size: clamp(26px, 2.4cqi, 34px); color: var(--ink-dim); }
+  body:not(.is-focusing) .jam__card--next .jam__pill { padding: 2px 9px; font-size: 11.5px; }
+  body:not(.is-focusing) .jam__card--next .jam__count { font-size: 13px; }
+  body:not(.is-focusing) .jam__note { grid-area: note; justify-self: end; text-align: right; align-self: start; padding-top: 7px; }
+  body:not(.is-focusing) .jam__note:not(.is-next) { display: none; }
+  body:not(.is-focusing) .jam__coach { align-self: start; }
+  body:not(.is-focusing) .jam__heard { justify-self: end; text-align: right; align-self: start; }
+  /* The coach's hairline, mirrored under Next. */
+  body:not(.is-focusing) .jam__stage::before {
+    content: ''; grid-area: note; align-self: start; border-top: 1px solid var(--hairline);
+  }}
 /* Folding, not growing: where the band's settings would take a third row, they go
    behind their one-line summary (Pop · 96 bpm · 70%), one click from open. */
 @container panel (max-width: 960px) {
