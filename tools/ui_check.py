@@ -259,6 +259,14 @@ def mode_checks(page, check) -> list[str]:
     page.evaluate(PLAY, [home[0] - 5 if home else 67, home[0] if home else 72])
     judged = until("document.querySelector('.jam__heard').textContent.includes('on the root')", 8000)
     check("...and an answer ending on the root is heard as home", judged, page.evaluate(text, ".jam__heard"))
+    # Answer asks the same at every level, and a pin is only drawn there: neither may
+    # start the conversation again and zero the sitting's count.
+    pick(page, "Level", "2", 300)
+    pick(page, "Scale", "Pentatonic", 900)
+    kept = page.evaluate(text, ".jam__stats")
+    pick(page, "Scale", "Off", 300)
+    pick(page, "Level", "3", 300)
+    check("...Level and Scale leave the conversation and its count alone", "of 1 answer" in kept, kept)
 
     pick(page, "Play", "Echo", 300)
     turn = until("document.querySelector('.jam__coach').textContent.startsWith('Your turn')", 15000)
@@ -268,6 +276,10 @@ def mode_checks(page, check) -> list[str]:
     judged = until("document.querySelector('.jam__heard').textContent.includes('note for note')", 8000)
     check("...and playing it back note for note counts", judged and "1 of 1" in page.evaluate(text, ".jam__stats"),
           f"{page.evaluate(text, '.jam__heard')} / {page.evaluate(text, '.jam__stats')}")
+    pick(page, "Scale", "Pentatonic", 900)
+    kept = page.evaluate(text, ".jam__stats")
+    pick(page, "Scale", "Off", 300)
+    check("...a Scale pin is only drawn in Echo: the count stays", "1 of 1" in kept, kept)
 
     pick(page, "Play", "Solo", 1500)
     check("back to Songs, the band still playing", page.evaluate(BAND).get("running") is True)
@@ -415,6 +427,52 @@ def mine_checks(page, check) -> None:
     page.evaluate("""() => { const s = [...document.querySelectorAll('.jam__part')][2].querySelector('select');
       s.value = ''; s.dispatchEvent(new Event('change')); }""")
     pick(page, "Music", "Pop", 1500)
+
+
+def key_change_checks(page, base: str, check) -> None:
+    """Level 4 with the Scale picked after the panel opened, at 160 bpm: the key changes
+    after two phrases, Stop goes back to the key heard, and Start opens on I in it."""
+    def until(js: str, ms: int = 12000) -> bool:
+        try:
+            page.wait_for_function(js, timeout=ms)
+            return True
+        except Exception:  # noqa: BLE001 -- a timeout is the failure being reported
+            return False
+
+    key = "document.querySelector('.jam__opt--key select').value"
+    page.request.post(f"{base}/api/band/stop")
+    page.request.post(f"{base}/api/settings", data={"ui": {"jam": {
+        "music": "pop", "game": "solo", "level": 1, "key": "C-major", "pin": "off", "bars": 1, "bpm": 160,
+        "wander": False, "mine": []}}})
+    page.goto(f"{base}/#practice", wait_until="networkidle")
+    page.reload(wait_until="networkidle")
+    page.wait_for_timeout(2200)
+    pick(page, "Level", "4", 600)
+    pick(page, "Scale", "Pentatonic", 1500)
+    page.click(".jam__go")
+    # Under a Pentatonic pin the loops are four chords, played twice at level 4: two
+    # phrases are 16 bars, and the change is announced four bars before it lands.
+    nxt = until("document.querySelector('.jam__note').textContent.startsWith('Next:')", 40000)
+    pos = page.evaluate(BAND).get("pos") or 0
+    note = page.evaluate("document.querySelector('.jam__note').textContent")
+    check("Level 4, Scale picked after opening: a key change comes, announced", nxt, note)
+    check("...after two phrases, the first key's included (announced at bar 12, not bar 4)",
+          nxt and 11 <= pos < 16, f"bar {pos:.1f}")
+    heard = page.evaluate(key)
+    page.click(".jam__go")                         # Stop, with the change still ahead
+    page.wait_for_timeout(1000)
+    shown = page.evaluate(key)
+    music = page.evaluate("document.querySelector('.jam__group--music .seg__btn.is-on').textContent")
+    saved = page.request.get(f"{base}/api/settings").json().get("ui", {}).get("jam", {})
+    check("Stop before the change lands: the key shown and saved is the one heard",
+          heard == shown == "C-major" and music == "Pop" and saved.get("key") == "C-major" and saved.get("music") == "pop",
+          f"heard {heard}, shown {shown} {music}, saved {saved.get('key')} {saved.get('music')}")
+    page.click(".jam__go")
+    opened = until("document.querySelector('.jam__role').textContent.includes('·')", 8000)
+    role = page.evaluate("document.querySelector('.jam__role').textContent")
+    check("...and Start opens a fresh progression on I, in that key", opened and role.startswith("I ·")
+          and page.evaluate(key) == "C-major", role)
+    page.click(".jam__go")
 
 
 def jam_checks(browser, port: int, errs: list[str]) -> list[str]:
@@ -573,6 +631,7 @@ def jam_checks(browser, port: int, errs: list[str]) -> list[str]:
     check("changing tab leaves focus", not f["on"] and f["marked"] == 0 and ".nav" in f["chrome"])
     press("g")
     check("off Practice, G does nothing", not page.evaluate(FOCUS)["on"])
+    key_change_checks(page, base, check)
     page.close()
     return fails
 
