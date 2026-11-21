@@ -235,6 +235,15 @@ class WindowControls:
             _user32().PostMessageW(self._hwnd, WM_CLOSE, 0, 0)
 
 
+_caption = {"dropped": True}
+
+
+def restore_caption(hwnd: int) -> None:
+    """Put Windows' caption back, for a WebView2 runtime too old to drag by app-region."""
+    _caption["dropped"] = False
+    _user32().SetWindowPos(hwnd, None, 0, 0, 0, 0, SWP_FRAMECHANGED_ONLY)
+
+
 def drop_caption(hwnd: int) -> None:
     """Remove the caption strip from a sizable window, keeping its resize frame.
 
@@ -252,7 +261,7 @@ def drop_caption(hwnd: int) -> None:
     prev = [None]
 
     def proc(h, msg, wp, lp):
-        if msg == WM_NCCALCSIZE and wp:
+        if msg == WM_NCCALCSIZE and wp and _caption["dropped"]:
             rect = ctypes.cast(lp, ctypes.POINTER(w.RECT)).contents
             top, left = rect.top, rect.left
             result = u.CallWindowProcW(prev[0], h, msg, wp, lp)
@@ -288,8 +297,14 @@ def frame_window(window, controls: WindowControls) -> None:
         def on_ready(sender, args):
             # Without this WebView2 ignores `app-region: drag` and the rail is not a
             # title bar at all. Set here because pywebview creates CoreWebView2 itself.
-            if args.IsSuccess:
+            if not args.IsSuccess:
+                return
+            try:
                 sender.CoreWebView2.Settings.IsNonClientRegionSupportEnabled = True
+            except Exception as exc:  # noqa: BLE001 -- runtime predates the setting
+                # No drag region means a window you cannot move: give the caption back.
+                print(f"  Title bar: this WebView2 cannot drag by app-region ({exc}).")
+                restore_caption(hwnd)
 
         webview2.CoreWebView2InitializationCompleted += on_ready
         drop_caption(hwnd)
