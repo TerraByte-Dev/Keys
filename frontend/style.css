@@ -2967,6 +2967,11 @@ body.is-focusing .exrun .stat__note { font-size: 14px; }
   .page__pane .col-11 { grid-column: span 12; }
   .page__pane .jam__stage { grid-template-columns: 1fr 1fr; }
   .page__pane .jam__mid { grid-column: 1 / -1; order: 3; }
+  /* Jam's Music and You groups are wider than what is left of a pane beside Start: they
+     go under it, and a row of choices wraps instead of running past the pane's side. */
+  .page__pane .jam__opts { flex-basis: 100%; }
+  .page__pane .seg { flex-wrap: wrap; }
+  .page__pane .jam__select { min-width: 0; max-width: 100%; }
 }
 @container (max-width: 640px) {
   .page__pane .col-2, .page__pane .col-3, .page__pane .col-4, .page__pane .col-5,
