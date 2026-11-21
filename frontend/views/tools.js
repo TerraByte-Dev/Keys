@@ -37,6 +37,11 @@ const PEDAL_HELP = {
 let backing = null;
 let theory = null;
 
+/* A field's name, with the short one a half- or quarter-width panel shows (style.css). */
+function named(long, short) {
+  return h('span', { 'data-short': '' }, h('span.long-label', null, long), h('span.short-label', null, short));
+}
+
 export default {
   async mount(root, ctx) {
     touchPainted = -1;
@@ -44,7 +49,7 @@ export default {
     theory = createTheory();
 
     root.append(h('div.grid', null,
-      h('div.col-4', null, mod('Touch response', 'play soft, then hard',
+      h('div.col-6', null, mod('Touch response', 'play soft, then hard',
         h('div.touch', null,
           h('div.touch__bar', null, h('div.touch__fill', { id: 'touch-fill' })),
           h('div.touch__marks', { id: 'touch-marks' })),
@@ -64,7 +69,7 @@ export default {
       // With the instrument, because the instrument is what these change. They were two
       // panels in Settings, beside the MIDI ports and the buffer size, which is the rig
       // -- and two unsynced copies of one slider is a bug, so there is one copy now.
-      h('div.col-8', null, mod('Pedal', 'you have one; a grand has three',
+      h('div.col-6', null, mod('Pedal', 'you have one; a grand has three',
         info(
           'One pedal, spent on something a grand needs three for.'),
         h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', marginTop: '12px' } },
@@ -73,7 +78,7 @@ export default {
             h('select', { id: 'pedal-mode', onchange: () => pushPedal() },
               PEDAL_LABELS.map(([v, label]) => h('option', { value: v }, label)))),
           h('label.field', { id: 'pedal-range-lo' },
-            h('span.field__label', null, h('span', null, 'Sustains from'),
+            h('span.field__label', null, named('Sustains from', 'From'),
               h('span.field__value', { id: 'pedal-lo-v' }, noteName(instrument().low))),
             slider({
               // Built wide open. setPedalRange narrows the track to fit whatever the
@@ -87,7 +92,7 @@ export default {
               onchange: () => pushPedal(),
             })),
           h('label.field', { id: 'pedal-range-hi' },
-            h('span.field__label', null, h('span', null, 'up to'),
+            h('span.field__label', null, named('up to', 'To'),
               h('span.field__value', { id: 'pedal-hi-v' }, noteName(instrument().high))),
             slider({
               min: 0, max: 127, step: 1, value: instrument().high,
@@ -98,7 +103,7 @@ export default {
               onchange: () => pushPedal(),
             })),
           h('label.field', null,
-            h('span.field__label', null, h('span', null, 'Let go after'),
+            h('span.field__label', null, named('Let go after', 'Let go'),
               h('span.field__value', { id: 'pedal-decay-v' }, 'never')),
             slider({
               min: 0, max: 20, step: 0.5, value: 0,

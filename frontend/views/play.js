@@ -195,7 +195,7 @@ export default {
           'Highlighted keys are the scale. They do not change what sounds — ',
           'this is a reading aid, not a lock.'))),
 
-      h('div.col-6', null, mod('Tempo', null,
+      h('div.col-3', null, mod('Tempo', null,
         h('div', { style: { display: 'flex', alignItems: 'baseline' } },
           h('span.bpm', { id: 'bpm-display' }, String(cfg.bpm ?? 80)),
           h('span.bpm__unit', null, 'BPM')),
@@ -224,7 +224,7 @@ export default {
           h('button.btn.btn--lg', { id: 'metro-toggle', onclick: toggle }, 'Start'),
           h('button.btn', { onclick: () => api.post('/api/metronome/setback') }, 'Drop a step')))),
 
-      h('div.col-6', null, mod('Meter', null,
+      h('div.col-3', null, mod('Meter', null,
         h('div.beats', { id: 'beat-lamps' }),
         h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '16px' } },
           h('label.field', null,
@@ -242,7 +242,7 @@ export default {
               h('option', { value: n, selected: n === (cfg.subdivision ?? 1) }, label))))),
         h('div.stats', { id: 'metro-stats', style: { marginTop: '4px' } }))),
 
-      h('div.col-6', null, mod('Tempo ramp', 'gets faster as you go',
+      h('div.col-3', null, mod('Tempo ramp', 'gets faster as you go',
         h('div', { style: { marginBottom: '10px' } },
           h('label.toggle', null,
             h('input', {
@@ -250,9 +250,9 @@ export default {
               onchange: (e) => push({ ramp_enabled: e.target.checked }),
             }),
             h('span.toggle__track'), 'Climb automatically')),
-        numField('Every (bars)', 'ramp_bars', 1, 32),
-        numField('Faster by (bpm)', 'ramp_bpm_step', 1, 20),
-        numField('Stop at (bpm)', 'ramp_bpm_max', 40, 240),
+        numField('Every (bars)', 'ramp_bars', 1, 32, 'Every'),
+        numField('Faster by (bpm)', 'ramp_bpm_step', 1, 20, 'Faster'),
+        numField('Stop at (bpm)', 'ramp_bpm_max', 40, 240, 'Stop at'),
         info(
           'Start slower than feels necessary and let it climb. ',
           h('strong', null, 'Drop a step'), ' when you miss — that is the loop that ',
@@ -264,15 +264,15 @@ export default {
       // panel the deleted one's saved slot AND its col-3 width. Under 1100px col-3
       // collapses to span 6, so the same bug would have looked different per window
       // size. The cost is that this panel loses its own saved slot once.
-      h('div.col-6', null, mod('Click kit', null,
+      h('div.col-3', null, mod('Click kit', null,
         h('label.field', null,
           h('span.field__label', null, h('span', null, 'Kit')),
           h('select', { id: 'kit-select', onchange: (e) => push({ kit: Number(e.target.value) }) },
             h('option', { value: 0 }, 'loading...'))),
         h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' } },
-          gainField('Downbeat', 'accent_velocity'),
+          gainField('Downbeat', 'accent_velocity', 'Down'),
           gainField('Beat', 'beat_velocity'),
-          gainField('Subdivision', 'sub_velocity')),
+          gainField('Subdivision', 'sub_velocity', 'Sub')),
         info(
           'The click has its own MIDI channel, so a drum zone can never steal it.'))),
 
@@ -385,6 +385,9 @@ function fxKnobs(group, s, ctx) {
    same asyncio loop that drains notes at 60 Hz. Once when you let go of the slider is
    free; sixty a second is 96 ms of that loop every second, and the note display is
    what pays for it. oninput moves the readout and nothing else. */
+// The short names a quarter-width Effects shows (fieldName).
+const FX_SHORT = { Damping: 'Damp', 'Room level': 'Level', 'Reverb send': 'Send', 'Chorus send': 'Send' };
+
 function fxField(id, label, min, max, step, value, push) {
   // 0..1 is a mix amount and gets a dial; the rest of this panel is unit parameters in
   // their own units -- width 0-100, chorus voices 0-20, speed in Hz, depth in ms -- and
@@ -392,7 +395,7 @@ function fxField(id, label, min, max, step, value, push) {
   // dials and five tracks, split on what the number MEANS rather than on tidiness.
   const control = (min === 0 && max === 1) ? knob : slider;
   return h('label.field', null,
-    h('span.field__label', null, h('span', null, label),
+    h('span.field__label', null, fieldName(label, FX_SHORT[label]),
       h('span.field__value', { id }, String(value))),
     control({
       min, max, step, value,
@@ -677,9 +680,17 @@ function renderBeats(n) {
     h('div.beat' + (i === 0 ? '.is-down' : ''))));
 }
 
-function numField(label, key, min, max) {
+/* A field's name, with the short one a quarter-width panel shows (style.css, the mini
+   tier) when there is one. */
+function fieldName(label, short) {
+  return short
+    ? h('span', { 'data-short': 'mini' }, h('span.long-label', null, label), h('span.short-label', null, short))
+    : h('span', null, label);
+}
+
+function numField(label, key, min, max, short) {
   return h('label.field', null,
-    h('span.field__label', null, h('span', null, label),
+    h('span.field__label', null, fieldName(label, short),
       h('span.field__value', { id: 'v-' + key }, String(cfg[key] ?? min))),
     slider({
       min, max, step: 1, value: cfg[key] ?? min,
@@ -688,9 +699,9 @@ function numField(label, key, min, max) {
     }));
 }
 
-function gainField(label, key) {
+function gainField(label, key, short) {
   return h('label.field', null,
-    h('span.field__label', null, h('span', null, label),
+    h('span.field__label', null, fieldName(label, short),
       h('span.field__value', { id: 'v-' + key }, String(cfg[key] ?? 90))),
     slider({
       min: 1, max: 127, step: 1, value: cfg[key] ?? 90,

@@ -2162,11 +2162,13 @@ def nav_checks(browser, port: int, errs: list[str]) -> list[str]:
 #     stopped 169px short of the number it sets);
 #   - leave no hole too narrow to use: empty space down a column, more than RS_HOLE_PX
 #     between two cards, must be at least RS_HOLE_COLS columns wide at that height --
-#     the narrowest a panel goes -- or no panel can ever go into it.
+#     a quarter, the narrowest brick -- or no panel can ever go into it.
+# Each click is one brick (12 -> 6 -> 3 and back), never two.
 RESIZE_SIZES = ((1600, 1000), (1280, 800))
 RS_STRETCH_PX = 100    # the 64-82px draw-downs that close a hole above a wide panel, and no more
 RS_HOLE_PX = 24        # card to card down a column; the even gap is 14
-RS_HOLE_COLS = 4       # a third of the grid, the narrowest step the design offers
+RS_HOLE_COLS = 3       # a quarter of the grid, the narrowest brick (layout.js SPANS)
+RS_SPANS = (3, 6, 12)  # the bricks, in columns
 
 # Each visible managed panel under `sel`, by id, so a click that rebuilds the view (Stats
 # does) can find it again.
@@ -2338,6 +2340,12 @@ def resize_sweep(page, sel: str, where: str) -> tuple[int, int, list[str]]:
                 if (after["cols"] - st["cols"]) * sign <= 0:
                     bad.append(f"{where} {pid}: '{word}' at {st['cols']} columns left it at {after['cols']}")
                     break
+                # One brick: the saved span is the next one past what it showed.
+                step = [x for x in RS_SPANS if (x - st["cols"]) * sign > 0]
+                want = (max(step) if sign < 0 else min(step)) if step else None
+                if after["saved"] != want:
+                    bad.append(f"{where} {pid}: '{word}' at {st['cols']} columns asked for "
+                               f"{after['saved']}, not one brick ({want})")
                 clicks += 1
                 if sign > 0:
                     audit(f"{pid} at {after['saved']} (shows {after['cols']})")
@@ -2353,12 +2361,13 @@ def resize_sweep(page, sel: str, where: str) -> tuple[int, int, list[str]]:
     return states, clicks, bad
 
 
-# A layout saved by an older Keys, set before the app loads: Read's authored 5 and 7 as
-# a layout saves them (every panel, every span), and Stats' panels reversed with the spans
-# a pre-0.14 grid had (6, 3, 12). Read keeps its 5 + 7; Stats keeps the saved order and
-# takes the widths its view authors today.
+# A layout saved by an older Keys, set before the app loads. Read's 5 and 7 as a layout
+# saved them in 0.15 (every panel, every span): not bricks, so Read takes the widths its
+# view authors today. Tools as 0.14-0.15 left it after a user sized it -- Touch response a
+# third, Pedal two thirds, both sized, the order reversed: each width moves to the brick
+# under it (4 -> 3, 8 -> 6), the order and the sized marks kept.
 RS_ROWS = """(sel) => [...document.querySelectorAll(sel + ' > [data-panel]')]
-  .map((e) => [e.dataset.panel, [...e.classList].find((c) => /^col-\\d+$/.test(c))])"""
+  .map((e) => [e.dataset.panel, [...e.classList].find((c) => /^col-\\d+$/.test(c)), !!e.dataset.sized])"""
 
 
 def migrate_checks(page, check) -> None:
@@ -2368,13 +2377,14 @@ def migrate_checks(page, check) -> None:
 
     go("read")
     read = page.evaluate(RS_ROWS, "#stage > .grid")
-    go("stats")
-    stats = page.evaluate(RS_ROWS, "#stage > .grid")
-    spans = lambda cls: int(cls[4:])  # noqa: E731
-    old_spans = (6, 3, 12)
+    go("tools")
+    tools = page.evaluate(RS_ROWS, "#stage > .grid")
+    old_read = {"this-run": 5, "exercise-setup": 7}
+    old_tools = {"touch-response": 4, "pedal": 8}
     seeded = {
-        "read": [{"id": i, "span": spans(c)} for i, c in read],
-        "stats": [{"id": i, "span": old_spans[k % 3]} for k, (i, _) in enumerate(reversed(stats))],
+        "read": [{"id": i, "span": old_read.get(i, int(c[4:]))} for i, c, _ in read],
+        "tools": [{"id": i, "span": old_tools.get(i, 12), **({"sized": True} if i in old_tools else {})}
+                  for i, _, _ in reversed(tools)],
     }
     page.evaluate("""(layout) => fetch('/api/settings', { method: 'POST',
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ui: { layout } }) })""", seeded)
@@ -2382,16 +2392,17 @@ def migrate_checks(page, check) -> None:
     page.wait_for_timeout(1600)
     go("read")
     got = page.evaluate(RS_ROWS, "#stage > .grid")
-    check("a saved Read layout keeps the widths its view authors (5 + 7), not the nearest step",
+    check("a saved Read layout with 0.15's 5 and 7 takes the widths its view authors now",
           len(read) >= 3 and got == read, f"authored {read}, after a save {got}")
-    go("stats")
+    go("tools")
     got = page.evaluate(RS_ROWS, "#stage > .grid")
-    want = [[i, dict(stats)[i]] for i, _ in reversed(stats)]
-    check("a pre-0.14 Stats layout (with a 3) keeps its order and takes today's authored widths",
-          len(stats) >= 3 and got == want, f"want {want}, got {got}")
+    brick = {4: 3, 8: 6}
+    want = [[i, f"col-{brick.get(old_tools.get(i), 12)}", i in old_tools] for i, _, _ in reversed(tools)]
+    check("a 0.15 Tools layout (a third, two thirds, sized) keeps its order: 4 -> 3, 8 -> 6, still sized",
+          len(tools) >= 3 and got == want, f"want {want}, got {got}")
     page.evaluate("""() => fetch('/api/settings', { method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ui: { layout: { read: [], stats: [] } } }) })""")
+      body: JSON.stringify({ ui: { layout: { read: [], tools: [] } } }) })""")
     page.reload(wait_until="networkidle")
     page.wait_for_timeout(1600)
 
@@ -2513,12 +2524,7 @@ FOLD_SKIP = {"jam"}       # the Jam section measures it
 # Panels a step narrower cannot keep within FOLD_MAX yet, and why. Each one is listed
 # rather than passed quietly; the rule still runs on them and prints what it finds.
 FOLD_KNOWN = {
-    "zone-editor": "twelve controls a zone: one row only at the full width, two rows below it",
-    "build-one": "three build cards stay side by side down to a third of 1600; at a third of 1280 they go two and one",
-    "exercises": "the shelf's three cards go two and one at a third of a 1280px window",
-    "pedal": "the mode's longest choice takes the row's width at a third; the sliders go under it",
-    "audio-output": "device names are as long as the driver makes them; the row wraps under half width",
-    "chords-scales": "the twelve roots take a row of their own at a third of a 1280px window",
+    "zone-editor": "eleven controls a zone: one row only at the full width of a wide window, two in a half",
 }
 
 FOLD_MEASURE = """() => {
@@ -2529,7 +2535,7 @@ FOLD_MEASURE = """() => {
     for (const el of grid.children) {
       if (!el.dataset.panel || !el.getClientRects().length) continue;
       const mod = el.firstElementChild, keep = el.style.width, hs = [];
-      for (const s of [12, 8, 6, 4]) {
+      for (const s of [12, 6, 3]) {
         if (s < (el._minSpan || 12) && s !== 12) continue;
         el.style.width = px(s) + 'px';
         hs.push([s, Math.round(mod.getBoundingClientRect().height)]);

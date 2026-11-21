@@ -206,16 +206,25 @@ silently hands the newcomer the incumbent's saved slot and width. The metronome'
 too, and the collision would have applied a `col-3` width to a `col-6` panel, differently at different window
 widths.
 
-**A panel's width is a preference; what it renders at is measured.** The arrows step a panel through spans
-4, 6, 8 and 12 of the 12-column grid (a third, a half, two thirds, all of it) and that choice is what is
-saved. What it renders at is the larger of that and its **minimum span**: `layout.js` `fit()` measures each
-panel's content at min-content, and then laid out, with the panel set to each span's pixel width in turn
-(so its `@container panel` queries answer for that width) and takes the smallest that holds it. A quarter
-(3) used to be on offer and was dropped: at a 1280px window it was 256px, under the minimum of 26 of 42
-panels. The measurement is against the grid's own width, so a custom page's pane is just a narrower grid:
-there a panel rises to what it needs, up to the whole pane, in its narrow layout, and the page builder
-warns when a picked panel's minimum (`pages.js` `PANELS[].min`, held against the DOM by `ui_check`) is
-wider than a pane at the current window.
+**Panels are lego bricks; a width is a preference; what it renders at is measured.** The arrows step a
+panel through spans 3, 6 and 12 of the 12-column grid (a quarter, a half, all of it), one brick a click
+(12 -> 6 -> 3 and back), and that choice is what is saved. Bricks pair into rows of 12 (3+3+6, 6+6,
+3+3+3+3), so a row you build is a row that closes. 0.14-0.15 stepped in thirds (4, 6, 8, 12): one click
+off full made two thirds, which pairs with nothing but another third. Every panel has a **quarter form**:
+a quarter is 250-370px at the windows Keys is used in, always the mini tier (`style.css`, "a quarter:
+every panel's mini form"), where the same controls go a size smaller, rows stay rows, and at that one step
+secondary text goes (empty-state sentences, the tail of a long label via `data-short="mini"`, an
+explanation the (i) already holds); Build one shows one card at a time behind a picker, Exercises folds
+to chips. What a panel renders at is the larger of its saved span and its **minimum span**: `layout.js`
+`fit()` measures each panel's content at min-content, and then laid out, with the panel set to each
+span's pixel width in turn (so its `@container panel` queries answer for that width) and takes the
+smallest that holds it with nothing running past its box and no select cutting off its choice. The
+measurement is against the grid's own width, so a custom page's pane is just a narrower grid: there a
+quarter may be too narrow and its arrow says so, a panel rises to what it needs, up to the whole pane,
+and the page builder warns when a picked panel's minimum (`pages.js` `PANELS[].min`, held against the DOM
+by `ui_check`) is wider than a pane at the current window. The folding rule (`ui_check` "folding") holds
+on every step: a panel one brick narrower is at most 15% taller; only the Zone editor's eleven controls,
+one row at the full width of a wide window, are excused.
 
 Two render-only adjustments keep the masonry tidy. A panel nobody has sized, with empty columns beside it
 for its whole height, is widened over them; a panel sized with its arrows is not (it is marked `sized` in
@@ -224,10 +233,11 @@ screen, and the columns it leaves are room for the next panel narrowed to move u
 nothing under it until something further down has its card drawn down to meet it, by at most 96px, so
 the gaps left above a wide panel close and a bigger hole shows as one rather than as a stretched, empty
 card. **Every arrow click changes what you see:** a click steps from the span the panel shows, and each
-candidate is placed first and taken only if the panel then shows narrower (or wider) and the grid gains
-no hole narrower than four columns, where no panel could ever go; an arrow with no such step is disabled.
-A saved layout keeps only spans the arrows offer (an authored 5 or 7 stays as written), and one with a 3
-in it, from before 0.14, keeps its order but takes today's authored widths.
+step is placed first and taken only if the panel then shows narrower (or wider) and the grid gains no
+hole narrower than a quarter, where no panel could ever go; an arrow with no such step is disabled, with a
+tooltip saying why. A saved layout keeps only bricks; one from 0.14-0.15 moves each 4 to a 3 and each 8 to
+a 6, keeping its order and which panels were sized, and anything else (0.15's saved 5 and 7 on Read)
+leaves the panel at what its view authors today.
 
 ### Pages: whole views, mounted side by side
 

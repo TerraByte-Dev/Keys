@@ -36,10 +36,10 @@ export default {
             },
           }, 'Show on keys')))),
 
-      h('div.col-5', null, mod('This run', null,
+      h('div.col-6', null, mod('This run', null,
         h('div.stats', { id: 'run-stats' }, h('div.empty', null, 'no attempts yet')))),
 
-      h('div.col-7', null, mod('Exercise setup', null,
+      h('div.col-6', null, mod('Exercise setup', null,
         h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' } },
           h('label.field', null,
             h('span.field__label', null, h('span', null, 'Key')),
