@@ -26,6 +26,7 @@ export function createTheory() {
   let vocab = null;
   let plan = null;
   let dock = null;                  // the docked keyboard, so you see it where you play
+  let onKeys = true;                // whether the dock gets it too (paintDock)
   let kind = 'scale';
   const pick = { root: 'C', mode: 'major', quality: '', octaves: 1, hand: 'R', inversion: 0 };
 
@@ -49,6 +50,11 @@ export function createTheory() {
 
     h('div.th__foot', null,
       h('button.btn.btn--lg', { id: 'th-hear' }, 'Hear it'),
+      h('button.btn', {
+        id: 'th-dock', onclick: () => setOnKeys(!onKeys),
+        title: 'Light it on the keyboard below, in every octave. Off to begin with on a page, '
+          + 'where Jam lights the keys and this would cover them in a scale of its own.',
+      }, 'Show on keys'),
       h('span.th__from', { id: 'th-from' }),
       h('span.list__spacer'),
       h('span.th__title', { id: 'th-title' }))));
@@ -100,9 +106,18 @@ export function createTheory() {
     if (!dock || !plan) return;
     const pcs = new Set(plan.pcs);
     const keys = [];
-    for (let n = dock.low; n <= dock.high; n++) if (pcs.has(n % 12)) keys.push(n);
+    if (onKeys) for (let n = dock.low; n <= dock.high; n++) if (pcs.has(n % 12)) keys.push(n);
     dock.setHighlight(keys, 'theory');
     painted = `${dock.low}:${dock.high}`;
+  }
+
+  /* On the Tools tab the dock shows it from the start: that is what the panel is for.
+     On a page it waits to be asked. A page is where this sits beside Jam, and C major
+     (where it opens) painted over the whole dock buried Jam's own lights under it. */
+  function setOnKeys(on) {
+    onKeys = on;
+    $('#th-dock')?.classList.toggle('is-on', on);
+    paintDock();
   }
 
   /* The ribbon: note, gap, note, gap. The gap is the big number. */
@@ -280,6 +295,7 @@ export function createTheory() {
 
     async init(ctx) {
       dock = ctx?.kb || null;
+      setOnKeys(!ctx?.panels);
       kb = createKeyboard($('#th-board'), {
         low: LOW,
         high: HIGH,

@@ -67,6 +67,8 @@
   --key-pressed: var(--amber-hot);      /* mouse/touch, not the piano */
   --key-sustain: #8a6528;               /* released but still ringing on the pedal */
   --key-highlight: var(--cyan);
+  /* The same highlight while Jam's band plays: a dashed ring, in no colour Jam uses. */
+  --key-mark: var(--ink-dim);
   /* Jam: the chord, the key to land on at a change, and how a held key fits -- in
      the chord, or rubbing against it. */
   --key-tone: var(--cyan);

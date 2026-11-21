@@ -106,7 +106,9 @@ const CSS = `
 .keys-kb .key.is-ghost{fill:var(--key-ghost,#8a93a3)}
 .keys-kb .key.is-dead{opacity:.34}
 .keys-kb .key.is-dead.key--white{fill:var(--key-dead,#6b675f)}
-.keys-kb .key.is-highlight{fill:var(--key-highlight,#e0a53c)}
+/* A highlight owner fills the key -- except under Jam's flow fills, below, where it is a
+   mark of its own. :where() keeps this at the specificity the held rules were set against. */
+.keys-kb:where(:not(.kb--flow)) .key.is-highlight{fill:var(--key-highlight,#e0a53c)}
 .keys-kb .key.is-sustained{fill:var(--key-sustain,#6f5bd6)}
 .keys-kb .key.is-held{fill:var(--key-held,#3f9dff)}
 /* Velocity made visible: a soft strike barely leaves the resting colour, a hard
@@ -129,7 +131,13 @@ const CSS = `
    your scale", fill "good on this chord". Before suggest2 and sig so their strokes win;
    kb--nopin (Guide Dark) stops drawing it and keeps the class for the held rule below. */
 .keys-kb.kb--flow .key.is-pin{stroke:var(--key-pin,var(--key-tone,#58c4d4));stroke-width:2}
-.keys-kb.kb--flow.kb--nopin .key.is-pin:not(.is-suggest2):not(.is-sig){stroke:var(--key-edge,#00000059);stroke-width:.7}
+.keys-kb.kb--flow.kb--nopin .key.is-pin:not(.is-suggest2):not(.is-sig):not(.is-highlight){stroke:var(--key-edge,#00000059);stroke-width:.7}
+/* A highlight owner beside Jam (Play's scale highlighter or Chords & scales, on a page):
+   a dashed ring in a colour of its own and no fill. The fill is Jam's -- as a fill, the
+   highlight lit exactly the keys Jam leaves dark, in Jam's chord colour. Over the pin,
+   which it marks the same way; under suggest2 and sig, which are about to happen. */
+.keys-kb.kb--flow .key.is-highlight{stroke:var(--key-mark,#8a8578);stroke-width:2;stroke-dasharray:4 3}
+.keys-kb.kb--flow .key.is-suggest2,.keys-kb.kb--flow .key.is-sig{stroke-dasharray:none}
 @keyframes kb-suggest{0%,100%{fill:var(--key-suggest,#ffa62b)}50%{fill:color-mix(in oklab,var(--key-suggest,#ffa62b) 45%,var(--key-white,#f2f2ef))}}
 .keys-kb.kb--flow .key.is-suggest{fill:var(--key-suggest,#ffa62b);animation:kb-suggest 1.1s ease-in-out infinite}
 .keys-kb.kb--flow .key.is-suggest2{stroke:var(--key-suggest,#ffa62b);stroke-width:2.6}
