@@ -271,7 +271,8 @@ def mode_checks(page, check) -> list[str]:
     pick(page, "Play", "Answer", 300)
     shown = page.evaluate("""() => [...document.querySelectorAll('.jam__opt')]
       .filter((o) => o.style.display !== 'none').map((o) => o.querySelector('.jam__lbl').textContent)""")
-    check("Answer: no seat to take", "Seat" not in shown and page.evaluate(BAND).get("bass") is True, str(shown))
+    check("Answer: no seat to take, and no Level, which changes nothing there",
+          "Seat" not in shown and "Level" not in shown and page.evaluate(BAND).get("bass") is True, str(shown))
     check("...the band's question lights the keys as it plays", until("document.querySelector('#dock .key.is-lead')", 15000))
     turn = until("document.querySelector('.jam__coach').textContent.startsWith('Your turn')", 15000)
     home = page.evaluate(COACHED)
@@ -279,16 +280,17 @@ def mode_checks(page, check) -> list[str]:
     page.evaluate(PLAY, [home[0] - 5 if home else 67, home[0] if home else 72])
     judged = until("document.querySelector('.jam__heard').textContent.includes('on the root')", 8000)
     check("...and an answer ending on the root is heard as home", judged, page.evaluate(text, ".jam__heard"))
-    # Answer asks the same at every level, and a pin is only drawn there: neither may
-    # start the conversation again and zero the sitting's count.
-    pick(page, "Level", "2", 300)
+    # A pin is only drawn in Answer: it may not start the conversation again and zero the
+    # sitting's count.
     pick(page, "Scale", "Pentatonic", 900)
     kept = page.evaluate(text, ".jam__stats")
     pick(page, "Scale", "Off", 300)
-    pick(page, "Level", "3", 300)
-    check("...Level and Scale leave the conversation and its count alone", "of 1 answer" in kept, kept)
+    check("...Scale leaves the conversation and its count alone", "of 1 answer" in kept, kept)
 
     pick(page, "Play", "Echo", 300)
+    four = page.evaluate("""() => [...document.querySelectorAll('.jam__opt')].find((o) => o.style.display !== 'none'
+      && o.querySelector('.jam__lbl')?.textContent === 'Level')?.querySelectorAll('.seg__btn')[3]?.title""")
+    check("Echo keeps Level, and its 4 does not promise key changes", bool(four) and "Solo only" in four, repr(four))
     turn = until("document.querySelector('.jam__coach').textContent.startsWith('Your turn')", 15000)
     lick = page.evaluate(COACHED)
     check("Echo: after the lick, your turn, with its notes", turn and 2 <= len(lick) <= 6, str(lick))
@@ -432,6 +434,27 @@ def mine_checks(page, check) -> None:
     check("...the phrase is your five chords", len(chips) == 5 and chips[1] == "D7", str(chips))
     page.evaluate("[...document.querySelectorAll('.jam__slotx')][4].click()")
     check("x takes one away again", until("document.querySelectorAll('.jam__slot').length === 4", 4000))
+    # In A minor the key's row offers the dominant too: E and E7 after Em -- written here,
+    # A minor's fifth degree with its third raised. One click, and it is in the key.
+    page.select_option(".jam__opt--key select", "A-minor")
+    page.wait_for_timeout(1200)
+    page.click(".jam__slot:nth-child(2) .jam__slotbtn")
+    page.wait_for_timeout(300)
+    row = page.evaluate("""() => [...[...document.querySelectorAll('.jam__picker .jam__prow')][2]
+      .querySelectorAll('.jam__pick')].map((b) => [b.querySelector('b').textContent, b.querySelector('small').textContent])""")
+    syms = [b for b, _ in row]
+    at = syms.index("Em") if "Em" in syms else -1
+    check("My chords in A minor: the key's row has V and V7, E and E7, right after v",
+          at >= 0 and row[at:at + 3] == [["Em", "v"], ["E", "V"], ["E7", "V7"]], str(row))
+    page.evaluate("""() => [...document.querySelectorAll('.jam__picker .jam__pick')]
+      .find((b) => b.querySelector('small')?.textContent === 'V7').click()""")
+    inkey = until("document.querySelector('.jam__slot:nth-child(2) b').textContent === 'E7'", 4000)
+    page.wait_for_timeout(1200)
+    check("...and E7 picked from it is a slot in the key, not marked out",
+          inkey and not page.evaluate("document.querySelector('.jam__slot:nth-child(2)').classList.contains('is-out')"))
+    page.evaluate("[...document.querySelectorAll('.jam__picker .btn')].find((b) => b.textContent === 'Done').click()")
+    page.select_option(".jam__opt--key select", "C-major")
+    page.wait_for_timeout(1200)
 
     # The band's parts: a switch and a sound reach the band.
     page.evaluate("window.__posts = []")

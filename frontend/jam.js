@@ -314,7 +314,8 @@ export function createJam(ctx, { onStart } = {}) {
       'them: 1 is one common loop over and over (New progression picks another), 2 rotates the four-chord ',
       'loops, 3 is the whole songbook, each played twice and coloured the second time, and 4 is the ',
       'songbook with a key change every second phrase, announced on the Now card before it lands. ',
-      'Pick any level any time. ', h('strong', null, 'Wander'), ' moves to a neighbouring key now and ',
+      'Key changes are Solo\'s: Echo\'s level 4 is the songbook, and Answer asks the same questions ',
+      'at every level, so it has none. Pick any level any time. ', h('strong', null, 'Wander'), ' moves to a neighbouring key now and ',
       'then, a key that changes only one note.'),
     info(h('strong', null, 'Scale'), ' pins one scale over the whole key. Its keys get an ',
       h('strong', null, 'outline'), ' across the whole keyboard that stays put until the key changes; ',
@@ -407,7 +408,8 @@ export function createJam(ctx, { onStart } = {}) {
   /* Which options this music uses. The rest are hidden, not disabled: an option that does
      nothing here is noise. */
   const USES = {
-    level: () => ['pop', 'minor', 'blues'].includes(opt.music),
+    // Answer asks the same questions at every level (setLevel), so it has none to show.
+    level: () => ['pop', 'minor', 'blues'].includes(opt.music) && play() !== 'answer',
     key: () => opt.music !== 'modal', room: () => opt.music === 'modal', pin: () => opt.music !== 'modal',
     play: () => opt.music === 'pop' || opt.music === 'minor', guide: () => true,
     seat: () => !DUET.has(play()), bars: () => ['songs', 'modal', 'mine'].includes(play()),
@@ -434,7 +436,10 @@ export function createJam(ctx, { onStart } = {}) {
     }
     keySelect.value = shownKey;
     const names = LEVEL_NAMES[opt.music === 'blues' ? 'blues' : 'songs'];
-    [...levelSeg.children].forEach((b, i) => { b.title = `Level ${i + 1}: ${names[i]}`; });
+    // Key changes are Solo's (compose): in Echo, 4 is the songbook that 3 is.
+    [...levelSeg.children].forEach((b, i) => {
+      b.title = `Level ${i + 1}: ${play() === 'echo' && i === 3 ? 'Songbook (key changes are Solo only)' : names[i]}`;
+    });
     // Level 1 is one loop and never wanders; level 4 always does. Shown as such rather
     // than hidden: it is still the switch you set for 2 and 3.
     const locked = opt.level === 1 || opt.level === 4;
@@ -1715,10 +1720,20 @@ export function createJam(ctx, { onStart } = {}) {
       h('div.jam__prow', null, h('span.jam__lbl', null, 'Kind'),
         quals.map((q) => chip(q.id === c.quality, () => editSlots('set', editing, { root: c.root, quality: q.id }), q.label))),
       plan ? h('div.jam__prow', null, h('span.jam__lbl', null, `In ${plan.title}`),
-        plan.chords.map((d) => chip(pcOf(d.root) === pcOf(c.root) && d.quality === c.quality,
+        quickRow(plan).map((d) => chip(pcOf(d.root) === pcOf(c.root) && d.quality === c.quality,
           () => editSlots('set', editing, { root: d.root, quality: d.quality }), h('b', null, pretty(d.symbol)),
           h('small', null, d.roman)))) : null,
       h('div.jam__prow', null, h('button.btn', { onclick: () => { editing = -1; paintMine(); } }, 'Done')));
+  }
+
+  /* The key's own chords, one click each. In a minor key, after v, the V and V7 of
+     harmonic minor: the dominant minor songs actually use, and the one the Minor band
+     itself plays (harmony.js PALETTE). It is judged in the key, not out of it. */
+  function quickRow(p) {
+    if (modeOf(p) !== 'minor') return p.chords;
+    return p.chords.flatMap((d, i) => (i !== 4 ? [d] : [d,
+      { ...d, quality: '', symbol: d.root, roman: 'V' },
+      { ...d, quality: '7', symbol: `${d.root}7`, roman: 'V7' }]));
   }
 
   /* Change the loop: set one slot, add one (the key's I, open to change), or remove one.
