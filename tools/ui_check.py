@@ -718,6 +718,80 @@ JAM_BOX = """(pane) => {
 JAM_SPAN = """async (n) => { const col = document.querySelector('[data-panel]:has(> .mod > .jam)');
   col.style.gridColumn = n ? `span ${n}` : ''; await new Promise((r) => setTimeout(r, 400));
   const m = col.querySelector('.mod').getBoundingClientRect(); return [Math.round(m.width), Math.round(m.height)]; }"""
+# Jam's panel as it stands: what sticks out of its box (the resize audit's rule: wider
+# than its box, or past the panel's sides), what of the quarter's keep-list shows, what
+# the fold hides, and where the stage's three parts sit.
+JAM_LOOK = """() => {
+  const col = document.querySelector('#stage [data-panel]:has(> .mod > .jam)'), mod = col.firstElementChild;
+  const mr = mod.getBoundingClientRect();
+  const scrolls = (n) => ['auto', 'scroll'].includes(getComputedStyle(n).overflowX);
+  const name = (n) => n.tagName.toLowerCase() + [...n.classList].slice(0, 2).map((c) => '.' + c).join('');
+  const inScroller = (n) => { for (let p = n.parentElement; p && p !== mod; p = p.parentElement) if (scrolls(p)) return true; return false; };
+  const over = [];
+  for (const n of [mod, ...mod.querySelectorAll('*')]) {
+    // A key select under its short name draws none of its own text (JAM_SELECTS checks it).
+    if (n.closest('[popover]') || n instanceof SVGElement || inScroller(n) || n.matches('.is-short > select')) continue;
+    const r = n.getBoundingClientRect();
+    if (!r.width || !r.height || getComputedStyle(n).visibility === 'hidden') continue;
+    if (!scrolls(n) && n.clientWidth && n.scrollWidth > n.clientWidth + 1) over.push(`${name(n)} holds ${n.scrollWidth}px in ${n.clientWidth}px`);
+    else if (r.right > mr.right + 1.5 || r.left < mr.left - 1.5) over.push(`${name(n)} ${Math.round(Math.max(r.right - mr.right, mr.left - r.left))}px past`);
+  }
+  const shows = (s) => { const e = mod.querySelector(s); return !!e && e.getClientRects().length > 0; };
+  const box = (s) => { const r = mod.querySelector(s).getBoundingClientRect(); return [r.left, r.right]; };
+  return { w: Math.round(mr.width), over: [...new Set(over)],
+    keep: ['.jam__go', '.jam__card--now .jam__sym', '.strip', '.jam__group--music .jam__opt:first-child .seg',
+           '.jam__opt--key select', '.jam__opt--pin .seg'].filter((s) => !shows(s)),
+    folded: ['.jam__group--you', '.jam__opt--level', '.jam__group--band .jam__gbody > .jam__opt'].filter(shows),
+    fold: shows('.jam__fold'),
+    stage: box('.jam__stage'), now: box('.jam__card--now .jam__sym'), strip: box('.jam__stage .strip'),
+    next: box('.jam__card--next') };
+}"""
+# Jam's selects against the text they show. A select never reports text it cuts off
+# (its scrollWidth is its clientWidth), so the text is measured: the selected option's
+# name plus the select's padding and borders against its width -- or, where the key's
+# short name is drawn over it (.jam__keybox.is-short), that name against the room the
+# overlay has, with the select's own text not drawn.
+JAM_SELECTS = """(sel) => {
+  const root = document.querySelector(sel), cv = document.createElement('canvas').getContext('2d');
+  const px = (v) => parseFloat(v) || 0;
+  const width = (t, cs) => { cv.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`; return cv.measureText(t).width; };
+  return [...root.querySelectorAll('.jam select.jam__select')].filter((s) => s.getClientRects().length).flatMap((s) => {
+    const cs = getComputedStyle(s), box = s.parentElement;
+    const past = s.getBoundingClientRect().right - s.closest('.mod').getBoundingClientRect().right;
+    if (past > 1) return [`'${s.options[s.selectedIndex]?.text}' ${past.toFixed(0)}px past its panel`];
+    if (box.classList.contains('is-short')) {
+      const a = getComputedStyle(box, '::after'), t = box.dataset.short;
+      const have = box.getBoundingClientRect().width - px(a.left) - px(a.right), need = width(t, a);
+      return [...(cs.color === 'rgba(0, 0, 0, 0)' ? [] : [`'${t}' drawn over the select's own text`]),
+              ...(need > have + 1 ? [`'${t}' needs ${need.toFixed(0)}px in ${have.toFixed(0)}px`] : [])];
+    }
+    const t = s.options[s.selectedIndex]?.text ?? '';
+    const need = width(t, cs) + px(cs.paddingLeft) + px(cs.paddingRight) + px(cs.borderLeftWidth) + px(cs.borderRightWidth);
+    const have = s.getBoundingClientRect().width;
+    return need > have + 1.5 ? [`'${t}' needs ${need.toFixed(0)}px in ${have.toFixed(0)}px`] : [];
+  });
+}"""
+# The key change coming, shown and hidden in one go (what jam.js paintNote does a few
+# bars before a change): the panel's height either way.
+JAM_NOTE = """() => {
+  const mod = document.querySelector('#stage .mod:has(> .jam)'), n = mod.querySelector('.jam__note');
+  const keep = [...n.childNodes], cls = n.className, hgt = () => Math.round(mod.getBoundingClientRect().height * 2) / 2;
+  n.className = 'jam__note'; n.textContent = 'F\u266f major';
+  const off = hgt();
+  n.className = 'jam__note is-next'; n.replaceChildren('Next: D\u266d major', Object.assign(document.createElement('span'),
+    { className: 'jam__note-pin', textContent: ' \u00b7 D\u266d major pentatonic' }));
+  const on = hgt();
+  n.className = cls; n.replaceChildren(...keep);
+  return [off, on];
+}"""
+# The wide stage with the band stopped: what its right-hand column draws.
+JAM_IDLE = """() => {
+  const mod = document.querySelector('#stage .mod:has(> .jam)'), st = mod.querySelector('.jam__stage');
+  const drawn = (n) => n.getClientRects().length > 0 && getComputedStyle(n).visibility !== 'hidden';
+  return { rule: getComputedStyle(st, '::before').content !== 'none',
+           next: drawn(mod.querySelector('.jam__card--next')), note: drawn(mod.querySelector('.jam__note'))
+             && !mod.querySelector('.jam__note').textContent.trim() };
+}"""
 
 
 def jam_fit_checks(browser, port: int, errs: list[str]) -> list[str]:
@@ -740,15 +814,52 @@ def jam_fit_checks(browser, port: int, errs: list[str]) -> list[str]:
     for w, h in JAM_FIT_SIZES:
         page.set_viewport_size({"width": w, "height": h})
         page.goto(f"{base}/#practice", wait_until="networkidle")
+        page.reload(wait_until="networkidle")       # the settings as posted, whatever came before
         page.wait_for_timeout(2200)
+        # Stopped, the first view of the tab: nothing under an empty Next -- no lone rule.
+        page.evaluate(JAM_SPAN, 12)
+        i = page.evaluate(JAM_IDLE)
+        check(f"Practice at {w}x{h}, whole width, the band stopped: the right-hand column draws nothing empty",
+              not any(i.values()), str(i))
+        page.evaluate(JAM_SPAN, 0)
         page.click(".mod:has(> .jam) .jam__go")
         page.wait_for_timeout(2600)
         b = page.evaluate(JAM_BOX, False)
         check(f"Practice at {w}x{h}: the whole of Jam is on screen, the band playing",
               b["scrolled"] == 0 and b["top"] >= b["boxTop"] and b["bottom"] <= b["boxBottom"], str(b))
+        # Whole width: the stage in three -- Now against the left, the strip centred, Next
+        # against the right -- not the chord at one edge and the strip at the other.
+        page.evaluate(JAM_SPAN, 12)
+        page.wait_for_function("document.querySelector('.jam__sym--next').textContent !== ''", timeout=8000)
+        a = page.evaluate(JAM_LOOK)
+        (sl, sr), mid = a["stage"], (a["strip"][0] + a["strip"][1]) / 2
+        check(f"...whole width ({a['w']}px): Now on the left, the strip centred, Next on the right",
+              abs(mid - (sl + sr) / 2) <= 0.02 * (sr - sl) and a["now"][0] - sl <= 40 and sr - a["next"][1] <= 40
+              and a["now"][1] < a["strip"][0] and a["next"][0] > a["strip"][1]
+              and a["strip"][1] - a["strip"][0] >= 0.3 * (sr - sl),
+              f"stage {sl:.0f}-{sr:.0f}, now {a['now'][0]:.0f}-{a['now'][1]:.0f}, "
+              f"strip {a['strip'][0]:.0f}-{a['strip'][1]:.0f}, next {a['next'][0]:.0f}-{a['next'][1]:.0f}")
+        n = page.evaluate(JAM_NOTE)
+        check("...the key change coming leaves the whole-width stage its height", n[0] == n[1], f"{n[0]} -> {n[1]}px")
+        # A quarter: it works, and folds. Start, the chord, the strip and Music, Key and
+        # Scale show; Level, the You row and the band are behind the one line, which opens
+        # them; nothing sticks out either way, and the key select shows its whole text.
+        page.evaluate(JAM_SPAN, 3)
+        a = page.evaluate(JAM_LOOK)
+        clip = page.evaluate(JAM_SELECTS, "#stage")
+        check(f"...a quarter ({a['w']}px): Start, Now, the strip, Music, Key and Scale, nothing sticking out",
+              not a["keep"] and not a["over"] and not clip, f"missing {a['keep']}; {'; '.join(a['over'] + clip)}")
+        check("...the level, You and the band folded behind one line", not a["folded"] and a["fold"],
+              f"showing {a['folded']}, fold line {a['fold']}")
+        page.click(".mod:has(> .jam) .jam__fold")
+        page.wait_for_timeout(300)
+        a = page.evaluate(JAM_LOOK)
+        page.click(".mod:has(> .jam) .jam__fold")
+        check("...and the line opens them, still inside the panel", len(a["folded"]) == 3 and not a["over"],
+              f"showing {a['folded']}; {'; '.join(a['over'])}")
         page.click(".mod:has(> .jam) .jam__go")
         page.wait_for_timeout(500)
-        heights = [tuple(page.evaluate(JAM_SPAN, n)) for n in (12, 8, 6, 4)]
+        heights = [tuple(page.evaluate(JAM_SPAN, n)) for n in (12, 6, 3)]
         page.evaluate(JAM_SPAN, 0)
         for n in (1, 2, 3):
             page.evaluate(f"location.hash = 'page/jamfit{n}'")
@@ -763,11 +874,53 @@ def jam_fit_checks(browser, port: int, errs: list[str]) -> list[str]:
                 page.wait_for_timeout(500)
             b = page.evaluate(JAM_BOX, True)
             heights.append((b["w"], b["h"]))
+            clip = page.evaluate(JAM_SELECTS, ".page__pane[data-view='practice']")
+            check(f"...a {n}-column page pane ({b['w']}px): the key select shows its whole text", not clip, "; ".join(clip))
         heights.sort(key=lambda x: -x[0])
         grew = [f"{a[0]}px {a[1]} -> {c[0]}px {c[1]}" for a, c in zip(heights, heights[1:])
                 if c[0] < a[0] - 8 and c[1] > a[1] * JAM_FOLD]
         check(f"...narrower folds Jam, it never grows it past {JAM_FOLD:.2f}x ({w}x{h})", not grew,
               "; ".join(grew) or " ".join(f"{x}:{y}" for x, y in heights))
+        # Level 4 in F♯ major, the band playing: the longest key name, and every key of the
+        # strip, black ones too, wearing its "both" badge (as a key both chords keep does
+        # just before a change), at each span; and at a quarter the key change coming keeps
+        # Jam's height, as it does whole width.
+        page.request.post(f"{base}/api/settings", data={"ui": {"jam": {"level": 4, "key": "F#-major", "pin": "key"}}})
+        page.goto(f"{base}/#practice", wait_until="networkidle")
+        page.reload(wait_until="networkidle")   # a hash-only goto would keep the old settings
+        page.wait_for_timeout(2200)
+        page.click(".mod:has(> .jam) .jam__go")
+        page.wait_for_timeout(2600)
+        for n in (12, 6, 3):
+            page.evaluate(JAM_SPAN, n)
+            a = page.evaluate("() => { const keys = document.querySelectorAll('#stage .strip__key:not(.is-keep)');"
+                              " keys.forEach((k) => k.classList.add('is-keep')); const a = (" + JAM_LOOK + ")();"
+                              " keys.forEach((k) => k.classList.remove('is-keep')); return a; }")
+            clip = page.evaluate(JAM_SELECTS, "#stage")
+            check(f"...level 4 in F♯ major at span {n} ({a['w']}px): nothing sticking out, the key's name whole",
+                  not a["over"] and not clip, "; ".join(a["over"] + clip))
+        n = page.evaluate(JAM_NOTE)
+        check("...and at a quarter the key change coming leaves Jam its height", n[0] == n[1], f"{n[0]} -> {n[1]}px")
+        page.click(".mod:has(> .jam) .jam__go")
+        page.evaluate(JAM_SPAN, 0)
+        page.evaluate("location.hash = 'page/jamfit3'")
+        page.wait_for_timeout(2400)
+        clip = page.evaluate(JAM_SELECTS, ".page__pane[data-view='practice']")
+        check(f"...and in a 3-column page pane ({page.evaluate(JAM_BOX, True)['w']}px)", not clip, "; ".join(clip))
+        # Blues: a chip a chord of the twelve bars in the phrase, drawn while the band
+        # plays. A quarter must not be taller than the half it folds from.
+        page.request.post(f"{base}/api/settings", data={"ui": {"jam": {"music": "blues", "level": 3, "key": "C-major"}}})
+        page.goto(f"{base}/#practice", wait_until="networkidle")
+        page.reload(wait_until="networkidle")   # a hash-only goto would keep the old settings
+        page.wait_for_timeout(2200)
+        page.click(".mod:has(> .jam) .jam__go")
+        page.wait_for_function("document.querySelectorAll('.jam__phrase .jam__chip').length >= 10", timeout=8000)
+        half, quarter = (tuple(page.evaluate(JAM_SPAN, n)) for n in (6, 3))
+        check(f"...Blues, the band playing: a quarter ({quarter[0]}px) is no taller than the half ({half[0]}px)",
+              quarter[1] <= half[1] + 2, f"{half[1]} -> {quarter[1]}px")
+        page.click(".mod:has(> .jam) .jam__go")
+        page.evaluate(JAM_SPAN, 0)
+        page.request.post(f"{base}/api/settings", data={"ui": {"jam": {"music": "pop", "level": 2, "pin": "off"}}})
     page.request.post(f"{base}/api/settings", data={"ui": {"pages": []}})
     page.close()
     return fails

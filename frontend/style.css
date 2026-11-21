@@ -2958,8 +2958,9 @@ body.has-update #gear::after { top: 2px; right: 1px; }
 /* ── Jam ────────────────────────────────────────────────────────────────────
    The band plays, you solo. One panel that fits a screen and a pane: the options are
    a console (a group a row, a hairline between, the group's name down the left), the
-   stage is one box -- the chord, what comes next and the coach on the left, the beat
-   and the one-octave strip on the right -- and the band's console sits under it.
+   stage is one box -- whole-width, the chord and the coach left, the beat and the
+   one-octave strip centred, Next right; narrower, the strip moves to the right and Next
+   under the chord; at a quarter, one column -- and the band's console sits under it.
    Sizes come from the panel's density tokens (--ctl-h and friends, set per width);
    Jam caps them at its own compact sizes, so a roomier tier never pushes the console's
    Music row onto two lines, and it is dense with or without them. */
@@ -3014,8 +3015,19 @@ body:not(.is-focusing) .jam__opts, .jam__more {
 .jam__lbl { font-size: var(--jam-lfs); font-weight: 500; color: var(--ink-faint); white-space: nowrap; }
 /* The Music group's own name says what its first row is. */
 body:not(.is-focusing) .jam__group--music .jam__gbody > .jam__opt:first-child > .jam__lbl { display: none; }
-/* As wide as the key's whole name, never cut off mid-word. */
+/* As wide as the key's whole name, never cut off mid-word: where the whole name cannot
+   fit, jam.js fitKey marks the box is-short and the key's short name is drawn over the
+   select, at the select's own text inset (the list and the tooltip keep the long one). */
 .jam__select { min-width: 120px; max-width: 100%; width: auto; field-sizing: content; }
+/* The box shrinks as the select did on its own (to 120px), so a long name is clamped
+   to the row, never pushed past it. */
+.jam__keybox { position: relative; display: flex; min-width: 120px; max-width: 100%; }
+.jam__keybox.is-short > .jam__select { color: transparent; }
+.jam__keybox.is-short::after {
+  content: attr(data-short); position: absolute; top: 0; bottom: 0; left: calc(var(--jam-pad) + 1px); right: 27px;
+  display: flex; align-items: center; pointer-events: none;
+  font-size: var(--jam-fs); color: var(--ink); white-space: nowrap; overflow: hidden;
+}
 .jam__select--sound { width: 112px; }
 /* Every control on the console one height: the shared ones, sized down to the row. */
 .jam :is(.jam__opts, .jam__more) .seg { padding: 2px; border-radius: 7px; gap: 1px; }
@@ -3339,6 +3351,46 @@ body.is-focusing .jam__go { min-width: 170px; }
    stretches it: the console keeps its rows, the stage keeps its two sides down to the
    compact tier, and what goes first is secondary text (the blurb, the slot count, the
    Start button's long name). */
+/* Wide: the stage in three, the way focus has it. Now on the left with the coach under
+   it, the beat and the strip centred, Next on the right with the key change coming and
+   what was heard under it. Two sides left a whole-tab Jam with the chord against one
+   edge, the strip against the other and an empty middle. Now's card dissolves too, so
+   its key-change line can sit with Next; when that line is only the pinned scale's
+   name, the strip already prints it under itself, so here it goes. The key change and
+   the heard line share one cell beside the strip, which is always the taller, so the
+   change coming moves the heard line down and never makes the stage taller. */
+@container panel (min-width: 900px) {
+  body:not(.is-focusing) .jam__stage {
+    --strip-h: clamp(108px, 9cqi, 132px);
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 1.6fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas: "now beats next" "coach strip side";
+    gap: 6px 32px; padding: 10px 18px 10px 18px;
+  }
+  body:not(.is-focusing) .jam__stage .strip { justify-self: center; max-width: 500px; }
+  body:not(.is-focusing) .jam__card--now { display: contents; }
+  body:not(.is-focusing) .jam__card--now > .jam__line { grid-area: now; align-self: center; }
+  body:not(.is-focusing) .jam__beats { align-self: end; padding-bottom: 2px; }
+  /* Next answers Now from across the strip: a chord you can read, not a chip. */
+  body:not(.is-focusing) .jam__card--next {
+    grid-area: next; justify-self: end; align-self: center; gap: 10px;
+    padding: 0; min-height: 0; background: none; border: 0; border-radius: 0;
+  }
+  body:not(.is-focusing) .jam__sym--next { font-size: clamp(26px, 2.4cqi, 34px); color: var(--ink-dim); }
+  body:not(.is-focusing) .jam__card--next .jam__pill { padding: 2px 9px; font-size: 11.5px; }
+  body:not(.is-focusing) .jam__card--next .jam__count { font-size: 13px; }
+  body:not(.is-focusing) .jam__note {
+    grid-area: side; justify-self: end; align-self: start; max-width: 100%; padding-top: 7px; line-height: 16px;
+    text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  body:not(.is-focusing) .jam__note:not(.is-next) { display: none; }
+  body:not(.is-focusing) .jam__coach { align-self: start; }
+  body:not(.is-focusing) .jam__heard { grid-area: side; justify-self: end; text-align: right; align-self: start; padding-top: 7px; }
+  body:not(.is-focusing) .jam__stage:has(.jam__note.is-next) .jam__heard { padding-top: 29px; }
+  /* The coach's hairline, mirrored under Next -- while there is something under it. */
+  body:not(.is-focusing) .jam__stage:has(.jam__sym--next:not(:empty), .jam__note.is-next, .jam__heard:not(:empty))::before {
+    content: ''; grid-area: side; align-self: start; border-top: 1px solid var(--hairline);
+  }}
 /* Folding, not growing: where the band's settings would take a third row, they go
    behind their one-line summary (Pop · 96 bpm · 70%), one click from open. */
 @container panel (max-width: 960px) {
@@ -3378,8 +3430,9 @@ body.is-focusing .jam__go { min-width: 170px; }
     transform: rotate(180deg); justify-content: center; }
   body:not(.is-focusing) .jam__gbody { gap: 4px 10px; }
   .jam .seg { flex-wrap: wrap; }
-  .jam__select { width: 100%; min-width: 0; field-sizing: fixed; font-size: 11px; padding-left: 6px; padding-right: 18px; }
-  .jam__opt:has(> .jam__select) { flex: 1 1 100%; }   /* a key's whole name: narrower, a select holds more than it shows */
+  .jam__select { width: 100%; min-width: 0; field-sizing: fixed; }
+  .jam__opt:has(> .jam__select), .jam__opt--key { flex: 1 1 100%; }
+  .jam__keybox { flex: 1 1 auto; min-width: 0; }
   body:not(.is-focusing) .jam__why { display: none; }    /* the why is the coach's aside; the what stays */
   body:not(.is-focusing) .jam__coach { min-height: 0; }
   body:not(.is-focusing) .jam__heard { min-height: 0; }
@@ -3397,6 +3450,85 @@ body.is-focusing .jam__go { min-width: 170px; }
   body:not(.is-focusing) .jam__card--next { justify-self: end; }
   body:not(.is-focusing) .jam__card--next > .jam__lbl { display: none; }
   body:not(.is-focusing) .jam__card--now .jam__sym { font-size: 32px; min-height: 32px; }
+}
+/* Quarter: a quarter of a tab is 255px at 1280. Start, the chord, the strip, and Music,
+   Key and Scale stay; the level, the You row and the band fold behind the one line
+   (More · Pop · 96 bpm), whose BAND name goes while it speaks for all three. Next is its
+   chord and its count, the role pill being Now's; the key and room selects need no "Key"
+   or "Room" beside names that say "major" or "Dorian" (both keep it as their aria-label);
+   the pinned scale's name is the strip's own caption. The phrase's chips stay on one
+   line that scrolls (a twelve-bar blues would take three rows), and where the key can
+   change (data-wander) the change coming has its line kept, so it never jumps. */
+@container panel (max-width: 380px) {
+  body:not(.is-focusing) .jam:not(.is-band-open) :is(.jam__group--you, .jam__opt--level) { display: none; }
+  body:not(.is-focusing) .jam:not(.is-band-open) .jam__group--band > .jam__gname { visibility: hidden; }
+  .jam__fold::before { content: 'More ·'; color: var(--ink-faint); margin-right: -4px; }
+  .jam__fold-vol { display: none; }
+  body:not(.is-focusing) :is(.jam__opt--key, .jam__opt--room) > .jam__lbl { display: none; }
+  body:not(.is-focusing) .jam__stage { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; }
+  body:not(.is-focusing) .jam__card--now { column-gap: 8px; }
+  body:not(.is-focusing) .jam__line { gap: 4px 8px; }
+  body:not(.is-focusing) .jam__card--next { align-self: start; margin-top: 4px; padding: 1px 9px; gap: 6px; min-height: 24px; }
+  body:not(.is-focusing) .jam__card--next .jam__role { display: none; }
+  body:not(.is-focusing) .jam__sym--next { font-size: 15px; }
+  body:not(.is-focusing) .jam__note {
+    flex-basis: 100%; min-width: 0; line-height: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  body:not(.is-focusing) .jam__note:not(.is-next) { display: none; }
+  body:not(.is-focusing) .jam[data-wander] .jam__note:not(.is-next) { display: block; visibility: hidden; }
+  .jam__note-pin { display: none; }
+  body:not(.is-focusing) .jam__phrase {
+    position: relative; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; white-space: nowrap;
+  }
+  body:not(.is-focusing) .jam__chip { flex: none; }
+  body:not(.is-focusing) .jam__try { font-size: 13px; }
+  body:not(.is-focusing) .jam__try b { font-size: 15px; }
+}
+/* A quarter of a 1280 tab: a seg that wraps fills its rows edge to edge, a block of
+   buttons rather than a row with one left over, and Scale's name goes over its four. */
+@container panel (max-width: 300px) {
+  body:not(.is-focusing) :is(.jam__opts, .jam__more) .jam__opt { flex: 1 1 100%; }
+  body:not(.is-focusing) :is(.jam__opts, .jam__more) .seg { flex: 1 1 auto; }
+  body:not(.is-focusing) :is(.jam__opts, .jam__more) .seg__btn { flex: 1 1 auto; }
+  body:not(.is-focusing) .jam__opt--pin { flex-wrap: wrap; row-gap: 2px; }
+  body:not(.is-focusing) .jam__opt--pin > .jam__lbl { flex-basis: 100%; }
+  body:not(.is-focusing) .jam { --jam-pad: 5px; }
+}
+/* Compact's one change from 0.15: Next's chip outgrew its column there. Measured with
+   the longest chip ("NEXT F♯m7 vii° · Pull in 16"): it holds 193px in 163-190px from
+   430 to 490px, so its NEXT label goes up to 500px (the chord's place says next), and
+   in 390-420px, where it is still too wide without it, the role pill goes too (Now's
+   pill says the role of where you are; Next keeps its chord and count). */
+@container panel (max-width: 500px) {
+  body:not(.is-focusing) .jam__card--next > .jam__lbl { display: none; }
+}
+@container panel (max-width: 420px) {
+  body:not(.is-focusing) .jam__card--next .jam__role { display: none; }
+}
+
+/* The strip by its own width, wherever it is: the "both" badge is a dot where it would
+   be wider than its key (the outline and the pulsing key still say where to go; the dot
+   says the note is shared) -- on a black key, 9% of the strip, under a 400px strip; on
+   a white key, a seventh, it steps down under 270px and is a dot under 214px. In a
+   quarter only (a compact panel's strip is as narrow, and looks as 0.15 did), the names
+   step down under 240px too. */
+.jam .strip { container: strip / inline-size; }
+@container strip (max-width: 400px) {
+  .strip__key--black .strip__both { width: 8px; height: 8px; padding: 0; font-size: 0; }
+}
+@container strip (max-width: 270px) {
+  .strip__both { padding: 0 3px; font-size: 8.5px; }
+}
+@container panel (max-width: 380px) {
+  @container strip (max-width: 240px) {
+    .strip__name { font-size: 11px; }
+    .strip__key--black .strip__name { font-size: 9px; }
+    .strip__role { font-size: 8.5px; }
+    .strip__key:not(.strip__key--black) .strip__both { bottom: 34px; }
+  }
+}
+@container strip (max-width: 214px) {
+  .strip__key:not(.strip__key--black) .strip__both { width: 8px; height: 8px; padding: 0; font-size: 0; bottom: 34px; }
 }
 
 /* -- focus: one practice mode, the keys, and nothing else ------------------ */
