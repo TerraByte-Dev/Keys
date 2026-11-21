@@ -31,9 +31,9 @@ const VIEW_TITLES = { play: 'Play', practice: 'Practice', layers: 'Layers', tool
    ui_check measures every one in the real DOM, so a panel that grows cannot leave its
    number behind. The shelf has none -- it is a grid of cards that reflows to any width. */
 export const PANELS = [
-  { view: 'play', slug: 'instruments', title: 'Instruments', min: 230 },
-  { view: 'play', slug: 'effects', title: 'Effects', min: 210 },
-  { view: 'play', slug: 'scale-highlighter', title: 'Scale highlighter', min: 250 },
+  { view: 'play', slug: 'instruments', title: 'Instruments', min: 210 },
+  { view: 'play', slug: 'effects', title: 'Effects', min: 170 },
+  { view: 'play', slug: 'scale-highlighter', title: 'Scale highlighter', min: 230 },
   { view: 'play', slug: 'tempo', title: 'Tempo (metronome)', min: 160 },
   { view: 'play', slug: 'meter', title: 'Meter', min: 150 },
   { view: 'play', slug: 'tempo-ramp', title: 'Tempo ramp', min: 220 },
@@ -41,16 +41,16 @@ export const PANELS = [
   { view: 'play', slug: 'loop-station', title: 'Loop station', min: 220 },
   { view: 'practice', slug: 'jam', title: 'Jam', min: 240 },
   { view: 'practice', slug: 'songs', title: 'Songs', min: 180 },
-  { view: 'practice', slug: 'exercises', title: 'Exercises' },
-  { view: 'practice', slug: 'now', title: 'Now', min: 150 },
+  { view: 'practice', slug: 'exercises', title: 'Exercises', min: 160 },
+  { view: 'practice', slug: 'now', title: 'Now', min: 130 },
   { view: 'practice', slug: 'timing', title: 'Timing', min: 180 },
   { view: 'layers', slug: 'layout', title: 'Layout', min: 160 },
-  { view: 'layers', slug: 'build-one', title: 'Build one', min: 280 },
+  { view: 'layers', slug: 'build-one', title: 'Build one', min: 220 },
   { view: 'layers', slug: 'zone-editor', title: 'Zone editor', min: 190 },
-  { view: 'tools', slug: 'touch-response', title: 'Touch response', min: 220 },
-  { view: 'tools', slug: 'pedal', title: 'Pedal', min: 240 },
-  { view: 'tools', slug: 'chords-scales', title: 'Chords & scales', min: 220 },
-  { view: 'tools', slug: 'chords-in-this-key', title: 'Chords in this key', min: 230 },
+  { view: 'tools', slug: 'touch-response', title: 'Touch response', min: 200 },
+  { view: 'tools', slug: 'pedal', title: 'Pedal', min: 280 },
+  { view: 'tools', slug: 'chords-scales', title: 'Chords & scales', min: 200 },
+  { view: 'tools', slug: 'chords-in-this-key', title: 'Chords in this key', min: 210 },
   { view: 'tools', slug: 'backing-tracks', title: 'Backing tracks', min: 260 },
 ];
 

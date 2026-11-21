@@ -139,6 +139,19 @@
   --zone-4: #c98bdb;
   --zone-5: #ff8f6b;
   --zone-6: #8fa5ff;
+
+  /* Density. Every shared control is drawn from these, and a managed panel resets
+     them by its own width (the tiers under "inside a managed panel"): full over 560px,
+     compact 380-560, mini under 380. A narrower panel FOLDS -- the same controls,
+     smaller and closer -- rather than stacking the same big boxes taller. Jam reads the
+     first five. These are the full tier, and what anything outside a panel gets. */
+  --ctl-h: 30px;       /* a button, a select, a seg row */
+  --ctl-fs: 13px;
+  --ctl-pad: 12px;     /* a control's own side padding */
+  --gap: 12px;         /* between controls, and under a field */
+  --label-fs: 12px;
+  --mod-pad: 14px;     /* a panel's own padding */
+  --mod-title-fs: 14.5px;
 }
 
 /* ── themes ─────────────────────────────────────────────────────────────────
@@ -950,6 +963,22 @@ body::after {
 /* Each panel is a size container, so what is in it answers to the panel's width and
    not the window's: the same panel is a third of a 1600px tab or the whole of a pane. */
 .grid--packed > [data-panel] { container: panel / inline-size; }
+/* The density tiers (tokens above). On the .mod, not the panel: a container cannot
+   query itself. */
+@container panel (max-width: 560px) {
+  .mod { --ctl-h: 26px; --ctl-fs: 12.5px; --ctl-pad: 9px; --gap: 9px; --label-fs: 11.5px;
+         --mod-pad: 11px; --mod-title-fs: 13.5px; }
+}
+@container panel (max-width: 380px) {
+  .mod { --ctl-h: 24px; --ctl-fs: 12px; --ctl-pad: 8px; --gap: 7px; --label-fs: 11px;
+         --mod-pad: 10px; --mod-title-fs: 13px; }
+}
+/* A long label has a short one (data-short) for the narrow tiers. */
+.short-label { display: none; }
+@container panel (max-width: 560px) {
+  [data-short] > .long-label { display: none; }
+  [data-short] > .short-label { display: inline; }
+}
 /* layout.js pack(): a card drawn down to meet the panel below it, so no hole is left
    above a panel that spans two columns of different heights. Added under the content,
    not set as a min-height: a min-height swallowed the content growing or shrinking
@@ -990,26 +1019,103 @@ body::after {
   .calx__fit > * { min-width: 360px; }
   #shelf-inst > div:first-child { flex-wrap: wrap; }
   .zone__head { flex-wrap: wrap; }
-  .zone__grid { grid-template-columns: minmax(0, 1fr); }
   /* A song's title on its own line, its tags and Roll / Sheet under it. */
   #lib-list > .list__row { flex-wrap: wrap; }
   #lib-list > .list__row > span:first-child { flex-basis: 100%; }
 }
-/* Audio output's device / mode / period row is 2fr 1fr 1fr inline: under 760px the
-   mode's "Exclusive (lowest latency)" was cut off, so the device takes its own line. */
-@container panel (max-width: 760px) {
-  .mod > div:has(> .field > #audio-excl) { grid-template-columns: 1fr 1fr !important; }
-  .mod > div > .field:has(> #audio-device) { grid-column: 1 / -1; }
-}
-@container panel (max-width: 440px) {
-  .mod > div:has(> .field > #audio-excl) { grid-template-columns: minmax(0, 1fr) !important; }
-}
-/* A wide panel: consecutive fields side by side rather than three 1300px sliders. */
-@container panel (min-width: 760px) {
+/* Audio output's device / mode / period row: one row (the field rows under "folding"),
+   the device its double share. */
+.mod > div > .field:has(> #audio-device) { flex-grow: 2 !important; }
+/* Consecutive fields side by side, three to a row, at every tier a third of a window
+   reaches: a narrower panel keeps the row and shrinks the controls in it (the tiers)
+   instead of stacking three fields three times as tall. */
+@container panel (min-width: 330px) {
   .mod > .field:has(+ .field), .mod > .field + .field {
-    display: inline-flex; vertical-align: top; width: calc((100% - 29px) / 3);
+    display: inline-flex; vertical-align: top; width: calc((100% - 2 * var(--gap) - 1px) / 3);
   }
-  .mod > .field + .field { margin-left: 14px; }
+  .mod > .field + .field { margin-left: var(--gap); }
+}
+
+/* -- folding: what each panel does instead of growing --------------------------
+   The rule (ui_check "folding"): a step narrower never makes a panel more than 15%
+   taller. A row of things keeps being a row -- each item narrower, the controls in
+   it a tier smaller -- and only text that is not a control wraps or goes. */
+/* A row of fields a view laid out itself (Pedal's four, Audio output's three): one row,
+   each field an equal share, at every width a panel reaches. Beats the inline grid. */
+:where(.grid--packed > [data-panel] > .mod) > div:has(> .field + .field) {
+  display: flex !important; flex-wrap: wrap; gap: var(--gap) !important; align-items: flex-start;
+}
+:where(.grid--packed > [data-panel] > .mod) > div:has(> .field + .field) > * {
+  flex: 1 1 calc(var(--ctl-h) * 3); min-width: 0; margin-bottom: 0;
+}
+/* A select is as wide as its longest choice or its text is cut: it takes that much. A
+   dial needs less than a slider. */
+:where(.grid--packed > [data-panel] > .mod) > div:has(> .field + .field) > .field:has(> select) { flex-basis: auto; }
+:where(.grid--packed > [data-panel] > .mod) > div:has(> .field + .field) > .field:has(.knob) { flex-basis: calc(var(--ctl-h) * 2.2); }
+/* A slider squeezed beside a select is a stub with its name wrapped over its value:
+   it takes enough to read, and the row wraps before it gets that thin. */
+@container panel (max-width: 380px) {
+  :where(.grid--packed > [data-panel] > .mod) > div:not(.fxgrid):has(> .field + .field) > .field:has(> input[type=range]) { flex-basis: calc(var(--ctl-h) * 4.2); }
+}
+@container panel (max-width: 560px) {
+  :where(.grid--packed > [data-panel] > .mod) > div:has(> .field + .field) > * { flex-basis: calc(var(--ctl-h) * 2.8); }
+}
+/* Its value goes under its name when the two do not fit side by side. */
+.grid--packed .field__label { flex-wrap: wrap; column-gap: 6px; row-gap: 0; }
+.grid--packed .field__label > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+/* Stat cards: four to a row still in a third of a window; the note under each one
+   stays on one line. */
+.grid--packed .stats { grid-template-columns: repeat(auto-fit, minmax(calc(var(--ctl-h) * 2.9), 1fr)); }
+/* Effects' dials: all five on one row, the dial a tier smaller as the panel narrows. */
+.fxgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(var(--ctl-h) * 2.6), 1fr)); gap: 0 var(--gap); }
+/* A label that wraps to two lines must not drop its dial below its neighbours': every
+   control sits on the row's bottom edge, the labels hang above it. */
+.fxgrid > .field { display: flex; flex-direction: column; justify-content: space-between; }
+.grid--packed .mod > .fxgrid, .grid--packed .mod .fold > .fxgrid { align-items: stretch; }
+/* Chords in this key: the seven on one row at any width; Your keyboard's sizes too. */
+.th__chords { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-columns: none !important; }
+.grid--packed .kbpick__sizes { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-columns: none; }
+/* Chords & scales: the diagram and the ribbon side by side at every width, sharing it. */
+.grid--packed .th__main { flex-wrap: nowrap; gap: var(--gap); }
+.grid--packed .th__board { flex: 1 1 55%; max-width: 430px; min-width: 0; }
+.grid--packed .th__right { flex: 1 1 45%; }
+.grid--packed .th__top { gap: calc(var(--gap) * .7); margin-bottom: var(--gap); }
+.grid--packed .th__roots { flex: 1 1 auto; }
+.grid--packed .th__root { flex: 1 1 0; min-width: 20px; padding: 4px 0; }
+.grid--packed .th__shape { min-width: 0; flex: 1 1 120px; min-height: var(--ctl-h); }
+/* Play's instrument and profile shelves scroll inside themselves: about seven rows, so
+   the two columns of Play end level and Loop station starts with no hole above it. */
+.grid--packed > [data-panel="instruments"] .scroller { max-height: calc(var(--ctl-h) * 6.7); }
+/* The loop station's transport: a well of its own, so its padding is the tier's. */
+.grid--packed .loop__transport { padding: calc(var(--gap) * .8); gap: var(--gap); margin-bottom: calc(var(--gap) * .8); }
+.grid--packed .loop__state { min-width: 0; }
+.grid--packed .loop__setup { gap: var(--gap); }
+.grid--packed .loop__setup .field { min-width: calc(var(--ctl-h) * 2.6); }
+/* The zone editor and the split builder: fields two or more to a row, never one. */
+.grid--packed .zone { padding: calc(var(--gap) * .8); margin-bottom: calc(var(--gap) * .8); }
+.grid--packed .zone__head { margin-bottom: calc(var(--gap) * .8); }
+.grid--packed .zone__grid { grid-template-columns: repeat(auto-fit, minmax(calc(var(--ctl-h) * 3.4), 1fr)); gap: var(--gap); }
+.grid--packed .build .field { gap: 3px; }
+/* Cards in a row (Build one's three, the exercise shelf): narrower cards before fewer. */
+.grid--packed .builds { grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--ctl-h) * 6)), 1fr)); }
+/* An exercise card is a name and Open: one line, not a box with a button under it. */
+#ex-host .build { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+#ex-host .build__title { flex: 1 1 auto; }
+#ex-host .build > .btn:last-child { width: auto; margin: 0; flex: none; }
+#ex-host .build__title { min-width: 0; }
+@container panel (max-width: 380px) {
+  .grid--packed .th__roots { flex-basis: 100%; }
+}
+/* Narrower: Build one's three cards stay one row, its two octave steppers one under
+   the other. */
+@container panel (max-width: 560px) {
+  .grid--packed .builds { grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--ctl-h) * 4.4)), 1fr)); }
+  .grid--packed .split__octs { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}
+@container panel (max-width: 380px) {
+  .kbpick__k { display: none; }
+  .th__chord .th__csym { font-size: 11px; }
+  .th__chord .th__croman { font-size: 12px; }
 }
 
 /* A panel: a dark card on a lighter stage, its name in plain white at the top. */
@@ -1018,15 +1124,15 @@ body::after {
   border: 1px solid var(--hairline);
   border-radius: var(--radius-lg);
   box-shadow: 0 10px 28px var(--shadow-soft);
-  padding: 16px 18px 18px;
+  padding: calc(var(--mod-pad) - 2px) var(--mod-pad) var(--mod-pad);
   min-width: 0;
 }
 .mod__head {
   display: flex; align-items: center; gap: 10px;
-  margin: 0 0 16px;
+  margin: 0 0 var(--gap);
 }
 .mod__title {
-  font-size: 15px; font-weight: 600; letter-spacing: .01em;
+  font-size: var(--mod-title-fs); font-weight: 600; letter-spacing: .01em;
   color: var(--ink); white-space: nowrap;
 }
 .mod__rule { flex: 1; }
@@ -1040,10 +1146,10 @@ body::after {
    hover that shows the arrows also gives them their width. */
 .mod__grip {
   display: flex; gap: 3px; opacity: 0; transition: opacity .14s var(--ease);
-  max-width: 0; margin-left: -10px; overflow: hidden;
+  max-width: 0; margin-left: -10px; overflow: hidden; visibility: hidden;
 }
 .mod:hover .mod__grip, .mod__head:focus-within .mod__grip {
-  opacity: 1; max-width: none; margin-left: 0; overflow: visible;
+  opacity: 1; max-width: none; margin-left: 0; overflow: visible; visibility: visible;
 }
 .mod__btn:disabled { opacity: .35; cursor: default; }
 .mod__btn:disabled:hover { color: var(--ink-dim); border-color: var(--hairline); }
@@ -1192,7 +1298,7 @@ body.is-rearranging { user-select: none; }
   background: var(--panel-3);
   border: 1px solid var(--hairline-hi);
   border-radius: var(--radius);
-  min-height: 34px; padding: 6px 14px;
+  min-height: var(--ctl-h); padding: 3px var(--ctl-pad); font-size: var(--ctl-fs);
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   cursor: pointer;
   transition: background .14s var(--ease), border-color .14s var(--ease), transform .06s var(--ease);
@@ -1210,22 +1316,22 @@ body.is-rearranging { user-select: none; }
 .btn--panic { color: var(--red-ink); background: var(--red-fill); border-color: var(--red-deep); font-weight: 600; }
 .btn--panic:hover { color: var(--gloss-hard); border-color: var(--red); background: var(--red-deep); }
 .btn--wide { width: 100%; }
-.btn--lg { font-size: 14px; min-height: 42px; padding: 9px 22px; border-radius: 10px; }
+.btn--lg { font-size: calc(var(--ctl-fs) + 1px); min-height: calc(var(--ctl-h) + 6px); padding: 5px calc(var(--ctl-pad) * 1.6); border-radius: 9px; }
 
-.btnrow { display: flex; gap: 8px; flex-wrap: wrap; }
+.btnrow { display: flex; gap: calc(var(--gap) * .6); flex-wrap: wrap; }
 
-.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; min-width: 0; }
+.field { display: flex; flex-direction: column; gap: calc(var(--gap) * .4); margin-bottom: var(--gap); min-width: 0; }
 .field__label {
-  font-size: 12px; font-weight: 500; color: var(--ink-dim);
+  font-size: var(--label-fs); font-weight: 500; color: var(--ink-dim);
   display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
 }
-.field__value { font-family: var(--font-mono); font-size: 12px; color: var(--amber); }
-.field__help { font-size: 12px; line-height: 1.45; color: var(--ink-faint); }
+.field__value { font-family: var(--font-mono); font-size: var(--label-fs); color: var(--amber); }
+.field__help { font-size: var(--label-fs); line-height: 1.4; color: var(--ink-faint); }
 
 /* Exercise setup. The controls are generated from the server's parameter schema, so
    the column count has to survive anything from one toggle to eight fields. */
-.params { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0 14px; }
-.params .toggle { margin-bottom: 12px; }
+.params { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0 var(--gap); }
+.params .toggle { margin-bottom: var(--gap); }
 
 input[type=range] {
   -webkit-appearance: none; appearance: none;
@@ -1251,7 +1357,7 @@ input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px va
    it keeps the keyboard behaviour, and three places in the app reach through a .field
    to it by hand. Explicit height rather than intrinsic SVG sizing, because layout.js
    measures the panel on the frame it is built. */
-.knob { position: relative; display: flex; justify-content: center; height: 52px; }
+.knob { position: relative; display: flex; justify-content: center; height: calc(var(--ctl-h) * 1.74); }   /* 52 at full */
 /* .knob .knob__input, not .knob__input: the bare class is (0,1,0) and loses to
    `input[type=range]` (0,1,1) above, whose height:22px then won. With inset:0 also set,
    the over-constrained box resolved against `bottom` -- so the invisible range sat
@@ -1262,7 +1368,7 @@ input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px va
   position: absolute; inset: 0; width: 100%; height: 100%;
   opacity: 0; margin: 0; cursor: ns-resize;
 }
-.knob__dial { width: 52px; height: 52px; }
+.knob__dial { width: calc(var(--ctl-h) * 1.74); height: calc(var(--ctl-h) * 1.74); }
 .knob__track { fill: var(--panel-2); stroke: var(--panel-4); stroke-width: 5; }
 /* 270 degrees of sweep, opened at the bottom: dasharray is .75 * 2*pi*r (r=18). */
 .knob__arc {
@@ -1274,61 +1380,62 @@ input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px va
 .knob:hover .knob__arc, .knob__input:focus-visible + .knob__dial .knob__arc { stroke: var(--amber-hot); }
 
 select, input[type=text], input[type=number] {
-  font-family: var(--font-panel); font-size: 13px;
+  font-family: var(--font-panel); font-size: var(--ctl-fs);
   color: var(--ink);
   background-color: var(--panel-2);
   border: 1px solid var(--hairline-hi);
   border-radius: var(--radius);
-  min-height: 34px; padding: 6px 10px;
+  min-height: var(--ctl-h); padding: 2px var(--ctl-pad);
   min-width: 0;
   transition: border-color .14s var(--ease);
 }
 select {
   -webkit-appearance: none; appearance: none; cursor: pointer;
-  padding-right: 32px;
+  padding-right: calc(var(--ctl-pad) + 18px);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23948f84' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 11px center;
+  background-repeat: no-repeat; background-position: right calc(var(--ctl-pad) - 1px) center;
 }
 select:hover, input[type=text]:hover, input[type=number]:hover { border-color: var(--control-edge); }
 select:focus, input:focus { outline: none; border-color: var(--amber); box-shadow: 0 0 0 3px var(--amber-wash); }
 select option { background: var(--panel-2); color: var(--ink); }
 
 .toggle {
-  display: flex; align-items: center; gap: 10px; cursor: pointer;
-  font-size: 13px; color: var(--ink); user-select: none;
+  display: flex; align-items: center; gap: calc(var(--gap) * .8); cursor: pointer;
+  font-size: var(--ctl-fs); color: var(--ink); user-select: none;
+  --tg-h: calc(var(--ctl-h) - 8px);
 }
 .toggle input { display: none; }
 .toggle__track {
-  flex: none; width: 38px; height: 22px; border-radius: 11px;
+  flex: none; width: calc(var(--tg-h) * 1.72); height: var(--tg-h); border-radius: 99px;
   background: var(--panel-4);
   position: relative; transition: background .18s var(--ease);
 }
 .toggle__track::after {
   content: ""; position: absolute; top: 3px; left: 3px;
-  width: 16px; height: 16px; border-radius: 50%;
+  width: calc(var(--tg-h) - 6px); height: calc(var(--tg-h) - 6px); border-radius: 50%;
   background: var(--ink); box-shadow: 0 1px 3px var(--shadow);
   transition: transform .18s var(--ease);
 }
 .toggle input:checked + .toggle__track { background: var(--amber); }
-.toggle input:checked + .toggle__track::after { transform: translateX(16px); background: var(--gloss-hard); }
+.toggle input:checked + .toggle__track::after { transform: translateX(calc(var(--tg-h) * .72)); background: var(--gloss-hard); }
 
 /* ── data display ───────────────────────────────────────────────────────── */
 .stat { display: flex; flex-direction: column; gap: 3px; }
 .stat__value {
-  font-family: var(--font-mono); font-size: 26px; font-weight: 600;
+  font-family: var(--font-mono); font-size: calc(var(--ctl-h) * .8); font-weight: 600;
   color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1.1;
 }
 .stat__value--amber { color: var(--amber); }
 .stat__value--cyan { color: var(--cyan); }
-.stat__label { font-size: 12px; font-weight: 500; color: var(--ink-dim); }
-.stat__note { font-size: 12px; color: var(--ink-faint); }
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 16px; }
+.stat__label { font-size: var(--label-fs); font-weight: 500; color: var(--ink-dim); }
+.stat__note { font-size: var(--label-fs); color: var(--ink-faint); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(var(--ctl-h) * 3.4), 1fr)); gap: var(--gap); }
 
 .list { display: flex; flex-direction: column; gap: 2px; }
 .list__row {
   display: flex; align-items: center; gap: 10px;
-  padding: 8px 10px; border-radius: var(--radius);
-  font-size: 13px; color: var(--ink-dim);
+  padding: calc(var(--gap) * .5) calc(var(--ctl-pad) * .8); border-radius: var(--radius);
+  font-size: var(--ctl-fs); color: var(--ink-dim);
   background: transparent;
 }
 .list__row:hover { background: var(--panel-2); color: var(--ink); }
@@ -1353,6 +1460,8 @@ select option { background: var(--panel-2); color: var(--ink); }
   border-left: 3px solid var(--hairline-hi); padding: 2px 0 2px 11px;
 }
 .note strong { color: var(--ink); font-weight: 600; }
+/* A note with nothing to say yet draws nothing -- not a stray stub of its left rule. */
+.note:empty { display: none; }
 .note--warn { border-left-color: var(--amber); }
 .note--warn strong { color: var(--amber); }
 
@@ -1400,11 +1509,11 @@ select option { background: var(--panel-2); color: var(--ink); }
 .tip__pop .note + .note { margin-top: 8px !important; }
 
 .chips--tight { gap: 4px; margin-bottom: 10px; }
-.chips--tight .chip { padding: 4px 10px; font-size: 12px; }
-.empty { color: var(--ink-faint); font-size: 13px; padding: 16px 0; text-align: center; }
+.chips--tight .chip { padding: 2px calc(var(--ctl-pad) * .8); font-size: calc(var(--ctl-fs) - 1px); }
+.empty { color: var(--ink-faint); font-size: var(--ctl-fs); padding: var(--gap) 0; text-align: center; }
 
 /* ── preset / instrument pickers ────────────────────────────────────────── */
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: calc(var(--gap) * .5); }
 /* Groups the shelf: the handful you saved, then the ones that ship. Sorting is by
    file name, so before this a preset you made landed alphabetically in the middle of
    sixty-eight strangers with nothing marking it as yours. Typography lifted from
@@ -1415,12 +1524,12 @@ select option { background: var(--panel-2); color: var(--ink); }
 .chips__head:first-child { margin-top: 0; }
 .chips__sub { font-weight: 400; color: var(--ink-faint); font-size: 12px; margin-left: 8px; }
 .chip {
-  font-family: var(--font-panel); font-size: 13px;
+  font-family: var(--font-panel); font-size: var(--ctl-fs);
   color: var(--ink-dim);
   background: var(--panel-2);
   border: 1px solid var(--hairline);
   border-radius: 999px;
-  padding: 6px 13px; cursor: pointer;
+  min-height: calc(var(--ctl-h) - 2px); padding: 2px var(--ctl-pad); cursor: pointer;
   display: flex; align-items: center; gap: 7px;
   transition: color .14s var(--ease), border-color .14s var(--ease);
 }
@@ -1442,7 +1551,7 @@ select option { background: var(--panel-2); color: var(--ink); }
 /* ── metronome ──────────────────────────────────────────────────────────── */
 .beats { display: flex; gap: 8px; align-items: center; }
 .beat {
-  width: 16px; height: 16px; border-radius: 50%;
+  width: calc(var(--ctl-h) * .5); height: calc(var(--ctl-h) * .5); border-radius: 50%;
   background: var(--panel-0); border: 1px solid var(--hairline);
   transition: background .05s linear, box-shadow .35s var(--ease), border-color .05s linear;
 }
@@ -1450,7 +1559,7 @@ select option { background: var(--panel-2); color: var(--ink); }
 .beat.is-down.is-on { background: var(--amber-hot); box-shadow: 0 0 20px var(--amber-hot); }
 
 .bpm {
-  font-family: var(--font-mono); font-size: 62px; font-weight: 600;
+  font-family: var(--font-mono); font-size: calc(var(--ctl-h) * 1.5); font-weight: 600;   /* 45 at full: a readout, not a poster */
   color: var(--ink); line-height: 1; font-variant-numeric: tabular-nums;
   letter-spacing: -.02em;
 }
@@ -1488,9 +1597,13 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
   background: linear-gradient(90deg, var(--cyan), var(--amber));
   transition: width 90ms var(--ease);
 }
-.touch__marks { display: flex; align-items: flex-end; gap: 2px; height: 62px; }
+/* A baseline and a stub per column, so the meter reads as waiting for you, not as a hole. */
+.touch__marks {
+  display: flex; align-items: flex-end; gap: 2px; height: calc(var(--ctl-h) * 1.6);
+  border-bottom: 1px solid var(--hairline);
+}
 .touch__col {
-  flex: 1; border-radius: 1px 1px 0 0; background: var(--panel-4);
+  flex: 1; min-height: 2px; border-radius: 1px 1px 0 0; background: var(--panel-4);
   transition: height 140ms var(--ease);
 }
 .touch__col.is-hot { background: linear-gradient(180deg, var(--amber), var(--amber-deep)); }
@@ -1680,17 +1793,17 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
 @keyframes toast-in { from { opacity: 0; transform: translateX(14px); } }
 
 /* ── quick builders (Layers) ────────────────────────────────────────────── */
-.builds { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.builds { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--gap); }
 .build {
-  display: flex; flex-direction: column; gap: 8px;
-  padding: 12px 13px 13px;
+  display: flex; flex-direction: column; gap: calc(var(--gap) * .6);
+  padding: calc(var(--gap) * .8);
   background: var(--wash);
   border: 1px solid var(--hairline);
   border-radius: var(--radius);
 }
 .build__title {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  font-size: 14px; font-weight: 600; color: var(--ink);
+  font-size: var(--ctl-fs); font-weight: 600; color: var(--ink);
 }
 /* The blurb that used to fill the card is behind the (i), so the button keeps the
    cards in a row level by taking up the slack itself. */
@@ -1932,11 +2045,11 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
 .th__opts { display: flex; gap: 8px; margin-left: auto; }
 
 .seg {
-  display: inline-flex; gap: 2px; padding: 3px;
-  background: var(--panel-2); border: 1px solid var(--hairline); border-radius: 10px;
+  display: inline-flex; gap: 2px; padding: 2px;
+  background: var(--panel-2); border: 1px solid var(--hairline); border-radius: 9px;
 }
 .seg__btn {
-  min-height: 28px; padding: 4px 13px; font-family: var(--font-panel); font-size: 13px; font-weight: 500;
+  min-height: calc(var(--ctl-h) - 6px); padding: 2px var(--ctl-pad); font-family: var(--font-panel); font-size: var(--ctl-fs); font-weight: 500;
   color: var(--ink-dim); background: transparent; border: 0; border-radius: 7px;
   cursor: pointer; white-space: nowrap;
   transition: background 90ms var(--ease), color 90ms var(--ease);
@@ -2016,11 +2129,11 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
 .th__title { font-size: 12.5px; color: var(--ink-dim); }
 
 .th__chords {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: calc(var(--gap) * .6);
 }
 .th__chord {
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
-  padding: 9px 6px; cursor: pointer; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0;
+  padding: calc(var(--gap) * .5) 2px; cursor: pointer; text-align: center;
   background: var(--panel-2); border: 1px solid var(--hairline); border-radius: var(--radius);
   transition: background 90ms var(--ease), border-color 90ms var(--ease);
 }
@@ -2046,11 +2159,13 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
    things you pick one of. Sized so all eight fit on one line in a full-width panel
    and wrap to two in the tutorial card, which is narrower. */
 .kbpick__sizes {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: 8px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: calc(var(--gap) * .6);
 }
+/* One line per size, control height: "61 keys" is a pick, not a card. */
 .kbpick__size {
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-  padding: 9px 6px; cursor: pointer;
+  display: flex; align-items: baseline; justify-content: center; gap: 4px;
+  height: var(--ctl-h); padding: 0 2px; min-width: 0; line-height: var(--ctl-h);
+  white-space: nowrap; overflow: hidden; cursor: pointer;
   background: var(--panel-1); border: 1px solid var(--hairline);
   border-radius: var(--radius); color: var(--ink-dim);
   transition: border-color 120ms var(--ease), color 120ms var(--ease);
@@ -2060,13 +2175,13 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
   border-color: var(--amber); color: var(--amber);
   box-shadow: 0 0 0 1px var(--amber) inset;
 }
-.kbpick__n { font-family: var(--font-mono); font-size: 17px; line-height: 1; }
-.kbpick__k { font-size: 12px; font-weight: 600; }
+.kbpick__n { font-family: var(--font-mono); font-size: calc(var(--ctl-fs) + 1px); }
+.kbpick__k { font-size: var(--label-fs); font-weight: 600; }
 .kbpick__custom {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); margin-top: var(--gap);
 }
 .kbpick__foot {
-  display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 14px;
+  display: flex; align-items: center; gap: var(--gap); flex-wrap: wrap; margin-top: calc(var(--gap) * .5);
 }
 .kbpick__read { font-size: 12.5px; color: var(--ink); margin-right: auto; }
 .kbpick__read strong { color: var(--amber); font-family: var(--font-mono); }
