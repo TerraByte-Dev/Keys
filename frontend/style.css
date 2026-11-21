@@ -2843,7 +2843,7 @@ body:not(.is-focusing) .jam__card--now > .jam__lbl { display: none; }   /* the b
 /* The scale's name or the key change coming: on the chord's line while there is room. */
 body:not(.is-focusing) .jam__card--now { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 14px; }
 body:not(.is-focusing) .jam__line { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
-body:not(.is-focusing) .jam__sym { font-size: 42px; min-height: 42px; letter-spacing: -.01em; }
+body:not(.is-focusing) .jam__sym { font-size: clamp(40px, 3.9cqi, 54px); min-height: 1em; letter-spacing: -.01em; }
 body:not(.is-focusing) .jam__role { min-height: 22px; display: flex; align-items: center; }
 body:not(.is-focusing) .jam__card--next {
   opacity: 1; flex-direction: row; align-items: center; gap: 8px; justify-self: start; max-width: 100%;
