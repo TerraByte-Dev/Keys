@@ -204,7 +204,7 @@ export default {
 
       h('div.col-12', null, mod('SoundFonts', null,
         h('div.list', null, (st.soundfonts || []).map((sf) => h('div.list__row', null,
-          h('span', null, sf.file),
+          h('span.sf__file', { title: sf.file }, sf.file),
           h('span.list__spacer'),
           h('span.mono', null, (sf.size / 1048576).toFixed(1) + ' MB'),
           sf.loaded ? h('span.tag.tag--green', null, 'loaded') : h('span.tag', null, 'on disk')))),

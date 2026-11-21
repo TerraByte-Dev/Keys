@@ -1083,6 +1083,8 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
      takes its width out of the panel's minimum, which is what lets it be narrow. */
   .calx__fit { overflow-x: auto; contain: inline-size; }
   .calx__fit > * { min-width: 360px; }
+  /* The key to the colours stays in view wherever the year is scrolled to. */
+  .calx__fit > .cal__legend { min-width: 0; width: max-content; position: sticky; left: 0; }
   #shelf-inst > div:first-child { flex-wrap: wrap; }
   .zone__head { flex-wrap: wrap; }
   /* A song's title on its own line, its tags and Roll / Sheet under it. */
@@ -1100,7 +1102,7 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
   .grid--packed .audio__row select { width: 100%; min-width: 0; }
   .grid--packed .audio__why { display: none; }
 }
-@container panel (max-width: 380px) {
+@container panel (max-width: 440px) {
   .grid--packed .audio__row > .field:has(> #audio-device) { flex-basis: 100% !important; }
   /* The mode is the two buttons under the row (and the stat over it says which). */
   .grid--packed .audio__row > .field:has(> #audio-excl) { display: none; }
@@ -1144,8 +1146,9 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
      narrower (their names short). */
   :where(.grid--packed > [data-panel] > .mod) > div:has(> .field > select):has(> .field > input[type=range]) > .field:has(> input[type=range]) { flex-basis: calc(var(--ctl-h) * 2.4); }
 }
-/* A quarter: the select takes the row, the sliders the next one together. */
-@container panel (max-width: 380px) {
+/* A quarter (the narrow layout): the select takes the row, the sliders the next one
+   together. */
+@container panel (max-width: 440px) {
   :where(.grid--packed > [data-panel] > .mod) > div:has(> .field > select):has(> .field > input[type=range]) > .field:has(> select) { flex-basis: 100%; }
   :where(.grid--packed > [data-panel] > .mod) > div:has(> .field > select):has(> .field > input[type=range]) > .field > select { width: 100%; min-width: 0; }
 }
@@ -1223,13 +1226,14 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
   .th__chord .th__croman { font-size: 12px; }
 }
 
-/* -- a quarter: every panel's mini form ---------------------------------------------
-   A quarter of the grid (3 of 12 columns) is 250-370px wide at the windows Keys is used
-   in: always the mini tier. A half is 520-700px. The folding rule holds across that
+/* -- a quarter: every panel's quarter form ------------------------------------------
+   A quarter of the grid (3 of 12 columns) is 250-440px wide at the windows Keys is used
+   in (1280 to 1920): the mini tier's controls, or the compact tier's at 1920, in the
+   narrow layout (440px, above). A half is 520-700px. The folding rule holds across that
    step too, so what a panel does at a quarter is the same as at every other step --
    the same controls a tier smaller, rows kept as rows -- plus, at this one step, its
    secondary text goes: the empty-state sentences, a long label's tail, an (i). */
-@container panel (max-width: 380px) {
+@container panel (max-width: 440px) {
   /* A label's short form (data-short="mini"), only here. */
   [data-short="mini"] > .long-label { display: none; }
   [data-short="mini"] > .short-label { display: inline; }
@@ -1279,6 +1283,7 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
   /* Your keyboard: the count and range are on the picks and the sliders above, so the
      line repeating them goes and the two buttons share a row. */
   .grid--packed .kbpick__read { display: none; }
+  .kbpick__k { display: none; }
   .grid--packed .kbpick__foot > .btnrow { flex: 1 1 auto; gap: 5px; }
   .grid--packed .kbpick__foot .btn { flex: 1 1 auto; padding-inline: 7px; }
   .grid--packed .kbpick__foot .btn--lg { min-height: var(--ctl-h); font-size: var(--ctl-fs); }
@@ -1618,7 +1623,10 @@ select option { background: var(--panel-2); color: var(--ink); }
   background: transparent;
 }
 .list__row:hover { background: var(--panel-2); color: var(--ink); }
-.list__row .mono { font-family: var(--font-mono); font-size: 12px; }
+.list__row .mono { font-family: var(--font-mono); font-size: 12px; white-space: nowrap; }
+/* A SoundFont's file name gives way (with its full name on hover) before its size does. */
+.sf__file { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; contain: inline-size; }
+.sf__file + .list__spacer { display: none; }
 .list__spacer { flex: 1; }
 
 .bar { height: 6px; border-radius: 3px; background: var(--panel-4); overflow: hidden; }
@@ -1874,6 +1882,13 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
 .chart__tick {
   flex: 1; min-width: 0; text-align: center; overflow: hidden; white-space: nowrap;
   font-size: 9px; letter-spacing: .06em; color: var(--ink-faint);
+}
+/* A tick for a group of --n bars (stats.js barChart): its label centred over the first
+   bar, or starting at it where the bar is narrower than the label. */
+.chart__tick:has(> span) { text-align: left; }
+.chart__tick > span {
+  display: inline-block; text-align: center;
+  min-width: calc((100% - (var(--n) - 1) * 3px) / var(--n));
 }
 
 /* ── the 88-key map ─────────────────────────────────────────────────────────

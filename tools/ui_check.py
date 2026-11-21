@@ -2154,7 +2154,8 @@ def nav_checks(browser, port: int, errs: list[str]) -> list[str]:
 # may open a gap beside the panel (room for the next one), so at every width reached the
 # grid must
 #   - stick nothing out: no element wider than its box (scrollWidth > clientWidth + 1)
-#     and no box past its panel's sides, except inside a declared sideways scroller;
+#     and no box past its panel's sides, except inside a declared sideways scroller or a
+#     name cut with an ellipsis;
 #   - stretch no card: none more than RS_STRETCH_PX taller than what it holds, which is
 #     how a hole was hidden from the gap rule (a card drawn down 594px to the panel
 #     under it measures as an even 14px gap);
@@ -2230,7 +2231,9 @@ RS_AUDIT = """([sel, strict, STRETCH, HOLE, HOLE_COLS]) => {
       let inner = false;
       for (let p = n.parentElement; p && p !== e; p = p.parentElement) if (scrolls(p)) { inner = true; break; }
       if (inner) continue;
-      if (!scrolls(n) && n.clientWidth && n.scrollWidth > n.clientWidth + 1) {
+      // A name cut with an ellipsis is cut on purpose (its whole text is its title).
+      const cut = getComputedStyle(n).textOverflow === 'ellipsis';
+      if (!scrolls(n) && !cut && n.clientWidth && n.scrollWidth > n.clientWidth + 1) {
         bad.push(`${e.dataset.panel}: ${name(n)} holds ${n.scrollWidth}px in ${n.clientWidth}px`);
       } else if (r.right > mr.right + 1.5 || r.left < mr.left - 1.5) {
         bad.push(`${e.dataset.panel}: ${name(n)} ${Math.round(Math.max(r.right - mr.right, mr.left - r.left))}px past its panel`);
