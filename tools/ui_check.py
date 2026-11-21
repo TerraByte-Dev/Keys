@@ -1912,8 +1912,12 @@ def nav_checks(browser, port: int, errs: list[str]) -> list[str]:
 
     print("\nthe nav: folding, page icons, the right-click menu; the builder's foot; Stats on a page")
     page.goto(f"http://127.0.0.1:{port}/#play", wait_until="networkidle")
+    # The tour put away again: the Settings reset in the section before brought it back.
+    page.evaluate("""() => fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ui: { tour_seen: true } }) })""")
+    page.reload(wait_until="networkidle")
     page.wait_for_timeout(1600)
-    saved_pages = page.evaluate("async () => (await (await fetch('/api/settings')).json()).ui.pages || []")
+    saved_pages =page.evaluate("async () => (await (await fetch('/api/settings')).json()).ui.pages || []")
 
     # 1. Fold: icons only, each named by its tooltip, the number keys as before, kept.
     page.click("#nav-fold")
