@@ -141,10 +141,11 @@
   --zone-6: #8fa5ff;
 
   /* Density. Every shared control is drawn from these, and a managed panel resets
-     them by its own width (the tiers under "inside a managed panel"): full over 560px,
-     compact 380-560, mini under 380. A narrower panel FOLDS -- the same controls,
-     smaller and closer -- rather than stacking the same big boxes taller. Jam reads the
-     first five. These are the full tier, and what anything outside a panel gets. */
+     them by its own width (the tiers under "inside a managed panel"): full over 640px,
+     compact 380-640 (a half of a 1280 tab, 587px), mini under 380. A narrower panel
+     FOLDS -- the same controls, smaller and closer -- rather than stacking the same big
+     boxes taller. Jam reads the first five. These are the full tier, and what anything
+     outside a panel gets. */
   --ctl-h: 30px;       /* a button, a select, a seg row */
   --ctl-fs: 13px;
   --ctl-pad: 12px;     /* a control's own side padding */
@@ -1031,7 +1032,7 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
 .grid--packed > [data-panel] { container: panel / inline-size; }
 /* The density tiers (tokens above). On the .mod, not the panel: a container cannot
    query itself. */
-@container panel (max-width: 560px) {
+@container panel (max-width: 640px) {
   .mod { --ctl-h: 26px; --ctl-fs: 12.5px; --ctl-pad: 9px; --gap: 9px; --label-fs: 11.5px;
          --mod-pad: 11px; --mod-title-fs: 13.5px; }
 }
@@ -1041,7 +1042,7 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
 }
 /* A long label has a short one (data-short) for the narrow tiers. */
 .short-label { display: none; }
-@container panel (max-width: 560px) {
+@container panel (max-width: 640px) {
   [data-short]:not([data-short="mini"]) > .long-label { display: none; }
   [data-short]:not([data-short="mini"]) > .short-label { display: inline; }
 }
@@ -1096,7 +1097,7 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
    (a device's name is as long as its driver makes it), and the why under the warning
    goes; in a quarter, the device has the row to itself and the mode is its buttons. */
 .mod > div > .field:has(> #audio-device) { flex-grow: 2 !important; }
-@container panel (max-width: 560px) {
+@container panel (max-width: 640px) {
   .grid--packed .audio__row > .field { flex: 1 1 0 !important; }
   .grid--packed .audio__row > .field:has(> #audio-excl) { flex: 0 0 auto !important; }
   .grid--packed .audio__row select { width: 100%; min-width: 0; }
@@ -1140,7 +1141,7 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
 :where(.grid--packed > [data-panel] > .mod) > div:has(> .field + .field) > .field:has(.knob) { flex-basis: calc(var(--ctl-h) * 2.2); }
 /* A slider squeezed beside a select is a stub with its name wrapped over its value:
    it takes enough to read, and the row wraps before it gets that thin. */
-@container panel (max-width: 560px) {
+@container panel (max-width: 640px) {
   :where(.grid--packed > [data-panel] > .mod) > div:has(> .field + .field) > * { flex-basis: calc(var(--ctl-h) * 2.8); }
   /* Pedal's mode and three sliders: still one row at a half, the sliders a little
      narrower (their names short). */
@@ -1197,7 +1198,7 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
 #ex-host .build__title { min-width: 0; }
 /* The name is a button (practice.js card()): in a wide panel it reads as the title. */
 #ex-host .build__open { min-width: 0; text-align: left; justify-content: flex-start; }
-@container panel (min-width: 561px) {
+@container panel (min-width: 641px) {
   #ex-host .build__open {
     min-height: 0; padding: 0; background: none; border-color: transparent;
     font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -1205,7 +1206,7 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
   #ex-host .build__open:hover { color: var(--amber); background: none; border-color: transparent; }
 }
 /* A half or a quarter: the shelf is a row of chips, each the name that opens it. */
-@container panel (max-width: 560px) {
+@container panel (max-width: 640px) {
   #ex-host .builds { display: flex; flex-wrap: wrap; gap: calc(var(--gap) * .7) var(--gap); }
   #ex-host .build { padding: 0; border: 0; background: none; flex: 0 1 auto; gap: 5px; }
   #ex-host .build__title { gap: 5px; }
@@ -1222,7 +1223,7 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
 }
 /* Narrower: Build one's three cards stay one row, its two octave steppers one under
    the other. */
-@container panel (max-width: 560px) {
+@container panel (max-width: 640px) {
   .grid--packed .builds { grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--ctl-h) * 4.4)), 1fr)); }
   .grid--packed .split__octs { grid-template-columns: minmax(0, 1fr); gap: 4px; }
 }
@@ -1233,9 +1234,10 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
 }
 
 /* -- a quarter: every panel's quarter form ------------------------------------------
-   A quarter of the grid (3 of 12 columns) is 250-440px wide at the windows Keys is used
-   in (1280 to 1920): the mini tier's controls, or the compact tier's at 1920, in the
-   narrow layout (440px, above). A half is 520-700px. The folding rule holds across that
+   A quarter of the grid (3 of 12 columns) is 287-447px wide at the windows Keys is used
+   in (1280 to 1920, the nav folded to 52px): the mini tier's controls in the narrow
+   layout (440px, above), or at 1920 the compact tier's in the wide one. A half is
+   587-907px: compact at 1280, full above. The folding rule holds across that
    step too, so what a panel does at a quarter is the same as at every other step --
    the same controls a tier smaller, rows kept as rows -- plus, at this one step, its
    secondary text goes: the empty-state sentences, a long label's tail, an (i). */
@@ -1321,8 +1323,11 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
   #lib-list > .list__row > span:first-child { flex-basis: auto; contain: inline-size; }
   #lib-list > .list__row > :is(.tag, .mono) { display: none; }
   #lib-list > .list__row > .btn { padding-inline: calc(var(--ctl-pad) * .7); }
-  /* Loop station: the state beside the buttons; name and Save, then a saved loop and Clear. */
-  .grid--packed .loop__state { min-width: 0; flex: 1 1 auto; }
+  /* Loop station: the state beside the buttons, Play the size of Record and the line
+     under the state one line (its tail goes); name and Save, then a saved loop and Clear. */
+  .grid--packed .loop__state { min-width: 64px; flex: 1 1 0; }
+  .grid--packed .loop__state-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .grid--packed #loop-play { min-height: var(--ctl-h); padding-inline: var(--ctl-pad); font-size: var(--ctl-fs); }
   .grid--packed .loop__setup { margin-left: 0; }
   .grid--packed .loop + #loop-layers + .btnrow > :is(#loop-name, #loop-saved) { flex: 1 1 60%; width: 0 !important; }
 }
@@ -1352,9 +1357,11 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
 .mod__head { cursor: grab; user-select: none; }
 .mod__head:active { cursor: grabbing; }
 /* No room taken while hidden (it cost every header ~57px of its title and aside); the
-   hover that shows the arrows also gives them their width. */
+   hover that shows the arrows also gives them their width. Packed at the end while
+   hidden, so they spill back into the header and not past the panel's edge, which in
+   a narrow tier's padding was past a page pane's. */
 .mod__grip {
-  display: flex; gap: 3px; opacity: 0; transition: opacity .14s var(--ease);
+  display: flex; gap: 3px; opacity: 0; transition: opacity .14s var(--ease); justify-content: flex-end;
   max-width: 0; margin-left: -10px; overflow: hidden; visibility: hidden;
 }
 .mod:hover .mod__grip, .mod__head:focus-within .mod__grip {
@@ -3423,8 +3430,10 @@ body.is-focusing .jam__go { min-width: 170px; }
   .jam__prow > .jam__lbl { min-width: 0; flex-basis: 100%; }
 }
 /* Mini: the group names go over their rows, the stage is one column -- the chord and
-   Next on one line, then the strip, then the coach. */
-@container panel (max-width: 380px) {
+   Next on one line, then the strip, then the coach. Under 440px, Jam's narrow layout as
+   every panel's is: a third of a 1280 page (389px) is no compact Jam with the console
+   all open, 15% taller than the half. */
+@container panel (max-width: 440px) {
   body:not(.is-focusing) .jam__group { grid-template-columns: 34px minmax(0, 1fr); padding: 4px 8px 4px 0; }
   body:not(.is-focusing) .jam__gname { padding-left: 8px; font-size: 8px; letter-spacing: .08em; writing-mode: vertical-rl;
     transform: rotate(180deg); justify-content: center; }
@@ -3451,7 +3460,7 @@ body.is-focusing .jam__go { min-width: 170px; }
   body:not(.is-focusing) .jam__card--next > .jam__lbl { display: none; }
   body:not(.is-focusing) .jam__card--now .jam__sym { font-size: 32px; min-height: 32px; }
 }
-/* Quarter: a quarter of a tab is 255px at 1280. Start, the chord, the strip, and Music,
+/* Quarter: a quarter of a tab is 287px at 1280. Start, the chord, the strip, and Music,
    Key and Scale stay; the level, the You row and the band fold behind the one line
    (More · Pop · 96 bpm), whose BAND name goes while it speaks for all three. Next is its
    chord and its count, the role pill being Now's; the key and room selects need no "Key"
@@ -3459,7 +3468,7 @@ body.is-focusing .jam__go { min-width: 170px; }
    the pinned scale's name is the strip's own caption. The phrase's chips stay on one
    line that scrolls (a twelve-bar blues would take three rows), and where the key can
    change (data-wander) the change coming has its line kept, so it never jumps. */
-@container panel (max-width: 380px) {
+@container panel (max-width: 440px) {
   body:not(.is-focusing) .jam:not(.is-band-open) :is(.jam__group--you, .jam__opt--level) { display: none; }
   body:not(.is-focusing) .jam:not(.is-band-open) .jam__group--band > .jam__gname { visibility: hidden; }
   .jam__fold::before { content: 'More ·'; color: var(--ink-faint); margin-right: -4px; }
@@ -3496,14 +3505,10 @@ body.is-focusing .jam__go { min-width: 170px; }
 }
 /* Compact's one change from 0.15: Next's chip outgrew its column there. Measured with
    the longest chip ("NEXT F♯m7 vii° · Pull in 16"): it holds 193px in 163-190px from
-   430 to 490px, so its NEXT label goes up to 500px (the chord's place says next), and
-   in 390-420px, where it is still too wide without it, the role pill goes too (Now's
-   pill says the role of where you are; Next keeps its chord and count). */
+   430 to 490px, so its NEXT label goes up to 500px (the chord's place says next); under
+   440px, the quarter's Next is its chord and count, the role pill gone with it. */
 @container panel (max-width: 500px) {
   body:not(.is-focusing) .jam__card--next > .jam__lbl { display: none; }
-}
-@container panel (max-width: 420px) {
-  body:not(.is-focusing) .jam__card--next .jam__role { display: none; }
 }
 
 /* The strip by its own width, wherever it is: the "both" badge is a dot where it would
@@ -3519,7 +3524,7 @@ body.is-focusing .jam__go { min-width: 170px; }
 @container strip (max-width: 270px) {
   .strip__both { padding: 0 3px; font-size: 8.5px; }
 }
-@container panel (max-width: 380px) {
+@container panel (max-width: 440px) {
   @container strip (max-width: 240px) {
     .strip__name { font-size: 11px; }
     .strip__key--black .strip__name { font-size: 9px; }
