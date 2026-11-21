@@ -209,15 +209,25 @@ widths.
 **A panel's width is a preference; what it renders at is measured.** The arrows step a panel through spans
 4, 6, 8 and 12 of the 12-column grid (a third, a half, two thirds, all of it) and that choice is what is
 saved. What it renders at is the larger of that and its **minimum span**: `layout.js` `fit()` measures each
-panel's content at min-content with the panel set to each span's pixel width in turn (so its
-`@container panel` queries answer for that width) and takes the smallest that holds it. A quarter (3) used
-to be on offer and was dropped: at a 1280px window it was 256px, under the minimum of 26 of 42 panels.
-The measurement is against the grid's own width, so a custom page's pane is just a narrower grid: there a
-panel rises to what it needs, up to the whole pane, in its narrow layout, and the page builder warns when a
-picked panel's minimum (`pages.js` `PANELS[].min`, held against the DOM by `ui_check`) is wider than a pane
-at the current window. Two render-only adjustments keep the masonry tidy: a panel with empty columns beside
-it for its whole height is widened over them, and a panel with nothing under it until something further
-down has its card drawn down to meet it, so every vertical gap is the 14px column gap.
+panel's content at min-content, and then laid out, with the panel set to each span's pixel width in turn
+(so its `@container panel` queries answer for that width) and takes the smallest that holds it. A quarter
+(3) used to be on offer and was dropped: at a 1280px window it was 256px, under the minimum of 26 of 42
+panels. The measurement is against the grid's own width, so a custom page's pane is just a narrower grid:
+there a panel rises to what it needs, up to the whole pane, in its narrow layout, and the page builder
+warns when a picked panel's minimum (`pages.js` `PANELS[].min`, held against the DOM by `ui_check`) is
+wider than a pane at the current window.
+
+Two render-only adjustments keep the masonry tidy. A panel nobody has sized, with empty columns beside it
+for its whole height, is widened over them; a panel sized with its arrows is not (it is marked `sized` in
+the saved layout), because widening it back is what made a click that narrowed it change nothing on
+screen, and the columns it leaves are room for the next panel narrowed to move up into. And a panel with
+nothing under it until something further down has its card drawn down to meet it, by at most 96px, so
+the gaps left above a wide panel close and a bigger hole shows as one rather than as a stretched, empty
+card. **Every arrow click changes what you see:** a click steps from the span the panel shows, and each
+candidate is placed first and taken only if the panel then shows narrower (or wider) and the grid gains
+no hole narrower than four columns, where no panel could ever go; an arrow with no such step is disabled.
+A saved layout keeps only spans the arrows offer (an authored 5 or 7 stays as written), and one with a 3
+in it, from before 0.14, keeps its order but takes today's authored widths.
 
 ### The roll is full screen or it is not open
 
