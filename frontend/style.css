@@ -1226,6 +1226,18 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
 @container panel (max-width: 640px) {
   .grid--packed .builds { grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--ctl-h) * 4.4)), 1fr)); }
   .grid--packed .split__octs { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  /* Chords & scales in a half at 1280 or a page pane: the ribbon beside the diagram has
+     about 250px, which showed C to F and cut the rest off behind a sideways scroll. Its
+     notes and steps share that width instead, as in the quarter below; the step words go
+     (the step pattern under them says them). Two octaves still scroll. */
+  .grid--packed .th__note { flex: 1 1 0; min-width: 18px; padding: 1px 0; }
+  .grid--packed .th__gap { flex: 1 1 0; min-width: 12px; padding-top: 16px; }
+  .grid--packed .th__gap::before { left: -2px; right: -2px; top: 25px; }
+  .grid--packed .th__gnum { font-size: 13px; line-height: 18px; padding: 0 2px; }
+  .grid--packed .th__gword { display: none; }
+  .grid--packed .th__nname { font-size: 13px; }
+  .grid--packed .th__right::after { width: 12px; }
+  .grid--packed .th__ribbon { padding-right: 12px; }
 }
 @container panel (max-width: 380px) {
   .kbpick__k { display: none; }
@@ -2298,7 +2310,7 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
 .th__right::after {
   content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 36px;
   pointer-events: none;
-  background: linear-gradient(90deg, transparent, var(--panel-1));
+  background: linear-gradient(90deg, transparent, var(--panel-0));
 }
 
 .th__fingers { min-height: 15px; margin-bottom: 2px; }
@@ -2342,7 +2354,7 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
 }
 .th__gnum {
   position: relative; font-family: var(--font-mono); font-size: 16px; font-weight: 700;
-  color: var(--ink-dim); background: var(--panel-1); padding: 0 6px; line-height: 22px;
+  color: var(--ink-dim); background: var(--panel-0); padding: 0 6px; line-height: 22px;
 }
 .th__gword { font-size: 9.5px; letter-spacing: .08em; color: var(--ink-faint); margin-top: 1px; }
 .th__gap.is-half .th__gnum { color: var(--amber); }

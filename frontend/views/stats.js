@@ -48,6 +48,8 @@ let live = false;
 let calYear = 0;
 let calYears = [];
 let calData = null;
+// Watches the year's scroller for the moment it starts to scroll (paintCalendar).
+let calRO = null;
 
 export default {
   async mount(root, ctx) {
@@ -121,6 +123,8 @@ export default {
     picked = null;
     data = null;
     calData = null;
+    calRO?.disconnect();
+    calRO = null;
     calYear = 0;
     lastNotes = null;
     inFlight = false;
@@ -149,14 +153,23 @@ function paintCalendar() {
   if (!host || !calData) return;
   host.replaceChildren(calendar(calData));
   // A quarter-width Activity scrolls through the year (style.css): open it on this week,
-  // not on January -- once the layout has given the panel its width.
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    const fit = host.querySelector('.calx__fit');
-    if (!fit || fit.scrollWidth <= fit.clientWidth + 1) return;
-    const now = new Date();
-    const f = calYear < now.getFullYear() ? 1 : (now - new Date(calYear, 0, 1)) / (365 * 864e5);
-    fit.scrollLeft = Math.max(0, f * fit.scrollWidth - fit.clientWidth * 0.8);
-  }));
+  // not on January -- once the layout has given the panel its width, and again whenever
+  // it starts to scroll later (the panel narrowed to a quarter with its arrow), or a
+  // narrowed Activity shows January to October with this month cut off. Only on that
+  // change, so a later resize never undoes where you scrolled to.
+  calRO?.disconnect();
+  const fit = host.querySelector('.calx__fit');
+  let fitted = true;
+  calRO = fit && new ResizeObserver(() => {
+    const over = fit.scrollWidth > fit.clientWidth + 1;
+    if (over && fitted) {
+      const now = new Date();
+      const f = calYear < now.getFullYear() ? 1 : (now - new Date(calYear, 0, 1)) / (365 * 864e5);
+      fit.scrollLeft = Math.max(0, f * fit.scrollWidth - fit.clientWidth * 0.8);
+    }
+    fitted = !over;
+  });
+  calRO?.observe(fit);
   const label = $('#cal-year');
   if (label) label.textContent = String(calYear);
   const aside = $('#cal-aside');

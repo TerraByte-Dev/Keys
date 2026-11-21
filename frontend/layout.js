@@ -160,7 +160,22 @@ const overflows = (mod) => [mod, ...mod.children].some(wider);
    band selects change as it plays, every frame. */
 const cutsOff = (mod) => overflows(mod) || [...mod.querySelectorAll('select')].some(wider);
 
+/* Measuring a panel at a wider width than it shows clamps every sideways scroller in it
+   back to the start: a quarter-width Activity jumped to January whenever the pointer came
+   onto it (the arrows remeasure), and Chords & scales' ribbon to its first note. So what
+   was scrolled is put back where it was. */
+function keepScroll(col, measure) {
+  const at = [...col.querySelectorAll('*')].filter((n) => n.scrollLeft > 0).map((n) => [n, n.scrollLeft]);
+  const out = measure();
+  for (const [n, x] of at) n.scrollLeft = x;
+  return out;
+}
+
 function minSpan(col, px) {
+  return keepScroll(col, () => measureMin(col, px));
+}
+
+function measureMin(col, px) {
   const mod = col.firstElementChild;
   const keep = [col.style.width, mod.style.width];
   col.classList.add('is-measuring');
@@ -210,10 +225,13 @@ function fit(grid) {
   const heightAt = (el, span) => {
     if (!el.dataset.panel) return el.getBoundingClientRect().height;
     if (el._m.h[span] === undefined) {
-      const keep = el.style.width;
-      el.style.width = px(span) + 'px';
-      el._m.h[span] = el.firstElementChild.getBoundingClientRect().height;
-      el.style.width = keep;
+      el._m.h[span] = keepScroll(el, () => {
+        const keep = el.style.width;
+        el.style.width = px(span) + 'px';
+        const height = el.firstElementChild.getBoundingClientRect().height;
+        el.style.width = keep;
+        return height;
+      });
     }
     return el._m.h[span];
   };
