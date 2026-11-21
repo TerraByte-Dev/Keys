@@ -80,6 +80,9 @@ const KEYS = [
   { id: 'G-minor', key: 'G', mode: 'natural_minor' },
   { id: 'F#-major', key: 'F#', mode: 'major', note: 'your black-key habit' },
   { id: 'Eb-minor', key: 'Eb', mode: 'natural_minor', note: 'the black keys, moodier' },
+  // A fifth from each of the two above, so level 4 and Wander move by a fifth from them too.
+  { id: 'B-major', key: 'B', mode: 'major' },
+  { id: 'Bb-minor', key: 'Bb', mode: 'natural_minor' },
 ];
 const STYLES = [
   { id: 'ballad', label: 'Ballad', bpm: 72 },

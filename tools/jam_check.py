@@ -59,7 +59,8 @@ from backend import band as band_mod, theory   # noqa: E402
 # Must match KEYS in frontend/jam.js -- checked below by reading that file.
 KEYS = [("C", "major"), ("A", "natural_minor"), ("G", "major"), ("E", "natural_minor"),
         ("F", "major"), ("D", "natural_minor"), ("D", "major"), ("B", "natural_minor"),
-        ("Bb", "major"), ("G", "natural_minor"), ("F#", "major"), ("Eb", "natural_minor")]
+        ("Bb", "major"), ("G", "natural_minor"), ("F#", "major"), ("Eb", "natural_minor"),
+        ("B", "major"), ("Bb", "natural_minor")]
 
 results: list[tuple[str, bool, str]] = []
 
@@ -1177,6 +1178,15 @@ def source_checks() -> None:
             ok("jam.js offers the keys this check covers", False, f"{key} {mode} missing")
             return
     ok("jam.js offers the keys this check covers", True, f"{len(KEYS)} keys")
+    # Level 4 and Wander move by a fifth. Every key must have one on offer -- a fifth up
+    # (+7) or down (+5) in the same mode -- or it falls back to its relative. The pitch
+    # classes are counted here from the letter and its accidentals.
+    letter = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
+    pc = lambda name: (letter[name[0]] + name.count("#") - name[1:].count("b")) % 12  # noqa: E731
+    offered = {(pc(key), mode) for key, mode in KEYS}
+    stuck = [f"{key} {mode}" for key, mode in KEYS
+             if ((pc(key) + 7) % 12, mode) not in offered and ((pc(key) + 5) % 12, mode) not in offered]
+    ok("every key Jam offers has a key a fifth away to move to", not stuck, ", ".join(stuck) or f"{len(KEYS)} keys")
     styles = [line.split("'")[1] for line in src.splitlines() if line.strip().startswith("{ id: '") and "bpm:" in line]
     ok("jam.js offers exactly the band's styles", sorted(styles) == sorted(band_mod.STYLES), str(styles))
     # Lights Out's counter lives in jam.js (the driver above runs the same rule): it

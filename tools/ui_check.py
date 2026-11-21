@@ -522,6 +522,21 @@ def jam_checks(browser, port: int, errs: list[str]) -> list[str]:
         "music": "pop", "game": "solo", "level": 1, "key": "C-major", "pin": "off", "bars": 1, "compSound": None, "mine": []}}})
     page.reload(wait_until="networkidle")              # the same URL: goto() would not reload
     page.wait_for_timeout(2200)
+    # Each key's label counts its black keys. Counted here from the key's name: the
+    # major or natural minor steps from its tonic, and which pitch classes are black.
+    labels = page.evaluate("[...document.querySelectorAll('.jam__opt--key select option')]"
+                           ".map((o) => [o.value, o.textContent])")
+    wrong = []
+    for value, text in labels:
+        name, mode = value.split("-")
+        steps = (0, 2, 4, 5, 7, 9, 11) if mode == "major" else (0, 2, 3, 5, 7, 8, 10)
+        black = sum((key_pc(name) + s) % 12 in (1, 3, 6, 8, 10) for s in steps)
+        want = ("all white keys" if black == 0 else "all five black keys + 2 white" if black == 5
+                else f"{black} black key{'' if black == 1 else 's'}")
+        if f"— {want}" not in text:
+            wrong.append(f"{text!r}, want {want}")
+    check("every key's label counts its black keys", len(labels) >= 14 and not wrong,
+          "; ".join(wrong[:3]) or f"{len(labels)} keys")
     page.evaluate(SPY)
     page.click(".jam__go")
     page.wait_for_timeout(1600)
