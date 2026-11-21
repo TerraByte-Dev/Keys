@@ -225,7 +225,7 @@ def mode_checks(page, check) -> list[str]:
             return False
 
     text = "(s) => document.querySelector(s)?.textContent || ''"
-    pick(page, "Play", "Modal", 300)
+    pick(page, "Music", "Modal", 300)
     shown = page.evaluate("""() => [...document.querySelectorAll('.jam__opt')]
       .filter((o) => o.style.display !== 'none').map((o) => o.querySelector('.jam__lbl').textContent)""")
     check("Modal: a room instead of a key", "Room" in shown and "Key" not in shown, str(shown))
@@ -233,7 +233,13 @@ def mode_checks(page, check) -> list[str]:
     role = page.evaluate("() => document.querySelector('.strip__key.is-sig .strip__role')?.textContent")
     check("...the note that makes the mode is ringed, on the keys and the strip", ringed and role, f"labelled {role!r}")
 
-    pick(page, "Play", "Blues", 300)
+    # Level 3 is the blues as it always was; level 1 is two chords, four bars each.
+    pick(page, "Music", "Blues", 300)
+    pick(page, "Level", "1", 300)
+    vamp = until("document.querySelectorAll('.jam__chip').length === 8")
+    chords = page.evaluate("new Set([...document.querySelectorAll('.jam__chip b')].map((b) => b.textContent)).size")
+    check("Blues level 1: a two-chord vamp, four bars each", vamp and chords == 2, f"{chords} chords")
+    pick(page, "Level", "3", 300)
     twelve = until("document.querySelectorAll('.jam__chip').length === 12")
     chips = page.evaluate("document.querySelectorAll('.jam__chip').length")
     style = page.evaluate(BAND).get("style")
@@ -241,6 +247,7 @@ def mode_checks(page, check) -> list[str]:
     check("...with the blue note ringed", until("[...document.querySelectorAll('.strip__key.is-sig .strip__role')]"
                                                 ".some((e) => e.textContent === 'blue')"))
 
+    pick(page, "Music", "Pop", 300)
     pick(page, "Play", "Answer", 300)
     shown = page.evaluate("""() => [...document.querySelectorAll('.jam__opt')]
       .filter((o) => o.style.display !== 'none').map((o) => o.querySelector('.jam__lbl').textContent)""")
@@ -262,9 +269,152 @@ def mode_checks(page, check) -> list[str]:
     check("...and playing it back note for note counts", judged and "1 of 1" in page.evaluate(text, ".jam__stats"),
           f"{page.evaluate(text, '.jam__heard')} / {page.evaluate(text, '.jam__stats')}")
 
-    pick(page, "Play", "Songs", 1500)
+    pick(page, "Play", "Solo", 1500)
     check("back to Songs, the band still playing", page.evaluate(BAND).get("running") is True)
     return []
+
+
+# The dock's keys by class, as MIDI numbers, and every key the dock has.
+MARKED = "(c) => [...document.querySelectorAll('#dock .key.' + c)].map((k) => +k.dataset.midi).sort((a, b) => a - b)"
+DOCK = "() => [...document.querySelectorAll('#dock .key')].map((k) => +k.dataset.midi).sort((a, b) => a - b)"
+LETTER = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
+
+
+def key_pc(name: str) -> int:
+    return (LETTER[name[0]] + name.count("#") - name[1:].count("b")) % 12
+
+
+# Held, a pinned key that rubs (outlined, not filled) against an unmarked held key (spicy).
+PIN_HELD = """async () => {
+  const kb = (await import('/app.js')).ctx.kb;
+  const svg = document.querySelector('#dock .keys-kb');
+  const rub = svg.querySelector('.key.is-pin:not(.is-scale):not(.is-tone)');
+  const plain = svg.querySelector('.key:not(.is-pin):not(.is-scale):not(.is-tone)');
+  if (!rub || !plain) return { error: 'no pinned rub and unmarked key to compare' };
+  for (const k of [rub, plain]) k.style.transition = 'none';
+  kb.noteOn(+rub.dataset.midi, 100); kb.noteOn(+plain.dataset.midi, 100);
+  const out = { rub: getComputedStyle(rub).fill, spicy: getComputedStyle(plain).fill,
+    stroke: getComputedStyle(rub).strokeWidth };
+  kb.noteOff(+rub.dataset.midi); kb.noteOff(+plain.dataset.midi);
+  for (const k of [rub, plain]) k.style.transition = '';
+  return out;
+}"""
+
+
+def pin_checks(page, check) -> None:
+    """Scale: the pinned scale outlined on every key of it, and the band kept to chords it fits."""
+    def until(js: str, ms: int = 12000) -> bool:
+        try:
+            page.wait_for_function(js, timeout=ms)
+            return True
+        except Exception:  # noqa: BLE001 -- a timeout is the failure being reported
+            return False
+
+    key = page.evaluate("document.querySelector('.jam__opt--key select').value")      # e.g. 'C-major'
+    tonic, major = key_pc(key.split("-")[0]), key.endswith("major")
+    # The pentatonic on the tonic, by its steps -- written here, not read from the app.
+    want = {(tonic + s) % 12 for s in ((0, 2, 4, 7, 9) if major else (0, 3, 5, 7, 10))}
+    pick(page, "Scale", "Pentatonic", 1500)
+    until("document.querySelectorAll('#dock .key.is-pin').length > 0")
+    dock = page.evaluate(DOCK)
+    pinned = page.evaluate(MARKED, "is-pin")
+    expect = [m for m in dock if m % 12 in want]
+    check("Scale Pentatonic: every key of the pentatonic is outlined, across the whole keyboard, and no other",
+          pinned == expect and len(pinned) >= 5, f"{len(pinned)} outlined, {len(expect)} expected, pcs {sorted(want)}")
+    strip = page.evaluate("[...document.querySelectorAll('.strip__key')].map((k, pc) => k.classList.contains('is-pin') ? pc : -1).filter((pc) => pc >= 0)")
+    name = page.evaluate("document.querySelector('.jam__note').textContent")
+    check("...on the strip too, with its name on the Now card", set(strip) == want and "pentatonic" in name,
+          f"strip {strip}, note {name!r}")
+    # Only chords the pentatonic has no rub over: I ii IV vi in major, i III iv VI in minor.
+    ok_romans = {"I", "ii", "IV", "vi"} if major else {"i", "III", "iv", "VI"}
+    until("[...document.querySelectorAll('.jam__chip small')].length > 0")
+    page.wait_for_timeout(2500)
+    romans = page.evaluate("[...document.querySelectorAll('.jam__chip small')].map((s) => s.textContent)")
+    check("...and the band plays only chords the pin fits", romans and set(romans) <= ok_romans, str(romans))
+    pick(page, "Guide", "Dark", 600)
+    dark = page.evaluate("document.querySelector('#dock .keys-kb').classList.contains('kb--nopin')")
+    kept = page.evaluate(MARKED, "is-pin") == pinned
+    check("Guide Dark stops drawing the outline but keeps the marks", dark and kept)
+    pick(page, "Guide", "Full", 600)
+    # Key: the whole key outlined, so the rubs are outlined too -- and held, not spicy.
+    pick(page, "Scale", "Key", 1500)
+    found = until("document.querySelector('#dock .key.is-pin:not(.is-scale):not(.is-tone)')"
+                  " && document.querySelector('#dock .key:not(.is-pin):not(.is-scale):not(.is-tone)')", 15000)
+    held = page.evaluate(PIN_HELD) if found else {"error": "no rub came up"}
+    check("Scale Key: a held key of the pin that rubs keeps its outline and is not painted spicy",
+          not held.get("error") and held["rub"] != held["spicy"] and float(held["stroke"].replace("px", "")) >= 1.5,
+          str(held))
+    pick(page, "Scale", "Off", 1200)
+    check("Scale Off: nothing outlined", until("!document.querySelector('#dock .key.is-pin')", 5000))
+
+
+def mine_checks(page, check) -> None:
+    """My chords: build a loop in the editor and hear the band play it."""
+    def until(js: str, ms: int = 12000) -> bool:
+        try:
+            page.wait_for_function(js, timeout=ms)
+            return True
+        except Exception:  # noqa: BLE001 -- a timeout is the failure being reported
+            return False
+
+    page.evaluate("window.__posts = []")
+    pick(page, "Music", "My chords", 1500)
+    shown = page.evaluate("""() => [...document.querySelectorAll('.jam__opt')]
+      .filter((o) => o.offsetParent).map((o) => o.querySelector('.jam__lbl').textContent)""")
+    slots = until("document.querySelectorAll('.jam__slot').length === 4")
+    check("My chords: the editor shows, four chords to start, no Level or Play", slots and "Level" not in shown
+          and "Play" not in shown and page.evaluate("getComputedStyle(document.querySelector('.jam__group--mine')).display") != "none",
+          str(shown))
+    # Slot 2 becomes D7: open it, root D, kind 7. Then a fifth chord, from the key's row.
+    page.click(".jam__slot:nth-child(2) .jam__slotbtn")
+    page.wait_for_timeout(300)
+    page.evaluate("""() => {
+      const rows = [...document.querySelectorAll('.jam__picker .jam__prow')];
+      [...rows[0].querySelectorAll('.jam__pick')].find((b) => b.textContent === 'D').click();
+    }""")
+    page.wait_for_timeout(400)
+    page.evaluate("""() => [...document.querySelectorAll('.jam__picker .jam__prow')][1]
+      .querySelectorAll('.jam__pick').forEach((b) => { if (b.textContent === '7') b.click(); })""")
+    out = until("document.querySelector('.jam__slot:nth-child(2)').classList.contains('is-out')", 8000)
+    check("...a chord picked from the roots and kinds is a slot, marked out of the key",
+          out and page.evaluate("document.querySelector('.jam__slot:nth-child(2) b').textContent") == "D7")
+    page.click(".jam__slotadd")
+    page.wait_for_timeout(300)
+    page.evaluate("""() => [...document.querySelectorAll('.jam__picker .jam__prow')][2]
+      .querySelectorAll('.jam__pick')[3].click()""")
+    five = until("document.querySelectorAll('.jam__slot').length === 5")
+    page.evaluate("[...document.querySelectorAll('.jam__picker .btn')].find((b) => b.textContent === 'Done').click()")
+    check("...+ adds a chord, filled from the key's own row in one click", five
+          and page.evaluate("document.querySelector('.jam__slot:nth-child(5) b').textContent") == "F")
+    # D7 is D F# A C: written here as pitch classes. The band must get it in a chart.
+    d7 = [2, 6, 9, 0]
+    sent = until(f"""window.__posts.some((p) => p.url.endsWith('/api/band/chart')
+      && JSON.parse(p.body).chart.some((c) => JSON.stringify(c.pcs) === '{d7}'.replace(/ /g, '')))""", 8000)
+    check("...and the band is sent the loop, D7 in it", sent)
+    # Past the change's first beat, where the coach is still saying where to land.
+    heard = until("document.querySelector('.jam__sym').textContent === 'D7'"
+                  " && document.querySelector('.jam__coach').textContent.includes('mixolydian')", 25000)
+    coach = page.evaluate("document.querySelector('.jam__coach').textContent")
+    check("...plays it, and the coach names the scale D7 is judged by", heard and "D mixolydian" in coach, coach)
+    chips = page.evaluate("[...document.querySelectorAll('.jam__chip b')].map((b) => b.textContent)")
+    check("...the phrase is your five chords", len(chips) == 5 and chips[1] == "D7", str(chips))
+    page.evaluate("[...document.querySelectorAll('.jam__slotx')][4].click()")
+    check("x takes one away again", until("document.querySelectorAll('.jam__slot').length === 4", 4000))
+
+    # The band's parts: a switch and a sound reach the band.
+    page.evaluate("window.__posts = []")
+    page.evaluate("""() => { const s = [...document.querySelectorAll('.jam__part')][2].querySelector('select');
+      s.value = '48'; s.dispatchEvent(new Event('change')); }""")
+    page.evaluate("[...document.querySelectorAll('.jam__part')][1].querySelector('input').click()")
+    page.wait_for_timeout(900)
+    sent = page.evaluate("""() => window.__posts.filter(p => p.url.endsWith('/api/band/config')).map(p => JSON.parse(p.body))""")
+    band = page.evaluate(BAND)
+    check("Band: Strings on the chords and the bass switched off reach the band", {"comp_program": 48} in sent
+          and {"bass": False, "comp": True} in sent and band.get("comp_program") == 48 and band.get("bass") is False, str(sent))
+    page.evaluate("[...document.querySelectorAll('.jam__part')][1].querySelector('input').click()")
+    page.evaluate("""() => { const s = [...document.querySelectorAll('.jam__part')][2].querySelector('select');
+      s.value = ''; s.dispatchEvent(new Event('change')); }""")
+    pick(page, "Music", "Pop", 1500)
 
 
 def jam_checks(browser, port: int, errs: list[str]) -> list[str]:
@@ -284,7 +434,23 @@ def jam_checks(browser, port: int, errs: list[str]) -> list[str]:
         page.wait_for_timeout(wait)
 
     print("\njam, band running")
-    page.goto(f"http://127.0.0.1:{port}/#practice", wait_until="networkidle")
+    # Settings from before Music and Play were split: Answer in A minor becomes Minor +
+    # Answer at level 3, what it played before. Fields that make no sense fall back.
+    base = f"http://127.0.0.1:{port}"
+    page.request.post(f"{base}/api/settings", data={"ui": {"jam": {
+        "mode": "answer", "key": "A-minor", "pin": "nope", "bars": 3, "compSound": 7,
+        "mine": [{"root": "H", "quality": "q"}]}}})
+    page.goto(f"{base}/#practice", wait_until="networkidle")
+    page.wait_for_timeout(2200)
+    shown = page.evaluate("""() => Object.fromEntries([...document.querySelectorAll('.jam__opt')].filter((o) => o.offsetParent)
+      .map((o) => [o.querySelector('.jam__lbl').textContent, o.querySelector('.seg__btn.is-on')?.textContent ?? o.querySelector('select')?.value]))""")
+    sound = page.evaluate("[...document.querySelectorAll('.jam__part select')][1].selectedOptions[0].textContent")
+    check("old settings carry over (Answer in A minor: Minor, Answer, level 3); nonsense falls back",
+          shown.get("Music") == "Minor" and shown.get("Play") == "Answer" and shown.get("Level") == "3"
+          and shown.get("Key") == "A-minor" and shown.get("Scale") == "Off" and sound == "Style's own", f"{shown} {sound}")
+    page.request.post(f"{base}/api/settings", data={"ui": {"jam": {
+        "music": "pop", "game": "solo", "level": 1, "key": "C-major", "pin": "off", "bars": 1, "compSound": None, "mine": []}}})
+    page.reload(wait_until="networkidle")              # the same URL: goto() would not reload
     page.wait_for_timeout(2200)
     page.evaluate(SPY)
     page.click(".jam__go")
@@ -366,6 +532,8 @@ def jam_checks(browser, port: int, errs: list[str]) -> list[str]:
               and (seat != "Chords" or len(lit) >= 6), f"{len(lit)} keys, {min(lit, default=0)}-{max(lit, default=0)}")
 
     fails.extend(mode_checks(page, check))
+    pin_checks(page, check)
+    mine_checks(page, check)
 
     press("g")
     press("v", 300)
