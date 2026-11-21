@@ -139,6 +139,19 @@
   --zone-4: #c98bdb;
   --zone-5: #ff8f6b;
   --zone-6: #8fa5ff;
+
+  /* Density. Every shared control is drawn from these, and a managed panel resets
+     them by its own width (the tiers under "inside a managed panel"): full over 560px,
+     compact 380-560, mini under 380. A narrower panel FOLDS -- the same controls,
+     smaller and closer -- rather than stacking the same big boxes taller. Jam reads the
+     first five. These are the full tier, and what anything outside a panel gets. */
+  --ctl-h: 30px;       /* a button, a select, a seg row */
+  --ctl-fs: 13px;
+  --ctl-pad: 12px;     /* a control's own side padding */
+  --gap: 12px;         /* between controls, and under a field */
+  --label-fs: 12px;
+  --mod-pad: 14px;     /* a panel's own padding */
+  --mod-title-fs: 14.5px;
 }
 
 /* ── themes ─────────────────────────────────────────────────────────────────
@@ -950,6 +963,22 @@ body::after {
 /* Each panel is a size container, so what is in it answers to the panel's width and
    not the window's: the same panel is a third of a 1600px tab or the whole of a pane. */
 .grid--packed > [data-panel] { container: panel / inline-size; }
+/* The density tiers (tokens above). On the .mod, not the panel: a container cannot
+   query itself. */
+@container panel (max-width: 560px) {
+  .mod { --ctl-h: 26px; --ctl-fs: 12.5px; --ctl-pad: 9px; --gap: 9px; --label-fs: 11.5px;
+         --mod-pad: 11px; --mod-title-fs: 13.5px; }
+}
+@container panel (max-width: 380px) {
+  .mod { --ctl-h: 24px; --ctl-fs: 12px; --ctl-pad: 8px; --gap: 7px; --label-fs: 11px;
+         --mod-pad: 10px; --mod-title-fs: 13px; }
+}
+/* A long label has a short one (data-short) for the narrow tiers. */
+.short-label { display: none; }
+@container panel (max-width: 560px) {
+  [data-short] > .long-label { display: none; }
+  [data-short] > .short-label { display: inline; }
+}
 /* layout.js pack(): a card drawn down to meet the panel below it, so no hole is left
    above a panel that spans two columns of different heights. Added under the content,
    not set as a min-height: a min-height swallowed the content growing or shrinking
@@ -1018,15 +1047,15 @@ body::after {
   border: 1px solid var(--hairline);
   border-radius: var(--radius-lg);
   box-shadow: 0 10px 28px var(--shadow-soft);
-  padding: 16px 18px 18px;
+  padding: calc(var(--mod-pad) - 2px) var(--mod-pad) var(--mod-pad);
   min-width: 0;
 }
 .mod__head {
   display: flex; align-items: center; gap: 10px;
-  margin: 0 0 16px;
+  margin: 0 0 var(--gap);
 }
 .mod__title {
-  font-size: 15px; font-weight: 600; letter-spacing: .01em;
+  font-size: var(--mod-title-fs); font-weight: 600; letter-spacing: .01em;
   color: var(--ink); white-space: nowrap;
 }
 .mod__rule { flex: 1; }
@@ -1192,7 +1221,7 @@ body.is-rearranging { user-select: none; }
   background: var(--panel-3);
   border: 1px solid var(--hairline-hi);
   border-radius: var(--radius);
-  min-height: 34px; padding: 6px 14px;
+  min-height: var(--ctl-h); padding: 3px var(--ctl-pad); font-size: var(--ctl-fs);
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   cursor: pointer;
   transition: background .14s var(--ease), border-color .14s var(--ease), transform .06s var(--ease);
@@ -1210,22 +1239,22 @@ body.is-rearranging { user-select: none; }
 .btn--panic { color: var(--red-ink); background: var(--red-fill); border-color: var(--red-deep); font-weight: 600; }
 .btn--panic:hover { color: var(--gloss-hard); border-color: var(--red); background: var(--red-deep); }
 .btn--wide { width: 100%; }
-.btn--lg { font-size: 14px; min-height: 42px; padding: 9px 22px; border-radius: 10px; }
+.btn--lg { font-size: calc(var(--ctl-fs) + 1px); min-height: calc(var(--ctl-h) + 6px); padding: 5px calc(var(--ctl-pad) * 1.6); border-radius: 9px; }
 
-.btnrow { display: flex; gap: 8px; flex-wrap: wrap; }
+.btnrow { display: flex; gap: calc(var(--gap) * .6); flex-wrap: wrap; }
 
-.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; min-width: 0; }
+.field { display: flex; flex-direction: column; gap: calc(var(--gap) * .4); margin-bottom: var(--gap); min-width: 0; }
 .field__label {
-  font-size: 12px; font-weight: 500; color: var(--ink-dim);
+  font-size: var(--label-fs); font-weight: 500; color: var(--ink-dim);
   display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
 }
-.field__value { font-family: var(--font-mono); font-size: 12px; color: var(--amber); }
-.field__help { font-size: 12px; line-height: 1.45; color: var(--ink-faint); }
+.field__value { font-family: var(--font-mono); font-size: var(--label-fs); color: var(--amber); }
+.field__help { font-size: var(--label-fs); line-height: 1.4; color: var(--ink-faint); }
 
 /* Exercise setup. The controls are generated from the server's parameter schema, so
    the column count has to survive anything from one toggle to eight fields. */
-.params { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0 14px; }
-.params .toggle { margin-bottom: 12px; }
+.params { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0 var(--gap); }
+.params .toggle { margin-bottom: var(--gap); }
 
 input[type=range] {
   -webkit-appearance: none; appearance: none;
@@ -1274,61 +1303,62 @@ input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px va
 .knob:hover .knob__arc, .knob__input:focus-visible + .knob__dial .knob__arc { stroke: var(--amber-hot); }
 
 select, input[type=text], input[type=number] {
-  font-family: var(--font-panel); font-size: 13px;
+  font-family: var(--font-panel); font-size: var(--ctl-fs);
   color: var(--ink);
   background-color: var(--panel-2);
   border: 1px solid var(--hairline-hi);
   border-radius: var(--radius);
-  min-height: 34px; padding: 6px 10px;
+  min-height: var(--ctl-h); padding: 2px var(--ctl-pad);
   min-width: 0;
   transition: border-color .14s var(--ease);
 }
 select {
   -webkit-appearance: none; appearance: none; cursor: pointer;
-  padding-right: 32px;
+  padding-right: calc(var(--ctl-pad) + 18px);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23948f84' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 11px center;
+  background-repeat: no-repeat; background-position: right calc(var(--ctl-pad) - 1px) center;
 }
 select:hover, input[type=text]:hover, input[type=number]:hover { border-color: var(--control-edge); }
 select:focus, input:focus { outline: none; border-color: var(--amber); box-shadow: 0 0 0 3px var(--amber-wash); }
 select option { background: var(--panel-2); color: var(--ink); }
 
 .toggle {
-  display: flex; align-items: center; gap: 10px; cursor: pointer;
-  font-size: 13px; color: var(--ink); user-select: none;
+  display: flex; align-items: center; gap: calc(var(--gap) * .8); cursor: pointer;
+  font-size: var(--ctl-fs); color: var(--ink); user-select: none;
+  --tg-h: calc(var(--ctl-h) - 8px);
 }
 .toggle input { display: none; }
 .toggle__track {
-  flex: none; width: 38px; height: 22px; border-radius: 11px;
+  flex: none; width: calc(var(--tg-h) * 1.72); height: var(--tg-h); border-radius: 99px;
   background: var(--panel-4);
   position: relative; transition: background .18s var(--ease);
 }
 .toggle__track::after {
   content: ""; position: absolute; top: 3px; left: 3px;
-  width: 16px; height: 16px; border-radius: 50%;
+  width: calc(var(--tg-h) - 6px); height: calc(var(--tg-h) - 6px); border-radius: 50%;
   background: var(--ink); box-shadow: 0 1px 3px var(--shadow);
   transition: transform .18s var(--ease);
 }
 .toggle input:checked + .toggle__track { background: var(--amber); }
-.toggle input:checked + .toggle__track::after { transform: translateX(16px); background: var(--gloss-hard); }
+.toggle input:checked + .toggle__track::after { transform: translateX(calc(var(--tg-h) * .72)); background: var(--gloss-hard); }
 
 /* ── data display ───────────────────────────────────────────────────────── */
 .stat { display: flex; flex-direction: column; gap: 3px; }
 .stat__value {
-  font-family: var(--font-mono); font-size: 26px; font-weight: 600;
+  font-family: var(--font-mono); font-size: calc(var(--ctl-h) * .8); font-weight: 600;
   color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1.1;
 }
 .stat__value--amber { color: var(--amber); }
 .stat__value--cyan { color: var(--cyan); }
-.stat__label { font-size: 12px; font-weight: 500; color: var(--ink-dim); }
-.stat__note { font-size: 12px; color: var(--ink-faint); }
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 16px; }
+.stat__label { font-size: var(--label-fs); font-weight: 500; color: var(--ink-dim); }
+.stat__note { font-size: var(--label-fs); color: var(--ink-faint); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(var(--ctl-h) * 3.4), 1fr)); gap: var(--gap); }
 
 .list { display: flex; flex-direction: column; gap: 2px; }
 .list__row {
   display: flex; align-items: center; gap: 10px;
-  padding: 8px 10px; border-radius: var(--radius);
-  font-size: 13px; color: var(--ink-dim);
+  padding: calc(var(--gap) * .5) calc(var(--ctl-pad) * .8); border-radius: var(--radius);
+  font-size: var(--ctl-fs); color: var(--ink-dim);
   background: transparent;
 }
 .list__row:hover { background: var(--panel-2); color: var(--ink); }
@@ -1400,11 +1430,11 @@ select option { background: var(--panel-2); color: var(--ink); }
 .tip__pop .note + .note { margin-top: 8px !important; }
 
 .chips--tight { gap: 4px; margin-bottom: 10px; }
-.chips--tight .chip { padding: 4px 10px; font-size: 12px; }
-.empty { color: var(--ink-faint); font-size: 13px; padding: 16px 0; text-align: center; }
+.chips--tight .chip { padding: 2px calc(var(--ctl-pad) * .8); font-size: calc(var(--ctl-fs) - 1px); }
+.empty { color: var(--ink-faint); font-size: var(--ctl-fs); padding: var(--gap) 0; text-align: center; }
 
 /* ── preset / instrument pickers ────────────────────────────────────────── */
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: calc(var(--gap) * .5); }
 /* Groups the shelf: the handful you saved, then the ones that ship. Sorting is by
    file name, so before this a preset you made landed alphabetically in the middle of
    sixty-eight strangers with nothing marking it as yours. Typography lifted from
@@ -1415,12 +1445,12 @@ select option { background: var(--panel-2); color: var(--ink); }
 .chips__head:first-child { margin-top: 0; }
 .chips__sub { font-weight: 400; color: var(--ink-faint); font-size: 12px; margin-left: 8px; }
 .chip {
-  font-family: var(--font-panel); font-size: 13px;
+  font-family: var(--font-panel); font-size: var(--ctl-fs);
   color: var(--ink-dim);
   background: var(--panel-2);
   border: 1px solid var(--hairline);
   border-radius: 999px;
-  padding: 6px 13px; cursor: pointer;
+  min-height: calc(var(--ctl-h) - 2px); padding: 2px var(--ctl-pad); cursor: pointer;
   display: flex; align-items: center; gap: 7px;
   transition: color .14s var(--ease), border-color .14s var(--ease);
 }
@@ -1680,17 +1710,17 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
 @keyframes toast-in { from { opacity: 0; transform: translateX(14px); } }
 
 /* ── quick builders (Layers) ────────────────────────────────────────────── */
-.builds { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.builds { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--gap); }
 .build {
-  display: flex; flex-direction: column; gap: 8px;
-  padding: 12px 13px 13px;
+  display: flex; flex-direction: column; gap: calc(var(--gap) * .6);
+  padding: calc(var(--gap) * .8);
   background: var(--wash);
   border: 1px solid var(--hairline);
   border-radius: var(--radius);
 }
 .build__title {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  font-size: 14px; font-weight: 600; color: var(--ink);
+  font-size: var(--ctl-fs); font-weight: 600; color: var(--ink);
 }
 /* The blurb that used to fill the card is behind the (i), so the button keeps the
    cards in a row level by taking up the slack itself. */
@@ -1932,11 +1962,11 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
 .th__opts { display: flex; gap: 8px; margin-left: auto; }
 
 .seg {
-  display: inline-flex; gap: 2px; padding: 3px;
-  background: var(--panel-2); border: 1px solid var(--hairline); border-radius: 10px;
+  display: inline-flex; gap: 2px; padding: 2px;
+  background: var(--panel-2); border: 1px solid var(--hairline); border-radius: 9px;
 }
 .seg__btn {
-  min-height: 28px; padding: 4px 13px; font-family: var(--font-panel); font-size: 13px; font-weight: 500;
+  min-height: calc(var(--ctl-h) - 6px); padding: 2px var(--ctl-pad); font-family: var(--font-panel); font-size: var(--ctl-fs); font-weight: 500;
   color: var(--ink-dim); background: transparent; border: 0; border-radius: 7px;
   cursor: pointer; white-space: nowrap;
   transition: background 90ms var(--ease), color 90ms var(--ease);
