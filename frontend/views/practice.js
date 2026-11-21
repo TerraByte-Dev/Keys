@@ -203,10 +203,15 @@ function paintShelf(ctx) {
   host()?.dispatchEvent(new Event('layout:content'));
 }
 
+// The name opens it too. In a wide panel it reads as the card's title, beside an Open
+// button; in a half or a quarter (style.css) the card folds to the name alone, a chip.
 function card(ex, ctx) {
+  const open = () => openRun(ex, ctx);
   return h('div.build', null,
-    h('div.build__title', null, h('span', null, ex.name), ex.blurb ? tip(ex.blurb) : null),
-    h('button.btn.btn--wide', { onclick: () => openRun(ex, ctx) }, 'Open'));
+    h('div.build__title', null,
+      h('button.btn.build__open', { title: `Open ${ex.name}`, onclick: open }, ex.name),
+      ex.blurb ? tip(ex.blurb) : null),
+    h('button.btn.btn--wide', { onclick: open }, 'Open'));
 }
 
 /* ── switching between the shelf and a run ────────────────────────────────── */
@@ -217,6 +222,10 @@ function openRun(ex, ctx, initial = null) {
   current?.destroy?.();
   current = createRunner(ex, ctx, () => back(ctx), initial);
   host()?.replaceChildren(current.el);
+  // A run takes the whole row, whatever the shelf was sized to: in a half or a quarter
+  // its Setup became one long column beside a short This run. The size you gave the
+  // shelf is kept (the class and data-sized) and comes back with it (back()).
+  if (host()) host().dataset.minSpan = '12';
   // The header it is dragged by went with the shelf; layout.js gives the run's its grip.
   host()?.dispatchEvent(new Event('layout:content'));
 }
@@ -227,5 +236,6 @@ function back(ctx) {
   if (current?.el?.dataset.focus) ctx.toggleFocus?.(false);
   current?.destroy?.();
   current = null;
+  if (host()) delete host().dataset.minSpan;
   paintShelf(ctx);
 }

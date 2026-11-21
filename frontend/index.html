@@ -78,8 +78,8 @@
   <div class="nav__rule" aria-hidden="true"></div>
   <div class="nav__pages" id="nav-pages"></div>
   <a class="nav__item nav__item--new" href="#page/new" id="nav-new-page" data-page="new"><svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="nav__label">New page</span></a>
-  <!-- Folds the nav to its icons (ui.nav_collapsed); app.js wires it. -->
-  <button class="nav__fold" id="nav-fold" type="button" title="Fold the menu to icons" aria-pressed="false"><svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4v16"/><path d="M15 7l-5 5 5 5"/><path d="M10 12h10"/></svg><span class="nav__label">Fold</span></button>
+  <!-- The nav opens under the pointer on its own; this holds it open (ui.nav_pinned). app.js wires it. -->
+  <button class="nav__pin" id="nav-pin" type="button" title="Keep the menu open" aria-pressed="false"><svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="nav__pinhead" d="M9 3.5h6M10 3.5v5.2L7 12.5h10l-3-3.8V3.5"/><path d="M12 12.5V20.5"/></svg><span class="nav__label">Keep open</span></button>
 </nav>
 
 <!-- ── the view ──────────────────────────────────────────────────────────── -->

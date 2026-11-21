@@ -48,6 +48,8 @@ let live = false;
 let calYear = 0;
 let calYears = [];
 let calData = null;
+// Watches the year's scroller for the moment it starts to scroll (paintCalendar).
+let calRO = null;
 
 export default {
   async mount(root, ctx) {
@@ -121,6 +123,8 @@ export default {
     picked = null;
     data = null;
     calData = null;
+    calRO?.disconnect();
+    calRO = null;
     calYear = 0;
     lastNotes = null;
     inFlight = false;
@@ -148,6 +152,24 @@ function paintCalendar() {
   const host = $('#cal-host');
   if (!host || !calData) return;
   host.replaceChildren(calendar(calData));
+  // A quarter-width Activity scrolls through the year (style.css): open it on this week,
+  // not on January -- once the layout has given the panel its width, and again whenever
+  // it starts to scroll later (the panel narrowed to a quarter with its arrow), or a
+  // narrowed Activity shows January to October with this month cut off. Only on that
+  // change, so a later resize never undoes where you scrolled to.
+  calRO?.disconnect();
+  const fit = host.querySelector('.calx__fit');
+  let fitted = true;
+  calRO = fit && new ResizeObserver(() => {
+    const over = fit.scrollWidth > fit.clientWidth + 1;
+    if (over && fitted) {
+      const now = new Date();
+      const f = calYear < now.getFullYear() ? 1 : (now - new Date(calYear, 0, 1)) / (365 * 864e5);
+      fit.scrollLeft = Math.max(0, f * fit.scrollWidth - fit.clientWidth * 0.8);
+    }
+    fitted = !over;
+  });
+  calRO?.observe(fit);
   const label = $('#cal-year');
   if (label) label.textContent = String(calYear);
   const aside = $('#cal-aside');
@@ -278,13 +300,13 @@ function render(d) {
         'Idle time is already subtracted, so this is density, not diligence. ',
         'It goes up with faster pieces and down with harder ones.'))),
 
-    h(col(4), null, mod('Session length', null,
+    h(col(3), null, mod('Session length', null,
       sessionLengths(d.session_lengths))),
 
-    h(col(4), null, mod('Sounds you reach for', null,
+    h(col(6), null, mod('Sounds you reach for', null,
       presets(d.presets))),
 
-    h(col(4), null, mod('Sight reading', 'all attempts',
+    h(col(3), null, mod('Sight reading', 'all attempts',
       sightread(d.sightread))),
   );
 
@@ -294,11 +316,11 @@ function render(d) {
   if (picked && host) queueMicrotask(() => { if (host) pickPanels(host, picked); });
 }
 
-/* The element that scrolls this view: the stage on the tab; on a page, the pane --
-   or, in a one-column stack, the panes area (the same choice as layout.js build()). */
+/* The element that scrolls this view: the stage on the tab; on a page, the column the
+   pane is in (the same choice as layout.js build()). */
 function scroller() {
   const grid = $('#an-grid');
-  return grid?.closest('.page--stack .page__panes') || grid?.closest('.page__pane') || $('#stage');
+  return grid?.closest('.page__col') || $('#stage');
 }
 
 /* ── small shared bits ────────────────────────────────────────────────────── */
@@ -331,8 +353,15 @@ function barChart(values, labels, opts = {}) {
         style: { height: v ? `${Math.max(3, (v / max) * 100)}%` : '2%' },
         title: opts.title ? opts.title(i, v) : `${labels[i]}: ${count(v)}`,
       }))),
-    h('div.chart__ticks', null, labels.map((t, i) => h('div.chart__tick', null,
-      opts.every && i % opts.every ? '' : t))));
+    // With `every`, one tick per group of that many bars, its label over the group's
+    // first bar: a quarter-width panel's bar is narrower than "12", and a label in a
+    // box of its own bar's width was cut to "1".
+    h('div.chart__ticks', null, opts.every
+      ? labels.filter((_, i) => i % opts.every === 0).map((t, k) => {
+        const n = Math.min(opts.every, labels.length - k * opts.every);
+        return h('div.chart__tick', { style: { flex: String(n), '--n': String(n) } }, h('span', null, t));
+      })
+      : labels.map((t) => h('div.chart__tick', null, t))));
 }
 
 /* ── activity calendar ────────────────────────────────────────────────────── */

@@ -18,13 +18,14 @@
  * reports the piece it can actually see and labels it. */
 
 import { instrumentPanel } from '../instrument.js';
-import { $, api, h, info, mod, stat, toast } from '../ui.js';
+import { $, api, h, info, mod, shortLabel, stat, toast } from '../ui.js';
 
 /* Built here rather than inline in mount(), because status() has to rebuild the same
    rows every second. The counters ARE this panel -- "the port that moves is your
    keyboard" -- and painting them once at mount meant they never moved. Someone who
    updated BECAUSE their keyboard was silent would have watched every port read `silent`
    forever and drawn exactly the wrong conclusion. */
+
 function portRows(midi) {
   const ports = midi?.ports || [];
   if (!ports.length) return [h('div.empty', null, 'no MIDI inputs found')];
@@ -123,15 +124,17 @@ export default {
           ])),
         eng.audio_error ? h('div.note.note--warn', null, eng.audio_error) : null,
 
-        h('div', { style: { display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '14px', alignItems: 'end' } },
+        h('div.audio__row', { style: { display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '14px', alignItems: 'end' } },
           h('label.field', null,
             h('span.field__label', null, h('span', null, 'Output device')),
             h('select', { id: 'audio-device' }, h('option', null, 'loading...'))),
           h('label.field', null,
             h('span.field__label', null, h('span', null, 'Mode')),
             h('select', { id: 'audio-excl' },
-              h('option', { value: '0', selected: !eng.exclusive }, 'Shared — everything works'),
-              h('option', { value: '1', selected: eng.exclusive }, 'Exclusive — 3 ms, Keys only'))),
+              // Short, so the row holds in a half: what each one costs is the two
+              // buttons under it and the warning under those.
+              h('option', { value: '0', selected: !eng.exclusive }, 'Shared'),
+              h('option', { value: '1', selected: eng.exclusive }, 'Exclusive — 3 ms'))),
           h('label.field', null,
             h('span.field__label', null, h('span', null, 'Buffer'),
               h('span.field__value', { id: 'audio-period-v' }, String(eng.period_size ?? 144))),
@@ -142,8 +145,8 @@ export default {
 
         h('div.btnrow', null,
           h('button.btn.btn--lg', { id: 'audio-apply' }, 'Apply'),
-          h('button.btn', { id: 'audio-share' }, 'Play nicely with everything'),
-          h('button.btn', { id: 'audio-lowlat' }, 'Lowest latency (takes the device)')),
+          h('button.btn', { id: 'audio-share' }, shortLabel('Play nicely with everything', 'Play nicely')),
+          h('button.btn', { id: 'audio-lowlat' }, shortLabel('Lowest latency (takes the device)', 'Lowest latency'))),
 
         info(
           h('strong', null, 'Shared is the default, on purpose.'), ' Keys coexists with ',
@@ -152,9 +155,11 @@ export default {
           'spans between a soft and a hard keystroke.'),
         h('div.note.note--warn', { style: { marginTop: '8px' } },
           h('strong', null, 'Exclusive mode takes the output device away from every other app.'),
-          ' Not turns them down — silent. Spotify stops, Discord stops, a browser reports ',
-          'an audio rendering error. That is not a bug and not a conflict; it is how WASAPI ',
-          'buys the 3 ms, and it is why it is not the default.'),
+          // The why, which a half- or quarter-width panel leaves out (style.css).
+          h('span.audio__why', null,
+            ' Not turns them down — silent. Spotify stops, Discord stops, a browser reports ',
+            'an audio rendering error. That is not a bug and not a conflict; it is how WASAPI ',
+            'buys the 3 ms, and it is why it is not the default.')),
         info(
           h('strong', null, 'Want 3 ms without losing anything?'), ' Pin Keys to an output ',
           'Windows is not using — an audio interface, headphones on a second endpoint, or ',
@@ -195,7 +200,7 @@ export default {
 
       h('div.col-12', null, mod('SoundFonts', null,
         h('div.list', null, (st.soundfonts || []).map((sf) => h('div.list__row', null,
-          h('span', null, sf.file),
+          h('span.sf__file', { title: sf.file }, sf.file),
           h('span.list__spacer'),
           h('span.mono', null, (sf.size / 1048576).toFixed(1) + ' MB'),
           sf.loaded ? h('span.tag.tag--green', null, 'loaded') : h('span.tag', null, 'on disk')))),
