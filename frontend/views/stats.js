@@ -303,11 +303,11 @@ function render(d) {
   if (picked && host) queueMicrotask(() => { if (host) pickPanels(host, picked); });
 }
 
-/* The element that scrolls this view: the stage on the tab; on a page, the pane --
-   or, in a one-column stack, the panes area (the same choice as layout.js build()). */
+/* The element that scrolls this view: the stage on the tab; on a page, the column the
+   pane is in (the same choice as layout.js build()). */
 function scroller() {
   const grid = $('#an-grid');
-  return grid?.closest('.page--stack .page__panes') || grid?.closest('.page__pane') || $('#stage');
+  return grid?.closest('.page__col') || $('#stage');
 }
 
 /* ── small shared bits ────────────────────────────────────────────────────── */

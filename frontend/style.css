@@ -3702,30 +3702,46 @@ body.is-focusing .exrun .stat__note { font-size: 14px; }
 .nav__item--new { height: 32px; font-size: 12px; color: var(--ink-faint); }
 .nav__item--new .nav__icon { opacity: .6; }
 
-/* Fold: the nav as a strip of icons, each named by its native tooltip (app.js). The
-   button sits at the foot of the nav; the grid column is set here rather than through
-   --nav-w, which the rail's brand is sized by. Not at phone width, where the nav is a
-   bottom bar already, nor in focus or immersive, which zero the column themselves. */
-.nav__fold {
+/* The nav at rest is a 52px strip of icons; the pointer over it, or keyboard focus in
+   it, opens it (app.js is-navopen) to its full width as a layer OVER the stage, which
+   keeps its place. The grid column stays 52px either way -- set here, not through
+   --nav-w, which the rail's brand is sized by -- and the open nav is a grid item wider
+   than its track, drawn above the stage beside it. Every icon sits at the same x
+   folded and open (6px nav padding + 11px), so opening only uncovers the labels: the
+   items are their open width from the first frame and the nav's own edge, moving out,
+   reveals them. Pinned (is-navpinned) it is the full-width column of before and the
+   stage moves over for it. Not at phone width, where the nav is a bottom bar, nor in
+   focus or immersive, which hide it. */
+.nav__pin {
   margin-top: auto;
   display: flex; align-items: center; gap: 11px;
-  height: 32px; padding: 0 10px;
+  height: 32px; padding: 0 10px; flex: none;
   background: none; border: 0; border-radius: var(--radius);
   color: var(--ink-faint); font: inherit; font-size: 12px; cursor: pointer;
   transition: color .16s var(--ease), background .16s var(--ease);
 }
-.nav__fold:hover { color: var(--ink); background: var(--panel-2); }
-.nav__fold:focus-visible { outline: 2px solid var(--amber); outline-offset: -2px; }
-.nav__fold .nav__icon { transition: transform .18s var(--ease); }
+.nav__pin:hover { color: var(--ink); background: var(--panel-2); }
+.nav__pin:focus-visible { outline: 2px solid var(--amber); outline-offset: -2px; }
+.nav__pin[aria-pressed="true"] { color: var(--ink-dim); }
+.nav__pin[aria-pressed="true"] .nav__icon { color: var(--amber); opacity: 1; transform: rotate(-30deg); }
+.nav__pin[aria-pressed="true"] .nav__pinhead { fill: currentColor; }
+.nav__pin .nav__icon { transition: transform .18s var(--ease); }
 @media (min-width: 721px) {
-  body.is-navfold:not(.is-immersive):not(.is-focusing) { grid-template-columns: 52px 1fr; }
-  body.is-navfold .nav { padding: 10px 6px; overflow: hidden; }
-  body.is-navfold :is(.nav__item, .nav__fold) { justify-content: center; padding: 0; gap: 0; }
-  body.is-navfold :is(.nav__label, .nav__key) { display: none; }
-  body.is-navfold .nav__item.is-active::before { left: -6px; }
-  body.is-navfold .nav__item--page { height: 38px; }
-  body.is-navfold .nav__rule { margin: 6px 4px; }
-  body.is-navfold .nav__fold .nav__icon { transform: scaleX(-1); }
+  body:not(.is-navpinned):not(.is-immersive):not(.is-focusing) { grid-template-columns: 52px 1fr; }
+  body:not(.is-navpinned) .nav {
+    position: relative; z-index: 60; width: 52px; min-width: 0;
+    padding: 10px 6px; overflow: hidden;
+    transition: width .15s var(--ease), box-shadow .15s var(--ease);
+  }
+  body:not(.is-navpinned) :is(.nav__item, .nav__pin) { padding: 0 10px 0 11px; flex: none; }
+  body:not(.is-navpinned) .nav__item.is-active::before { left: -6px; }
+  body:not(.is-navpinned) .nav__rule { margin: 8px 4px; }
+  body:not(.is-navpinned):not(.is-navopen) :is(.nav__label, .nav__key) { display: none; }
+  body.is-navopen:not(.is-navpinned) .nav {
+    width: var(--nav-w);
+    box-shadow: 14px 0 28px -14px var(--shadow-deep);
+  }
+  body.is-navopen:not(.is-navpinned) :is(.nav__item, .nav__pin) { width: calc(var(--nav-w) - 13px); }
 }
 
 /* Right-click on a page in the nav: Edit, Rename, Delete. Fixed, so the nav's own
@@ -3756,12 +3772,14 @@ body.is-focusing .exrun .stat__note { font-size: 14px; }
   border: 1px solid var(--amber-deep); border-radius: 5px; outline: none;
 }
 
-/* A page fills the stage and the panes scroll, each on its own; the stage does not. */
-/* One workspace, not boxes in boxes: the stage's padding, then panes 14px apart like
-   the panels in them. Each pane keeps a 4px gutter at its right that is part of those
-   14px (10px gap + 4px), so a pane that scrolls and one that does not line up the
-   same; its scrollbar is a hairline in that gutter, drawn only while the pointer is
-   over the pane. pages.js paneWidth() does this arithmetic. */
+/* A page fills the stage and its columns scroll, each on its own; the stage does not. */
+/* One workspace, not boxes in boxes: the stage's padding, then columns 14px apart like
+   the panels in them, and down a column each pane 14px under the one above it, the
+   grid's own gap, so a column reads as one tall grid. A column keeps a 4px gutter at
+   its right that is part of those 14px (10px gap + 4px), so a column that scrolls and
+   one that does not line up the same; its scrollbar is a hairline in that gutter,
+   drawn only while the pointer is over the column. pages.js paneWidth() does this
+   arithmetic. A pane is as tall as what it holds and never scrolls itself. */
 .stage:has(> .page) { overflow: hidden; padding: 12px 14px 14px; }
 .page { height: 100%; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
 .page__head { display: flex; align-items: center; gap: 8px; flex: none; min-height: 26px; }
@@ -3769,19 +3787,25 @@ body.is-focusing .exrun .stat__note { font-size: 14px; }
 .page__name { font-size: 14px; font-weight: 600; color: var(--ink); white-space: nowrap; }
 .page__sub { font-size: 12px; color: var(--ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .page__edit.btn { height: 26px; min-height: 26px; padding: 0 10px; font-size: 12px; }
-.page__panes { flex: 1; min-height: 0; display: grid; column-gap: 10px; row-gap: 14px; }
-.page__pane {
-  min-width: 0; min-height: 0; overflow-y: auto; overflow-x: hidden;
-  scrollbar-gutter: stable;
+.page__panes { flex: 1; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr); column-gap: 10px; }
+.page__col {
+  min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 14px;
+  overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable;
 }
-.page__pane::-webkit-scrollbar { width: 4px; }
-.page__pane::-webkit-scrollbar-thumb { background: transparent; border-radius: 2px; }
-.page__pane:hover::-webkit-scrollbar-thumb { background: var(--panel-4); }
-.page__pane::-webkit-scrollbar-track { background: transparent; }
+.page__col::-webkit-scrollbar { width: 4px; }
+.page__col::-webkit-scrollbar-thumb { background: transparent; border-radius: 2px; }
+.page__col:hover::-webkit-scrollbar-thumb { background: var(--panel-4); }
+.page__col::-webkit-scrollbar-track { background: transparent; }
+.page__pane { flex: none; min-width: 0; }
+/* A packed grid already ends 14px under its lowest panel (layout.js gives every panel
+   its height plus the gap in rows), so the pane after one takes those 14px back: card
+   to card is 14px down a column as it is inside a grid, not 28. */
+.page__pane:has(> .grid--packed:last-child) + .page__pane { margin-top: -14px; }
 .is-unpicked { display: none !important; }
 
-/* Focus on a page: the panes are on the marked path like any other ancestor. */
-body.is-focusing .page__pane { overflow: hidden; padding: 0; }
+/* Focus on a page: the column and the pane are on the marked path like any other
+   ancestor. */
+body.is-focusing .page__col { overflow: hidden; padding: 0; }
 
 /* Jam in a pane: Start, then the stage, then the options. A pane is a few hundred px
    tall, and with the option groups first, as on the tab, the Now chord, the strip and
@@ -3837,13 +3861,32 @@ body:not(.is-focusing) .page__pane .jam__opts { flex: none; }
 .pb__check .toggle__track { width: 28px; height: 16px; border-radius: 8px; }
 .pb__check .toggle__track::after { top: 2px; left: 2px; width: 12px; height: 12px; }
 .pb__check input:checked + .toggle__track::after { transform: translateX(12px); }
-/* The panes in order, laid out as the page will be: --cols across (pages.js). */
-.pb__order { display: grid; grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr)); gap: 4px; }
-.pb__row .btn--sm { min-height: 22px; padding: 0 7px; }
+/* The page in miniature: --cols columns across (pages.js paintColumns), each pane a
+   card down its column with arrows the way it moves. Each column is a well, so an
+   empty one reads as a place a pane can go. */
+.pb__order { display: grid; grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr)); gap: 8px; }
+.pb__col {
+  display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 6px;
+  background: var(--panel-1); border: 1px solid var(--hairline); border-radius: var(--radius);
+}
+.pb__chead {
+  font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--ink-faint); padding: 0 4px 2px;
+}
 .pb__row {
-  display: flex; align-items: center; gap: 8px; padding: 2px 3px 2px 10px; min-width: 0;
+  display: flex; align-items: center; gap: 8px; padding: 5px 4px 5px 10px; min-width: 0;
   background: var(--panel-2); border: 1px solid var(--hairline); border-radius: var(--radius);
 }
+.pb__rtext { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.pb__rsub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pb__arrows { display: flex; gap: 2px; flex: none; }
+.pb__row .pb__mv { min-height: 22px; height: 22px; min-width: 24px; padding: 0 6px; }
+.pb__hole {
+  display: grid; place-items: center; min-height: 40px; padding: 6px;
+  border: 1px dashed var(--hairline); border-radius: var(--radius);
+  font-size: 12px; color: var(--ink-faint);
+}
+.pb__none { grid-column: 1 / -1; }
 /* The icon picker: a row of square buttons, the picked one in amber. */
 .pb__icons { display: flex; flex-wrap: wrap; gap: 4px; }
 .pb__icon {
@@ -3856,23 +3899,11 @@ body:not(.is-focusing) .page__pane .jam__opts { flex: none; }
 .pb__icon.is-on { color: var(--amber); border-color: var(--amber-deep); background: var(--panel-3); }
 .pb__icon:focus-visible { outline: 2px solid var(--amber); outline-offset: 1px; }
 .pb__iconsvg { width: 18px; height: 18px; }
-.pb__pos { font-family: var(--font-mono); font-size: 11px; color: var(--ink-faint); min-width: 1.5ch; }
 .pb__rname { font-weight: 600; color: var(--ink); }
 .pb__rsub { font-size: 12px; color: var(--ink-faint); }
 .pb__note { margin-top: 10px; }
 .pb__warn { margin: 0 0 10px; }
 .pb__ask { display: flex; align-items: center; gap: 8px; color: var(--ink); }
-
-/* More than one row of panes: each row has a floor (pages.js ROW_MIN) and the panes
-   area scrolls past it, rather than sharing a short window out as slivers. */
-.page__panes { overflow-y: auto; overflow-x: hidden; }
-.page__panes::-webkit-scrollbar { width: 4px; }
-.page__panes::-webkit-scrollbar-thumb { background: transparent; border-radius: 2px; }
-.page__panes:hover::-webkit-scrollbar-thumb { background: var(--panel-4); }
-.page__panes::-webkit-scrollbar-track { background: transparent; }
-/* One column: a stack, each pane as tall as its panels, the page the only scroller. */
-.page--stack .page__panes { grid-auto-rows: max-content; align-content: start; }
-.page--stack .page__pane { overflow-x: clip; overflow-y: visible; }
 
 /* Chords & scales narrower than its twelve roots and 430px diagram (a pane a third of a
    window wide, a third of a tab): the panel does not scroll sideways -- Bb and B were

@@ -543,41 +543,119 @@ function paintNav(id = currentId) {
     a.classList.toggle('is-active', pageId ? a.dataset.page === pageId : a.dataset.view === id);
   }
   navNew?.toggleAttribute('hidden', pages.length >= MAX_PAGES);
-  paintFold();
+  paintNavMode();
 }
 
-/* ── the nav folded to icons (ui.nav_collapsed) ───────────────────────────── */
-/* Folded, an item is only its icon, so each carries its name as a native tooltip --
-   with its key, which the folded item no longer prints. A page's tooltip is its name
-   either way (paintNav). */
-const navFold = $('#nav-fold');
-let navFolded = false;
+/* ── the nav: icons at rest, open under the pointer (ui.nav_pinned) ───────── */
+/* At rest the nav is a 52px strip of icons. The pointer over it -- or keyboard focus
+   in it -- opens it to its full width OVER the stage, which does not move, so nothing
+   on the stage repacks on the way to a tab; leaving lets it fold back. The delays are
+   what make that calm: a pointer crossing the strip on its way somewhere else does not
+   flash it open, and a pointer that slips a few px off its edge does not snap it shut.
+   It stays open while its right-click menu or a rename is up, both of which the
+   pointer has every reason to leave it for. Pinned, it is the full-width column it was
+   before 0.16 and the stage sits beside it. A click is never what opens it: having to
+   press Fold every time was the complaint.
+   Folded, an item's label is not drawn, so a tab carries its name for a screen reader
+   as aria-label (a native tooltip would repeat the label the open nav already shows);
+   a page's title stays, because a long page name can be cut short even when open. */
+const navEl = $('#nav');
+const navPin = $('#nav-pin');
+const NAV_OPEN_MS = 80;
+const NAV_CLOSE_MS = 250;
+let navPinned = false;
+let navOpen = false;
+let navTimer = 0;
+// Focus that arrived in the nav by keyboard (Tab), and only that. The focus a click
+// leaves on a tab does not count, even after a later keypress makes it :focus-visible.
+let navKbd = false;
 
-function paintFold() {
-  document.body.classList.toggle('is-navfold', navFolded);
-  navFold?.setAttribute('aria-pressed', String(navFolded));
-  if (navFold) navFold.title = navFolded ? 'Unfold the menu' : 'Fold the menu to icons';
+function paintNavMode() {
+  document.body.classList.toggle('is-navpinned', navPinned);
+  document.body.classList.toggle('is-navopen', navOpen && !navPinned);
+  navPin?.setAttribute('aria-pressed', String(navPinned));
+  if (navPin) navPin.title = navPinned ? 'Let the menu fold to icons' : 'Keep the menu open';
+  const pinLabel = navPin?.querySelector('.nav__label');
+  if (pinLabel) pinLabel.textContent = navPinned ? 'Pinned open' : 'Keep open';
   for (const a of document.querySelectorAll('.nav__item[data-view], #nav-new-page')) {
-    const name = a.querySelector('.nav__label')?.textContent || '';
-    const key = a.querySelector('.nav__key')?.textContent;
-    if (navFolded) a.title = key ? `${name} (${key})` : name;
-    else a.removeAttribute('title');
+    a.setAttribute('aria-label', a.querySelector('.nav__label')?.textContent || '');
   }
 }
 
-function setFold(on, { persist = true } = {}) {
-  navFolded = !!on;
-  paintFold();
-  // The panels on screen just got wider or narrower; layout.js repacks on a resize.
+/* Something the nav must stay open for: the pointer on it, a keyboard focus in it, its
+   right-click menu, or a page being renamed in it. */
+function navHeld() {
+  return !!(navMenu || navEl?.querySelector('.nav__rename') || navEl?.matches(':hover')
+    || (navKbd && navEl?.contains(document.activeElement)));
+}
+
+function wantNav(open, delay) {
+  clearTimeout(navTimer);
+  navTimer = setTimeout(() => {
+    if (!open && navHeld()) return;
+    if (navOpen === open) return;
+    navOpen = open;
+    paintNavMode();
+  }, delay);
+}
+// Fold it back if nothing holds it now: after the menu closes, or a rename ends.
+const settleNav = () => wantNav(false, NAV_CLOSE_MS);
+// Fold it now, whatever is under the pointer: it opens again only on the next pointerenter.
+function foldNav() {
+  clearTimeout(navTimer);
+  if (!navOpen) return;
+  navOpen = false;
+  paintNavMode();
+}
+// Folded to the strip above 720px; below that the nav is a bar across the top.
+const navFolds = () => !navPinned && matchMedia('(min-width: 721px)').matches;
+
+navEl?.addEventListener('pointerenter', (e) => { if (e.pointerType !== 'touch') wantNav(true, NAV_OPEN_MS); });
+navEl?.addEventListener('pointerleave', settleNav);
+// Keyboard focus, not the focus a click leaves on the tab it pressed: that one would
+// hold the nav open after the pointer had gone.
+navEl?.addEventListener('focusin', () => {
+  navKbd = !!navEl.querySelector(':focus-visible');
+  if (navKbd) wantNav(true, 0);
+});
+navEl?.addEventListener('focusout', (e) => {
+  if (!navEl.contains(e.relatedTarget)) navKbd = false;
+  settleNav();
+});
+document.addEventListener('pointerdown', (e) => {
+  navKbd = false;
+  // A tap off an open nav folds it: touch has no pointerleave to do that.
+  if (e.pointerType === 'touch' && navOpen && !navMenu && !navEl?.contains(e.target)) foldNav();
+}, true);
+// A click on an item goes there and folds the nav at once, so the left of the page it
+// opens is not under the open nav while the pointer is still on it. On touch, with the
+// nav folded, the first tap opens it (labels to read) and the next one goes. Enter on a
+// focused item (detail 0) leaves it open: the keyboard is still in it.
+navEl?.addEventListener('click', (e) => {
+  if (!e.target.closest('a.nav__item') || !navFolds() || e.detail === 0) return;
+  if (e.pointerType === 'touch' && !navOpen) {
+    e.preventDefault();
+    clearTimeout(navTimer);
+    navOpen = true;
+    paintNavMode();
+    return;
+  }
+  foldNav();
+});
+
+function setPinned(on, { persist = true } = {}) {
+  navPinned = !!on;
+  paintNavMode();
+  // The stage just got wider or narrower; layout.js repacks on a resize.
   window.dispatchEvent(new Event('resize'));
   if (persist) {
-    api.post('/api/settings', { ui: { nav_collapsed: navFolded } })
+    api.post('/api/settings', { ui: { nav_pinned: navPinned } })
       .then((settings) => { if (settings) ctx.state.settings = settings; })
       .catch((err) => toast(err.message, 'bad'));
   }
 }
 
-navFold?.addEventListener('click', () => setFold(!navFolded));
+navPin?.addEventListener('click', () => setPinned(!navPinned));
 
 /* ── right-click on a page in the nav: Edit, Rename, Delete ──────────────── */
 /* Inline, no browser dialogs: Rename turns the item's label into a field, and Delete
@@ -592,6 +670,7 @@ function closeNavMenu() {
   document.removeEventListener('pointerdown', menuAway, true);
   document.removeEventListener('keydown', menuKey, true);
   window.removeEventListener('blur', closeNavMenu);
+  settleNav();
 }
 
 function menuAway(e) { if (navMenu && !navMenu.contains(e.target)) closeNavMenu(); }
@@ -604,6 +683,10 @@ function menuKey(e) {
 
 function openNavMenu(page, item, e) {
   closeNavMenu();
+  // Open now, the page's name beside its menu, even on a right-click quicker than the
+  // pointer's open delay; navHeld() keeps it open while the menu is up.
+  clearTimeout(navTimer);
+  if (!navOpen) { navOpen = true; paintNavMode(); }
   const entry = (act, label, onclick, extra = '') => h('button.navmenu__item' + extra,
     { type: 'button', role: 'menuitem', 'data-act': act, onclick }, icon(MENU_ICONS[act]), label);
   const menu = h('div.navmenu', { id: 'nav-menu', role: 'menu', 'data-page': page.id });
@@ -613,7 +696,7 @@ function openNavMenu(page, item, e) {
          h('div.navmenu__row', null,
            h('button.btn.btn--sm', { type: 'button', id: 'nav-menu-yes', onclick: () => deletePage(page) }, 'Delete'),
            h('button.btn.btn--sm', { type: 'button', id: 'nav-menu-no', onclick: () => paintMenu(false) }, 'Keep'))]
-      : [entry('edit', 'Edit page', () => { closeNavMenu(); location.hash = `page/${page.id}/edit`; }),
+      : [entry('edit', 'Edit page', () => { closeNavMenu(); foldNav(); location.hash = `page/${page.id}/edit`; }),
          entry('rename', 'Rename', () => { closeNavMenu(); renamePage(page); }),
          h('div.navmenu__sep'),
          entry('delete', 'Delete', () => paintMenu(true), '.navmenu__item--bad')]));
@@ -622,11 +705,15 @@ function openNavMenu(page, item, e) {
   navMenu = menu;
   document.body.append(menu);
   paintMenu(false);
-  // At the pointer (or beside the item, from the keyboard's menu key), inside the window.
+  // Beside the open nav, level with the item, so the name it just uncovered shows; in
+  // the bar across the top of a narrow window, at the pointer. Inside the window either way.
   const r = menu.getBoundingClientRect();
   const at = item.getBoundingClientRect();
-  const x = Math.min(e.clientX || at.right, innerWidth - r.width - 6);
-  const y = Math.min(e.clientY || at.top, innerHeight - r.height - 6);
+  const side = matchMedia('(min-width: 721px)').matches;
+  const navW = parseFloat(getComputedStyle(navEl).getPropertyValue('--nav-w')) || 176;
+  const x = Math.min(side ? navEl.getBoundingClientRect().left + navW + 4 : (e.clientX || at.right),
+    innerWidth - r.width - 6);
+  const y = Math.min(side ? at.top : (e.clientY || at.top), innerHeight - r.height - 6);
   menu.style.left = `${Math.max(6, x)}px`;
   menu.style.top = `${Math.max(6, y)}px`;
   document.addEventListener('pointerdown', menuAway, true);
@@ -635,8 +722,10 @@ function openNavMenu(page, item, e) {
 }
 
 function renamePage(page) {
-  // Folded, there is no label to edit in place: unfold for the rename.
-  if (navFolded) setFold(false);
+  // Folded, there is no label to edit in place: open for the rename, now. navHeld()
+  // keeps it open until the field goes.
+  clearTimeout(navTimer);
+  if (!navOpen) { navOpen = true; paintNavMode(); }
   const item = navPages?.querySelector(`.nav__item[data-page="${page.id}"]`);
   const label = item?.querySelector('.nav__label');
   if (!label) return;
@@ -644,11 +733,14 @@ function renamePage(page) {
   const input = h('input.nav__rename', {
     id: 'nav-rename', type: 'text', maxlength: '40', value: page.name, 'aria-label': 'Page name',
   });
+  // The nav settles once the field is gone (paintNav() removes it), not when the name
+  // goes in: a save slower than the fold delay would otherwise find the field still
+  // holding it, and nothing would fold it after.
   const finish = async (keep) => {
     if (done) return;
     done = true;
     const name = input.value.trim().slice(0, 40);
-    if (!keep || !name || name === page.name) { paintNav(); return; }
+    if (!keep || !name || name === page.name) { paintNav(); settleNav(); return; }
     const now = await pagesOnDisk();
     if (now && await storePages(now.map((p) => (p.id === page.id ? { ...p, name } : p)))) {
       // The page's own header carries the name too; renamed in place, so a band
@@ -656,6 +748,7 @@ function renamePage(page) {
       const head = stage.querySelector(`.page[data-page="${page.id}"] .page__name`);
       if (head) head.textContent = name;
     } else paintNav();
+    settleNav();
   };
   input.addEventListener('keydown', (e) => {
     e.stopPropagation();       // a name being typed must not fire the hotkeys
@@ -817,9 +910,8 @@ export function toggleFocus(on, { target = null, keepFullscreen = false } = {}) 
     if (immersive) return false;
     const el = target || focusTarget();
     if (!el || !stage.contains(el)) return false;
-    // On a page the pane scrolls, and with more than one row so does the panes area;
-    // those are the positions to come back to.
-    focusScrolls = [el.closest('.page__pane'), el.closest('.page__panes'), stage]
+    // On a page the column scrolls: that is the position to come back to.
+    focusScrolls = [el.closest('.page__col'), stage]
       .filter(Boolean).map((n) => [n, n.scrollTop]);
     el.dataset.focus = 'on';
     for (let n = el.parentElement; n && n !== stage; n = n.parentElement) n.dataset.focus = 'path';
@@ -1874,7 +1966,7 @@ window.addEventListener('beforeunload', () => { if (ws) { ws.onclose = null; ws.
   // something you did last week is an app that has taken a decision off you.
   primeLayout(ctx.state);
   pages = validPages(ctx.state?.settings?.ui?.pages);
-  navFolded = !!ctx.state?.settings?.ui?.nav_collapsed;
+  navPinned = !!ctx.state?.settings?.ui?.nav_pinned;
   paintNav('');
   for (const problem of ctx.state.errors || []) toast(problem, 'bad', 12000);
   await route();
