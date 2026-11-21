@@ -222,12 +222,19 @@ smallest that holds it with nothing running past its box and no select cutting o
 measurement is against the grid's own width, so a custom page's pane is just a narrower grid: there a
 quarter may be too narrow and its arrow says so, a panel rises to what it needs, up to the whole pane,
 and the page builder warns when a picked panel's minimum (`pages.js` `PANELS[].min`, held against the DOM
-by `ui_check`) is wider than a pane at the current window. The folding rule (`ui_check` "folding") holds
-on every step: a panel one brick narrower is at most 15% taller; only the Zone editor's eleven controls,
-one row at the full width of a wide window, are excused.
+by `ui_check`) is wider than a pane at the current window. The folding rule holds on every step, and
+the arrows enforce it: a step that would make a panel more than 15% taller is not offered ("a quarter
+would make this panel taller here"), which in a pane, where a quarter can be 160px, is most panels'
+quarter. `ui_check` "folding" measures every tab panel at a full, a half and a quarter of the tab, at
+fixed widths and with the masonry's draw-down off, and holds each to the rule and to fitting at a
+quarter; only the Zone editor's eleven controls, one row at the full width of a wide window, are excused
+(in a wide window its arrow stops at full). An open exercise run takes the whole row whatever Exercises was sized
+to (`data-min-span`), with Setup over This run in a pane under 760px, and gives the size back on
+'Back to the shelf'.
 
 Two render-only adjustments keep the masonry tidy. A panel nobody has sized, with empty columns beside it
-for its whole height, is widened over them; a panel sized with its arrows is not (it is marked `sized` in
+for its whole height, is widened over them to the widest brick they make room for (a half beside three
+free columns stays a half: three quarters is not a brick); a panel sized with its arrows is not (it is marked `sized` in
 the saved layout), because widening it back is what made a click that narrowed it change nothing on
 screen, and the columns it leaves are room for the next panel narrowed to move up into. And a panel with
 nothing under it until something further down has its card drawn down to meet it, by at most 96px, so
@@ -235,9 +242,10 @@ the gaps left above a wide panel close and a bigger hole shows as one rather tha
 card. **Every arrow click changes what you see:** a click steps from the span the panel shows, and each
 step is placed first and taken only if the panel then shows narrower (or wider) and the grid gains no
 hole narrower than a quarter, where no panel could ever go; an arrow with no such step is disabled, with a
-tooltip saying why. A saved layout keeps only bricks; one from 0.14-0.15 moves each 4 to a 3 and each 8 to
-a 6, keeping its order and which panels were sized, and anything else (0.15's saved 5 and 7 on Read)
-leaves the panel at what its view authors today.
+tooltip saying why. A saved layout keeps every panel's order but only the widths of panels the user
+sized, as bricks: a sized 4 or 8 from 0.15 becomes a 3 or a 6. The rest of a saved layout is the widths
+its view authored when it was saved, so those panels take what their view authors today (a 0.15 Tools
+saved as 4+8 by someone who only dragged a panel draws as today's 6+6, not 3+9).
 
 ### Pages: whole views, mounted side by side
 

@@ -9,7 +9,7 @@
 
 import { createBacking } from '../backing.js';
 import { createTheory } from '../theory.js';
-import { $, api, fill, h, info, mod, noteName, paint, slider, stat, toast } from '../ui.js';
+import { $, api, fill, h, info, mod, noteName, paint, shortLabel, slider, stat, toast } from '../ui.js';
 import { ctx as appCtx, instrument, resetTouch } from '../app.js';
 
 /* Wire value -> what it means to someone with one pedal. The empty string is the
@@ -36,11 +36,6 @@ const PEDAL_HELP = {
 
 let backing = null;
 let theory = null;
-
-/* A field's name, with the short one a half- or quarter-width panel shows (style.css). */
-function named(long, short) {
-  return h('span', { 'data-short': '' }, h('span.long-label', null, long), h('span.short-label', null, short));
-}
 
 export default {
   async mount(root, ctx) {
@@ -78,7 +73,7 @@ export default {
             h('select', { id: 'pedal-mode', onchange: () => pushPedal() },
               PEDAL_LABELS.map(([v, label]) => h('option', { value: v }, label)))),
           h('label.field', { id: 'pedal-range-lo' },
-            h('span.field__label', null, named('Sustains from', 'From'),
+            h('span.field__label', null, shortLabel('Sustains from', 'From'),
               h('span.field__value', { id: 'pedal-lo-v' }, noteName(instrument().low))),
             slider({
               // Built wide open. setPedalRange narrows the track to fit whatever the
@@ -92,7 +87,7 @@ export default {
               onchange: () => pushPedal(),
             })),
           h('label.field', { id: 'pedal-range-hi' },
-            h('span.field__label', null, named('up to', 'To'),
+            h('span.field__label', null, shortLabel('up to', 'To'),
               h('span.field__value', { id: 'pedal-hi-v' }, noteName(instrument().high))),
             slider({
               min: 0, max: 127, step: 1, value: instrument().high,
@@ -103,7 +98,7 @@ export default {
               onchange: () => pushPedal(),
             })),
           h('label.field', null,
-            h('span.field__label', null, named('Let go after', 'Let go'),
+            h('span.field__label', null, shortLabel('Let go after', 'Let go'),
               h('span.field__value', { id: 'pedal-decay-v' }, 'never')),
             slider({
               min: 0, max: 20, step: 0.5, value: 0,

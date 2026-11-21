@@ -1211,6 +1211,12 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
   #ex-host .build__title { gap: 5px; }
   #ex-host .build > .btn:last-child { display: none; }
 }
+/* An open run takes the whole row (practice.js), but a whole page pane can be 600px: there
+   Setup goes over This run, each the full width, so its fields keep to rows instead of
+   one 270px column beside a short card. */
+@container panel (max-width: 760px) {
+  #ex-host .exrun > .exrun__setup, #ex-host .exrun > .exrun__run { grid-column: span 12; }
+}
 @container panel (max-width: 380px) {
   .grid--packed .th__roots { flex-basis: 100%; }
 }
@@ -1263,14 +1269,33 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
   .grid--packed .zone__head > input[type=text] { flex: 1 1 0; width: 0 !important; min-width: 0; }
   .grid--packed .zone .knob, .grid--packed .zone .knob__dial { height: calc(var(--ctl-h) * 1.5); }
   .grid--packed .zone .knob__dial { width: calc(var(--ctl-h) * 1.5); }
-  /* Chords & scales: the diagram and the ribbon still side by side; the hand's caption
-     and the step pattern under them go (the ribbon says both). */
+  /* Chords & scales: the diagram over the ribbon, and the ribbon's notes and steps share
+     the panel's width, so an octave's eight notes and seven steps all show (beside the
+     diagram it had 100-170px and showed one and a half, the rest behind a sideways
+     scroll). Two octaves still scroll. The hand's caption, the step words and the step
+     pattern under them go (the ribbon's numbers say them). To stay within the folding
+     rule the diagram is three quarters of the width, and Scale/Chord shares a row with
+     the shape, the roots under them. */
+  .grid--packed .th__top > .th__roots { order: 1; }
+  .grid--packed .th__top > .th__opts { order: 2; }
+  .grid--packed .th__main { flex-wrap: wrap; row-gap: 0; }
+  .grid--packed .th__board, .grid--packed .th__right { flex: 1 1 100%; }
+  .grid--packed .th__board { max-width: 75%; margin: 0 auto 2px; }
+  .grid--packed .th__right::after { width: 12px; }
+  .grid--packed .th__ribbon { padding: 4px 12px 5px 0; }
+  .grid--packed .th__note { flex: 1 1 0; min-width: 16px; padding: 1px 0; }
+  .grid--packed .th__gap { flex: 1 1 0; min-width: 11px; padding-top: 16px; }
+  .grid--packed .th__gap::before { left: -2px; right: -2px; top: 25px; }
+  .grid--packed .th__gnum { font-size: 12px; line-height: 18px; padding: 0 2px; }
+  .grid--packed .th__gword { display: none; }
+  .grid--packed .th__nname { font-size: 12px; }
+  .grid--packed .th__finger { width: 14px; height: 14px; font-size: 9px; }
   .grid--packed .th__flabel, .grid--packed .th__from { display: none; }
   .grid--packed .th__top > .th__roots { flex-wrap: nowrap; gap: 1px; }
   .grid--packed .th__root { min-width: 0; padding: 4px 0; font-size: 10px; letter-spacing: -.02em; }
   .grid--packed .th__top > .th__shape { flex: 1 1 0; min-width: 0; }
   .grid--packed .th__opts { margin-left: 0; gap: 5px; }
-  .grid--packed .th__foot { flex-wrap: nowrap; gap: calc(var(--gap) * .8); margin-top: var(--gap); }
+  .grid--packed .th__foot { flex-wrap: nowrap; gap: calc(var(--gap) * .8); margin-top: 6px; }
   .grid--packed .th__foot > .btn--lg { min-height: var(--ctl-h); padding-inline: var(--ctl-pad); font-size: var(--ctl-fs); }
   .grid--packed .th__title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   /* Pedal: what each mode does is in the (i) and the option's own name; the paragraph
@@ -1287,8 +1312,9 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
   .grid--packed .kbpick__foot .btn { flex: 1 1 auto; padding-inline: 7px; }
   .grid--packed .kbpick__foot .btn--lg { min-height: var(--ctl-h); font-size: var(--ctl-fs); }
   .grid--packed #kbpick-note { margin-top: calc(var(--gap) * .8) !important; }
-  /* All time: two by two, the line under each number gone. */
-  .grid--packed > [data-panel="all-time"] .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* All time: two by two, the line under each number gone, the two rows close (at 1280
+     the half is one row and 147px; the quarter must stay within 15% of it). */
+  .grid--packed > [data-panel="all-time"] .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 3px; }
   .grid--packed > [data-panel="all-time"] .stat__note { display: none; }
   /* Songs: a song a line -- its name, Roll, Sheet, remove. The tags and the length go. */
   #lib-list > .list__row { flex-wrap: nowrap; gap: 4px; padding-inline: 4px; }

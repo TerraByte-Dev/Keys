@@ -119,6 +119,14 @@ export function tip(...kids) {
   return h('span.tip__wrap', null, btn, pop);
 }
 
+/* A name with a short form for the narrow tiers (style.css): tier 'mini' shows the short
+   one only in a quarter-width panel, '' in a half too. With no short name, just the name. */
+export function shortLabel(long, short, tier = '') {
+  return short
+    ? h('span', { 'data-short': tier }, h('span.long-label', null, long), h('span.short-label', null, short))
+    : h('span', null, long);
+}
+
 export function field(label, valueEl, control) {
   return h('label.field', null,
     h('span.field__label', null, h('span', null, label), valueEl || null),

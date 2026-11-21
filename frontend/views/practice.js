@@ -222,6 +222,10 @@ function openRun(ex, ctx, initial = null) {
   current?.destroy?.();
   current = createRunner(ex, ctx, () => back(ctx), initial);
   host()?.replaceChildren(current.el);
+  // A run takes the whole row, whatever the shelf was sized to: in a half or a quarter
+  // its Setup became one long column beside a short This run. The size you gave the
+  // shelf is kept (the class and data-sized) and comes back with it (back()).
+  if (host()) host().dataset.minSpan = '12';
   // The header it is dragged by went with the shelf; layout.js gives the run's its grip.
   host()?.dispatchEvent(new Event('layout:content'));
 }
@@ -232,5 +236,6 @@ function back(ctx) {
   if (current?.el?.dataset.focus) ctx.toggleFocus?.(false);
   current?.destroy?.();
   current = null;
+  if (host()) delete host().dataset.minSpan;
   paintShelf(ctx);
 }

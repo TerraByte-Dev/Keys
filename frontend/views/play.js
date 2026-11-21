@@ -7,7 +7,7 @@
  * Touch response and Pedal left for Tools -- they calibrate the instrument, which is a
  * thing you do once, not a thing you reach for mid-phrase. */
 
-import { $, api, h, knob, info, mod, paint, slider, stat, toast } from '../ui.js';
+import { $, api, h, knob, info, mod, paint, shortLabel, slider, stat, toast } from '../ui.js';
 import { instrument } from '../app.js';
 import { createLoopStation } from '../loopstation.js';
 
@@ -385,7 +385,7 @@ function fxKnobs(group, s, ctx) {
    same asyncio loop that drains notes at 60 Hz. Once when you let go of the slider is
    free; sixty a second is 96 ms of that loop every second, and the note display is
    what pays for it. oninput moves the readout and nothing else. */
-// The short names a quarter-width Effects shows (fieldName).
+// The short names a quarter-width Effects shows (shortLabel).
 const FX_SHORT = { Damping: 'Damp', 'Room level': 'Level', 'Reverb send': 'Send', 'Chorus send': 'Send' };
 
 function fxField(id, label, min, max, step, value, push) {
@@ -395,7 +395,7 @@ function fxField(id, label, min, max, step, value, push) {
   // dials and five tracks, split on what the number MEANS rather than on tidiness.
   const control = (min === 0 && max === 1) ? knob : slider;
   return h('label.field', null,
-    h('span.field__label', null, fieldName(label, FX_SHORT[label]),
+    h('span.field__label', null, shortLabel(label, FX_SHORT[label], 'mini'),
       h('span.field__value', { id }, String(value))),
     control({
       min, max, step, value,
@@ -680,17 +680,9 @@ function renderBeats(n) {
     h('div.beat' + (i === 0 ? '.is-down' : ''))));
 }
 
-/* A field's name, with the short one a quarter-width panel shows (style.css, the mini
-   tier) when there is one. */
-function fieldName(label, short) {
-  return short
-    ? h('span', { 'data-short': 'mini' }, h('span.long-label', null, label), h('span.short-label', null, short))
-    : h('span', null, label);
-}
-
 function numField(label, key, min, max, short) {
   return h('label.field', null,
-    h('span.field__label', null, fieldName(label, short),
+    h('span.field__label', null, shortLabel(label, short, 'mini'),
       h('span.field__value', { id: 'v-' + key }, String(cfg[key] ?? min))),
     slider({
       min, max, step: 1, value: cfg[key] ?? min,
@@ -701,7 +693,7 @@ function numField(label, key, min, max, short) {
 
 function gainField(label, key, short) {
   return h('label.field', null,
-    h('span.field__label', null, fieldName(label, short),
+    h('span.field__label', null, shortLabel(label, short, 'mini'),
       h('span.field__value', { id: 'v-' + key }, String(cfg[key] ?? 90))),
     slider({
       min: 1, max: 127, step: 1, value: cfg[key] ?? 90,

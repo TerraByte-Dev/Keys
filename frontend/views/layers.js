@@ -19,7 +19,7 @@
  * warns when that happens and this editor auto-assigns to avoid it. */
 
 import { ctx as appCtx, instrument } from '../app.js';
-import { $, $$, api, h, info, knob, mod, noteName, paint as paintSlider, slider, tip, toast } from '../ui.js';
+import { $, $$, api, h, info, knob, mod, noteName, paint as paintSlider, shortLabel, slider, tip, toast } from '../ui.js';
 
 /* The keys the player has, read fresh every time rather than captured at import. This
    module is evaluated before /api/state has been fetched, so a `const LOW = ...` here
@@ -119,9 +119,9 @@ export default {
         h('div.zonebar', { id: 'zonebar' }),
         h('div.btnrow', null,
           h('button.btn', { onclick: () => { edit(); zones.push(blank(zones.length)); render(ctx); } },
-            named('+ Add zone', '+ Zone')),
+            shortLabel('+ Add zone', '+ Zone', 'mini')),
           h('button.btn', { onclick: () => apply(ctx) }, 'Apply'),
-          h('button.btn', { onclick: () => saveAs(ctx) }, named('Save as preset...', 'Save...')),
+          h('button.btn', { onclick: () => saveAs(ctx) }, shortLabel('Save as preset...', 'Save...', 'mini')),
           h('button.btn', { onclick: () => { edit(); zones = [blank(0)]; render(ctx); } }, 'Reset')))),
 
       h('div.col-12', null, mod('Build one', 'a click each',
@@ -255,11 +255,6 @@ function ghost(lo, hi) {
   kb.setGhost(keys);
   clearTimeout(ghostTimer);
   ghostTimer = setTimeout(() => kb.setGhost([]), 1400);
-}
-
-/* A button's name, with the short one a quarter-width panel shows (style.css). */
-function named(long, short) {
-  return h('span', { 'data-short': 'mini' }, h('span.long-label', null, long), h('span.short-label', null, short));
 }
 
 function blank(i) {

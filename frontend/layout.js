@@ -25,12 +25,15 @@ import { $, api, h, toast } from './ui.js';
 
 // Quarter, half, full: lego bricks. Each click on an arrow is one step (12 -> 6 -> 3 and
 // back), the bricks pair up into rows of 12 (3+3+6, 6+6, 3+3+3+3, 12), and fit() widens
-// a panel you have not sized over any columns left empty beside it. A third and two
+// a panel you have not sized over columns left empty beside it, to a brick. A third and two
 // thirds (0.14-0.15) are gone: from a full panel one click made two thirds, and two
 // thirds sit with nothing but another third. Every panel has a quarter form (its mini
 // tier, under 380px); a layout saved with a 4 or an 8 in it is from before (applySaved).
-export const SPANS = [3, 6, 12];
+const SPANS = [3, 6, 12];
 const DRAG_THRESHOLD = 5;   // px before a click becomes a drag
+// Narrowing folds, it never grows: a step narrower that makes a panel more than this much
+// taller is not offered (stepFrom). The same number as ui_check's FOLD_MAX.
+const FOLD_MAX = 1.15;
 
 // Must match .grid--packed's grid-auto-rows / row-gap 0 and .grid's column gap in
 // style.css. Rows of 2px and no row gap, so a panel's slot is its height plus 14px
@@ -124,16 +127,21 @@ function shownSpan(el) {
  *
  * Then rows. A panel with empty columns to its right for its whole height -- a
  * half-width panel alone in its band, as Settings' MIDI input and Latency were -- is
- * widened over them to the edge, so nothing leaves an empty stretch beside it. Render
- * only, never saved. Not grid-auto-flow: dense, which would fill the holes by taking
- * panels out of order -- tab order and slotUnder() both read the DOM.
+ * widened over them, to the widest brick they make room for (a quarter alone in a row
+ * goes full width; a half beside three empty columns stays a half, since three
+ * quarters is not a brick and the three are a quarter's room). Render only, never
+ * saved. Not grid-auto-flow: dense, which would fill the holes by taking panels out of
+ * order -- tab order and slotUnder() both read the DOM.
  *
  * Except a panel you sized with its arrows (data-sized, saved with the layout). That one
  * renders at what you picked, and the columns beside it stay open for the next panel
  * you narrow to move up into. Widening it back would make the click that narrowed it
  * do nothing on screen, and make two panels side by side impossible to build where
- * every panel starts full width (Layers, every page pane). Only a run of columns too
- * narrow for any panel (under SPANS[0]) is still taken: nothing else could use it.
+ * every panel starts full width (Layers, every page pane).
+ *
+ * And a view may ask for more than a panel's content measures (data-min-span): Practice
+ * does while an exercise run is open in its Exercises slot, which wants the whole row
+ * whatever the shelf was sized to, and gives it back on 'Back to the shelf'.
  *
  * "Empty beside it" is decided on where the grid will actually put each panel
  * (place()), not on spans summed in DOM order: this is masonry, and a half-width panel
@@ -188,9 +196,10 @@ function fit(grid) {
     if (el.classList.contains('is-dragging') || !el.getClientRects().length) continue;
     if (el.dataset.panel) {
       if (el._m?.width !== width) el._m = { width, min: minSpan(el, px), h: {}, fresh: true };
-      el._minSpan = el._m.min;
-      items.push({ el, panel: true, fixed: el.dataset.sized === '1', min: el._m.min,
-        want: Math.min(12, Math.max(spanOf(el), el._m.min)) });
+      const min = Math.max(el._m.min, Number(el.dataset.minSpan) || 0);
+      el._minSpan = min;
+      items.push({ el, panel: true, fixed: el.dataset.sized === '1', min,
+        want: Math.min(12, Math.max(spanOf(el), min)) });
     } else {
       items.push({ el, panel: false, want: Math.min(12, shownSpan(el)) });
     }
@@ -223,10 +232,11 @@ function fit(grid) {
   for (const { el, panel } of items) if (panel) paintGrip(el);
 }
 
-/* Where everything goes at the spans asked for, with the row fill: each panel, in order,
- * takes the columns to its right that stay empty for its whole height (a sized panel
- * only a run too narrow for anything else). A widened panel is shorter, which moves what
- * is under it, so the placement is redone until nothing widens (at most four passes).
+/* Where everything goes at the spans asked for, with the row fill: each panel you have
+ * not sized, in order, widens over the columns to its right that stay empty for its whole
+ * height -- to the widest brick that fits, never to a width that is not one (a half and
+ * three free columns made a three-quarter panel). A widened panel is shorter, which moves
+ * what is under it, so the placement is redone until nothing widens (at most four passes).
  * Pure arithmetic on measured heights, so the arrows can try a step before taking it. */
 function arrange(items, heightAt) {
   const spans = items.map((it) => it.want);
@@ -239,11 +249,12 @@ function arrange(items, heightAt) {
     const taken = (c, a, b, self) => spots.some((sp) => sp !== self
       && sp.col <= c && c < sp.col + sp.span && sp.row < b && a < sp.row + sp.rows);
     spots.forEach((sp, i) => {
-      if (!items[i].panel) return;
+      if (!items[i].panel || items[i].fixed) return;
       let run = 0;
       while (sp.col + sp.span + run < 12 && !taken(sp.col + sp.span + run, sp.row, sp.row + sp.rows, sp)) run++;
-      if (!run || (items[i].fixed && run >= SPANS[0])) return;
-      sp.span += run;
+      const to = [...SPANS].reverse().find((b) => b > sp.span && b <= sp.span + run);
+      if (!to) return;
+      sp.span = to;
       spans[i] = sp.span;
       grew = true;
     });
@@ -322,18 +333,22 @@ function place(items) {
 
 /* The span an arrow click asks for: one brick past what the panel SHOWS, not past its
  * saved class -- a half-width panel the row fill shows full width narrows to a half,
- * not to a quarter -- and never two: 12 -> 6 -> 3 and back, a click a step. The step is
- * placed first, as a sized panel, and taken only if the panel then shows narrower (or
- * wider) than now and the grid has no more too-narrow holes than it has now. So every
- * enabled arrow changes what you see, and an arrow with no such step is disabled
- * (paintGrip). */
+ * not to a quarter -- and never two: 12 -> 6 -> 3 and back, a click a step. A step
+ * narrower that makes the panel more than FOLD_MAX taller is not one: narrowing folds,
+ * it never grows, and in a page pane, where a quarter can be 160px, most panels would
+ * stack instead. The step is placed first, as a sized panel, and taken only if the panel
+ * then shows narrower (or wider) than now and the grid has no more too-narrow holes than
+ * it has now. So every enabled arrow changes what you see, and an arrow with no such
+ * step is disabled (paintGrip). */
+const grows = (plan, col, s) => plan.heightAt(col, s) > FOLD_MAX * plan.heightAt(col, col._shown);
+
 function stepFrom(col, delta) {
   const plan = col.parentElement?._plan;
   const i = plan ? plan.items.findIndex((it) => it.el === col) : -1;
   if (i < 0 || !col._shown) return undefined;
   const shown = col._shown;
   const s = delta < 0 ? [...SPANS].reverse().find((x) => x < shown) : SPANS.find((x) => x > shown);
-  if (!s || s < plan.items[i].min) return undefined;
+  if (!s || s < plan.items[i].min || (delta < 0 && grows(plan, col, s))) return undefined;
   const trial = plan.items.map((it, j) => (j === i ? { ...it, want: s, fixed: true } : it));
   const spots = arrange(trial, plan.heightAt);
   const got = spots[i].span;
@@ -348,10 +363,13 @@ function paintGrip(col) {
   const canMore = !!stepFrom(col, 1);
   less.disabled = !canLess;
   const next = [...SPANS].reverse().find((s) => s < shown);
-  less.title = canLess ? (next === 6 ? 'narrower: half' : 'narrower: quarter')
+  const word = next === 3 ? 'quarter' : 'half';
+  const plan = col.parentElement?._plan;
+  less.title = canLess ? `narrower: ${word}`
     : shown <= SPANS[0] ? 'a quarter is the narrowest'
-      : next < (col._minSpan || 0) ? `a ${next === 3 ? 'quarter' : 'half'} is too narrow for this panel here`
-        : 'narrower would leave a gap here';
+      : next < (col._minSpan || 0) ? `a ${word} is too narrow for this panel here`
+        : plan && grows(plan, col, next) ? `a ${word} would make this panel taller here`
+          : 'narrower would leave a gap here';
   more.disabled = !canMore;
   more.title = canMore ? (SPANS.find((s) => s > shown) === 12 ? 'wider: full' : 'wider: half')
     : shown >= 12 ? 'full width' : 'wider would leave a gap here';
@@ -568,12 +586,13 @@ export function detachLayout(grid) {
 /* Order and width from settings. A panel the saved layout has never heard of goes back
    beside the panel its author wrote it after, which is what makes adding a panel safe.
 
-   A width is taken only if it is a brick (SPANS). A layout from 0.14-0.15, when the
-   steps were thirds, has 4s and 8s in it: each moves to the brick under it (a third to
-   a quarter, two thirds to a half), so a row the user built keeps its shape and its
-   order, and a panel they sized stays sized. Anything else -- an authored 5 or 7 that a
-   layout saved because it saves every panel -- leaves the panel at what its view
-   writes today. */
+   A width is taken only from a panel the user sized (sized: true), and only as a brick
+   (SPANS). A layout saves every panel's width, so the rest are the widths their view
+   authored when it was saved -- 0.15's 4+8 Tools, 4+4+4 Stats -- and they take what
+   their view authors today instead, or a re-authored grid never reaches anyone who once
+   dragged a panel (and an old 4+8 under the new rules drew as 3+9). A sized one from
+   0.15, when the steps were thirds, moves to the brick under it (a third to a quarter,
+   two thirds to a half), so a row the user built keeps its shape and its order. */
 const MIGRATE = { 4: 3, 8: 6 };
 
 function applySaved(grid, viewId) {
@@ -588,9 +607,9 @@ function applySaved(grid, viewId) {
     const col = byId.get(entry.id);
     if (!col) continue;                       // a panel that no longer exists
     const span = MIGRATE[entry.span] ?? entry.span;
-    if (SPANS.includes(span)) {
+    if (entry.sized && SPANS.includes(span)) {
       setSpan(col, span);
-      if (entry.sized) col.dataset.sized = '1';
+      col.dataset.sized = '1';
     }
     grid.append(col);                         // saved panels first, in saved order
     placed.add(col);

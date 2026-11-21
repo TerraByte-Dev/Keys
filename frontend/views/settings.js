@@ -18,17 +18,13 @@
  * reports the piece it can actually see and labels it. */
 
 import { instrumentPanel } from '../instrument.js';
-import { $, api, h, info, mod, stat, toast } from '../ui.js';
+import { $, api, h, info, mod, shortLabel, stat, toast } from '../ui.js';
 
 /* Built here rather than inline in mount(), because status() has to rebuild the same
    rows every second. The counters ARE this panel -- "the port that moves is your
    keyboard" -- and painting them once at mount meant they never moved. Someone who
    updated BECAUSE their keyboard was silent would have watched every port read `silent`
    forever and drawn exactly the wrong conclusion. */
-/* A button's name, with the short one a half- or quarter-width panel shows (style.css). */
-function named(long, short) {
-  return h('span', { 'data-short': '' }, h('span.long-label', null, long), h('span.short-label', null, short));
-}
 
 function portRows(midi) {
   const ports = midi?.ports || [];
@@ -149,8 +145,8 @@ export default {
 
         h('div.btnrow', null,
           h('button.btn.btn--lg', { id: 'audio-apply' }, 'Apply'),
-          h('button.btn', { id: 'audio-share' }, named('Play nicely with everything', 'Play nicely')),
-          h('button.btn', { id: 'audio-lowlat' }, named('Lowest latency (takes the device)', 'Lowest latency'))),
+          h('button.btn', { id: 'audio-share' }, shortLabel('Play nicely with everything', 'Play nicely')),
+          h('button.btn', { id: 'audio-lowlat' }, shortLabel('Lowest latency (takes the device)', 'Lowest latency'))),
 
         info(
           h('strong', null, 'Shared is the default, on purpose.'), ' Keys coexists with ',
