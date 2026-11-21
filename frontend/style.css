@@ -918,10 +918,12 @@ body::after {
  * per panel gives each one exactly its own height, so panels stack up the columns
  * independently and the dead space is gone.
  *
- * 8px is the quantum: small enough that the rounding is invisible, large enough that
- * the browser is not laying out hundreds of tracks. layout.js does the arithmetic,
- * because only it knows how tall the content actually is. */
-.grid--packed { grid-auto-rows: 8px; align-items: start; }
+ * 2px is the quantum, with no row gap: layout.js gives each panel its height plus
+ * 14px rounded up to 2px, so the space under a panel is 14-15px, the same as the 14px
+ * column gap beside it. (8px rows with a 14px gap between every track rounded each
+ * slot up by up to 21px; gaps ran 16-88px.) layout.js does the arithmetic, because
+ * only it knows how tall the content actually is. */
+.grid--packed { grid-auto-rows: 2px; row-gap: 0; column-gap: 14px; align-items: start; }   /* layout.js ROW_PX, GAP_PX */
 
 .col-2  { grid-column: span 2; }
 .col-3  { grid-column: span 3; }
@@ -934,9 +936,78 @@ body::after {
 .col-10 { grid-column: span 10; }
 .col-11 { grid-column: span 11; }
 .col-12 { grid-column: span 12; }
+/* Narrow windows, for grids nobody manages. A managed grid (layout.js) gets its narrow
+   behaviour from each panel's measured minimum span against the grid's own width,
+   which is what a page pane needs too -- a window rule knows nothing about the pane. */
 @media (max-width: 1100px) {
-  .col-2, .col-3, .col-4, .col-5 { grid-column: span 6; }
-  .col-7, .col-8, .col-9, .col-10, .col-11 { grid-column: span 12; }
+  .grid:not(.grid--packed) > :is(.col-2, .col-3, .col-4, .col-5) { grid-column: span 6; }
+  .grid:not(.grid--packed) > :is(.col-7, .col-8, .col-9, .col-10, .col-11) { grid-column: span 12; }
+}
+
+/* ── inside a managed panel ─────────────────────────────────────────────── */
+/* Each panel is a size container, so what is in it answers to the panel's width and
+   not the window's: the same panel is a third of a 1600px tab or the whole of a pane. */
+.grid--packed > [data-panel] { container: panel / inline-size; }
+/* layout.js pack(): a card drawn down to meet the panel below it, so no hole is left
+   above a panel that spans two columns of different heights. Added under the content,
+   not set as a min-height: a min-height swallowed the content growing or shrinking
+   inside it, so nothing observing the card saw the change. */
+.grid--packed > [data-panel] > .mod::after { content: ''; display: block; height: var(--fill, 0px); }
+/* Caps, so a control in a full-width panel stays the size of a control. A slider or a
+   select in a .field is capped WITH its field -- label and value readout over it --
+   never alone: a slider capped inside a wider field ended 169px short of its own
+   readout (Tempo ramp). And only the panel's own fields and controls, not those in a
+   card inside it, which that card's grid already sizes: capped there, Build one's
+   selects and buttons stopped short of the octave row and slider beside them.
+   :where() keeps them at zero specificity: any panel's own width for a control wins. */
+:where(.grid--packed > [data-panel] > .mod) > .field:has(> input[type=range]),
+:where(.grid--packed > [data-panel] > .mod) > input[type=range] { max-width: 480px; }
+:where(.grid--packed > [data-panel] > .mod) > .field:has(> select) { max-width: 360px; }
+:where(.grid--packed > [data-panel] > .mod) > .btn--wide { max-width: 320px; }
+:where(.grid--packed > [data-panel]) input[type=range] { margin-inline: 0; }   /* the UA 2px each side put every 100%-wide slider 2px past its field */
+:where(.grid--packed > [data-panel]) select { min-width: 9ch; }
+:where(.grid--packed > [data-panel]) input[type=text] { max-width: 560px; }
+/* layout.js fit() measures each panel at min-content: the aside, which truncates and
+   goes first, is out; the arrows, which a hover brings in, are in. */
+.is-measuring .mod__aside { display: none !important; }
+.is-measuring .mod__grip { max-width: none !important; margin-left: 0 !important; }
+
+/* A third of a 1280px window, a pane: the panel's narrow layout. Long labels go,
+   button rows wrap, wide strips scroll inside themselves. 440px, not less: above it
+   every panel a page can hold fits in its wide layout (Jam's is 428px, the Zone
+   editor's 395px), so there is no width at which a pane is too narrow for the wide
+   layout and too wide for this one. */
+@container panel (max-width: 440px) {
+  .mod__aside { display: none; }
+  .seg { flex-wrap: wrap; }
+  .th__roots { flex-wrap: wrap; }
+  .loop__setup { flex-wrap: wrap; margin-left: 0; }
+  /* The year keeps a readable width and scrolls inside the panel instead. contain
+     takes its width out of the panel's minimum, which is what lets it be narrow. */
+  .calx__fit { overflow-x: auto; contain: inline-size; }
+  .calx__fit > * { min-width: 360px; }
+  #shelf-inst > div:first-child { flex-wrap: wrap; }
+  .zone__head { flex-wrap: wrap; }
+  .zone__grid { grid-template-columns: minmax(0, 1fr); }
+  /* A song's title on its own line, its tags and Roll / Sheet under it. */
+  #lib-list > .list__row { flex-wrap: wrap; }
+  #lib-list > .list__row > span:first-child { flex-basis: 100%; }
+}
+/* Audio output's device / mode / period row is 2fr 1fr 1fr inline: under 760px the
+   mode's "Exclusive (lowest latency)" was cut off, so the device takes its own line. */
+@container panel (max-width: 760px) {
+  .mod > div:has(> .field > #audio-excl) { grid-template-columns: 1fr 1fr !important; }
+  .mod > div > .field:has(> #audio-device) { grid-column: 1 / -1; }
+}
+@container panel (max-width: 440px) {
+  .mod > div:has(> .field > #audio-excl) { grid-template-columns: minmax(0, 1fr) !important; }
+}
+/* A wide panel: consecutive fields side by side rather than three 1300px sliders. */
+@container panel (min-width: 760px) {
+  .mod > .field:has(+ .field), .mod > .field + .field {
+    display: inline-flex; vertical-align: top; width: calc((100% - 29px) / 3);
+  }
+  .mod > .field + .field { margin-left: 14px; }
 }
 
 /* A panel: a dark card on a lighter stage, its name in plain white at the top. */
@@ -963,8 +1034,17 @@ body::after {
 /* The header is the drag handle, so it has to say so before you try it. */
 .mod__head { cursor: grab; user-select: none; }
 .mod__head:active { cursor: grabbing; }
-.mod__grip { display: flex; gap: 3px; opacity: 0; transition: opacity .14s var(--ease); }
-.mod:hover .mod__grip, .mod__head:focus-within .mod__grip { opacity: 1; }
+/* No room taken while hidden (it cost every header ~57px of its title and aside); the
+   hover that shows the arrows also gives them their width. */
+.mod__grip {
+  display: flex; gap: 3px; opacity: 0; transition: opacity .14s var(--ease);
+  max-width: 0; margin-left: -10px; overflow: hidden;
+}
+.mod:hover .mod__grip, .mod__head:focus-within .mod__grip {
+  opacity: 1; max-width: none; margin-left: 0; overflow: visible;
+}
+.mod__btn:disabled { opacity: .35; cursor: default; }
+.mod__btn:disabled:hover { color: var(--ink-dim); border-color: var(--hairline); }
 .mod__btn {
   width: 22px; height: 22px; padding: 0; line-height: 1;
   display: grid; place-items: center; cursor: pointer;
@@ -2763,9 +2843,31 @@ body.has-update #gear::after { top: 2px; right: 1px; }
 .jam__stats b.jam__rub { color: var(--amber); }
 .jam__stats b.jam__spicy { color: var(--red); }
 
-@media (max-width: 1100px) {
+/* Jam by its panel's width, the same on a tab and in a pane: the strip goes under the
+   two cards when the three no longer fit side by side, and in a third of a window the
+   groups stack and their controls take the line. */
+@container panel (max-width: 900px) {
   .jam__stage { grid-template-columns: 1fr 1fr; }
   .jam__mid { grid-column: 1 / -1; order: 3; }
+  /* The option groups under Start rather than squeezed beside it: beside it, at a
+     flex-basis of 0, Music's five buttons were held in 225px of a 451px pane. */
+  .jam__opts { flex-basis: 100%; }
+}
+@container panel (max-width: 440px) {
+  .jam__top, .jam__opts, .jam__gbody { flex-direction: column; align-items: stretch; flex-wrap: nowrap; }
+  .jam__opts { flex: none; }
+  .jam__go, .jam__select, .jam__field { min-width: 0; width: 100%; }
+  .jam__stage { grid-template-columns: 1fr; }
+  .jam__mid { order: 0; }
+  .jam__prow > .jam__lbl { min-width: 0; flex-basis: 100%; }
+  /* A line per button row, its name beside it, not a line for the name and one for the
+     control; and the cards as tall as what they hold. Stacked, Jam in Solo practice's
+     344px pane at 1280 was 1916px, five pane-heights. */
+  .jam__gbody > div.jam__opt { flex-direction: row; align-items: center; gap: 10px; }
+  .jam__gbody > div.jam__opt > .jam__lbl { flex: 0 0 46px; }
+  .jam__gbody > div.jam__opt > :not(.jam__lbl) { flex: 1 1 0; min-width: 0; }
+  .jam__card { min-height: 0; }
+  .jam__card--next { flex-direction: row; flex-wrap: wrap; align-items: baseline; column-gap: 12px; }
 }
 
 
@@ -2951,32 +3053,14 @@ body.is-focusing .exrun .stat__note { font-size: 14px; }
 .page__pane {
   min-width: 0; min-height: 0; overflow-y: auto; overflow-x: hidden;
   padding-right: 4px;
-  /* The spans follow the pane's width, not the window's: see the queries below. */
-  container-type: inline-size;
 }
 .page__pane::-webkit-scrollbar { width: 8px; }
 .page__pane::-webkit-scrollbar-thumb { background: var(--panel-4); border-radius: 4px; }
 .page__pane::-webkit-scrollbar-track { background: transparent; }
 .is-unpicked { display: none !important; }
 
-/* The window rule (max-width: 1100px, above) asked of the pane instead, plus one step
-   further for a third of a window: a quarter or a half of 400px is not a panel. */
-@container (max-width: 1100px) {
-  .page__pane .col-2, .page__pane .col-3, .page__pane .col-4, .page__pane .col-5 { grid-column: span 6; }
-  .page__pane .col-7, .page__pane .col-8, .page__pane .col-9, .page__pane .col-10,
-  .page__pane .col-11 { grid-column: span 12; }
-  .page__pane .jam__stage { grid-template-columns: 1fr 1fr; }
-  .page__pane .jam__mid { grid-column: 1 / -1; order: 3; }
-}
-@container (max-width: 640px) {
-  .page__pane .col-2, .page__pane .col-3, .page__pane .col-4, .page__pane .col-5,
-  .page__pane .col-6 { grid-column: span 12; }
-}
-
-/* Focus on a page: the panes are on the marked path like any other ancestor. The query
-   container comes off so nothing inside is measured against a pane that is now the
-   whole window anyway. */
-body.is-focusing .page__pane { container-type: normal; overflow: hidden; padding: 0; }
+/* Focus on a page: the panes are on the marked path like any other ancestor. */
+body.is-focusing .page__pane { overflow: hidden; padding: 0; }
 
 /* The builder. */
 .page__builder { max-width: 1040px; }
@@ -3003,6 +3087,7 @@ body.is-focusing .page__pane { container-type: normal; overflow: hidden; padding
 .pb__rname { font-weight: 600; color: var(--ink); }
 .pb__rsub { font-size: 12px; color: var(--ink-faint); }
 .pb__note { margin-top: 12px; }
+.pb__warn { margin: 0 0 12px; }
 .pb__ask { display: flex; align-items: center; gap: 8px; color: var(--ink); }
 
 /* More than one row of panes: each row has a floor (pages.js ROW_MIN) and the panes
@@ -3015,11 +3100,17 @@ body.is-focusing .page__pane { container-type: normal; overflow: hidden; padding
 .page--stack .page__panes { grid-auto-rows: max-content; align-content: start; }
 .page--stack .page__pane { overflow-x: clip; overflow-y: visible; }
 
-/* Chords & scales in a pane a third of a window wide: twelve root buttons and a 430px
-   diagram do not fit in 350px, and the pane does not scroll sideways -- Bb and B were
-   past its edge, unreachable. The roots wrap and the diagram shrinks to the pane. */
-.page__pane .th__roots { flex-wrap: wrap; }
-.page__pane .th__board { flex: 0 1 430px; min-width: 0; }
+/* Chords & scales narrower than its twelve roots and 430px diagram (a pane a third of a
+   window wide, a third of a tab): the panel does not scroll sideways -- Bb and B were
+   past its edge, unreachable -- so the roots wrap and the diagram shrinks to fit. */
+@container panel (max-width: 640px) {
+  .th__roots { flex-wrap: wrap; }
+  .th__board { flex: 1 1 100%; max-width: 430px; min-width: 0; contain: inline-size; }
+  .th__foot { flex-wrap: wrap; }
+}
+/* The interval ribbon scrolls sideways on its own, so its length is no part of the
+   panel's minimum width. */
+.th__ribbon { contain: inline-size; }
 
 /* The builder is taller than a window; Save stays where you can reach it. */
 .pb__foot {

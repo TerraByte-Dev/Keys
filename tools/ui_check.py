@@ -35,6 +35,14 @@ does not scroll sideways) and no pane cut to a sliver.
 Play's instrument pick; Touch response's labels surviving the band; G with an exercise
 run waiting; a Settings reset keeping the pages; the builder's Save in reach; hidden
 panels doing nothing per frame; and no listener or observer left behind by a page.
+
+**Then resize.** Every managed panel of every tab and of each starter page, through
+every span its arrows reach, at 1600x1000 and 1280x800: every click changes what the
+panel shows, nothing sticks out of its box, no card is stretched to hide a hole, and no
+hole is left too narrow for a panel; as shipped, no row stops short of the edge and the
+gap under every panel is the grid's own. Saved layouts from before keep their order and
+the widths that still exist. The builder's per-panel minimums are held against the
+panels' measured ones, and its too-narrow warning against a real page's pane widths.
 """
 
 from __future__ import annotations
@@ -1550,6 +1558,367 @@ def pages_fix_checks(browser, port: int, errs: list[str]) -> list[str]:
     return fails
 
 
+# ── resize: every panel at every width its arrows reach ──────────────────────────────
+# The 0.14 audit walked 42 panels through the old 3/6/12 spans at two windows and found
+# panels sticking out of their own box, rows that stopped short of the edge, and vertical
+# gaps from 16 to 88px. This is that audit as a guard, through the real arrows, for every
+# managed panel of every tab and of every starter page, at 1600x1000 and 1280x800. As
+# shipped, the whole grid must
+#   - leave no row short: every band of panels that overlap vertically reaches the
+#     grid's right edge;
+#   - keep its gaps: the space from each panel to the next panel under it is the grid's
+#     own column gap, read off the DOM, to within the 2px row quantum.
+# Every arrow click must change how many columns the panel shows, in the arrow's own
+# direction, down to the narrowest it allows and up to the full width. A width you pick
+# may open a gap beside the panel (room for the next one), so at every width reached the
+# grid must
+#   - stick nothing out: no element wider than its box (scrollWidth > clientWidth + 1)
+#     and no box past its panel's sides, except inside a declared sideways scroller;
+#   - stretch no card: none more than RS_STRETCH_PX taller than what it holds, which is
+#     how a hole was hidden from the gap rule (a card drawn down 594px to the panel
+#     under it measures as an even 14px gap);
+#   - end every slider at its own value readout (a slider capped inside its field
+#     stopped 169px short of the number it sets);
+#   - leave no hole too narrow to use: empty space down a column, more than RS_HOLE_PX
+#     between two cards, must be at least RS_HOLE_COLS columns wide at that height --
+#     the narrowest a panel goes -- or no panel can ever go into it.
+RESIZE_SIZES = ((1600, 1000), (1280, 800))
+RS_STRETCH_PX = 100    # the 64-82px draw-downs that close a hole above a wide panel, and no more
+RS_HOLE_PX = 24        # card to card down a column; the even gap is 14
+RS_HOLE_COLS = 4       # a third of the grid, the narrowest step the design offers
+
+# Each visible managed panel under `sel`, by id, so a click that rebuilds the view (Stats
+# does) can find it again.
+RS_TAG = """(sel) => [...document.querySelectorAll(sel + ' > [data-panel]')]
+  .filter((e) => e.getClientRects().length).map((e) => e.dataset.panel)"""
+
+RS_STATE = """([sel, id]) => {
+  const el = document.querySelector(`${sel} > [data-panel="${id}"]`);
+  if (!el) return null;
+  const [less, more] = el.querySelectorAll(':scope > .mod > .mod__head .mod__grip > button');
+  const g = el.parentElement.getBoundingClientRect();
+  const cg = parseFloat(getComputedStyle(el.parentElement).columnGap);
+  const colW = (g.width - 11 * cg) / 12;
+  return { saved: +(([...el.classList].find((c) => /^col-\\d+$/.test(c)) || 'col-0').slice(4)),
+           cols: Math.round((el.getBoundingClientRect().width + cg) / (colW + cg)),
+           less: !!less && !less.disabled, more: !!more && !more.disabled };
+}"""
+
+# The pointer arriving on the panel, as it does before anyone can see its arrows.
+RS_HOVER = """async ([sel, id]) => {
+  document.querySelector(`${sel} > [data-panel="${id}"] > .mod`)?.dispatchEvent(new PointerEvent('pointerenter'));
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+}"""
+
+RS_CLICK = """([sel, id, n]) => document.querySelector(
+  `${sel} > [data-panel="${id}"] > .mod > .mod__head .mod__grip > button:nth-child(${n})`).click()"""
+
+# Back as the view authored it, between panels: its class, not sized, and the layout the
+# clicks saved forgotten, so a view that rebuilds itself (Stats) does not bring it back.
+RS_RESTORE = """async ([sel, id, span]) => {
+  (await import('/layout.js')).primeLayout({});
+  const el = document.querySelector(`${sel} > [data-panel="${id}"]`);
+  if (!el) return;
+  for (const c of [...el.classList]) if (/^col-\\d+$/.test(c)) el.classList.remove(c);
+  el.classList.add('col-' + span);
+  delete el.dataset.sized;
+  el.parentElement.repack?.();
+}"""
+
+RS_AUDIT = """([sel, strict, STRETCH, HOLE, HOLE_COLS]) => {
+  const grid = document.querySelector(sel);
+  const gr = grid.getBoundingClientRect();
+  const cg = parseFloat(getComputedStyle(grid).columnGap);
+  const name = (n) => n.tagName.toLowerCase() + (n.id ? '#' + n.id : '')
+    + [...n.classList].slice(0, 2).map((c) => '.' + c).join('');
+  const scrolls = (n) => ['auto', 'scroll'].includes(getComputedStyle(n).overflowX);
+  const px = (v) => parseFloat(v) || 0;
+  const bad = [];
+  const kids = [...grid.children].filter((e) => e.getClientRects().length);
+  const boxes = kids.map((e) => ({ id: e.dataset.panel || e.dataset.slot || e.className,
+    r: (e.dataset.panel ? e.firstElementChild : e).getBoundingClientRect() }));
+  for (const e of kids.filter((k) => k.dataset.panel)) {
+    const mod = e.firstElementChild, mr = mod.getBoundingClientRect();
+    for (const n of [e, mod, ...mod.querySelectorAll('*')]) {
+      if (n.closest('[popover]')) continue;
+      const r = n.getBoundingClientRect();
+      if (!r.width || !r.height || getComputedStyle(n).visibility === 'hidden') continue;
+      if (n instanceof SVGElement || n.tagName === 'CANVAS') continue;
+      let inner = false;
+      for (let p = n.parentElement; p && p !== e; p = p.parentElement) if (scrolls(p)) { inner = true; break; }
+      if (inner) continue;
+      if (!scrolls(n) && n.clientWidth && n.scrollWidth > n.clientWidth + 1) {
+        bad.push(`${e.dataset.panel}: ${name(n)} holds ${n.scrollWidth}px in ${n.clientWidth}px`);
+      } else if (r.right > mr.right + 1.5 || r.left < mr.left - 1.5) {
+        bad.push(`${e.dataset.panel}: ${name(n)} ${Math.round(Math.max(r.right - mr.right, mr.left - r.left))}px past its panel`);
+      }
+    }
+    // How far the card runs on past the last thing in it.
+    const cs = getComputedStyle(mod);
+    let end = mr.top + px(cs.borderTopWidth) + px(cs.paddingTop);
+    for (const k of mod.children) {
+      const ks = getComputedStyle(k);
+      if (!k.getClientRects().length || k.matches('[popover]') || ['absolute', 'fixed'].includes(ks.position)) continue;
+      end = Math.max(end, k.getBoundingClientRect().bottom + Math.max(0, px(ks.marginBottom)));
+    }
+    const spare = mr.bottom - px(cs.borderBottomWidth) - px(cs.paddingBottom) - end;
+    if (spare > STRETCH) bad.push(`${e.dataset.panel}: card ${Math.round(spare)}px taller than what it holds`);
+    // A slider ends where its own value readout does, not short of it.
+    for (const f of mod.querySelectorAll('.field')) {
+      const range = f.querySelector(':scope > input[type=range]'), val = f.querySelector('.field__value');
+      if (!range || !val || !range.getClientRects().length || !val.getClientRects().length) continue;
+      const short = val.getBoundingClientRect().right - range.getBoundingClientRect().right;
+      if (short > 4) bad.push(`${e.dataset.panel}: a slider ends ${Math.round(short)}px short of its value`);
+    }
+  }
+  // Holes: down each column's centre, card to card, then how many columns are empty
+  // beside it at that height (and have a card further down, or it is just the bottom).
+  const colW = (gr.width - 11 * cg) / 12;
+  const cx = (c) => gr.left + c * (colW + cg) + colW / 2;
+  const on = (r, c) => r.left <= cx(c) && cx(c) <= r.right;
+  const rects = boxes.map((b) => b.r);
+  const empty = (c, y) => !rects.some((r) => on(r, c) && r.top - cg <= y && y <= r.bottom + cg)
+    && rects.some((r) => on(r, c) && r.top > y);
+  for (let c = 0; c < 12; c++) {
+    let y = gr.top - cg;
+    for (const b of boxes.filter((b) => on(b.r, c)).sort((a, z) => a.r.top - z.r.top)) {
+      if (b.r.top - y > HOLE) {
+        const mid = (y + b.r.top) / 2;
+        let lo = c, hi = c;
+        while (lo > 0 && empty(lo - 1, mid)) lo--;
+        while (hi < 11 && empty(hi + 1, mid)) hi++;
+        if (hi - lo + 1 < HOLE_COLS) {
+          bad.push(`a ${hi - lo + 1}-column hole (columns ${lo + 1}-${hi + 1}) ${Math.round(b.r.top - y - cg)}px tall above ${b.id}`);
+        }
+      }
+      y = Math.max(y, b.r.bottom);
+    }
+  }
+  if (!strict) return [...new Set(bad)];
+  // Bands: boxes that overlap vertically, joined transitively.
+  const band = boxes.map((_, i) => i);
+  const root = (i) => (band[i] === i ? i : (band[i] = root(band[i])));
+  for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+    const a = boxes[i].r, b = boxes[j].r;
+    if (a.top < b.bottom - 1 && b.top < a.bottom - 1) band[root(j)] = root(i);
+  }
+  const reach = new Map();
+  boxes.forEach((b, i) => reach.set(root(i), Math.max(reach.get(root(i)) || 0, b.r.right)));
+  for (const [i, right] of reach) {
+    if (right < gr.right - 2) bad.push(`the band at ${boxes[i].id} stops ${Math.round(gr.right - right)}px short of the edge`);
+  }
+  for (const a of boxes) {
+    const under = boxes.filter((b) => b !== a && b.r.top >= a.r.bottom - 1
+      && Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left) > 2).sort((x, y) => x.r.top - y.r.top)[0];
+    if (!under) continue;
+    const gap = under.r.top - a.r.bottom;
+    if (gap < cg - 0.5 || gap > cg + 2.5) bad.push(`${Math.round(gap)}px from ${a.id} down to ${under.id}`);
+  }
+  return [...new Set(bad)];
+}"""
+
+
+def resize_sweep(page, sel: str, where: str) -> tuple[int, int, list[str]]:
+    """Every panel under `sel` through every span its arrows reach, the grid audited at each.
+    Returns the states audited, the arrow clicks that changed a panel, and what was wrong."""
+    states, clicks, bad = 0, 0, []
+
+    def settle() -> None:
+        page.evaluate("() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))")
+        page.wait_for_timeout(160)
+
+    def audit(label: str, strict: bool = False) -> None:
+        nonlocal states
+        states += 1
+        args = [sel, strict, RS_STRETCH_PX, RS_HOLE_PX, RS_HOLE_COLS]
+        bad.extend(f"{where} {label}: {b}" for b in page.evaluate(RS_AUDIT, args))
+
+    def state(pid: str) -> dict:
+        return page.evaluate(RS_STATE, [sel, pid])
+
+    audit("as shipped", strict=True)
+    for pid in page.evaluate(RS_TAG, sel):
+        start = state(pid)
+        if not start:
+            continue
+        # Down to the narrowest it allows, then up to the whole width. Each enabled arrow
+        # must change how many columns the panel shows, and the right way.
+        for key, n, sign, word in (("less", 1, -1, "narrower"), ("more", 2, 1, "wider")):
+            if sign > 0:
+                audit(f"{pid} at its narrowest, {state(pid)['cols']} columns")
+            for _ in range(5):
+                page.evaluate(RS_HOVER, [sel, pid])
+                st = state(pid)
+                if not st[key]:
+                    break
+                page.evaluate(RS_CLICK, [sel, pid, n])
+                settle()
+                after = state(pid)
+                if (after["cols"] - st["cols"]) * sign <= 0:
+                    bad.append(f"{where} {pid}: '{word}' at {st['cols']} columns left it at {after['cols']}")
+                    break
+                clicks += 1
+                if sign > 0:
+                    audit(f"{pid} at {after['saved']} (shows {after['cols']})")
+        end = state(pid)
+        if end["cols"] != 12:
+            bad.append(f"{where} {pid}: the arrows stop at {end['cols']} columns, not the full width")
+        page.evaluate(RS_RESTORE, [sel, pid, start["saved"]])
+        settle()
+        back = state(pid)
+        if back["cols"] != start["cols"]:
+            bad.append(f"{where} {pid}: put back at {start['saved']} it shows {back['cols']} columns, "
+                       f"not the {start['cols']} it showed as shipped")
+    return states, clicks, bad
+
+
+# A layout saved by an older Keys, set before the app loads: Read's authored 5 and 7 as
+# a layout saves them (every panel, every span), and Stats' panels reversed with the spans
+# a pre-0.14 grid had (6, 3, 12). Read keeps its 5 + 7; Stats keeps the saved order and
+# takes the widths its view authors today.
+RS_ROWS = """(sel) => [...document.querySelectorAll(sel + ' > [data-panel]')]
+  .map((e) => [e.dataset.panel, [...e.classList].find((c) => /^col-\\d+$/.test(c))])"""
+
+
+def migrate_checks(page, check) -> None:
+    def go(hash_: str) -> None:
+        page.evaluate(f"location.hash = '{hash_}'")
+        page.wait_for_timeout(2200)
+
+    go("read")
+    read = page.evaluate(RS_ROWS, "#stage > .grid")
+    go("stats")
+    stats = page.evaluate(RS_ROWS, "#stage > .grid")
+    spans = lambda cls: int(cls[4:])  # noqa: E731
+    old_spans = (6, 3, 12)
+    seeded = {
+        "read": [{"id": i, "span": spans(c)} for i, c in read],
+        "stats": [{"id": i, "span": old_spans[k % 3]} for k, (i, _) in enumerate(reversed(stats))],
+    }
+    page.evaluate("""(layout) => fetch('/api/settings', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ui: { layout } }) })""", seeded)
+    page.reload(wait_until="networkidle")
+    page.wait_for_timeout(1600)
+    go("read")
+    got = page.evaluate(RS_ROWS, "#stage > .grid")
+    check("a saved Read layout keeps the widths its view authors (5 + 7), not the nearest step",
+          len(read) >= 3 and got == read, f"authored {read}, after a save {got}")
+    go("stats")
+    got = page.evaluate(RS_ROWS, "#stage > .grid")
+    want = [[i, dict(stats)[i]] for i, _ in reversed(stats)]
+    check("a pre-0.14 Stats layout (with a 3) keeps its order and takes today's authored widths",
+          len(stats) >= 3 and got == want, f"want {want}, got {got}")
+    page.evaluate("""() => fetch('/api/settings', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ui: { layout: { read: [], stats: [] } } }) })""")
+    page.reload(wait_until="networkidle")
+    page.wait_for_timeout(1600)
+
+
+# How narrow each panel really goes, measured in its narrow layout: the panel forced to
+# 300px (inside every narrow query), the arrows shown as a hover shows them.
+RS_MIN = """() => [...document.querySelectorAll('#stage > .grid > [data-panel]')].map((el) => {
+  const mod = el.firstElementChild, grip = mod.querySelector('.mod__grip');
+  const keep = [el.style.width, mod.style.width, grip.style.cssText];
+  el.style.width = '300px'; mod.style.width = 'min-content';
+  grip.style.cssText = 'max-width: none; margin-left: 0';
+  const w = Math.ceil(mod.getBoundingClientRect().width);
+  [el.style.width, mod.style.width, grip.style.cssText] = keep;
+  return [el.dataset.panel, w];
+})"""
+
+
+def resize_checks(browser, port: int, errs: list[str]) -> list[str]:
+    """Spans, rows and gaps on every tab and every starter page; the builder's warning."""
+    fails: list[str] = []
+    page = browser.new_page(viewport={"width": 1600, "height": 1000})
+    page.on("pageerror", lambda e: errs.append(str(e)))
+
+    def check(label: str, passed: bool, detail: str = "") -> None:
+        print(f"  [{'PASS' if passed else 'FAIL'}] {label}" + (f" -- {detail}" if detail else ""))
+        if not passed:
+            fails.append(f"resize: {label} {detail}".strip())
+
+    def go(hash_: str, wait: int = 2200) -> None:
+        page.evaluate(f"location.hash = '{hash_}'")
+        page.wait_for_timeout(wait)
+
+    print("\nresize: every panel at every span its arrows reach")
+    page.goto(f"http://127.0.0.1:{port}/", wait_until="networkidle")
+    page.wait_for_timeout(1600)
+
+    # The starter pages as this sandbox's pages (the sections before are done with it),
+    # and the tour put away again: the Settings reset above brought it back.
+    starters = page.evaluate("async () => (await import('/pages.js')).STARTERS")
+    made = [{"id": f"rs-{k}", "name": f"Resize {k}", "cols": s["cols"], "panes": s["panes"]}
+            for k, s in starters.items() if s["panes"]]
+    page.evaluate("""(list) => fetch('/api/settings', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ui: { pages: list, tour_seen: true } }) })""", made)
+    page.reload(wait_until="networkidle")
+    page.wait_for_timeout(1600)
+    migrate_checks(page, check)
+
+    for w, h in RESIZE_SIZES:
+        page.set_viewport_size({"width": w, "height": h})
+        for view in VIEWS:
+            go(view)
+            # A whole tab always has a panel narrower than the window; arrows that are all
+            # disabled would pass everything else.
+            n, clicks, bad = resize_sweep(page, "#stage > .grid", f"{view} @{w}")
+            check(f"{view} @{w}x{h}: {n} states, {clicks} clicks each shown, nothing sticks out, no "
+                  "stretched card, no unusable hole; as shipped no short row and even gaps",
+                  clicks > 0 and not bad, "; ".join(bad[:8]))
+        for p in made:
+            go(f"page/{p['id']}", 2600)
+            for pane in p["panes"]:
+                sel = f".page__pane[data-view='{pane['view']}'] > .grid"
+                n, clicks, bad = resize_sweep(page, sel, f"{p['name']}/{pane['view']} @{w}")
+                check(f"{p['name']} @{w}x{h}, {pane['view']} pane: {n} states, {clicks} clicks each shown, "
+                      "nothing sticks out, no stretched card, no unusable hole", n > 0 and not bad,
+                      "; ".join(bad[:8]))
+    page.set_viewport_size({"width": 1600, "height": 1000})
+
+    # The builder's minimums against the panels themselves: never under what the panel
+    # measures (or the warning would miss it), and not so far over that it cries wolf.
+    panels = page.evaluate("async () => (await import('/pages.js')).PANELS")
+    registry = {p["slug"]: p.get("min") for p in panels}
+    titles = {p["slug"]: p["title"] for p in panels}
+    off = []
+    for view in ("play", "practice", "layers", "tools"):
+        go(view)
+        for slug, w in page.evaluate(RS_MIN):
+            want = registry.get(slug)
+            if want is None or not w <= want <= w + 30:
+                off.append(f"{slug}: registry {want}, measured {w}")
+    check("the builder's panel minimums match what each panel measures in its narrow layout",
+          not off, "; ".join(off))
+
+    # The builder warns about exactly the panels a pane of that window cannot hold: Build
+    # one, Pedal and Now at three columns in a 1024px window -- then the page is made and
+    # each pane's real width read off it.
+    page.set_viewport_size({"width": 1024, "height": 768})
+    go("page/new", 900)
+    page.click("#pb-start [data-start='blank']")
+    picks = {"layers": "build-one", "tools": "pedal", "practice": "now"}
+    for v, slug in picks.items():
+        page.click(f"label:has(> input[data-view='{v}'][data-slug='{slug}'])")
+    page.click("#pb-cols button:text-is('3')")
+    warn = page.evaluate("() => { const w = document.getElementById('pb-warn'); return w.hidden ? '' : w.textContent; }")
+    page.fill("#pb-name", "Resize warn")
+    page.click("#pb-save")
+    page.wait_for_timeout(2800)
+    real = page.evaluate("""() => Object.fromEntries([...document.querySelectorAll('.page__pane')]
+      .map((p) => [p.dataset.view, p.querySelector(':scope > .grid').clientWidth]))""")
+    wrong = [f"{titles[s]}: min {registry[s]}, pane {real.get(v)}px, {'warned' if titles[s] in warn else 'not warned'}"
+             for v, s in picks.items() if (registry[s] > real.get(v, 0)) != (titles[s] in warn)]
+    check("at 1024px, three columns: the builder warns for exactly the panels too wide for their pane",
+          len(real) == 3 and not wrong, "; ".join(wrong) or f"panes {real}, warning {warn!r}")
+    page.set_viewport_size({"width": 1600, "height": 1000})
+    page.close()
+    return fails
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=0,
@@ -1623,6 +1992,7 @@ def main() -> int:
             fails.extend(transport_checks(browser, port, errs))
             fails.extend(pages_checks(browser, port, errs))
             fails.extend(pages_fix_checks(browser, port, errs))
+            fails.extend(resize_checks(browser, port, errs))
             browser.close()
     finally:
         if proc is not None:

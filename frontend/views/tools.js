@@ -44,7 +44,7 @@ export default {
     theory = createTheory();
 
     root.append(h('div.grid', null,
-      h('div.col-3', null, mod('Touch response', 'play soft, then hard',
+      h('div.col-4', null, mod('Touch response', 'play soft, then hard',
         h('div.touch', null,
           h('div.touch__bar', null, h('div.touch__fill', { id: 'touch-fill' })),
           h('div.touch__marks', { id: 'touch-marks' })),
@@ -64,7 +64,7 @@ export default {
       // With the instrument, because the instrument is what these change. They were two
       // panels in Settings, beside the MIDI ports and the buffer size, which is the rig
       // -- and two unsynced copies of one slider is a bug, so there is one copy now.
-      h('div.col-6', null, mod('Pedal', 'you have one; a grand has three',
+      h('div.col-8', null, mod('Pedal', 'you have one; a grand has three',
         info(
           'One pedal, spent on something a grand needs three for.'),
         h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', marginTop: '12px' } },
