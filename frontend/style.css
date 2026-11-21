@@ -2639,7 +2639,7 @@ body.has-update #gear::after { top: 2px; right: 1px; }
 body:not(.is-focusing) .jam__top { display: flex; gap: var(--jam-gap); align-items: stretch; }
 /* Start/Stop: as tall as the console beside it, the one big thing in the row. */
 body:not(.is-focusing) .jam__go {
-  flex: none; width: 112px; min-height: calc(var(--jam-h) + 12px); padding: 6px 10px; line-height: 1.15; gap: 8px;
+  flex: none; width: 96px; min-height: calc(var(--jam-h) + 12px); padding: 6px 10px; line-height: 1.15; gap: 8px;
 }
 /* A transport glyph: play while stopped, stop while playing. */
 .jam__go::before {
@@ -2647,6 +2647,21 @@ body:not(.is-focusing) .jam__go {
   clip-path: polygon(10% 0, 100% 50%, 10% 100%);
 }
 .jam__go:not(.btn--primary)::before { clip-path: none; border-radius: 2px; width: 9px; height: 9px; }
+/* Playing, it is the lamp's outline, not an empty grey box. */
+.jam__go:not(.btn--primary) {
+  color: var(--amber); background: var(--amber-faint);
+  border-color: color-mix(in oklab, var(--amber) 45%, transparent);
+}
+.jam__go:not(.btn--primary):hover { background: var(--amber-wash); border-color: var(--amber); }
+/* The settings stay together: the Band row sits right under Music and You, and the
+   stage -- what a player watches -- comes after, nearest the keys. */
+body:not(.is-focusing) .jam > .jam__top { order: -2; }
+body:not(.is-focusing) .jam > .jam__more { order: -1; }
+/* In a pane nothing stands beside Music and You, so Band joins them: one console. */
+body:not(.is-focusing) .page__pane .jam__opts { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+body:not(.is-focusing) .page__pane .jam__more {
+  margin-top: calc(-1 * var(--jam-gap) - 1px); border-top-left-radius: 0; border-top-right-radius: 0;
+}
 body:not(.is-focusing) .jam__opts { flex: 1 1 0; }
 body:not(.is-focusing) .jam__opts, .jam__more {
   display: flex; flex-direction: column; min-width: 0;
@@ -2656,7 +2671,8 @@ body:not(.is-focusing) .jam__opts, .jam__more {
 .jam__lbl { font-size: var(--jam-lfs); font-weight: 500; color: var(--ink-faint); white-space: nowrap; }
 /* The Music group's own name says what its first row is. */
 body:not(.is-focusing) .jam__group--music .jam__gbody > .jam__opt:first-child > .jam__lbl { display: none; }
-.jam__select { min-width: 0; width: clamp(150px, 14cqi, 210px); }
+/* As wide as the key's whole name, never cut off mid-word. */
+.jam__select { min-width: 120px; max-width: 100%; width: auto; field-sizing: content; }
 .jam__select--sound { width: 112px; }
 /* Every control on the console one height: the shared ones, sized down to the row. */
 .jam :is(.jam__opts, .jam__more) .seg { padding: 2px; border-radius: 7px; gap: 1px; }
@@ -2987,7 +3003,6 @@ body.is-focusing .jam__go { min-width: 170px; }
 @container panel (max-width: 760px) {
   body:not(.is-focusing) .jam__group { grid-template-columns: 48px minmax(0, 1fr); }
   body:not(.is-focusing) .jam__gbody { gap: 5px 12px; }
-  .jam__select { width: 150px; }
   .jam__field { width: 180px; }
   body:not(.is-focusing) .jam__go { width: auto; min-height: var(--jam-h); padding: 3px 14px; white-space: nowrap; }
   .jam__pblurb { display: none; }
