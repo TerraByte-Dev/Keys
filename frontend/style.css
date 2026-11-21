@@ -831,7 +831,10 @@ body::after {
   border-bottom: 1px solid var(--hairline);
 }
 
-.rail__brand { display: flex; align-items: center; gap: 9px; width: calc(var(--nav-w) - 16px); }
+.rail__brand {
+  display: flex; align-items: center; gap: 9px; width: calc(var(--nav-w) - 16px);
+  min-width: max-content;   /* a narrow (collapsed) nav must not push the name into the lamps */
+}
 .rail__mark {
   width: 10px; height: 10px; border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, var(--amber-hot), var(--amber-deep));
@@ -874,6 +877,69 @@ body::after {
   transition: background .12s var(--ease), box-shadow .4s var(--ease);
 }
 .clock__dot.is-live { background: var(--amber); box-shadow: 0 0 9px var(--amber); }
+
+/* -- the rail as the window's title bar (app window only) ------------------
+   titlebar.js sets html.is-titlebar when keys.py has taken Windows' caption away.
+   The rail drops to title-bar height and everything in it goes one size down; the
+   rail itself is the drag area (WebView2 hands `app-region: drag` to Windows, which
+   is what keeps Snap, double-click-to-maximise and the system menu), and anything
+   you click is carved out of it with no-drag. A browser tab never gets the class,
+   so there the rail is exactly what it was. */
+html.is-titlebar { --rail-h: 36px; }
+html.is-titlebar .rail {
+  app-region: drag; -webkit-app-region: drag;
+  gap: 12px; padding: 0 0 0 14px;
+}
+html.is-titlebar .rail button,
+html.is-titlebar .rail input,
+html.is-titlebar .rail .vol,
+html.is-titlebar .rail .clock,
+html.is-titlebar .rail .lamp { app-region: no-drag; -webkit-app-region: no-drag; }  /* lamps, clock: so their tooltips still show */
+html.is-titlebar .rail__brand { gap: 8px; width: calc(var(--nav-w) - 14px); }
+html.is-titlebar .rail__mark { width: 8px; height: 8px; box-shadow: 0 0 8px var(--amber); }
+html.is-titlebar .rail__name { font-size: 13.5px; }
+html.is-titlebar .rail__lamps { gap: 4px; }
+html.is-titlebar .lamp { height: 22px; padding: 0 8px; gap: 6px; }
+html.is-titlebar .lamp__led { width: 6px; height: 6px; }
+html.is-titlebar .lamp__label,
+html.is-titlebar .lamp__value { font-size: 10.5px; }
+html.is-titlebar .rail__right { gap: 10px; }
+html.is-titlebar .clock { gap: 6px; }
+html.is-titlebar .clock__label { font-size: 10.5px; }
+html.is-titlebar .clock__value { font-size: 14px; }
+html.is-titlebar .rail .btn--panic {
+  min-height: 0; height: 24px; padding: 0 11px; font-size: 12px;
+}
+html.is-titlebar .vol { margin-left: 2px; }
+html.is-titlebar .vol__slider { width: 74px; height: 18px; }
+html.is-titlebar .vol__slider::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; }
+html.is-titlebar .vol__slider::-webkit-slider-thumb {
+  width: 12px; height: 12px; margin-top: -4px; border-width: 2px;
+}
+html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
+
+/* Minimise / maximise / close. Full rail height and flush to the corner, the way
+   Windows' own are, so throwing the mouse at the top-right still hits Close -- drawn
+   in the panel's ink. Close goes Windows' own close red with a white cross in EVERY
+   theme: it is the one control people find by its colour, and the themed --red is
+   maroon on midnight, pale pink on paper and cyan on ice. */
+.winctl {
+  --winctl-close: #c42b1c;
+  --winctl-close-down: #a8251a;
+  align-self: stretch; display: flex; margin-left: 2px;
+  border-left: 1px solid var(--hairline);
+}
+.winctl__btn {
+  display: grid; place-items: center; width: 44px; height: 100%; padding: 0;
+  color: var(--ink-dim); background: transparent; border: 0; border-radius: 0;
+  cursor: default;
+  transition: color .12s var(--ease), background .12s var(--ease);
+}
+.winctl__btn:hover { color: var(--ink); background: var(--panel-3); }
+.winctl__btn:active { background: var(--panel-4); }
+.winctl__btn--close:hover { color: var(--gloss-hard); background: var(--winctl-close); }
+.winctl__btn--close:active { color: var(--gloss-hard); background: var(--winctl-close-down); }
+.winctl__btn:focus-visible { outline: 2px solid var(--amber); outline-offset: -2px; }
 
 /* ── left nav ───────────────────────────────────────────────────────────── */
 .nav {

@@ -24,6 +24,7 @@ import { $, api, h, hms, noteName, paint as paintSlider, toast } from './ui.js';
 import { startTour, tourOpen } from './tour.js';
 import { keyLabel } from './prefs.js';
 import { closeSettings, openSettings, settingsOpen } from './settings-overlay.js';
+import { initTitlebar } from './titlebar.js';
 
 import playView from './views/play.js';
 import practiceView from './views/practice.js';
@@ -1387,6 +1388,8 @@ function paintGhost() {
 const songs = createSongs((payload, meta) => startGhost(payload, meta));
 
 $('#gear')?.addEventListener('click', () => openSettings(ctx));
+// The rail doubles as the window's title bar in the app window; a no-op in a browser.
+initTitlebar();
 $('#oct-down')?.addEventListener('click', () => shiftOctave(-1));
 $('#oct-up')?.addEventListener('click', () => shiftOctave(1));
 // Click the number itself to come back to centre. Two presses of the other button
