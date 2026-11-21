@@ -24,6 +24,25 @@ let loading = null;          // in-flight load, so two clicks make one download
 let loadedId = '';           // which score is currently parsed into the toolkit
 let measures = null;         // measureMap()'s answer for that score
 
+/* Pages already engraved, newest last. A page is a synchronous render of ~200 ms, and a
+   turn mid-song used to pay it in the frame the page changed -- the roll caps a frame's
+   step at 0.1 s, so the song lost about 100 ms at every turn. The next page is engraved
+   ahead, in idle time (prerenderPage), and the turn only swaps the SVG in.
+   Keyed by score id and page, and emptied whenever a score is parsed: the element ids
+   in a page are minted per load, so a page from an earlier load of the same score would
+   carry ids the measure map no longer has. The options never change after the toolkit is
+   built and svgViewBox makes the SVG scale to its box, so a resize or a fullscreen
+   toggle leaves every page valid; anything that ever calls setOptions must empty this. */
+const PAGES_KEPT = 4;
+const pages = new Map();     // `${id}#${page}` -> SVG
+const queued = new Set();    // keys waiting for an idle moment
+
+function keep(key, svg) {
+  pages.delete(key);
+  pages.set(key, svg);
+  while (pages.size > PAGES_KEPT) pages.delete(pages.keys().next().value);
+}
+
 /* Verovio's own options. Page width/height are in tenths of a staff space -- its unit,
    not pixels -- and the SVG then scales to whatever box we put it in. */
 const VEROVIO_OPTS = {
@@ -75,6 +94,7 @@ export async function loadScore(id) {
   // stale id would then hand the previous score's pages to the next caller.
   loadedId = '';
   measures = null;          // element ids are minted per load, so the map dies with it
+  pages.clear();            // ...and so do the pages engraved from it
   const ok = isZip
     ? tk.loadZipDataBuffer(raw)
     : tk.loadData(new TextDecoder().decode(bytes));
@@ -92,7 +112,35 @@ export async function loadScore(id) {
  */
 export async function renderPage(id, page) {
   await loadScore(id);
-  return toolkit.renderToSVG(page);
+  const key = `${id}#${page}`;
+  const svg = pages.get(key) ?? toolkit.renderToSVG(page);
+  keep(key, svg);
+  return svg;
+}
+
+/** The page's SVG if it is already engraved, else undefined. Never renders, never loads. */
+export function cachedPage(id, page) {
+  return loadedId === id ? pages.get(`${id}#${page}`) : undefined;
+}
+
+/**
+ * Engrave a page ahead, when the browser is idle, so the turn to it costs nothing.
+ *
+ * Only ever for the score already in the toolkit: this never loads the engraver or a
+ * score, so it cannot be what downloads 7 MB, and it touches no clock -- the render
+ * happens in a moment the page has to spare, and the turn reads the result.
+ */
+export function prerenderPage(id, page) {
+  const key = `${id}#${page}`;
+  if (!toolkit || loadedId !== id || pages.has(key) || queued.has(key)) return;
+  if (page < 1 || page > (toolkit.getPageCount() || 1)) return;
+  queued.add(key);
+  const idle = globalThis.requestIdleCallback ?? ((fn) => setTimeout(fn, 50));
+  idle(() => {
+    queued.delete(key);
+    // Another score can have been parsed while this waited.
+    if (loadedId === id && !pages.has(key)) keep(key, toolkit.renderToSVG(page));
+  });
 }
 
 /**

@@ -21,6 +21,7 @@ import { MAX_PAGES, fullWidth, pageBuilder, pageShell, pickPanels, savePages,
   validPages } from './pages.js';
 import { $, api, h, hms, noteName, paint as paintSlider, toast } from './ui.js';
 import { startTour, tourOpen } from './tour.js';
+import { keyLabel } from './prefs.js';
 import { closeSettings, openSettings, settingsOpen } from './settings-overlay.js';
 
 import playView from './views/play.js';
@@ -532,7 +533,7 @@ function paintNav(id = currentId) {
     href: `#page/${p.id}`, 'data-page': p.id, title: p.name,
   },
     h('span.nav__dot'),
-    i < 3 && binds[`page:${i + 1}`] ? h('span.nav__key', null, binds[`page:${i + 1}`]) : null,
+    i < 3 && binds[`page:${i + 1}`] ? h('span.nav__key', null, keyLabel(binds[`page:${i + 1}`])) : null,
     h('span.nav__label', null, p.name))));
   for (const a of document.querySelectorAll('.nav__item')) {
     a.classList.toggle('is-active', pageId ? a.dataset.page === pageId : a.dataset.view === id);
@@ -902,6 +903,8 @@ let sheetPages = 1;
    printed. */
 let sheetBars = [];
 let sheetPageOf = [];
+let sheetPageEnd = [];        // the last bar printed on each page
+let engraver = null;          // engrave.js, once Sheet has been pressed -- never before
 let sheetPaintKey = '';       // the bar + section last painted on the page
 let sheetTurnBar = -1;        // the bar the page last followed
 let sheetFollow = false;      // a deliberate move: follow it even while paused
@@ -916,8 +919,10 @@ function mapSheetBars(list) {
   const same = list.length === g.measures.length;
   sheetBars = list.map((m, k) => ({ ...m, bar: same ? k : g.barAt(parseInt(m.n, 10)) }));
   sheetPageOf = [];
+  sheetPageEnd = [];
   for (const m of sheetBars) {
     if (m.bar >= 0 && sheetPageOf[m.bar] == null) sheetPageOf[m.bar] = m.page;
+    if (m.bar >= 0) sheetPageEnd[m.page] = Math.max(sheetPageEnd[m.page] ?? -1, m.bar);
   }
 }
 
@@ -969,8 +974,12 @@ function decorateSheet(paper) {
    even to the bar it was already in. Wait mode is why that matters: started on a page
    that does not show the bar, the clock waits for a chord you cannot see, forever.
 
-   A turn is a synchronous engrave of a whole page. During a scrub drag it waits for
-   the pointer to come up rather than engraving every page the drag crosses. */
+   A turn the engraver has not got ahead of is a synchronous engrave of a whole page.
+   During a scrub drag it waits for the pointer to come up rather than engraving every
+   page the drag crosses -- and so does the look-ahead below; endScrub's repaint queues
+   the one after the landing page. The page after the playhead's is engraved ahead, in idle time:
+   while paused at once, since nothing is lost then, and while playing once the playhead
+   is in the last two bars of its page. */
 function paintSheet() {
   const g = ghostModel;
   const paper = $('#roll-paper');
@@ -998,6 +1007,10 @@ function paintSheet() {
     } else revealBar(paper, cur);
   }
   sheetFollow = false;
+  const on = sheetPageOf[cur];
+  if (!scrubDrag && on && on < sheetPages && (!g.playing || cur >= sheetPageEnd[on] - 1)) {
+    engraver?.prerenderPage(sheetScoreId, on + 1);
+  }
 }
 
 /* Scroll the paper just far enough that the bar is in view below the rollbar. */
@@ -1050,7 +1063,8 @@ async function setSheetMode(on) {
   paper.replaceChildren(h('div.empty', null, 'engraving…'));
   const wanted = sheetScoreId;
   try {
-    const { loadScore, renderPage, measureMap } = await import('./engrave.js');
+    engraver = await import('./engrave.js');
+    const { loadScore, renderPage, measureMap } = engraver;
     sheetPages = await loadScore(wanted);
     const list = await measureMap(wanted);
     // The song can have been closed, or swapped, while 7 MB was downloading.
@@ -1085,8 +1099,9 @@ async function showPage(want, bar = -1) {
   paintSheetControls();
   const paper = $('#roll-paper');
   const wanted = sheetScoreId;
-  const { renderPage } = await import('./engrave.js');
-  const svg = await renderPage(wanted, want);
+  // Engraved ahead (paintSheet): swapped in within this frame, with no await between.
+  const svg = engraver?.cachedPage(wanted, want)
+    ?? await (await import('./engrave.js')).renderPage(wanted, want);
   if (!paper || !sheetMode || sheetScoreId !== wanted || sheetPage !== want) return;
   paper.innerHTML = svg;
   paper.scrollTop = 0;      // a page turn starts at the top of the page
@@ -1113,6 +1128,7 @@ export function stopGhost() {
   sheetPage = sheetPages = 1;
   sheetBars = [];
   sheetPageOf = [];
+  sheetPageEnd = [];
   sheetPaintKey = '';
   sheetTurnBar = -1;
   sheetPlaying = false;

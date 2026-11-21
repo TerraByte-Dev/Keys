@@ -208,6 +208,17 @@ export const CHAPTERS = [
     ],
   },
   {
+    id: 'pages', tab: null, title: 'Pages of your own',
+    body: [
+      'Under the six tabs, ', b('+ New page'), ' builds a tab out of the panels Play, ',
+      'Practice, Layers and Tools already have — Jam beside the scale highlighter and ',
+      'Chords & scales, say. Start from ', b('Solo practice'), ', ', b('Everything'), ' or ',
+      b('Blank'), ', tick what you want and pick the columns.', h('br'), h('br'),
+      'Up to six pages; the first three open on ', b('7'), ', ', b('8'), ' and ', b('9'),
+      '. ', b('Edit'), ' on a page changes it.',
+    ],
+  },
+  {
     id: 'yours', tab: 'settings', title: 'Making it yours',
     body: [
       'Every panel in the app drags by its header and resizes with the arrows on ',

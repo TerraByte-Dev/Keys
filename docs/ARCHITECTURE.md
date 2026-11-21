@@ -187,7 +187,7 @@ custom property the keyboard reads is actually defined.
 | Tab | Holds | The rule it follows |
 |---|---|---|
 | **Play** | Instruments (with Profiles), Effects, the metronome (Tempo, Meter, Tempo ramp, Click kit), Loop station, Scale highlighter | what you reach for *while* your hands are on the keys |
-| **Practice** | Now, Timing, Exercises, Songs | what you work *on* |
+| **Practice** | Jam, Now, Timing, Exercises, Songs | what you work *on* |
 | **Layers** | What this is, Layout, Build one, Zone editor | how the instrument is *built* |
 | **Tools** | Touch response, Pedal, Chords & scales, Backing tracks | the rig you calibrate *once* |
 | **Read** | Staff, This run, Exercise setup, Weakest notes | sight-reading |
@@ -228,6 +228,66 @@ candidate is placed first and taken only if the panel then shows narrower (or wi
 no hole narrower than four columns, where no panel could ever go; an arrow with no such step is disabled.
 A saved layout keeps only spans the arrows offer (an authored 5 or 7 stays as written), and one with a 3
 in it, from before 0.14, keeps its order but takes today's authored widths.
+
+### Pages: whole views, mounted side by side
+
+A **page** is a tab you build yourself (`frontend/pages.js`), and it is made of the four
+working tabs rather than of loose panels. A tester soloing over Jam wanted the scale
+highlighter and Chords & scales beside it, which live in Play and Tools; moving panels
+between tabs would break the table above, so a page instead **mounts whole views into
+panes** -- Play, Practice, Layers and Tools, as many as the page holds -- and shows only the
+panels you ticked in each. Saved as `ui.pages`, up to six, the first three on `7`, `8`, `9`;
+the route is `#page/<id>`.
+
+**Each view at most once per page**, and that one rule is what makes it cheap. Every view
+module is a singleton with module-scoped state and document-wide ids: two copies of Play in
+one document would collide, one each of four different views never does. So the views mount
+exactly as they do on their own tab and do not know they are on a page. The router keeps a
+list of what is mounted (one entry on a tab, one per pane on a page) and fans frames,
+status and refocus out to all of it; a pane's refresh remounts that pane alone, so loading a
+preset in Play does not tear down the Jam beside it. The builder's panel list is a static
+registry, because it has to offer panels of views that are not mounted, and `ui_check`
+mounts each view and holds the registry against the real `data-panel` slugs so it cannot
+drift. Stats and the Sound tab are not offered.
+
+Several views in one document share one docked keyboard, so the keyboard's highlight and
+its labels have **owners**. `kb.setHighlight(midi, owner)` keeps one set per owner and draws
+their union: Play's scale highlighter (`scale`), Chords & scales (`theory`, every key of the
+scale or chord across the whole dock) and the touch-setting keys (`touch`). A writer replaces
+and clears only its own owner; with one shared set the last writer won, and turning the touch
+keys off blanked the scale you had just picked. Labels work the same way:
+`setKeyLabel(midi, text, owner)` shows the newest label on a key and clearing it shows the one
+beneath, so Jam relabelling its landing key every bar no longer wipes FIXED / SOFT / MEDIUM /
+HARD. The router's `clearHighlights()` and `clearAllLabels()` are the only "everything off".
+Jam's marks are a separate layer and are not owned.
+
+### Jam: a level you pick, and a scale pinned over the key
+
+`frontend/jam.js` plays a band under you and lights what sounds good over the chord playing
+now. Two 0.14 additions change what the lights mean, so they are written down here.
+
+**Levels are presets, never unlocks.** Nothing suggests the next one and nothing is saved
+about how you did. For Pop and Minor: 1 is one common four-chord loop, played over and over;
+2 rotates the four-chord loops; 3 is the whole songbook with its variations; 4 is 3 with a
+key change at every second phrase, announced before it lands. Blues has its own four (two
+chords, the plain 12-bar, the 12-bar mixed with the quick change, and a turnaround that
+moves). Level 4 moves **by a fifth, never to the relative key**: the relative changes none
+of the notes, so it would change none of the scale you are meant to be following. Every key
+Jam offers has a key a fifth away on offer -- which is why D♭ major and B♭ minor are in the
+list: without them F♯ major and E♭ minor had none, and fell back to the relative. The two are
+each other's relative as well, so every key also has one to move to when Music switches
+between Pop and Minor (B major, the other fifth from F♯, has no relative minor on offer and
+would leave that switch on a major key). `jam_check` asserts both by its own arithmetic.
+
+**The scale pin: outline is "in your scale", fill is "good on this chord".** `Scale` pins one
+scale over the whole key -- the key's own, its pentatonic or its blues, spelled by the server
+like every scale -- and draws it as an outline on every key of it across the keyboard. It
+holds still until the key changes. The per-chord fill is unchanged and sits on top, so the
+two never contradict: an outlined key without fill is in the scale but rubs on this chord
+(rubs are never lit), and a held key in the pin is never painted "spicy". Under a Pentatonic
+or Blues pin the band only plays chords the pin does not rub (`harmony.js` `pinSafe()`), so
+every outlined key really is good on every chord; under Key there is no such chord set, and
+the pin is display only. Guide Dark hides the pin with the rest of the lights.
 
 ### The roll is full screen or it is not open
 
@@ -292,6 +352,19 @@ the single instance, and the symptom of a clash is the wrong music on screen rat
 error. Rendering therefore takes a score id rather than trusting whatever was loaded last.
 The 7 MB of WebAssembly is still fetched on demand — on the first press of **Sheet**, never
 on opening a song — so someone who only plays along never downloads it.
+
+**A page turn swaps in a page that is already engraved.** Rendering a page is synchronous
+-- tens of milliseconds for a sparse page, ~200 ms measured on a dense one -- and the roll caps a frame's step at 0.1 s, so a turn that engraved
+in the frame it happened cost the song about 100 ms every time. `engrave.js` keeps the last
+few pages by score id and page, and `prerenderPage()` engraves the page after the playhead's
+in `requestIdleCallback`: at once while paused, and while playing once the playhead is in the
+last two bars of its page. Never during a scrub drag, which would engrave every page the drag
+crosses; the page the drag lets go on gets its next one then. It only ever renders the score already in the toolkit, so it can
+never be what downloads the engraver, and it touches no clock. The pages are emptied on every
+parse, because Verovio mints element ids per load and the measure map is matched on them.
+The SVG scales to its box, so a resize or fullscreen changes nothing that is kept. While
+playing, the idle render is still one main-thread render: it moves from the turn itself to
+a gap in the page's last two bars, just before it.
 
 ### The note roll has two directions, and they are modes rather than a mixture
 
