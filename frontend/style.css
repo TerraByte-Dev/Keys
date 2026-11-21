@@ -1052,6 +1052,11 @@ body::after {
    dial needs less than a slider. */
 :where(.grid--packed > [data-panel] > .mod) > div:has(> .field + .field) > .field:has(> select) { flex-basis: auto; }
 :where(.grid--packed > [data-panel] > .mod) > div:has(> .field + .field) > .field:has(.knob) { flex-basis: calc(var(--ctl-h) * 2.2); }
+/* A slider squeezed beside a select is a stub with its name wrapped over its value:
+   it takes enough to read, and the row wraps before it gets that thin. */
+@container panel (max-width: 380px) {
+  :where(.grid--packed > [data-panel] > .mod) > div:not(.fxgrid):has(> .field + .field) > .field:has(> input[type=range]) { flex-basis: calc(var(--ctl-h) * 4.2); }
+}
 @container panel (max-width: 560px) {
   :where(.grid--packed > [data-panel] > .mod) > div:has(> .field + .field) > * { flex-basis: calc(var(--ctl-h) * 2.8); }
 }
@@ -1063,13 +1068,13 @@ body::after {
 .grid--packed .stats { grid-template-columns: repeat(auto-fit, minmax(calc(var(--ctl-h) * 2.9), 1fr)); }
 /* Effects' dials: all five on one row, the dial a tier smaller as the panel narrows. */
 .fxgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(var(--ctl-h) * 2.6), 1fr)); gap: 0 var(--gap); }
+/* A label that wraps to two lines must not drop its dial below its neighbours': every
+   control sits on the row's bottom edge, the labels hang above it. */
+.fxgrid > .field { display: flex; flex-direction: column; justify-content: space-between; }
+.grid--packed .mod > .fxgrid, .grid--packed .mod .fold > .fxgrid { align-items: stretch; }
 /* Chords in this key: the seven on one row at any width; Your keyboard's sizes too. */
-.th__chords { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-columns: none !important; gap: calc(var(--gap) * .6); }
-.th__chord { padding: calc(var(--gap) * .6) 2px; min-width: 0; }
-.kbpick__sizes { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-columns: none; gap: calc(var(--gap) * .6); }
-.kbpick__size { padding: calc(var(--gap) * .6) 2px; min-width: 0; }
-.kbpick__n { font-size: calc(var(--ctl-h) * .56); }
-.kbpick__k { font-size: var(--label-fs); }
+.th__chords { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-columns: none !important; }
+.grid--packed .kbpick__sizes { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-columns: none; }
 /* Chords & scales: the diagram and the ribbon side by side at every width, sharing it. */
 .grid--packed .th__main { flex-wrap: nowrap; gap: var(--gap); }
 .grid--packed .th__board { flex: 1 1 55%; max-width: 430px; min-width: 0; }
@@ -1108,6 +1113,7 @@ body::after {
   .grid--packed .split__octs { grid-template-columns: minmax(0, 1fr); gap: 4px; }
 }
 @container panel (max-width: 380px) {
+  .kbpick__k { display: none; }
   .th__chord .th__csym { font-size: 11px; }
   .th__chord .th__croman { font-size: 12px; }
 }
@@ -1454,6 +1460,8 @@ select option { background: var(--panel-2); color: var(--ink); }
   border-left: 3px solid var(--hairline-hi); padding: 2px 0 2px 11px;
 }
 .note strong { color: var(--ink); font-weight: 600; }
+/* A note with nothing to say yet draws nothing -- not a stray stub of its left rule. */
+.note:empty { display: none; }
 .note--warn { border-left-color: var(--amber); }
 .note--warn strong { color: var(--amber); }
 
@@ -1589,9 +1597,13 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
   background: linear-gradient(90deg, var(--cyan), var(--amber));
   transition: width 90ms var(--ease);
 }
-.touch__marks { display: flex; align-items: flex-end; gap: 2px; height: 62px; }
+/* A baseline and a stub per column, so the meter reads as waiting for you, not as a hole. */
+.touch__marks {
+  display: flex; align-items: flex-end; gap: 2px; height: calc(var(--ctl-h) * 1.6);
+  border-bottom: 1px solid var(--hairline);
+}
 .touch__col {
-  flex: 1; border-radius: 1px 1px 0 0; background: var(--panel-4);
+  flex: 1; min-height: 2px; border-radius: 1px 1px 0 0; background: var(--panel-4);
   transition: height 140ms var(--ease);
 }
 .touch__col.is-hot { background: linear-gradient(180deg, var(--amber), var(--amber-deep)); }
@@ -2117,11 +2129,11 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
 .th__title { font-size: 12.5px; color: var(--ink-dim); }
 
 .th__chords {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: calc(var(--gap) * .6);
 }
 .th__chord {
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
-  padding: 9px 6px; cursor: pointer; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0;
+  padding: calc(var(--gap) * .5) 2px; cursor: pointer; text-align: center;
   background: var(--panel-2); border: 1px solid var(--hairline); border-radius: var(--radius);
   transition: background 90ms var(--ease), border-color 90ms var(--ease);
 }
@@ -2147,11 +2159,13 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
    things you pick one of. Sized so all eight fit on one line in a full-width panel
    and wrap to two in the tutorial card, which is narrower. */
 .kbpick__sizes {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: 8px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: calc(var(--gap) * .6);
 }
+/* One line per size, control height: "61 keys" is a pick, not a card. */
 .kbpick__size {
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-  padding: 9px 6px; cursor: pointer;
+  display: flex; align-items: baseline; justify-content: center; gap: 4px;
+  height: var(--ctl-h); padding: 0 2px; min-width: 0; line-height: var(--ctl-h);
+  white-space: nowrap; overflow: hidden; cursor: pointer;
   background: var(--panel-1); border: 1px solid var(--hairline);
   border-radius: var(--radius); color: var(--ink-dim);
   transition: border-color 120ms var(--ease), color 120ms var(--ease);
@@ -2161,13 +2175,13 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
   border-color: var(--amber); color: var(--amber);
   box-shadow: 0 0 0 1px var(--amber) inset;
 }
-.kbpick__n { font-family: var(--font-mono); font-size: 17px; line-height: 1; }
-.kbpick__k { font-size: 12px; font-weight: 600; }
+.kbpick__n { font-family: var(--font-mono); font-size: calc(var(--ctl-fs) + 1px); }
+.kbpick__k { font-size: var(--label-fs); font-weight: 600; }
 .kbpick__custom {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); margin-top: var(--gap);
 }
 .kbpick__foot {
-  display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 14px;
+  display: flex; align-items: center; gap: var(--gap); flex-wrap: wrap; margin-top: calc(var(--gap) * .5);
 }
 .kbpick__read { font-size: 12.5px; color: var(--ink); margin-right: auto; }
 .kbpick__read strong { color: var(--amber); font-family: var(--font-mono); }
