@@ -25,29 +25,33 @@ export const PAGE_VIEWS = ['play', 'practice', 'layers', 'tools'];
 const VIEW_TITLES = { play: 'Play', practice: 'Practice', layers: 'Layers', tools: 'Tools' };
 
 /* slug = what layout.js derives from the panel's title (its data-panel), or the
-   data-slot of a nested grid that is not a layout panel (Practice's exercise shelf). */
+   data-slot of a nested grid that is not a layout panel (Practice's exercise shelf).
+   min = the narrowest the panel can render, in px, in its narrow layout (style.css
+   `@container panel (max-width: 440px)`): what the builder holds a pane's width against.
+   ui_check measures every one in the real DOM, so a panel that grows cannot leave its
+   number behind. The shelf has none -- it is a grid of cards that reflows to any width. */
 export const PANELS = [
-  { view: 'play', slug: 'instruments', title: 'Instruments' },
-  { view: 'play', slug: 'effects', title: 'Effects' },
-  { view: 'play', slug: 'scale-highlighter', title: 'Scale highlighter' },
-  { view: 'play', slug: 'tempo', title: 'Tempo (metronome)' },
-  { view: 'play', slug: 'meter', title: 'Meter' },
-  { view: 'play', slug: 'tempo-ramp', title: 'Tempo ramp' },
-  { view: 'play', slug: 'click-kit', title: 'Click kit' },
-  { view: 'play', slug: 'loop-station', title: 'Loop station' },
-  { view: 'practice', slug: 'jam', title: 'Jam' },
-  { view: 'practice', slug: 'songs', title: 'Songs' },
+  { view: 'play', slug: 'instruments', title: 'Instruments', min: 230 },
+  { view: 'play', slug: 'effects', title: 'Effects', min: 210 },
+  { view: 'play', slug: 'scale-highlighter', title: 'Scale highlighter', min: 250 },
+  { view: 'play', slug: 'tempo', title: 'Tempo (metronome)', min: 160 },
+  { view: 'play', slug: 'meter', title: 'Meter', min: 150 },
+  { view: 'play', slug: 'tempo-ramp', title: 'Tempo ramp', min: 220 },
+  { view: 'play', slug: 'click-kit', title: 'Click kit', min: 190 },
+  { view: 'play', slug: 'loop-station', title: 'Loop station', min: 220 },
+  { view: 'practice', slug: 'jam', title: 'Jam', min: 240 },
+  { view: 'practice', slug: 'songs', title: 'Songs', min: 180 },
   { view: 'practice', slug: 'exercises', title: 'Exercises' },
-  { view: 'practice', slug: 'now', title: 'Now' },
-  { view: 'practice', slug: 'timing', title: 'Timing' },
-  { view: 'layers', slug: 'layout', title: 'Layout' },
-  { view: 'layers', slug: 'build-one', title: 'Build one' },
-  { view: 'layers', slug: 'zone-editor', title: 'Zone editor' },
-  { view: 'tools', slug: 'touch-response', title: 'Touch response' },
-  { view: 'tools', slug: 'pedal', title: 'Pedal' },
-  { view: 'tools', slug: 'chords-scales', title: 'Chords & scales' },
-  { view: 'tools', slug: 'chords-in-this-key', title: 'Chords in this key' },
-  { view: 'tools', slug: 'backing-tracks', title: 'Backing tracks' },
+  { view: 'practice', slug: 'now', title: 'Now', min: 150 },
+  { view: 'practice', slug: 'timing', title: 'Timing', min: 180 },
+  { view: 'layers', slug: 'layout', title: 'Layout', min: 160 },
+  { view: 'layers', slug: 'build-one', title: 'Build one', min: 280 },
+  { view: 'layers', slug: 'zone-editor', title: 'Zone editor', min: 190 },
+  { view: 'tools', slug: 'touch-response', title: 'Touch response', min: 220 },
+  { view: 'tools', slug: 'pedal', title: 'Pedal', min: 240 },
+  { view: 'tools', slug: 'chords-scales', title: 'Chords & scales', min: 220 },
+  { view: 'tools', slug: 'chords-in-this-key', title: 'Chords in this key', min: 230 },
+  { view: 'tools', slug: 'backing-tracks', title: 'Backing tracks', min: 260 },
 ];
 
 const panelsOf = (view) => PANELS.filter((p) => p.view === view).map((p) => p.slug);
@@ -147,9 +151,17 @@ export function pageShell(page, { onEdit }) {
 
 const COL = /^col-\d+$/;
 
+/* How wide a pane's panel grid comes out with this many columns in a stage this wide:
+   the page's side padding (style.css .stage:has(> .page), 16px each side), the 14px
+   between panes, then the pane's own 4px right padding and its 8px scrollbar. */
+export function paneWidth(stageWidth, cols) {
+  return (stageWidth - 32 - (cols - 1) * 14) / cols - 4 - 8;
+}
+
 /* Before layout.js sees the pane: panels default to the pane's full width. A pane is a
    third of a window at most, and the spans a view was authored with assumed all of it.
-   A width you set with the arrows is saved per page-pane and wins over this. */
+   A width you set with the arrows is saved per page-pane and wins over this; layout.js
+   still raises any panel to what it measures it needs in this pane, up to all of it. */
 export function fullWidth(pane) {
   for (const grid of pane.querySelectorAll(':scope > .grid')) {
     for (const col of grid.children) {
@@ -202,6 +214,7 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
   const colsSeg = h('div.seg', { id: 'pb-cols' });
   const orderList = h('div.pb__order', { id: 'pb-order' });
   const note = h('div.note.pb__note', { id: 'pb-note', hidden: true });
+  const warn = h('div.note.pb__warn', { id: 'pb-warn', hidden: true });
   const foot = h('div.btnrow.pb__foot', { id: 'pb-foot' });
 
   function paint() {
@@ -235,6 +248,25 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
           title: 'later', disabled: i === draft.order.length - 1, onclick: () => move(i, 1),
         }, '↓')))
       : [h('div.empty', null, 'Tick a panel above and its tab becomes a pane here.')]));
+    paintWarn();
+  }
+
+  /* A panel narrower than its own minimum cannot be laid out, only clipped (a pane does
+     not scroll sideways), so say so while the columns are being chosen -- against the
+     window as it is at each click, which is the one the page will open in. Repainted
+     with everything else rather than on resize: a listener here would need a teardown
+     the builder does not have. */
+  function paintWarn() {
+    const stage = document.getElementById('stage');
+    const cols = Math.max(1, Math.min(draft.cols, draft.order.length));
+    const room = stage ? paneWidth(stage.getBoundingClientRect().width, cols) : Infinity;
+    const tight = PANELS.filter((p) => p.min && draft.picked[p.view].has(p.slug) && p.min > room);
+    warn.hidden = !tight.length;
+    if (!tight.length) return;
+    const names = tight.map((p) => p.title);
+    const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0];
+    warn.textContent = `${list} ${names.length > 1 ? 'need' : 'needs'} a wider column than `
+      + `${cols} across gives at this window size (${Math.floor(room)}px). Fewer columns, or a wider window.`;
   }
 
   function tick(view, slug, on) {
@@ -296,6 +328,7 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
       h('div.pb__lbl', null, 'Panels'),
       checks,
       h('div.pb__line', null, h('span.pb__lbl', null, 'Columns'), colsSeg),
+      warn,
       h('div.pb__lbl', null, 'Panes, in order'),
       orderList,
       note,
