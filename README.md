@@ -222,7 +222,7 @@ Keys is up — close it first, or pass `--force` if you know what you're doing.
 .venv\Scripts\python tools\frontend_check.py    # every ES module parses; needs Node for the syntax pass
 ```
 
-The full suite is twenty-one checks; the sixteen that need nothing plugged in and no browser carry 1,192
+The full suite is twenty-one checks; the sixteen that need nothing plugged in and no browser carry 1,193
 assertions between them (`ui_check` also wants Playwright, and the four that open the audio device want it free).
 See [`CONTRIBUTING.md`](CONTRIBUTING.md). There is no
 bundler, no transpiler and no `node_modules` — editing `frontend/` and reloading the page is the whole loop.

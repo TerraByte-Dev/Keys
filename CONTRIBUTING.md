@@ -31,8 +31,8 @@ SoundFont at `soundfonts/GeneralUser-GS.sf2`. Node is optional and only used by 
 ## Before you open a PR
 
 Run the suite locally. It is twenty-one scripts and needs no test runner. Sixteen of them need nothing plugged
-in and no browser, and carry 1,192 assertions between them (`midi_check` adds more if it finds a MIDI corpus);
-`ui_check` drives a real browser through Playwright, 166 assertions in about six minutes; and the last four want
+in and no browser, and carry 1,193 assertions between them (`midi_check` adds more if it finds a MIDI corpus);
+`ui_check` drives a real browser through Playwright, 170 assertions in about six minutes; and the last four want
 the audio device:
 
 ```bash
