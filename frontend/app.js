@@ -1091,7 +1091,7 @@ $('#roll-speed')?.addEventListener('input', (e) => {
    grinding four bars and pressing Restart means those four bars. */
 function restartGhost() {
   if (!ghostModel) return;
-  follow(() => ghostModel.seek(ghostModel.looping ? ghostModel.loopA : 0));
+  follow(() => ghostModel.restart());
   if (!ghostModel.playing) ghostModel.play();
 }
 
@@ -1130,7 +1130,7 @@ $('#ghost-loop-clear')?.addEventListener('click', () => { loopDirty = false; gho
    wrong for a section you have just asked for by number, which you mean to hear now. */
 function enterLoop() {
   const g = ghostModel;
-  if (g?.looping && (g.nowQ < g.loopA || g.nowQ >= g.loopB)) follow(() => g.seek(g.loopA));
+  if (g?.looping && (g.nowQ < g.loopA || g.nowQ >= g.loopB)) follow(() => g.restart());
 }
 
 /* Loop bars a to b, by the numbers printed on them. One field filled is one bar. */

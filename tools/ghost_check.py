@@ -914,6 +914,89 @@ const everyBeat = (quarters, midi = 60) => Array.from({ length: quarters }, (_, 
   ok('playing across three bar lines repaints three times', calls === 3, `${calls} calls in 420 frames`);
 }
 
+/* -- 14g. a section whose downbeats are played a hair early --------------- */
+/* A performance-timed file puts each bar's downbeat 0.02 quarters BEFORE its line.
+   The bar steps arm that chord (14c); the section has to as well, at both ends: the
+   wrap and restart() must ask for the section's OWN first chord, and the next bar's
+   early downbeat sitting just inside B must not freeze the clock outside the section.
+   The pitches are the fixture's: 62 opens bar 2, 63 is inside it, 64 opens bar 3. */
+{
+  const strike = (g, midi) => { g.frame({ held: [] }); g.frame({ held: [midi] }); };
+  const run = (g, frames = 30) => { for (let f = 0; f < frames; f++) g.advance(1 / 60); };
+  const make = () => {
+    const g = createGhost(piece(
+      [[0, 1, 60, 1], [3.98, 1, 62, 1], [5, 1, 63, 1], [7.98, 1, 64, 1], [9, 1, 65, 1]], fourFour(3)));
+    g.setTempo(120);
+    g.setLoopBars(1, 1);            // bar 2: A on 4, B on 8
+    return g;
+  };
+
+  const g = make();
+  g.restart();
+  g.play();
+  run(g);
+  ok('restart() into a section arms its own early downbeat',
+     g.waiting && g.pending().join() === '62', `pending ${g.pending()} nowQ=${g.nowQ.toFixed(3)}`);
+  const asked = [];
+  let wraps = 0;
+  let seq = g.seq;
+  for (let step = 0; step < 6; step++) {
+    asked.push(g.pending().join());
+    strike(g, +g.pending()[0]);
+    for (let f = 0; f < 600; f++) {
+      g.advance(1 / 60);
+      if (g.seq !== seq) { wraps++; seq = g.seq; }
+      if (g.waiting) break;
+    }
+  }
+  ok('two laps ask for 62, 63 and wrap -- never bar 3\'s 64',
+     asked.join(' ') === '62 63 62 63 62 63' && wraps === 3, `asked ${asked.join(' ')}, ${wraps} wraps`);
+  ok('...and the clock never parks outside the section', g.nowQ >= 4 - 0.03 && g.nowQ < 8,
+     `nowQ=${g.nowQ.toFixed(3)}`);
+
+  // Played into from before A, by the plain clock rather than a seek: the wrap is the
+  // first thing that places the playhead, and it has to arm 62 the same way.
+  const h = make();
+  h.seek(5);
+  h.play();
+  run(h);
+  strike(h, 63);
+  run(h, 120);
+  ok('the wrap itself arms the section\'s early downbeat',
+     h.waiting && h.pending().join() === '62' && h.nowQ >= 3.97 && h.nowQ <= 4,
+     `pending ${h.pending()} nowQ=${h.nowQ.toFixed(3)}`);
+}
+
+/* -- 14h. frozen on an early downbeat, the playhead is in THAT bar ---------- */
+/* Parked at 3.98 on bar 2's chord, the clock reads as bar 1 by its raw position. Bar >>
+   then went to bar 2 -- and re-armed the very chord it was sitting on -- and Loop this
+   bar looped bar 1. */
+{
+  const make = () => {
+    const g = createGhost(piece([[0, 1, 60, 1], [3.98, 1, 62, 1], [7.98, 1, 64, 1], [11, 1, 65, 1]], fourFour(4)));
+    g.setTempo(120);
+    g.play();
+    g.frame({ held: [60] });
+    for (let f = 0; f < 120 && !(g.waiting && g.pending().join() === '62'); f++) g.advance(1 / 60);
+    return g;
+  };
+  const g = make();
+  ok('held on bar 2\'s early chord, the readout says bar 2',
+     g.waiting && g.pending().join() === '62' && g.bar() === 2, `bar ${g.bar()} nowQ=${g.nowQ.toFixed(3)}`);
+  g.stepBar(1);
+  for (let f = 0; f < 10; f++) g.advance(1 / 60);
+  ok('...Bar >> goes on to bar 3\'s chord, not back to the same one',
+     g.pending().join() === '64' && near(g.nowQ, 8), `pending ${g.pending()} nowQ=${g.nowQ.toFixed(3)}`);
+
+  const l = make();
+  l.loopBar();
+  ok('...Loop this bar loops bar 2 (4 to 8)', near(l.loopA, 4) && near(l.loopB, 8),
+     `A=${l.loopA} B=${l.loopB}`);
+  const a = make();
+  a.setLoopA();
+  ok('...and Set A starts the section on bar 2', near(a.loopA, 4), `A=${a.loopA}`);
+}
+
 console.log(JSON.stringify(out));
 """
 

@@ -377,15 +377,20 @@ export function createGhost(payload, opts = {}) {
     let left = dt * model.qps;
 
     while (left > 0) {
-      const gate = model.wait && gi < gates.length ? gates[gi] : null;
-      const room = gate ? Math.max(0, gate.at - model.nowQ) : Infinity;
       /* The section's end, and only while the playhead is still under it. Locating
          PAST B has to be allowed to stay past it, which is what a DAW does: outside
          the loop you play on, inside it you wrap. Without that guard a scrub click
          past B is silently undone on the very next frame. */
-      const roomB = model.looping && model.nowQ < model.loopB
-        ? model.loopB - model.nowQ
-        : Infinity;
+      const inLap = model.looping && model.nowQ < model.loopB;
+      const roomB = inLap ? model.loopB - model.nowQ : Infinity;
+      let gate = model.wait && gi < gates.length ? gates[gi] : null;
+      /* A gate a chord's width before B is the NEXT bar's downbeat, played a hair
+         early by a performance-timed file -- the same rule seek()'s slack applies at
+         A. It belongs to the next lap, where the wrap's slack arms it as A's own
+         downbeat. Waited on here instead, the clock froze on a bar outside the
+         section, every lap, and the section's own first chord was never asked for. */
+      if (gate && inLap && model.loopB < total && gate.at >= model.loopB - GATE_EPS) gate = null;
+      const room = gate ? Math.max(0, gate.at - model.nowQ) : Infinity;
 
       /* Ties go to B. A gate written exactly on the section's end belongs to the next
          lap; wait for it here instead and the loop deadlocks with no way out but
@@ -396,7 +401,7 @@ export function createGhost(payload, opts = {}) {
            forward-only cursors rebuild, and spends what is held -- which is what stops
            a section that begins and ends on the same pitch from having its first gate
            opened for free by the hand you finished the last lap with. */
-        seek(model.loopA);
+        seek(model.loopA, GATE_EPS);
         continue;                     // and the rest of the step is played from A
       }
 
@@ -416,7 +421,7 @@ export function createGhost(payload, opts = {}) {
         // Nothing here counts how long you have been here. Take all night.
         if (!model.waiting) {
           model.waiting = true;
-          lastBar = barIndex(model.nowQ);   // this repaint already shows the bar
+          lastBar = barIndex(here());       // this repaint already shows the bar
           onChange();
         }
         return;
@@ -452,7 +457,7 @@ export function createGhost(payload, opts = {}) {
      `slack` is for landing on a bar line: a performance-timed file can put the bar's
      downbeat chord a few hundredths BEFORE the line, and arming "the first gate at or
      after here" would then skip the very chord you stepped back to play. Only the bar
-     steps pass it, and only a gate's worth. */
+     steps, the loop's wrap and restart() pass it, and only a gate's worth. */
   function seek(q, slack = 0) {
     model.nowQ = Math.max(0, Math.min(total, +q || 0));
     model.finished = false;
@@ -462,8 +467,19 @@ export function createGhost(payload, opts = {}) {
     while (i < gates.length && gates[i].at < model.nowQ - slack) i++;
     arm(i);
     spendHeld();
-    lastBar = barIndex(model.nowQ);
+    lastBar = barIndex(here());
     onChange();
+  }
+
+  /* Where the playhead is, for the purpose of naming its BAR. Frozen at a gate, the
+     clock is parked on the gate's onset -- and a downbeat played a hair early parks it
+     a hair before the bar line it belongs to. That chord is the next bar's, by the
+     same rule seek()'s slack uses, so the readout, the sheet's tint, a bar step and
+     "Loop this bar" all have to read it that way, or Bar >> re-arms the chord you are
+     sitting on and Loop this bar loops the bar you just finished. The tiny extra is
+     float headroom: 3.97 + 0.03 must not come out as 3.9999. */
+  function here() {
+    return model.waiting ? model.nowQ + GATE_EPS + 1e-9 : model.nowQ;
   }
 
   /* Which measure a position falls in, as an index into `measures` (0-based, in time
@@ -513,8 +529,8 @@ export function createGhost(payload, opts = {}) {
     /* The section, stamped from wherever the playhead is. Stamping B is enough to
        start it wrapping; there is no arm button, because setting an end you then have
        to switch on is a step that exists only to be forgotten. */
-    setLoopA() { return markLoop('A', model.nowQ); },
-    setLoopB() { return markLoop('B', model.nowQ); },
+    setLoopA() { return markLoop('A', here()); },
+    setLoopB() { return markLoop('B', here()); },
     clearLoop() {
       model.loopA = 0;
       model.loopB = 0;
@@ -618,7 +634,7 @@ export function createGhost(payload, opts = {}) {
 
     /* Which bar a position is in, 1-based, for the readout. Defaults to the playhead;
        the argument is what lets the same readout name A and B. */
-    bar(q = model.nowQ) {
+    bar(q = here()) {
       const i = barIndex(q);
       return i < 0 ? 0 : measures[i].number;
     },
@@ -631,7 +647,7 @@ export function createGhost(payload, opts = {}) {
        addressed by INDEX (0-based, time order); barAt() turns a written number into
        one, because a written number is what a person types and an index is what
        cannot be ambiguous. */
-    barIndex(q = model.nowQ) { return barIndex(q); },
+    barIndex(q = here()) { return barIndex(q); },
 
     /* The bar a person means by a number. The written number when exactly one bar
        carries it -- a score with a pickup numbered 0 still means "bar 12" by its
@@ -664,7 +680,7 @@ export function createGhost(payload, opts = {}) {
        than jumping to the end and finishing the piece under you. */
     stepBar(dir) {
       if (!measures.length) return -1;
-      const i = barIndex(model.nowQ);
+      const i = barIndex(here());
       if (dir < 0) {
         const m = measures[i];
         const halfBeat = (4 / m.beat_type) / 2;
@@ -692,8 +708,16 @@ export function createGhost(payload, opts = {}) {
     },
 
     loopBar() {
-      const i = barIndex(model.nowQ);
+      const i = barIndex(here());
       return model.setLoopBars(i, i);
+    },
+
+    /* Back to the top: of the section when one is set, of the piece otherwise. With
+       the same slack as a bar step, because A is a bar line and the chord that starts
+       the section can sit a hair before it. Restart and "play the section I just set"
+       both mean this, so they share it rather than each seeking A bare. */
+    restart() {
+      seek(model.looping ? model.loopA : 0, GATE_EPS);
     },
   });
 }
