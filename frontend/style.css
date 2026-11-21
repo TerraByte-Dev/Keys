@@ -2748,6 +2748,7 @@ body:not(.is-focusing) .jam__group--mine .jam__gbody { flex-direction: column; a
   background: var(--panel-2); border: 1px solid var(--hairline); border-radius: var(--radius);
 }
 .jam__picker:empty { display: none; }
+body:not(.is-focusing) .jam__picker { align-self: flex-start; max-width: 100%; }   /* as wide as its chips, not the console */
 .jam__prow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .jam__prow > .jam__lbl { min-width: 64px; }
 .jam__pick {
