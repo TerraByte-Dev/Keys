@@ -742,6 +742,25 @@ def transport_checks(browser, port: int, errs: list[str]) -> list[str]:
     check("...a page turned back by hand stays turned while paused",
           read()["pageN"] == f"{pages - 1}/{pages}", read()["pageN"])
 
+    # ...but pressing Play is the music moving on. Wait is on and nothing is held, so the
+    # clock freezes on bar TR_BARS's downbeat: the page has to show it, or it waits for a
+    # chord nobody can see.
+    press("Space", 1200)
+    r = read()
+    press("Space", 200)
+    check("Play brings back the page the current bar is on", r["play"] == "Pause"
+          and r["pageN"] == f"{pages}/{pages}" and r["now"] == [TR_BARS - 1], f"{r['pageN']}, current {r['now']}")
+    page.evaluate("document.querySelector('#roll-page-prev').click()")   # no-op if disabled
+    page.wait_for_timeout(1200)
+    page.click("#ghost-bar")
+    page.keyboard.type(str(TR_BARS))
+    page.keyboard.press("Enter")
+    page.wait_for_timeout(1200)
+    check("...and so does Go to the bar you are already in", read()["pageN"] == f"{pages}/{pages}",
+          read()["pageN"])
+    page.evaluate("document.querySelector('#roll-page-prev').click()")
+    page.wait_for_timeout(1600)
+
     # Playing over a page break turns the page. The last bar on this page comes from the
     # page itself; the bar after it is, by construction, on the next one.
     page.click("#ghost-loop-clear")
@@ -761,6 +780,38 @@ def transport_checks(browser, port: int, errs: list[str]) -> list[str]:
     check("playing over the page break turns the page", before == f"{pages - 1}/{pages}"
           and r["pageN"] == f"{pages}/{pages}" and r["now"] and r["now"][0] > last,
           f"{before} -> {r['pageN']}, current {r['now']} past {last}")
+
+    # A drag from the last bar to the first crosses every page. Engraving each one on the
+    # way is a main-thread render per page; it should be one, for where the drag ends.
+    page.evaluate("""() => { window.__renders = 0;
+      new MutationObserver((m) => { window.__renders += m.length; })
+        .observe(document.querySelector('#roll-paper'), { childList: true }); }""")
+    sb = page.evaluate("""() => { const r = document.querySelector('#ghost-scrub').getBoundingClientRect();
+      return { x: r.left, y: r.top, w: r.width, h: r.height }; }""")
+    sy = sb["y"] + sb["h"] / 2
+    page.mouse.move(sb["x"] + sb["w"] - 2, sy)
+    page.mouse.down()
+    page.mouse.move(sb["x"] + 2, sy, steps=16)
+    page.wait_for_timeout(1500)
+    during = page.evaluate("window.__renders")
+    page.mouse.up()
+    page.wait_for_function(f"document.querySelector('#roll-page-n').textContent === '1/{pages}'", timeout=8000)
+    page.wait_for_timeout(800)
+    r = read()
+    check("a scrub drag across the pages engraves once, when it lets go",
+          during == 0 and r["pageN"] == f"1/{pages}" and r["now"] == [0],
+          f"{during} renders mid-drag, then page {r['pageN']}, current {r['now']}")
+
+    # The tour over a play-along: Space on its buttons still presses them.
+    page.evaluate("""async () => { const a = await import('/app.js');
+      (await import('/tour.js')).startTutorial(a.ctx); }""")
+    page.wait_for_timeout(200)
+    page.focus("#tour .btn--lg")
+    page.keyboard.press("Space")
+    page.wait_for_timeout(200)
+    title = page.evaluate("document.querySelector('#tour .tour__title')?.textContent")
+    check("with a song loaded, Space presses the tour's Next", title == "Your keyboard", repr(title))
+    page.evaluate("document.querySelector('#tour .tour__scrim')?.click()")
     page.close()
     return fails
 

@@ -745,6 +745,7 @@ let sheetPageOf = [];
 let sheetPaintKey = '';       // the bar + section last painted on the page
 let sheetTurnBar = -1;        // the bar the page last followed
 let sheetFollow = false;      // a deliberate move: follow it even while paused
+let sheetPlaying = false;     // g.playing at the last paint, so a start can be seen
 
 /* Which ghost bar each printed measure is. When the two lists are the same length they
    are the same measures in the same order -- both are the first part's measures in
@@ -800,13 +801,21 @@ function decorateSheet(paper) {
 }
 
 /* The current bar and the section, on the page. Runs from paintGhost, which the model
-   calls once per bar line rather than once per frame. While playing -- or right after
-   a deliberate move -- the page follows the bar: turned when it is printed on another
-   page, scrolled when it is out of view on this one. Only when the bar CHANGES, so a
-   page you turned back by hand stays put until the music actually moves on. */
+   calls once per bar line rather than once per frame. The page follows the bar --
+   turned when it is printed on another page, scrolled when it is out of view on this
+   one -- on three occasions: a deliberate move, the moment playback starts, and each
+   new bar while playing. A page you turned by hand mid-bar therefore stays put until
+   the music moves on; but pressing Play, or asking for a bar, is the music moving on,
+   even to the bar it was already in. Wait mode is why that matters: started on a page
+   that does not show the bar, the clock waits for a chord you cannot see, forever.
+
+   A turn is a synchronous engrave of a whole page. During a scrub drag it waits for
+   the pointer to come up rather than engraving every page the drag crosses. */
 function paintSheet() {
   const g = ghostModel;
   const paper = $('#roll-paper');
+  const started = !!g?.playing && !sheetPlaying;
+  sheetPlaying = !!g?.playing;
   if (!sheetMode || !g || !paper || !sheetBars.length) { sheetFollow = false; return; }
   const cur = g.barIndex();
   const la = g.looping ? g.barIndex(g.loopA) : -1;
@@ -820,11 +829,13 @@ function paintSheet() {
       el.classList.toggle('is-loop', b >= la && b <= lb);
     }
   }
-  if (cur !== sheetTurnBar && (g.playing || sheetFollow)) {
+  if (sheetFollow || started || (g.playing && cur !== sheetTurnBar)) {
     sheetTurnBar = cur;
     const want = sheetPageOf[cur];
-    if (want && want !== sheetPage) showPage(want, cur);
-    else revealBar(paper, cur);
+    if (want && want !== sheetPage) {
+      if (scrubDrag) sheetTurnBar = -1;      // still owed: endScrub pays it
+      else showPage(want, cur);
+    } else revealBar(paper, cur);
   }
   sheetFollow = false;
 }
@@ -841,11 +852,13 @@ function revealBar(paper, bar) {
 }
 
 /* A move the player asked for -- a bar step, Go to, a scrub, Restart. The page follows
-   it even while paused: "never while paused" is about not undoing a page you turned
-   by hand, and asking for bar 40 is not that. */
+   it even while paused, and even when it lands in the bar the page last followed:
+   "never while paused" is about not undoing a page you turned by hand, and asking for
+   bar 40 is not that. A move that changed nothing (Bar >> on the last bar) repaints
+   nothing, so the page is brought back here instead. */
 function follow(move) {
   sheetFollow = true;
-  try { return move(); } finally { sheetFollow = false; }
+  try { return move(); } finally { if (sheetFollow) paintSheet(); }
 }
 
 function paintSheetControls() {
@@ -942,6 +955,7 @@ export function stopGhost() {
   sheetPageOf = [];
   sheetPaintKey = '';
   sheetTurnBar = -1;
+  sheetPlaying = false;
   document.body.classList.remove('is-sheeting');
   $('#roll-paper')?.setAttribute('hidden', '');
   $('#roll-paper')?.replaceChildren();
@@ -1359,7 +1373,9 @@ function endScrub() {
   const wasLoop = scrubDrag.loop;
   scrubDrag = null;
   scrubEl?.classList.remove('is-dragging');
+  // The one page turn the drag put off, for wherever it let go.
   if (wasLoop) enterLoop();
+  if (ghostModel) follow(() => paintSheet());
 }
 scrubEl?.addEventListener('pointerup', endScrub);
 scrubEl?.addEventListener('pointercancel', endScrub);
