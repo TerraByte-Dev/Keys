@@ -153,7 +153,11 @@ export function attachLayout(grid, viewId) {
     // A rebuild changes every panel's height, and it lands after the view has already
     // restored its own scroll position -- Stats does exactly that. Without this, every
     // refresh while you are reading the bottom of the page throws you somewhere else.
-    const stage = document.getElementById('stage');
+    // On a custom page each pane is its own scroller, so the one to hold still is the
+    // pane this grid lives in, not the stage -- except in a one-column stack, where
+    // the panes grow and the page scrolls them.
+    const stage = grid.closest('.page--stack .page__panes') || grid.closest('.page__pane')
+      || document.getElementById('stage');
     const top = stage ? stage.scrollTop : 0;
     const seen = new Set();
     const cols = [...grid.children].filter(isPanel);
@@ -182,14 +186,26 @@ export function attachLayout(grid, viewId) {
    * So watch for it and rebuild, rather than making every view remember to tell us.
    * That is the same argument as attaching from the router in the first place: a view
    * that has to opt in is a view that will forget. */
-  const mo = new MutationObserver(() => {
+  grid._mo = new MutationObserver(() => {
     if (grid._layoutBusy || grid.querySelector('.is-dragging')) return;
     // Only when someone else replaced the panels, not when we reordered them.
     if ([...grid.children].some((el) => isPanel(el) && !el.dataset.panel)) {
       build();
     }
   });
-  mo.observe(grid, { childList: true });
+  grid._mo.observe(grid, { childList: true });
+}
+
+/* The other half, called by the router on everything it unmounts. The window's resize
+   listener closes over the grid, so a grid thrown away without this stays reachable --
+   with the whole view around it -- and is repacked on every resize, forever. One per
+   tab change was already a leak; a page mounts four views at a time. */
+export function detachLayout(grid) {
+  if (!grid) return;
+  grid._ro?.disconnect();
+  grid._mo?.disconnect();
+  if (grid._onResize) window.removeEventListener('resize', grid._onResize);
+  grid._ro = grid._mo = grid._onResize = grid.repack = null;
 }
 
 /* Order and width from settings. A panel the saved layout has never heard of goes back

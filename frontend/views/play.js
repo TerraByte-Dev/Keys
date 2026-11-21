@@ -313,6 +313,8 @@ export default {
 
   status(s, ctx) {
     paintMetronome(s);
+    // setRange rebuilt the dock and dropped the scale with it; put it back this beat.
+    if (scaleOn && scaleRange !== `${ctx.kb.low}:${ctx.kb.high}`) paintScale(ctx);
     station?.status(s, ctx);
     if (!s.engine) return;
     // Each block guards itself, and the early return above tests s.engine rather than a
@@ -331,8 +333,11 @@ export default {
     }
   },
 
-  unmount() {
+  unmount(ctx) {
     lastBeat = -1;
+    // Inside a page this view can be remounted while the others stay up, so it takes
+    // back only its own highlight; the router's clear covers a real tab change.
+    if (scaleOn) ctx?.kb?.setHighlight([], 'scale');
     scaleOn = false;
     // destroy() holds the only cancelAnimationFrame in loopstation.js, and its tick()
     // re-arms the next frame BEFORE its own empty-loop guard -- so without this the
@@ -646,6 +651,8 @@ function audition() {
     .catch(() => {});
 }
 
+let scaleRange = '';     // the dock range the scale was last painted over
+
 /* The four keys that set Touch Sensitivity on a Yamaha P-45 / P-71.
  *
  * Yamaha's manual calls them A2/A#2/B2/C3, but its octave numbering runs one below
@@ -655,14 +662,15 @@ function audition() {
  * which is exactly why this highlights them on the real keyboard instead of describing
  * them in words. */
 function paintScale(ctx) {
-  if (!scaleOn) { ctx.kb.setHighlight([]); return; }
+  if (!scaleOn) { ctx.kb.setHighlight([], 'scale'); return; }
   const root = ROOT_PC[$('#scale-root').value] ?? 0;
   const steps = MODES[$('#scale-mode').value] || MODES.major;
   const pcs = new Set(steps.map((s) => (root + s) % 12));
   const notes = [];
-  const { low, high } = instrument();
+  const { low, high } = ctx.kb;     // the dock as drawn, which is what gets lit
   for (let n = low; n <= high; n++) if (pcs.has(n % 12)) notes.push(n);
-  ctx.kb.setHighlight(notes);
+  ctx.kb.setHighlight(notes, 'scale');
+  scaleRange = `${low}:${high}`;
 }
 
 function renderBeats(n) {

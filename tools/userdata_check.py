@@ -183,10 +183,21 @@ ok(settings.get("ui", "layout") == {"play": [{"id": "a", "span": 6}]},
    str(settings.get("ui", "layout")))
 ok(counts(st)["session"] == 1, "and never touches your history")
 
+# Pages are things you built, like the layout; the row says "audio, MIDI, effects, theme".
+PAGE = {"id": "p1", "name": "Solo", "cols": 2, "panes": [{"view": "tools", "panels": ["pedal"]}]}
+st, settings = fresh()
+settings.update({"ui": {"pages": [PAGE], "theme": "paper"}})
+st.wipe("settings", settings)
+ok(settings.get("ui", "pages") == [PAGE] and settings.get("ui", "theme") == "midnight",
+   "a settings reset keeps the pages you built", str(settings.get("ui", "pages")))
+
 print("\n4. everything, and the guards")
 
 st, settings = fresh()
+settings.update({"ui": {"pages": [PAGE]}})
 res = st.wipe("everything", settings)
+ok(settings.get("ui", "pages") is None, "everything takes the pages too",
+   str(settings.get("ui", "pages")))
 after = counts(st)
 ok(all(v == 0 for v in after.values()), "everything empties every table", str(after))
 ok(not list(config.RECORDING_DIR.glob("*")) and not list((SANDBOX / "scores").glob("*")),

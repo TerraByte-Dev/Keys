@@ -201,6 +201,7 @@ class Keyboard {
     this._heldSpare = new Set();       // swapped with _held, never reallocated
     this._highlight = new Set();
     this._highlightSpare = new Set();
+    this._owners = new Map();          // owner -> Set of midi, see setHighlight()
     this._ghost = new Set();
     this._ghostSpare = new Set();
     this._dead = new Set();
@@ -208,7 +209,7 @@ class Keyboard {
     this._marks = new Map();           // name -> { cur, spare }, see setMarks()
     this._modes = new Set();           // board-wide kb--<name> classes, see setMode()
     this._sustained = new Set();
-    this._forced = new Set();
+    this._forced = new Map();          // midi -> Map(owner -> text), see setKeyLabel()
     this._pointers = new Map();        // pointerId -> midi currently sounding
 
     this._sustain = false;
@@ -404,9 +405,42 @@ class Keyboard {
     this._syncAria();
   }
 
-  setHighlight(midiArray) {
+  /* One highlight set per OWNER, and the keys show their union. Several panels light
+     the dock at once -- Play's scale highlighter, Chords & scales, the touch-setting
+     keys -- and with one shared set the last writer wiped the others, so turning the
+     touch keys off blanked the scale you had just picked. Each writer now replaces and
+     clears only its own owner; clearHighlights() is the router's "everything off".
+     Not on the frame path: written on a click or a range change, never per frame. */
+  setHighlight(midiArray, owner = 'main') {
     if (this._destroyed) return;
-    const next = this._layer(midiArray || [], this._highlight, this._highlightSpare, 'is-highlight');
+    let own = this._owners.get(owner);
+    if (!own) this._owners.set(owner, (own = new Set()));
+    own.clear();
+    const list = midiArray || [];
+    for (let i = 0; i < list.length; i++) {
+      const n = list[i] | 0;
+      if (this._el[n]) own.add(n);
+    }
+    this._paintHighlight();
+  }
+
+  clearHighlights() {
+    if (this._destroyed) return;
+    for (const own of this._owners.values()) own.clear();
+    this._paintHighlight();
+  }
+
+  // The union of every owner, diffed against what is drawn like any other layer.
+  _paintHighlight() {
+    const next = this._highlightSpare;
+    next.clear();
+    for (const own of this._owners.values()) for (const n of own) next.add(n);
+    for (const n of next) {
+      if (!this._highlight.has(n)) this._el[n].classList.add('is-highlight');
+    }
+    for (const n of this._highlight) {
+      if (!next.has(n)) this._el[n].classList.remove('is-highlight');
+    }
     this._highlightSpare = this._highlight;
     this._highlight = next;
   }
@@ -461,21 +495,46 @@ class Keyboard {
     cl.add('kb--labels-' + this._labels);
   }
 
-  setKeyLabel(midi, text) {
+  /* Labels have OWNERS too, for the same reason highlights do. Jam relabels the key it
+     wants you to land on every bar and clears its labels first, and with one shared set
+     that wiped the touch-setting keys' FIXED/SOFT/MEDIUM/HARD a second after you asked
+     for them, on a page with both. A writer clears only its own owner; the last label
+     set on a key is the one shown, and clearing it shows the one beneath.
+     clearAllLabels() is the router's "everything off". */
+  setKeyLabel(midi, text, owner = 'main') {
     const el = this._label[midi];
     if (this._destroyed || !el) return;
-    el.textContent = String(text);
-    el.classList.add('is-forced');
-    this._forced.add(midi);
+    let own = this._forced.get(midi);
+    if (!own) this._forced.set(midi, (own = new Map()));
+    own.delete(owner);                 // to the end: the newest label is the one shown
+    own.set(owner, String(text));
+    this._showLabel(midi);
   }
 
-  clearLabels() {
+  clearLabels(owner = 'main') {
     if (this._destroyed) return;
-    for (const n of this._forced) {
-      this._label[n].textContent = this._defaultLabel[n];
-      this._label[n].classList.remove('is-forced');
+    for (const [n, own] of this._forced) {
+      if (!own.delete(owner)) continue;
+      if (!own.size) this._forced.delete(n);
+      this._showLabel(n);
     }
+  }
+
+  clearAllLabels() {
+    if (this._destroyed) return;
+    const keys = [...this._forced.keys()];
     this._forced.clear();
+    for (const n of keys) this._showLabel(n);
+  }
+
+  _showLabel(n) {
+    const el = this._label[n];
+    if (!el) return;
+    const own = this._forced.get(n);
+    let text = null;
+    if (own) for (const t of own.values()) text = t;
+    el.textContent = text ?? this._defaultLabel[n];
+    el.classList.toggle('is-forced', text !== null);
   }
 
   /**
@@ -510,6 +569,7 @@ class Keyboard {
                        this._ghost, this._ghostSpare, this._dead, this._deadSpare,
                        this._sustained, this._forced]) set.clear();
     for (const m of this._marks.values()) { m.cur.clear(); m.spare.clear(); }
+    for (const own of this._owners.values()) own.clear();
 
     this.low = lo;
     this.high = hi;

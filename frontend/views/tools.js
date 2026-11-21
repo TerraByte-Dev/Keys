@@ -39,6 +39,7 @@ let theory = null;
 
 export default {
   async mount(root, ctx) {
+    touchPainted = -1;
     backing = createBacking();
     theory = createTheory();
 
@@ -136,14 +137,22 @@ export default {
     await backing.init();
   },
 
-  frame() { paintTouch(); },
+  // Only when a note has landed since the last paint. This rebuilds the histogram, and
+  // on a page it runs beside Jam's own 60 Hz path -- a frame with nothing new in it
+  // must cost nothing.
+  frame() { if (appCtx.touch.count !== touchPainted) paintTouch(); },
 
-  status(s) {
+  status(s, ctx) {
     backing?.status(s);
     paintPedal(s.pedal);
+    // A range change rebuilt the dock and dropped what these two had lit.
+    theory?.repaint();
+    if (showTouchKeys && touchRange !== `${ctx.kb.low}:${ctx.kb.high}`) paintTouchKeys(ctx);
   },
 
   unmount() {
+    // Inside a page, this view can go while others stay, so it takes back only what it lit.
+    if (showTouchKeys) { appCtx.kb.setHighlight([], 'touch'); appCtx.kb.clearLabels('touch'); }
     showTouchKeys = false;
     backing?.destroy();
     theory?.destroy();
@@ -281,32 +290,37 @@ const TOUCH_KEYS = [
   [60, 'HARD'],
 ];
 let showTouchKeys = false;
+let touchRange = '';
 
 function paintTouchKeys(ctx) {
   if (!showTouchKeys) {
-    ctx.kb.setHighlight([]);
-    // clearLabels() puts every forced key back to its default text, and the label MODE
-    // is state the keyboard keeps for itself -- so there is nothing here to restore.
-    // This used to also un-highlight the scale and clear #scale-toggle, which lived in
-    // the same view. Scale highlighter stayed in Play: the two can no longer be on
-    // screen at once, so there is nothing to turn off on the way out.
-    ctx.kb.clearLabels();
+    // Its own highlight owner, so turning these off leaves Chords & scales (and, in a
+    // page, Play's scale highlighter) lit exactly as they were.
+    ctx.kb.setHighlight([], 'touch');
+    // Its own label owner too: Jam beside it relabels a key every bar, and neither
+    // may wipe the other's. The label MODE is the keyboard's own state, untouched.
+    ctx.kb.clearLabels('touch');
     return;
   }
   // Highlight, not ghost: the ghost layer is a muted grey that reads as "dimmed" more
   // than "look here", and the printed label sits at the bottom edge of a white key
   // where a short dock can clip it. The key itself has to carry the signal.
-  ctx.kb.setHighlight(TOUCH_KEYS.map(([n]) => n));
-  for (const [note, label] of TOUCH_KEYS) ctx.kb.setKeyLabel(note, label);
+  ctx.kb.setHighlight(TOUCH_KEYS.map(([n]) => n), 'touch');
+  touchRange = `${ctx.kb.low}:${ctx.kb.high}`;
+  for (const [note, label] of TOUCH_KEYS) ctx.kb.setKeyLabel(note, label, 'touch');
 }
 
 /* The whole point of this panel: make "is Touch Sensitivity still on Fixed?" answerable
    at a glance, while you are sitting at the piano, without running a CLI tool. A single
    spike means Fixed. A spread means the hammers are being reported. */
+let touchPainted = -1;     // appCtx.touch.count at the last paint
+
 function paintTouch() {
   const fill = $('#touch-fill');
-  if (!fill) return;
+  // Unpicked on a page: still in the DOM, never on screen, so never painted.
+  if (!fill || fill.closest('.is-unpicked')) return;
   const t = appCtx.touch;
+  touchPainted = t.count;
 
   fill.style.width = `${(t.last / 127) * 100}%`;
 

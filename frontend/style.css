@@ -2929,3 +2929,102 @@ body.is-focusing .exrun svg.staff { max-width: none; width: 100%; height: clamp(
 body.is-focusing .exrun .stat__value { font-size: clamp(32px, 5vh, 52px); }
 body.is-focusing .exrun .stat__label { font-size: 16px; }
 body.is-focusing .exrun .stat__note { font-size: 14px; }
+
+
+/* -- pages: tabs you build from the other tabs' panels (pages.js) ---------- */
+.nav__item[hidden] { display: none; }
+.nav__rule { height: 1px; margin: 8px 6px; background: var(--hairline); }
+.nav__pages { display: flex; flex-direction: column; gap: 2px; }
+.nav__item--page { height: 34px; font-size: 13px; }
+.nav__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav__dot { width: 6px; height: 6px; margin: 0 6px; border-radius: 50%; flex: none; background: var(--ink-faint); }
+.nav__item--page.is-active .nav__dot { background: var(--amber); }
+.nav__item--new { height: 32px; font-size: 12px; color: var(--ink-faint); }
+
+/* A page fills the stage and the panes scroll, each on its own; the stage does not. */
+.stage:has(> .page) { overflow: hidden; padding: 14px 16px; }
+.page { height: 100%; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.page__head { display: flex; align-items: center; gap: 12px; flex: none; min-height: 32px; }
+.page__name { font-size: 15px; font-weight: 600; color: var(--ink); white-space: nowrap; }
+.page__sub { font-size: 12px; color: var(--ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.page__panes { flex: 1; min-height: 0; display: grid; gap: 14px; }
+.page__pane {
+  min-width: 0; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  padding-right: 4px;
+  /* The spans follow the pane's width, not the window's: see the queries below. */
+  container-type: inline-size;
+}
+.page__pane::-webkit-scrollbar { width: 8px; }
+.page__pane::-webkit-scrollbar-thumb { background: var(--panel-4); border-radius: 4px; }
+.page__pane::-webkit-scrollbar-track { background: transparent; }
+.is-unpicked { display: none !important; }
+
+/* The window rule (max-width: 1100px, above) asked of the pane instead, plus one step
+   further for a third of a window: a quarter or a half of 400px is not a panel. */
+@container (max-width: 1100px) {
+  .page__pane .col-2, .page__pane .col-3, .page__pane .col-4, .page__pane .col-5 { grid-column: span 6; }
+  .page__pane .col-7, .page__pane .col-8, .page__pane .col-9, .page__pane .col-10,
+  .page__pane .col-11 { grid-column: span 12; }
+  .page__pane .jam__stage { grid-template-columns: 1fr 1fr; }
+  .page__pane .jam__mid { grid-column: 1 / -1; order: 3; }
+}
+@container (max-width: 640px) {
+  .page__pane .col-2, .page__pane .col-3, .page__pane .col-4, .page__pane .col-5,
+  .page__pane .col-6 { grid-column: span 12; }
+}
+
+/* Focus on a page: the panes are on the marked path like any other ancestor. The query
+   container comes off so nothing inside is measured against a pane that is now the
+   whole window anyway. */
+body.is-focusing .page__pane { container-type: normal; overflow: hidden; padding: 0; }
+
+/* The builder. */
+.page__builder { max-width: 1040px; }
+.page__namein { width: 100%; max-width: 360px; }
+.pb__line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 16px 0; }
+.pb__lbl {
+  font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--ink-dim); margin: 16px 0 8px;
+}
+.pb__line .pb__lbl { margin: 0; min-width: 96px; }
+.pb__groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.pb__group {
+  display: flex; flex-direction: column; gap: 8px; padding: 12px;
+  background: var(--panel-2); border: 1px solid var(--hairline); border-radius: var(--radius);
+}
+.pb__gtitle { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
+.pb__check { font-size: 12.5px; }
+.pb__order { display: flex; flex-direction: column; gap: 6px; }
+.pb__row {
+  display: flex; align-items: center; gap: 10px; padding: 6px 10px;
+  background: var(--panel-2); border: 1px solid var(--hairline); border-radius: var(--radius);
+}
+.pb__pos { font-family: var(--font-mono); font-size: 11px; color: var(--ink-faint); min-width: 1.5ch; }
+.pb__rname { font-weight: 600; color: var(--ink); }
+.pb__rsub { font-size: 12px; color: var(--ink-faint); }
+.pb__note { margin-top: 12px; }
+.pb__ask { display: flex; align-items: center; gap: 8px; color: var(--ink); }
+
+/* More than one row of panes: each row has a floor (pages.js ROW_MIN) and the panes
+   area scrolls past it, rather than sharing a short window out as slivers. */
+.page__panes { overflow-y: auto; overflow-x: hidden; }
+.page__panes::-webkit-scrollbar { width: 8px; }
+.page__panes::-webkit-scrollbar-thumb { background: var(--panel-4); border-radius: 4px; }
+.page__panes::-webkit-scrollbar-track { background: transparent; }
+/* One column: a stack, each pane as tall as its panels, the page the only scroller. */
+.page--stack .page__panes { grid-auto-rows: max-content; align-content: start; }
+.page--stack .page__pane { overflow-x: clip; overflow-y: visible; }
+
+/* Chords & scales in a pane a third of a window wide: twelve root buttons and a 430px
+   diagram do not fit in 350px, and the pane does not scroll sideways -- Bb and B were
+   past its edge, unreachable. The roots wrap and the diagram shrinks to the pane. */
+.page__pane .th__roots { flex-wrap: wrap; }
+.page__pane .th__board { flex: 0 1 430px; min-width: 0; }
+
+/* The builder is taller than a window; Save stays where you can reach it. */
+.pb__foot {
+  position: sticky; bottom: 0; z-index: 2;
+  margin: 18px -18px -18px; padding: 12px 18px; align-items: center;
+  background: var(--panel-0); border-top: 1px solid var(--hairline);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}

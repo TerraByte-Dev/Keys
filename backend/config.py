@@ -350,7 +350,8 @@ class Settings:
         return snapshot
 
     def reset_to_defaults(
-        self, keep: tuple[str, ...] = ("ui.layout", "instrument.low", "instrument.high"),
+        self,
+        keep: tuple[str, ...] = ("ui.layout", "ui.pages", "instrument.low", "instrument.high"),
     ) -> int:
         """Back to DEFAULTS. Returns how many top-level keys actually changed.
 
@@ -358,7 +359,9 @@ class Settings:
         it is offered as its own separate reset, and a button that also silently
         rearranged every panel would be lying about its own label. It has to be a
         path rather than a key because layout.js stores it under "ui", alongside
-        settings a reset genuinely should clear.
+        settings a reset genuinely should clear. The pages you built (`ui.pages`) are
+        kept for the same reason: they are things you made, not preferences, and the
+        button says "audio, MIDI, effects, theme".
 
         It also keeps the declared key range, for a stronger reason: how many keys you
         own is a fact about your hardware, not a preference. Resetting settings should
