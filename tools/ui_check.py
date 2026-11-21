@@ -35,6 +35,12 @@ does not scroll sideways) and no pane cut to a sliver.
 Play's instrument pick; Touch response's labels surviving the band; G with an exercise
 run waiting; a Settings reset keeping the pages; the builder's Save in reach; hidden
 panels doing nothing per frame; and no listener or observer left behind by a page.
+
+**Then resize.** Every managed panel of every tab and of each starter page, through
+every span its arrows reach, at 1600x1000 and 1280x800: nothing sticks out of its box,
+no row stops short of the edge, and the gap under every panel is the grid's own. The
+builder's per-panel minimums are held against the panels' measured ones, and its
+too-narrow warning against a real page's pane widths.
 """
 
 from __future__ import annotations
@@ -1550,6 +1556,237 @@ def pages_fix_checks(browser, port: int, errs: list[str]) -> list[str]:
     return fails
 
 
+# ── resize: every panel at every width its arrows reach ──────────────────────────────
+# The 0.14 audit walked 42 panels through the old 3/6/12 spans at two windows and found
+# panels sticking out of their own box, rows that stopped short of the edge, and vertical
+# gaps from 16 to 88px. This is that audit as a guard, through the real arrows: for every
+# managed panel of every tab and of every starter page, every span the arrows reach, at
+# 1600x1000 and 1280x800, the whole grid around it must
+#   - stick nothing out: no element wider than its box (scrollWidth > clientWidth + 1)
+#     and no box past its panel's sides, except inside a declared sideways scroller;
+#   - leave no row short: every band of panels that overlap vertically reaches the
+#     grid's right edge;
+#   - keep its gaps: the space from each panel to the next panel under it is the grid's
+#     own column gap, read off the DOM, to within the 2px row quantum.
+RESIZE_SIZES = ((1600, 1000), (1280, 800))
+
+# Each visible managed panel under `sel`, by id, so a click that rebuilds the view (Stats
+# does) can find it again.
+RS_TAG = """(sel) => [...document.querySelectorAll(sel + ' > [data-panel]')]
+  .filter((e) => e.getClientRects().length).map((e) => e.dataset.panel)"""
+
+RS_STATE = """([sel, id]) => {
+  const el = document.querySelector(`${sel} > [data-panel="${id}"]`);
+  if (!el) return null;
+  const [less, more] = el.querySelectorAll(':scope > .mod > .mod__head .mod__grip > button');
+  const g = el.parentElement.getBoundingClientRect();
+  const cg = parseFloat(getComputedStyle(el.parentElement).columnGap);
+  const colW = (g.width - 11 * cg) / 12;
+  return { saved: +(([...el.classList].find((c) => /^col-\\d+$/.test(c)) || 'col-0').slice(4)),
+           cols: Math.round((el.getBoundingClientRect().width + cg) / (colW + cg)),
+           less: !!less && !less.disabled, more: !!more && !more.disabled };
+}"""
+
+RS_CLICK = """([sel, id, n]) => document.querySelector(
+  `${sel} > [data-panel="${id}"] > .mod > .mod__head .mod__grip > button:nth-child(${n})`).click()"""
+
+RS_AUDIT = """(sel) => {
+  const grid = document.querySelector(sel);
+  const gr = grid.getBoundingClientRect();
+  const cg = parseFloat(getComputedStyle(grid).columnGap);
+  const name = (n) => n.tagName.toLowerCase() + (n.id ? '#' + n.id : '')
+    + [...n.classList].slice(0, 2).map((c) => '.' + c).join('');
+  const scrolls = (n) => ['auto', 'scroll'].includes(getComputedStyle(n).overflowX);
+  const bad = [];
+  const kids = [...grid.children].filter((e) => e.getClientRects().length);
+  const boxes = kids.map((e) => ({ id: e.dataset.panel || e.dataset.slot || e.className,
+    r: (e.dataset.panel ? e.firstElementChild : e).getBoundingClientRect() }));
+  for (const e of kids.filter((k) => k.dataset.panel)) {
+    const mod = e.firstElementChild, mr = mod.getBoundingClientRect();
+    for (const n of [e, mod, ...mod.querySelectorAll('*')]) {
+      if (n.closest('[popover]')) continue;
+      const r = n.getBoundingClientRect();
+      if (!r.width || !r.height || getComputedStyle(n).visibility === 'hidden') continue;
+      if (n instanceof SVGElement || n.tagName === 'CANVAS') continue;
+      let inner = false;
+      for (let p = n.parentElement; p && p !== e; p = p.parentElement) if (scrolls(p)) { inner = true; break; }
+      if (inner) continue;
+      if (!scrolls(n) && n.clientWidth && n.scrollWidth > n.clientWidth + 1) {
+        bad.push(`${e.dataset.panel}: ${name(n)} holds ${n.scrollWidth}px in ${n.clientWidth}px`);
+      } else if (r.right > mr.right + 1.5 || r.left < mr.left - 1.5) {
+        bad.push(`${e.dataset.panel}: ${name(n)} ${Math.round(Math.max(r.right - mr.right, mr.left - r.left))}px past its panel`);
+      }
+    }
+  }
+  // Bands: boxes that overlap vertically, joined transitively.
+  const band = boxes.map((_, i) => i);
+  const root = (i) => (band[i] === i ? i : (band[i] = root(band[i])));
+  for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+    const a = boxes[i].r, b = boxes[j].r;
+    if (a.top < b.bottom - 1 && b.top < a.bottom - 1) band[root(j)] = root(i);
+  }
+  const reach = new Map();
+  boxes.forEach((b, i) => reach.set(root(i), Math.max(reach.get(root(i)) || 0, b.r.right)));
+  for (const [i, right] of reach) {
+    if (right < gr.right - 2) bad.push(`the band at ${boxes[i].id} stops ${Math.round(gr.right - right)}px short of the edge`);
+  }
+  for (const a of boxes) {
+    const under = boxes.filter((b) => b !== a && b.r.top >= a.r.bottom - 1
+      && Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left) > 2).sort((x, y) => x.r.top - y.r.top)[0];
+    if (!under) continue;
+    const gap = under.r.top - a.r.bottom;
+    if (gap < cg - 0.5 || gap > cg + 2.5) bad.push(`${Math.round(gap)}px from ${a.id} down to ${under.id}`);
+  }
+  return [...new Set(bad)];
+}"""
+
+
+def resize_sweep(page, sel: str, where: str) -> tuple[int, list[str]]:
+    """Every panel under `sel` through every span its arrows reach, the grid audited at each."""
+    states, bad = 0, []
+
+    def settle() -> None:
+        page.evaluate("() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))")
+        page.wait_for_timeout(160)
+
+    def audit(label: str) -> None:
+        nonlocal states
+        states += 1
+        bad.extend(f"{where} {label}: {b}" for b in page.evaluate(RS_AUDIT, sel))
+
+    audit("as shipped")
+    for pid in page.evaluate(RS_TAG, sel):
+        start = page.evaluate(RS_STATE, [sel, pid])
+        if not start:
+            continue
+        for _ in range(5):                         # down to the narrowest it allows
+            if not page.evaluate(RS_STATE, [sel, pid])["less"]:
+                break
+            page.evaluate(RS_CLICK, [sel, pid, 1])
+            settle()
+        seen = []
+        for _ in range(6):                         # then up through every step
+            st = page.evaluate(RS_STATE, [sel, pid])
+            seen.append(st["saved"])
+            audit(f"{pid} at {st['saved']} (shows {st['cols']})")
+            if not st["more"]:
+                break
+            page.evaluate(RS_CLICK, [sel, pid, 2])
+            settle()
+        # Up one allowed step at a time and ending full width: the arrows walk the set,
+        # never stall, never repeat. (The set is the design's 4/6/8/12, not read from
+        # layout.js.)
+        steps = [s for s in (4, 6, 8, 12) if s >= seen[0]]
+        if seen != steps:
+            bad.append(f"{where} {pid}: the arrows went {seen}, not {steps}")
+        for _ in range(6):                         # and back where it was
+            st = page.evaluate(RS_STATE, [sel, pid])
+            if st["saved"] == start["saved"]:
+                break
+            page.evaluate(RS_CLICK, [sel, pid, 1 if st["saved"] > start["saved"] else 2])
+            settle()
+    return states, bad
+
+
+# How narrow each panel really goes, measured in its narrow layout: the panel forced to
+# 300px (inside every narrow query), the arrows shown as a hover shows them.
+RS_MIN = """() => [...document.querySelectorAll('#stage > .grid > [data-panel]')].map((el) => {
+  const mod = el.firstElementChild, grip = mod.querySelector('.mod__grip');
+  const keep = [el.style.width, mod.style.width, grip.style.cssText];
+  el.style.width = '300px'; mod.style.width = 'min-content';
+  grip.style.cssText = 'max-width: none; margin-left: 0';
+  const w = Math.ceil(mod.getBoundingClientRect().width);
+  [el.style.width, mod.style.width, grip.style.cssText] = keep;
+  return [el.dataset.panel, w];
+})"""
+
+
+def resize_checks(browser, port: int, errs: list[str]) -> list[str]:
+    """Spans, rows and gaps on every tab and every starter page; the builder's warning."""
+    fails: list[str] = []
+    page = browser.new_page(viewport={"width": 1600, "height": 1000})
+    page.on("pageerror", lambda e: errs.append(str(e)))
+
+    def check(label: str, passed: bool, detail: str = "") -> None:
+        print(f"  [{'PASS' if passed else 'FAIL'}] {label}" + (f" -- {detail}" if detail else ""))
+        if not passed:
+            fails.append(f"resize: {label} {detail}".strip())
+
+    def go(hash_: str, wait: int = 2200) -> None:
+        page.evaluate(f"location.hash = '{hash_}'")
+        page.wait_for_timeout(wait)
+
+    print("\nresize: every panel at every span its arrows reach")
+    page.goto(f"http://127.0.0.1:{port}/", wait_until="networkidle")
+    page.wait_for_timeout(1600)
+
+    # The starter pages as this sandbox's pages (the sections before are done with it),
+    # and the tour put away again: the Settings reset above brought it back.
+    starters = page.evaluate("async () => (await import('/pages.js')).STARTERS")
+    made = [{"id": f"rs-{k}", "name": f"Resize {k}", "cols": s["cols"], "panes": s["panes"]}
+            for k, s in starters.items() if s["panes"]]
+    page.evaluate("""(list) => fetch('/api/settings', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ui: { pages: list, tour_seen: true } }) })""", made)
+    page.reload(wait_until="networkidle")
+    page.wait_for_timeout(1600)
+
+    for w, h in RESIZE_SIZES:
+        page.set_viewport_size({"width": w, "height": h})
+        for view in VIEWS:
+            go(view)
+            n, bad = resize_sweep(page, "#stage > .grid", f"{view} @{w}")
+            check(f"{view} @{w}x{h}: {n} states, nothing sticks out, no short row, gaps even",
+                  n > 1 and not bad, "; ".join(bad[:8]))
+        for p in made:
+            go(f"page/{p['id']}", 2600)
+            for pane in p["panes"]:
+                sel = f".page__pane[data-view='{pane['view']}'] > .grid"
+                n, bad = resize_sweep(page, sel, f"{p['name']}/{pane['view']} @{w}")
+                check(f"{p['name']} @{w}x{h}, {pane['view']} pane: {n} states, nothing sticks out, "
+                      "no short row, gaps even", n > 0 and not bad, "; ".join(bad[:8]))
+    page.set_viewport_size({"width": 1600, "height": 1000})
+
+    # The builder's minimums against the panels themselves: never under what the panel
+    # measures (or the warning would miss it), and not so far over that it cries wolf.
+    panels = page.evaluate("async () => (await import('/pages.js')).PANELS")
+    registry = {p["slug"]: p.get("min") for p in panels}
+    titles = {p["slug"]: p["title"] for p in panels}
+    off = []
+    for view in ("play", "practice", "layers", "tools"):
+        go(view)
+        for slug, w in page.evaluate(RS_MIN):
+            want = registry.get(slug)
+            if want is None or not w <= want <= w + 30:
+                off.append(f"{slug}: registry {want}, measured {w}")
+    check("the builder's panel minimums match what each panel measures in its narrow layout",
+          not off, "; ".join(off))
+
+    # The builder warns about exactly the panels a pane of that window cannot hold: Build
+    # one, Pedal and Now at three columns in a 1024px window -- then the page is made and
+    # each pane's real width read off it.
+    page.set_viewport_size({"width": 1024, "height": 768})
+    go("page/new", 900)
+    page.click("#pb-start [data-start='blank']")
+    picks = {"layers": "build-one", "tools": "pedal", "practice": "now"}
+    for v, slug in picks.items():
+        page.click(f"label:has(> input[data-view='{v}'][data-slug='{slug}'])")
+    page.click("#pb-cols button:text-is('3')")
+    warn = page.evaluate("() => { const w = document.getElementById('pb-warn'); return w.hidden ? '' : w.textContent; }")
+    page.fill("#pb-name", "Resize warn")
+    page.click("#pb-save")
+    page.wait_for_timeout(2800)
+    real = page.evaluate("""() => Object.fromEntries([...document.querySelectorAll('.page__pane')]
+      .map((p) => [p.dataset.view, p.querySelector(':scope > .grid').clientWidth]))""")
+    wrong = [f"{titles[s]}: min {registry[s]}, pane {real.get(v)}px, {'warned' if titles[s] in warn else 'not warned'}"
+             for v, s in picks.items() if (registry[s] > real.get(v, 0)) != (titles[s] in warn)]
+    check("at 1024px, three columns: the builder warns for exactly the panels too wide for their pane",
+          len(real) == 3 and not wrong, "; ".join(wrong) or f"panes {real}, warning {warn!r}")
+    page.set_viewport_size({"width": 1600, "height": 1000})
+    page.close()
+    return fails
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=0,
@@ -1623,6 +1860,7 @@ def main() -> int:
             fails.extend(transport_checks(browser, port, errs))
             fails.extend(pages_checks(browser, port, errs))
             fails.extend(pages_fix_checks(browser, port, errs))
+            fails.extend(resize_checks(browser, port, errs))
             browser.close()
     finally:
         if proc is not None:
