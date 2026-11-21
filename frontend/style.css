@@ -2735,16 +2735,81 @@ body.has-update #gear::after { top: 2px; right: 1px; }
 }
 
 /* ── Jam ────────────────────────────────────────────────────────────────────
-   The band plays, you solo. The chord name and the one-octave strip are the biggest
-   things on the page, and everything you set once sits underneath. */
-.jam { display: flex; flex-direction: column; gap: 16px; }
-.jam__top { display: flex; flex-wrap: wrap; gap: 14px 18px; align-items: flex-end; }
-.jam__go { min-width: 170px; }
-.jam__opts { display: flex; flex-wrap: wrap; gap: 14px; flex: 1 1 0; min-width: 0; }
-.jam__opt { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.jam__lbl { font-size: 12px; font-weight: 500; color: var(--ink-dim); }
-.jam__select { min-width: 260px; }
-.jam__select--sound { min-width: 0; width: 128px; }
+   The band plays, you solo. One panel that fits a screen and a pane: the options are
+   a console (a group a row, a hairline between, the group's name down the left), the
+   stage is one box -- the chord, what comes next and the coach on the left, the beat
+   and the one-octave strip on the right -- and the band's console sits under it.
+   Sizes come from the panel's density tokens (--ctl-h and friends, set per width);
+   Jam caps them at its own compact sizes, so a roomier tier never pushes the console's
+   Music row onto two lines, and it is dense with or without them. */
+.mod:has(> .jam) > .mod__head { margin-bottom: 10px; }
+.jam {
+  --jam-h: min(var(--ctl-h, 26px), 26px);
+  --jam-fs: min(var(--ctl-fs, 12px), 12px);
+  --jam-pad: min(var(--ctl-pad, 7px), 7px);
+  --jam-gap: min(var(--gap, 8px), 8px);
+  --jam-lfs: min(var(--label-fs, 10.5px), 10.5px);
+  display: flex; flex-direction: column; gap: var(--jam-gap);
+}
+body:not(.is-focusing) .jam__top { display: flex; gap: var(--jam-gap); align-items: stretch; }
+/* Start/Stop: as tall as the console beside it, the one big thing in the row. */
+body:not(.is-focusing) .jam__go {
+  flex: none; width: 96px; min-height: calc(var(--jam-h) + 12px); padding: 6px 10px; line-height: 1.15; gap: 8px;
+}
+/* A transport glyph: play while stopped, stop while playing. */
+.jam__go::before {
+  content: ''; flex: none; width: 10px; height: 10px; background: currentColor;
+  clip-path: polygon(10% 0, 100% 50%, 10% 100%);
+}
+.jam__go:not(.btn--primary)::before { clip-path: none; border-radius: 2px; width: 9px; height: 9px; }
+/* Playing, it is the lamp's outline, not an empty grey box. */
+.jam__go:not(.btn--primary) {
+  color: var(--amber); background: none; box-shadow: none;
+  border-color: color-mix(in oklab, var(--amber) 45%, transparent);
+}
+.jam__go:not(.btn--primary):hover { background: color-mix(in oklab, var(--amber) 14%, transparent); border-color: var(--amber); }
+/* The settings stay together: the Band row sits right under Music and You, and the
+   stage -- what a player watches -- comes after, nearest the keys. */
+body:not(.is-focusing) .jam > .jam__top { order: -2; }
+body:not(.is-focusing) .jam > .jam__more { order: -1; }
+/* In a pane, and under Start in a compact panel, nothing stands beside Music and You,
+   so Band joins them: one console. */
+body:not(.is-focusing) .page__pane .jam__opts { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+body:not(.is-focusing) .page__pane .jam__more {
+  margin-top: calc(-1 * var(--jam-gap) - 1px); border-top-left-radius: 0; border-top-right-radius: 0;
+}
+@container panel (max-width: 560px) {
+  body:not(.is-focusing) .jam__opts { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+  body:not(.is-focusing) .jam > .jam__more {
+    margin-top: calc(-1 * var(--jam-gap) - 1px); border-top-left-radius: 0; border-top-right-radius: 0;
+  }
+}
+body:not(.is-focusing) .jam__opts { flex: 1 1 0; }
+body:not(.is-focusing) .jam__opts, .jam__more {
+  display: flex; flex-direction: column; min-width: 0;
+  background: var(--panel-1); border: 1px solid var(--hairline); border-radius: var(--radius-lg);
+}
+.jam__opt { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.jam__lbl { font-size: var(--jam-lfs); font-weight: 500; color: var(--ink-faint); white-space: nowrap; }
+/* The Music group's own name says what its first row is. */
+body:not(.is-focusing) .jam__group--music .jam__gbody > .jam__opt:first-child > .jam__lbl { display: none; }
+/* As wide as the key's whole name, never cut off mid-word. */
+.jam__select { min-width: 120px; max-width: 100%; width: auto; field-sizing: content; }
+.jam__select--sound { width: 112px; }
+/* Every control on the console one height: the shared ones, sized down to the row. */
+.jam :is(.jam__opts, .jam__more) .seg { padding: 2px; border-radius: 7px; gap: 1px; }
+.jam :is(.jam__opts, .jam__more) .seg__btn {
+  min-height: calc(var(--jam-h) - 6px); padding: 0 var(--jam-pad); font-size: var(--jam-fs); border-radius: 5px;
+}
+.jam :is(.jam__opts, .jam__more, .jam__picker) select {
+  min-height: var(--jam-h); height: var(--jam-h); padding: 0 26px 0 var(--jam-pad); font-size: var(--jam-fs);
+  background-position: right 8px center;
+}
+.jam :is(.jam__opts, .jam__more) .btn { min-height: var(--jam-h); padding: 0 calc(var(--jam-pad) + 2px); font-size: var(--jam-fs); }
+.jam__more .toggle { gap: 6px; font-size: var(--jam-fs); white-space: nowrap; }
+.jam__more .toggle__track { width: 28px; height: 16px; }
+.jam__more .toggle__track::after { top: 2px; left: 2px; width: 12px; height: 12px; }
+.jam__more .toggle input:checked + .toggle__track::after { transform: translateX(12px); }
 
 /* The scale pin's outline on the dock (keyboard.js): the chord's own hue, so outline and
    fill read as one family -- "in your scale" and "good on this chord". */
@@ -2752,61 +2817,91 @@ body.has-update #gear::after { top: 2px; right: 1px; }
   --key-pin: var(--key-tone);
 }
 
-/* The options in labelled groups: Music, You, then (under the stage) Band and My chords. */
-.jam__group {
-  display: flex; flex-direction: column; gap: 8px; min-width: 0;
-  padding: 10px 14px 12px; border: 1px solid var(--hairline); border-radius: var(--radius-lg);
-  background: var(--panel-1);
+/* A group is a row of the console: its name in a narrow column, its options flowing.
+   Focus flattens the groups into its one-line bar (focus section), so only the flex
+   box is unscoped. */
+.jam__group { display: flex; min-width: 0; }
+.jam__gbody { display: flex; flex-wrap: wrap; align-items: center; min-width: 0; }
+body:not(.is-focusing) .jam__group {
+  display: grid; grid-template-columns: 58px minmax(0, 1fr); align-items: center; min-width: 0;
+  padding: 5px 10px 5px 0;
 }
-.jam__gname {
-  font-family: var(--font-panel); font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase;
-  color: var(--ink-faint);
+body:not(.is-focusing) .jam__group + .jam__group { border-top: 1px solid var(--hairline); }
+body:not(.is-focusing) .jam__gname {
+  align-self: stretch; display: flex; align-items: center; padding-left: 10px;
+  font-family: var(--font-panel); font-size: 9px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink-faint); line-height: 1.2;
 }
-.jam__gbody { display: flex; flex-wrap: wrap; gap: 12px 22px; align-items: flex-end; }
-.jam__more { display: flex; flex-direction: column; gap: 14px; }
-.jam__parts, .jam__switches { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 26px; }
-.jam__part { display: flex; align-items: center; gap: 10px; }
+/* "My chords" is the one two-word name: two tight lines, clear of the row's edges. */
+body:not(.is-focusing) .jam__group--mine .jam__gname { letter-spacing: .08em; }
+body:not(.is-focusing) .jam__gbody { display: flex; flex-wrap: wrap; gap: 5px 14px; align-items: center; min-width: 0; }
+.jam__more { gap: 0; }
+.jam__parts, .jam__switches { display: contents; }
+.jam__part { display: flex; align-items: center; gap: 6px; }
 .jam .toggle.is-locked { opacity: .55; cursor: default; }
-
-/* My chords: a slot per chord, and the picker under the one being changed. A chord
-   outside the key gets a dashed edge and says so. */
-.jam__group--mine .jam__gbody { flex-direction: column; align-items: flex-start; gap: 10px; }
-.jam__slots { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.jam__slot {
-  display: inline-flex; align-items: stretch; overflow: hidden;
-  background: var(--panel-2); border: 1px solid var(--hairline); border-radius: var(--radius);
+/* The Band group's folded line (narrow panels only, below). */
+.jam__fold {
+  display: none; align-items: center; gap: 8px; height: var(--jam-h); padding: 0 10px;
+  font: inherit; font-size: var(--jam-fs); color: var(--ink-dim); cursor: pointer;
+  background: var(--panel-2); border: 1px solid var(--hairline); border-radius: 999px;
 }
-.jam__slot.is-on { border-color: var(--cyan); }
+.jam__fold:hover { color: var(--ink); border-color: var(--hairline-hi); }
+.jam__fold::after {
+  content: ''; width: 6px; height: 6px; margin-top: -3px;
+  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg);
+}
+.jam.is-band-open .jam__fold::after { margin-top: 3px; transform: rotate(-135deg); }
+/* Tempo and volume: name, value, slider on one line (the slider ends the field, as
+   every slider does where its value is shown). */
+.jam__field { flex-direction: row; align-items: center; gap: 8px; width: 214px; margin-bottom: 0; }
+.jam__field .field__label { display: contents; font-size: var(--jam-lfs); }
+.jam__field .field__label > span:first-child { font-size: var(--jam-lfs); color: var(--ink-faint); white-space: nowrap; }
+.jam__field .field__value { min-width: 4ch; font-size: 11px; }
+.jam__field input[type=range] { flex: 1 1 0; min-width: 60px; height: var(--jam-h); }
+
+/* My chords: a chip per chord in one row, and the picker under the one being changed.
+   A chord outside the key gets a dashed edge and says so. */
+body:not(.is-focusing) .jam__group--mine .jam__gbody { flex-direction: column; align-items: stretch; gap: 5px; }
+.jam__slots { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.jam__slot {
+  display: inline-flex; align-items: stretch; overflow: hidden; height: var(--jam-h);
+  background: var(--panel-2); border: 1px solid var(--hairline); border-radius: 999px;
+}
+.jam__slot.is-on { border-color: var(--cyan); box-shadow: 0 0 8px color-mix(in oklab, var(--cyan) 30%, transparent); }
 .jam__slot.is-out { border-style: dashed; border-color: var(--amber-deep); }
 .jam__slotbtn {
-  display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 58px; padding: 6px 12px;
+  display: inline-flex; align-items: baseline; gap: 5px; padding: 0 6px 0 10px; line-height: calc(var(--jam-h) - 2px);
   background: none; border: 0; color: var(--ink); font: inherit; cursor: pointer;
 }
-.jam__slotbtn b { font-size: 16px; }
-.jam__slotbtn small { min-height: 13px; font-size: 11px; color: var(--ink-faint); }
-.jam__slot.is-out .jam__slotbtn small::after { content: ' · out of key'; color: var(--amber); }
+.jam__slotbtn b { font-size: 13px; }
+.jam__slotbtn small { font-size: 10.5px; color: var(--ink-faint); }
+.jam__slot.is-out .jam__slotbtn small::after { content: ' · out'; color: var(--amber); }
 .jam__slotx {
-  padding: 0 9px; background: none; border: 0; border-left: 1px solid var(--hairline);
-  color: var(--ink-faint); font: inherit; cursor: pointer;
+  padding: 0 8px 0 4px; background: none; border: 0;
+  color: var(--ink-faint); font: inherit; font-size: 12px; cursor: pointer;
 }
 .jam__slotx:hover { color: var(--red); }
-.jam__slotadd { min-width: 40px; }
+.jam .jam__slotadd { min-width: var(--jam-h); padding: 0; border-radius: 999px; }
+.jam__slots > .jam__muted { font-size: 11px; margin-left: 4px; }
 .jam__picker {
-  display: flex; flex-direction: column; gap: 8px; padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 5px; padding: 6px 8px;
   background: var(--panel-2); border: 1px solid var(--hairline); border-radius: var(--radius);
 }
 .jam__picker:empty { display: none; }
-.jam__prow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.jam__prow > .jam__lbl { min-width: 84px; }
+body:not(.is-focusing) .jam__picker { align-self: flex-start; max-width: 100%; }   /* as wide as its chips, not the console */
+.jam__prow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.jam__prow > .jam__lbl { min-width: 64px; }
 .jam__pick {
-  display: inline-flex; align-items: baseline; gap: 4px; padding: 3px 9px;
+  display: inline-flex; align-items: baseline; gap: 4px; padding: 1px 8px;
   background: var(--panel-3); border: 1px solid var(--hairline); border-radius: 999px;
-  color: var(--ink-dim); font: inherit; font-size: 12.5px; cursor: pointer;
+  color: var(--ink-dim); font: inherit; font-size: 12px; cursor: pointer;
 }
-.jam__pick small { font-size: 10.5px; color: var(--ink-faint); }
+.jam__pick small { font-size: 10px; color: var(--ink-faint); }
 .jam__pick:hover { color: var(--ink); }
 .jam__pick.is-on { border-color: var(--amber); color: var(--ink); }
+.jam__picker .btn { min-height: calc(var(--jam-h) - 2px); padding: 0 12px; font-size: var(--jam-fs); }
 
+/* The stage. Focus (below) lays it out as three tall cards; these are those cards. */
 .jam__stage {
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr); gap: 14px;
 }
@@ -2817,18 +2912,21 @@ body.has-update #gear::after { top: 2px; right: 1px; }
 }
 .jam__card--next { opacity: .78; }
 .jam__card .jam__lbl { text-transform: none; }
+.jam__line { display: flex; flex-direction: column; align-items: inherit; gap: 6px; }
 .jam__sym {
   font-family: var(--font-display); font-size: 56px; font-weight: 700; line-height: 1;
   color: var(--ink); min-height: 56px;
 }
 .jam__sym--next { font-size: 40px; min-height: 40px; color: var(--ink-dim); }
 .jam__role { min-height: 24px; }
-/* Under the Now card: the pinned scale's name, or the key change on its way (amber, like
+.jam__count { font-family: var(--font-mono); font-size: 12px; color: var(--amber); white-space: nowrap; }
+.jam__count:empty { display: none; }
+/* Under the chord: the pinned scale's name, or the key change on its way (amber, like
    everything that is coming next). */
 .jam__note { min-height: 16px; font-size: 12px; color: var(--ink-dim); }
 .jam__note.is-next { color: var(--amber); font-weight: 600; }
 .jam__pill {
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
   font-size: 12px; font-weight: 600; color: var(--ink);
   padding: 3px 10px; border-radius: 999px; border: 1px solid var(--hairline-hi);
 }
@@ -2859,12 +2957,68 @@ body.has-update #gear::after { top: 2px; right: 1px; }
 .jam__fit--rub { color: var(--amber); }
 .jam__fit--out { color: var(--red); }
 
+/* Out of focus, the stage is one box: its middle column dissolves (display: contents)
+   so the chord, Next and the coach stack down the left, and the beat and the strip have
+   the right to themselves. Now is a line -- the chord and its role pill -- and Next a
+   chip on one line with the beats left until it lands. */
+body:not(.is-focusing) .jam__stage {
+  --strip-h: clamp(92px, 14cqi, 124px);
+  align-items: start;
+  grid-template-columns: minmax(200px, 1fr) minmax(0, min(460px, 52%));
+  grid-template-rows: auto auto 1fr auto;
+  grid-template-areas: "now beats" "next strip" "coach strip" "heard strip";
+  gap: 6px 22px; padding: 8px 12px 8px 16px;
+  background: var(--panel-1); border: 1px solid var(--hairline); border-radius: var(--radius-lg);
+}
+body:not(.is-focusing) .jam__mid { display: contents; text-align: left; }
+body:not(.is-focusing) .jam__card--now { grid-area: now; }
+body:not(.is-focusing) .jam__card--next { grid-area: next; }
+body:not(.is-focusing) .jam__beats { grid-area: beats; justify-self: center; gap: 10px; }
+body:not(.is-focusing) .jam__stage .strip { grid-area: strip; justify-self: stretch; max-width: none; height: var(--strip-h); }
+body:not(.is-focusing) .jam__coach { grid-area: coach; }
+body:not(.is-focusing) .jam__heard { grid-area: heard; }
+body:not(.is-focusing) .jam__card {
+  gap: 2px; min-width: 0; min-height: 0; padding: 0; background: none; border: 0; border-radius: 0;
+}
+body:not(.is-focusing) .jam__card--now > .jam__lbl { display: none; }   /* the biggest thing in the box is now */
+/* The scale's name or the key change coming: on the chord's line while there is room. */
+body:not(.is-focusing) .jam__card--now { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 14px; }
+body:not(.is-focusing) .jam__line { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+body:not(.is-focusing) .jam__sym { font-size: clamp(40px, 3.9cqi, 54px); min-height: 1em; letter-spacing: -.01em; }
+body:not(.is-focusing) .jam__role { min-height: 22px; display: flex; align-items: center; }
+body:not(.is-focusing) .jam__card--next {
+  opacity: 1; flex-direction: row; align-items: center; gap: 8px; justify-self: start; max-width: 100%;
+  padding: 2px 10px; min-height: 28px;
+  background: var(--panel-2); border: 1px solid var(--hairline); border-radius: 999px;
+}
+body:not(.is-focusing) .jam__card--next:has(.jam__sym--next:empty) { display: none; }
+body:not(.is-focusing) .jam__card--next > .jam__lbl {
+  font-family: var(--font-panel); font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-faint);
+}
+body:not(.is-focusing) .jam__sym--next { font-size: 17px; min-height: 0; color: var(--ink); }
+body:not(.is-focusing) .jam__card--next .jam__role { min-height: 0; }
+body:not(.is-focusing) .jam__card--next .jam__pill { padding: 0 7px; font-size: 10.5px; }
+body:not(.is-focusing) .jam__note { min-height: 0; font-size: 11.5px; }
+body:not(.is-focusing) .jam__pill { padding: 2px 9px; font-size: 11.5px; }
+body:not(.is-focusing) .jam__muted { font-size: 12.5px; }
+body:not(.is-focusing) .jam__beat { width: 10px; height: 10px; }
+body:not(.is-focusing) .jam__beat.is-down { box-shadow: 0 0 10px var(--amber); }
+body:not(.is-focusing) .jam__coach {
+  gap: 2px; min-height: 38px; align-self: start; padding-top: 6px; border-top: 1px solid var(--hairline);
+}
+body:not(.is-focusing) .jam__try { font-size: 16px; }
+body:not(.is-focusing) .jam__try b { font-size: 20px; }
+body:not(.is-focusing) .jam__why { font-size: 12px; line-height: 1.4; }
+body:not(.is-focusing) .jam__heard { min-height: 17px; font-size: 12px; }
+body.is-focusing .jam__count { font-size: clamp(14px, 1.8vh, 18px); }
+body.is-focusing .jam__go { min-width: 170px; }
+
 /* The one-octave strip: what sounds good over this chord, true in every octave.
    Unlit keys sink toward the panel so the lit ones read at a glance. */
 .strip {
   --strip-bw: 9%;
   position: relative; display: flex; gap: 4px;
-  width: 100%; max-width: 460px; height: 140px; user-select: none;
+  width: 100%; max-width: 460px; height: var(--strip-h, 140px); user-select: none;
 }
 .strip__key {
   position: relative; flex: 1; min-width: 0;
@@ -2936,57 +3090,93 @@ body.has-update #gear::after { top: 2px; right: 1px; }
 .jam[data-guide="3"] :is(.jam__sym, .jam__role, .jam__phrase) { visibility: hidden; }
 
 .jam__phrase {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 30px;
-  font-size: 13px; color: var(--ink-dim);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 5px; min-height: 26px;
+  font-size: 12.5px; color: var(--ink-dim);
 }
 .jam__pname { font-weight: 600; color: var(--ink); margin-right: 4px; }
 .jam__chip {
   display: inline-flex; align-items: baseline; gap: 5px;
-  padding: 4px 10px; border-radius: 999px;
+  padding: 2px 9px; border-radius: 999px;
   background: var(--panel-2); border: 1px solid var(--hairline); color: var(--ink-dim);
 }
-.jam__chip b { font-size: 14px; }
-.jam__chip small { font-size: 11px; color: var(--ink-faint); }
+.jam__chip b { font-size: 13px; }
+.jam__chip small { font-size: 10.5px; color: var(--ink-faint); }
 .jam__chip.is-on { border-color: var(--cyan); color: var(--ink); box-shadow: 0 0 10px color-mix(in oklab, var(--cyan) 35%, transparent); }
 .jam__chip.is-out { border-style: dashed; }
 .jam__chip.is-out small::after { content: ' · out of key'; color: var(--amber); }
-.jam__pblurb { flex-basis: 100%; font-size: 12.5px; color: var(--ink-faint); }
+/* The phrase's blurb on the same line as its chips while there is room. */
+.jam__pblurb { margin-left: 6px; font-size: 12px; color: var(--ink-faint); min-width: 0; }
 .jam__phrase:empty { display: none; }
 
-.jam__field { width: 190px; margin-bottom: 0; }
-.jam__stats { font-size: 12.5px; color: var(--ink-faint); }
+.jam__stats { font-size: 12px; color: var(--ink-faint); }
 .jam__stats b { color: var(--ink); font-family: var(--font-mono); }
 .jam__stats b.jam__ok { color: var(--green); }
 .jam__stats b.jam__rub { color: var(--amber); }
 .jam__stats b.jam__spicy { color: var(--red); }
 
-/* Jam by its panel's width, the same on a tab and in a pane: the strip goes under the
-   two cards when the three no longer fit side by side, and in a third of a window the
-   groups stack and their controls take the line. */
-@container panel (max-width: 900px) {
-  .jam__stage { grid-template-columns: 1fr 1fr; }
-  .jam__mid { grid-column: 1 / -1; order: 3; }
-  /* The option groups under Start rather than squeezed beside it: beside it, at a
-     flex-basis of 0, Music's five buttons were held in 225px of a 451px pane. */
-  .jam__opts { flex-basis: 100%; }
+/* Jam by its panel's width, the same on a tab and in a pane. Narrower folds it, never
+   stretches it: the console keeps its rows, the stage keeps its two sides down to the
+   compact tier, and what goes first is secondary text (the blurb, the slot count, the
+   Start button's long name). */
+/* Folding, not growing: where the band's settings would take a third row, they go
+   behind their one-line summary (Pop · 96 bpm · 70%), one click from open. */
+@container panel (max-width: 960px) {
+  .jam__fold { display: inline-flex; }
+  .jam:not(.is-band-open) .jam__group--band .jam__gbody > :not(.jam__fold) { display: none; }
 }
-@container panel (max-width: 440px) {
-  .jam__top, .jam__opts, .jam__gbody { flex-direction: column; align-items: stretch; flex-wrap: nowrap; }
-  .jam__opts { flex: none; }
-  .jam__go, .jam__select, .jam__field { min-width: 0; width: 100%; }
-  .jam__stage { grid-template-columns: 1fr; }
-  .jam__mid { order: 0; }
+@container panel (max-width: 760px) {
+  body:not(.is-focusing) .jam__group { grid-template-columns: 48px minmax(0, 1fr); }
+  body:not(.is-focusing) .jam__gbody { gap: 5px 12px; }
+  .jam__field { width: 180px; }
+  body:not(.is-focusing) .jam__go { width: auto; min-height: var(--jam-h); padding: 3px 14px; white-space: nowrap; }
+  .jam__pblurb { display: none; }
+}
+/* Compact: Start goes over the console, the stage's sides tighten. */
+@container panel (max-width: 560px) {
+  body:not(.is-focusing) .jam__top { flex-direction: column; }
+  body:not(.is-focusing) .jam__go { width: 100%; min-height: var(--jam-h); padding: 3px 12px; }
+  body:not(.is-focusing) .jam__stage {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 5px 12px; padding: 8px 10px;
+    --strip-h: clamp(80px, 22cqi, 104px);
+  }
+  body:not(.is-focusing) .jam__card--now .jam__sym { font-size: 36px; min-height: 36px; }
+  body:not(.is-focusing) .jam__try { font-size: 14px; }
+  body:not(.is-focusing) .jam__try b { font-size: 17px; }
+  body:not(.is-focusing) .jam__why { font-size: 11.5px; }
+  .strip__name { font-size: 12px; }
+  .strip__key--black .strip__name { font-size: 10px; }
+  .strip__role { font-size: 9.5px; }
+  .jam__slots > .jam__muted { display: none; }
   .jam__prow > .jam__lbl { min-width: 0; flex-basis: 100%; }
-  /* A line per button row, its name beside it, not a line for the name and one for the
-     control; and the cards as tall as what they hold. Stacked, Jam in Solo practice's
-     344px pane at 1280 was 1916px, five pane-heights. */
-  .jam__gbody > div.jam__opt { flex-direction: row; align-items: center; gap: 10px; }
-  .jam__gbody > div.jam__opt > .jam__lbl { flex: 0 0 46px; }
-  .jam__gbody > div.jam__opt > :not(.jam__lbl) { flex: 1 1 0; min-width: 0; }
-  .jam__card { min-height: 0; }
-  .jam__card--next { flex-direction: row; flex-wrap: wrap; align-items: baseline; column-gap: 12px; }
 }
-
+/* Mini: the group names go over their rows, the stage is one column -- the chord and
+   Next on one line, then the strip, then the coach. */
+@container panel (max-width: 380px) {
+  body:not(.is-focusing) .jam__group { grid-template-columns: 34px minmax(0, 1fr); padding: 4px 8px 4px 0; }
+  body:not(.is-focusing) .jam__gname { padding-left: 8px; font-size: 8px; letter-spacing: .08em; writing-mode: vertical-rl;
+    transform: rotate(180deg); justify-content: center; }
+  body:not(.is-focusing) .jam__gbody { gap: 4px 10px; }
+  .jam .seg { flex-wrap: wrap; }
+  .jam__select { width: 100%; }
+  .jam__opt:has(> .jam__select) { flex: 1 1 100%; }   /* a key's whole name: narrower, a select holds more than it shows */
+  body:not(.is-focusing) .jam__why { display: none; }    /* the why is the coach's aside; the what stays */
+  body:not(.is-focusing) .jam__coach { min-height: 0; }
+  body:not(.is-focusing) .jam__heard { min-height: 0; }
+  body:not(.is-focusing) .jam__heard:empty { display: none; }
+  body:not(.is-focusing) .jam { --jam-gap: 6px; --jam-h: min(var(--ctl-h, 24px), 24px); }
+  .jam__pname { display: none; }      /* the chips are the progression; its name is the aside */
+  .jam__stats { display: none; }      /* the sitting's count: the wider panel's footnote */
+  .jam__field { width: 100%; }
+  body:not(.is-focusing) .jam__stage {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "now next" "beats beats" "strip strip" "coach coach" "heard heard";
+    grid-template-rows: none; padding: 8px;
+    --strip-h: clamp(72px, 26cqi, 92px);
+  }
+  body:not(.is-focusing) .jam__card--next { justify-self: end; }
+  body:not(.is-focusing) .jam__card--next > .jam__lbl { display: none; }
+  body:not(.is-focusing) .jam__card--now .jam__sym { font-size: 32px; min-height: 32px; }
+}
 
 /* -- focus: one practice mode, the keys, and nothing else ------------------ */
 /* The same zeroed-rows trick as immersive, with the stage row kept: the rail, nav,

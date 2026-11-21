@@ -696,6 +696,82 @@ def jam_checks(browser, port: int, errs: list[str]) -> list[str]:
     return fails
 
 
+# -- Jam on one screen, and folding rather than growing -----------------------------
+# Jam's panel against the room it has, the band playing: wholly inside the stage's
+# visible box on Practice (dock showing, nothing scrolled), and inside a half-width page
+# pane. Then the folding rule: each step narrower -- Practice's own arrows, then page
+# panes of one, two and three columns -- may leave it at most JAM_FOLD times as tall as
+# the step before. Measured with the band stopped, whose coach line is fixed, so the
+# heights compare like with like.
+JAM_FIT_SIZES = ((1600, 1000), (1280, 800))
+JAM_FOLD = 1.15
+JAM_BOX = """(pane) => {
+  const root = pane ? document.querySelector('.page__pane[data-view="practice"]') : document;
+  const mod = root.querySelector('.mod:has(> .jam)'), m = mod.getBoundingClientRect();
+  const box = (pane ? root : document.getElementById('stage')).getBoundingClientRect();
+  const st = pane ? root : document.getElementById('stage');
+  return { top: Math.round(m.top), bottom: Math.round(m.bottom), w: Math.round(m.width), h: Math.round(m.height),
+           boxTop: Math.round(box.top), boxBottom: Math.round(box.bottom), scrolled: Math.round(st.scrollTop) };
+}"""
+# Jam's panel held at a span for a moment, inline and unsaved (the arrows save a layout,
+# and refuse a span that would leave a hole beside it -- the width is what is measured).
+JAM_SPAN = """async (n) => { const col = document.querySelector('[data-panel]:has(> .mod > .jam)');
+  col.style.gridColumn = n ? `span ${n}` : ''; await new Promise((r) => setTimeout(r, 400));
+  const m = col.querySelector('.mod').getBoundingClientRect(); return [Math.round(m.width), Math.round(m.height)]; }"""
+
+
+def jam_fit_checks(browser, port: int, errs: list[str]) -> list[str]:
+    fails: list[str] = []
+    page = browser.new_page(viewport={"width": 1600, "height": 1000})
+    page.on("pageerror", lambda e: errs.append(str(e)))
+
+    def check(label: str, passed: bool, detail: str = "") -> None:
+        print(f"  [{'PASS' if passed else 'FAIL'}] {label}" + (f" -- {detail}" if detail else ""))
+        if not passed:
+            fails.append(f"jam fit: {label} {detail}".strip())
+
+    print("\njam fits, and folds")
+    base = f"http://127.0.0.1:{port}"
+    panes = [{"view": "practice", "panels": ["jam"]}, {"view": "tools", "panels": ["chords-scales"]},
+             {"view": "play", "panels": ["tempo"]}]
+    page.request.post(f"{base}/api/settings", data={"ui": {
+        "jam": {"music": "pop", "game": "solo", "level": 2, "key": "C-major", "pin": "off", "bars": 1},
+        "pages": [{"id": f"jamfit{n}", "name": f"Jam fit {n}", "cols": n, "panes": panes[:n]} for n in (1, 2, 3)]}})
+    for w, h in JAM_FIT_SIZES:
+        page.set_viewport_size({"width": w, "height": h})
+        page.goto(f"{base}/#practice", wait_until="networkidle")
+        page.wait_for_timeout(2200)
+        page.click(".mod:has(> .jam) .jam__go")
+        page.wait_for_timeout(2600)
+        b = page.evaluate(JAM_BOX, False)
+        check(f"Practice at {w}x{h}: the whole of Jam is on screen, the band playing",
+              b["scrolled"] == 0 and b["top"] >= b["boxTop"] and b["bottom"] <= b["boxBottom"], str(b))
+        page.click(".mod:has(> .jam) .jam__go")
+        page.wait_for_timeout(500)
+        heights = [tuple(page.evaluate(JAM_SPAN, n)) for n in (12, 8, 6, 4)]
+        page.evaluate(JAM_SPAN, 0)
+        for n in (1, 2, 3):
+            page.evaluate(f"location.hash = 'page/jamfit{n}'")
+            page.wait_for_timeout(2400)
+            if n == 2 and w == 1600:
+                page.click(".page__pane[data-view='practice'] .jam__go")
+                page.wait_for_timeout(2600)
+                b = page.evaluate(JAM_BOX, True)
+                check("a half-width page pane at 1600x1000: the whole of Jam in it, the band playing",
+                      b["scrolled"] == 0 and b["top"] >= b["boxTop"] and b["bottom"] <= b["boxBottom"], str(b))
+                page.click(".page__pane[data-view='practice'] .jam__go")
+                page.wait_for_timeout(500)
+            b = page.evaluate(JAM_BOX, True)
+            heights.append((b["w"], b["h"]))
+        heights.sort(key=lambda x: -x[0])
+        grew = [f"{a[0]}px {a[1]} -> {c[0]}px {c[1]}" for a, c in zip(heights, heights[1:])
+                if c[0] < a[0] - 8 and c[1] > a[1] * JAM_FOLD]
+        check(f"...narrower folds Jam, it never grows it past {JAM_FOLD:.2f}x ({w}x{h})", not grew,
+              "; ".join(grew) or " ".join(f"{x}:{y}" for x, y in heights))
+    page.request.post(f"{base}/api/settings", data={"ui": {"pages": []}})
+    page.close()
+    return fails
+
 # -- the transport: bar steps, Go to bar, loop by bars, the scrub, the sheet ---------
 # A song written here rather than shipped: one note per beat, numbered 1..TR_BARS, long
 # enough that the engraving runs to more than one page. Every expected value below is
@@ -2419,6 +2495,7 @@ def main() -> int:
                               f"no gaps, nothing stringified")
                 page.close()
             fails.extend(jam_checks(browser, port, errs))
+            fails.extend(jam_fit_checks(browser, port, errs))
             fails.extend(transport_checks(browser, port, errs))
             fails.extend(pages_checks(browser, port, errs))
             fails.extend(pages_fix_checks(browser, port, errs))
