@@ -2493,12 +2493,74 @@ body.has-update #gear::after { top: 2px; right: 1px; }
    The band plays, you solo. The chord name and the one-octave strip are the biggest
    things on the page, and everything you set once sits underneath. */
 .jam { display: flex; flex-direction: column; gap: 16px; }
-.jam__top { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: flex-end; }
+.jam__top { display: flex; flex-wrap: wrap; gap: 14px 18px; align-items: flex-end; }
 .jam__go { min-width: 170px; }
-.jam__opts { display: contents; }                     /* a wrapper for focus only */
+.jam__opts { display: flex; flex-wrap: wrap; gap: 14px; flex: 1 1 0; min-width: 0; }
 .jam__opt { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .jam__lbl { font-size: 12px; font-weight: 500; color: var(--ink-dim); }
 .jam__select { min-width: 260px; }
+.jam__select--sound { min-width: 0; width: 128px; }
+
+/* The scale pin's outline on the dock (keyboard.js): the chord's own hue, so outline and
+   fill read as one family -- "in your scale" and "good on this chord". */
+:root {
+  --key-pin: var(--key-tone);
+}
+
+/* The options in labelled groups: Music, You, then (under the stage) Band and My chords. */
+.jam__group {
+  display: flex; flex-direction: column; gap: 8px; min-width: 0;
+  padding: 10px 14px 12px; border: 1px solid var(--hairline); border-radius: var(--radius-lg);
+  background: var(--panel-1);
+}
+.jam__gname {
+  font-family: var(--font-panel); font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.jam__gbody { display: flex; flex-wrap: wrap; gap: 12px 22px; align-items: flex-end; }
+.jam__more { display: flex; flex-direction: column; gap: 14px; }
+.jam__parts, .jam__switches { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 26px; }
+.jam__part { display: flex; align-items: center; gap: 10px; }
+.jam .toggle.is-locked { opacity: .55; cursor: default; }
+
+/* My chords: a slot per chord, and the picker under the one being changed. A chord
+   outside the key gets a dashed edge and says so. */
+.jam__group--mine .jam__gbody { flex-direction: column; align-items: flex-start; gap: 10px; }
+.jam__slots { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.jam__slot {
+  display: inline-flex; align-items: stretch; overflow: hidden;
+  background: var(--panel-2); border: 1px solid var(--hairline); border-radius: var(--radius);
+}
+.jam__slot.is-on { border-color: var(--cyan); }
+.jam__slot.is-out { border-style: dashed; border-color: var(--amber-deep); }
+.jam__slotbtn {
+  display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 58px; padding: 6px 12px;
+  background: none; border: 0; color: var(--ink); font: inherit; cursor: pointer;
+}
+.jam__slotbtn b { font-size: 16px; }
+.jam__slotbtn small { min-height: 13px; font-size: 11px; color: var(--ink-faint); }
+.jam__slot.is-out .jam__slotbtn small::after { content: ' · out of key'; color: var(--amber); }
+.jam__slotx {
+  padding: 0 9px; background: none; border: 0; border-left: 1px solid var(--hairline);
+  color: var(--ink-faint); font: inherit; cursor: pointer;
+}
+.jam__slotx:hover { color: var(--red); }
+.jam__slotadd { min-width: 40px; }
+.jam__picker {
+  display: flex; flex-direction: column; gap: 8px; padding: 10px 12px;
+  background: var(--panel-2); border: 1px solid var(--hairline); border-radius: var(--radius);
+}
+.jam__picker:empty { display: none; }
+.jam__prow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.jam__prow > .jam__lbl { min-width: 84px; }
+.jam__pick {
+  display: inline-flex; align-items: baseline; gap: 4px; padding: 3px 9px;
+  background: var(--panel-3); border: 1px solid var(--hairline); border-radius: 999px;
+  color: var(--ink-dim); font: inherit; font-size: 12.5px; cursor: pointer;
+}
+.jam__pick small { font-size: 10.5px; color: var(--ink-faint); }
+.jam__pick:hover { color: var(--ink); }
+.jam__pick.is-on { border-color: var(--amber); color: var(--ink); }
 
 .jam__stage {
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr); gap: 14px;
@@ -2516,6 +2578,10 @@ body.has-update #gear::after { top: 2px; right: 1px; }
 }
 .jam__sym--next { font-size: 40px; min-height: 40px; color: var(--ink-dim); }
 .jam__role { min-height: 24px; }
+/* Under the Now card: the pinned scale's name, or the key change on its way (amber, like
+   everything that is coming next). */
+.jam__note { min-height: 16px; font-size: 12px; color: var(--ink-dim); }
+.jam__note.is-next { color: var(--amber); font-weight: 600; }
 .jam__pill {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 12px; font-weight: 600; color: var(--ink);
@@ -2574,6 +2640,17 @@ body.has-update #gear::after { top: 2px; right: 1px; }
 .strip__key.is-chord { background: color-mix(in oklab, var(--key-tone) 80%, var(--key-white)); }
 .strip__key--black.is-chord { background: var(--key-tone); color: #0d0f12; }
 .strip__key.is-next { outline: 3px solid var(--key-suggest); outline-offset: -3px; }
+/* The pinned scale: a bar under each of its keys (the dock outlines them), and its name
+   under the strip. A mark, not a fill, so it never says more than "in your scale". */
+.strip__key.is-pin::after {
+  content: ''; position: absolute; left: 22%; right: 22%; bottom: 3px; height: 3px; border-radius: 2px;
+  background: var(--key-tone);
+}
+.strip[data-pin] { margin-bottom: 14px; }
+.strip[data-pin]::after {
+  content: attr(data-pin); position: absolute; left: 0; right: 0; top: 100%; margin-top: 2px;
+  font-size: 10.5px; line-height: 12px; text-align: center; color: var(--ink-faint); pointer-events: none;
+}
 /* Jam's modes: the mode's colour note (or the blue note) ringed, and the band's own
    melody lighting the keys it plays. */
 .strip__key.is-sig { box-shadow: inset 0 0 0 3px var(--key-sig, #b98cff); }
@@ -2626,13 +2703,11 @@ body.has-update #gear::after { top: 2px; right: 1px; }
 .jam__chip b { font-size: 14px; }
 .jam__chip small { font-size: 11px; color: var(--ink-faint); }
 .jam__chip.is-on { border-color: var(--cyan); color: var(--ink); box-shadow: 0 0 10px color-mix(in oklab, var(--cyan) 35%, transparent); }
+.jam__chip.is-out { border-style: dashed; }
+.jam__chip.is-out small::after { content: ' · out of key'; color: var(--amber); }
 .jam__pblurb { flex-basis: 100%; font-size: 12.5px; color: var(--ink-faint); }
 .jam__phrase:empty { display: none; }
 
-.jam__mix {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 26px;
-  padding-top: 14px; border-top: 1px solid var(--hairline);
-}
 .jam__field { width: 190px; margin-bottom: 0; }
 .jam__stats { font-size: 12.5px; color: var(--ink-faint); }
 .jam__stats b { color: var(--ink); font-family: var(--font-mono); }
@@ -2704,7 +2779,7 @@ body.is-focusing .mod__focus { display: none; }
    they stay on their seams at any size. */
 body.is-focusing .mod:has(> .jam) > .mod__head { display: none; }
 body.is-focusing .jam { flex: 1; min-height: 0; gap: clamp(12px, 2.4vh, 28px); }
-body.is-focusing .jam__mix { display: none; }          /* set once; leave focus to change it */
+body.is-focusing .jam__more { display: none; }         /* set once; leave focus to change it */
 /* Key, style and the rest: one thin line across the top of the window that fades with
    the mouse, the rollbar's recipe (a wash, not a box). Start/Stop stays in the stage and
    never fades. The bar takes no room from the stage, stops short of EXIT (whose middle
@@ -2721,6 +2796,17 @@ body.is-focusing.is-stirring .jam__opts,
 body.is-focusing .jam__opts:hover,
 body.is-focusing .jam__opts:focus-within { opacity: 1; pointer-events: auto; }
 body.is-focusing .jam__opts .jam__opt { flex-direction: row; align-items: center; gap: 7px; flex: none; }
+/* The groups flatten into the one line, and only the options you change mid-song stay:
+   Music, Level, Key or Room, Scale and Guide -- and Play while it is Answer or Echo. */
+body.is-focusing .jam__opts .jam__group {
+  flex-direction: row; align-items: center; gap: inherit; flex: none;
+  padding: 0; border: 0; background: none;
+}
+body.is-focusing .jam__opts .jam__gname { display: none; }
+body.is-focusing .jam__opts .jam__gbody { display: contents; }
+body.is-focusing .jam__opts .jam__group--you .jam__opt:not(.jam__opt--guide):not(.jam__opt--play),
+body.is-focusing .jam:not([data-mode="answer"]):not([data-mode="echo"]) .jam__opts .jam__opt--play { display: none !important; }
+body.is-focusing .jam__note { font-size: clamp(14px, 1.8vh, 18px); }
 body.is-focusing .jam__opts .jam__lbl {
   font-family: var(--font-panel); font-size: 9px; letter-spacing: .16em; text-transform: uppercase;
   color: var(--ink-faint);
@@ -2737,12 +2823,12 @@ body.is-focusing .jam__opts .jam__select {
   body.is-focusing .jam__opts .jam__select { max-width: 180px; }
 }
 /* Under 1100px the line is too short for every option: the buttons tighten, the key
-   names shorten, and Each chord goes (set it out of focus, like the mix). */
+   names shorten, and Play goes (set it out of focus, like the band). */
 @media (max-width: 1100px) {
   body.is-focusing .jam__opts { gap: 10px; }
   body.is-focusing .jam__opts .seg__btn { padding: 2px 6px; font-size: 10.5px; }
   body.is-focusing .jam__opts .jam__select { max-width: 150px; }
-  body.is-focusing .jam__opts .jam__opt--bars { display: none !important; }
+  body.is-focusing .jam__opts .jam__opt--play { display: none !important; }
 }
 /* EXIT on the bar's centre line, and the stage starts below the bar, so a bar coming
    up never lands on Start/Stop. */
