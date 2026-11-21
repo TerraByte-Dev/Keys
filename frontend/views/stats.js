@@ -23,8 +23,16 @@
 
 import { instrument } from '../app.js';
 import { $, api, h, hms, humanMinutes, info, mod, noteName, stat } from '../ui.js';
+import { pickPanels } from '../pages.js';
 
 let data = null;
+
+/* Where this is mounted: its own tab, or a pane on a page you built. On a page the
+   pane is the scroller, every panel is a pane's width (pages.js fullWidth), and only
+   the panels picked are shown -- and render() replaces every panel on each refresh,
+   so it has to say all three again itself. */
+let host = null;              // the root mount() was handed
+let picked = null;            // ctx.panels: the slugs a page picked, or null on the tab
 
 /* Live-refresh state. */
 const REFRESH_MS = 5000;      // floor between queries while you are playing
@@ -42,7 +50,9 @@ let calYears = [];
 let calData = null;
 
 export default {
-  async mount(root) {
+  async mount(root, ctx) {
+    host = root;
+    picked = ctx?.panels || null;
     const grid = h('div.grid', { id: 'an-grid' },
       h('div.col-12', null, h('div.empty', null, 'reading a year of practice...')));
     // Defer a rebuild while the pointer is in here. Every chart is read through a
@@ -107,6 +117,8 @@ export default {
   },
 
   unmount() {
+    host = null;
+    picked = null;
     data = null;
     calData = null;
     calYear = 0;
@@ -199,8 +211,9 @@ function render(d) {
   // The second is the year calendar's own horizontal scroll: 53 columns of 11px is
   // wider than the panel, and a fresh node starts at scrollLeft 0, which is 52 weeks
   // ago. Losing it makes this month unreachable.
-  const stage = $('#stage');
+  const stage = scroller();
   const stageTop = stage ? stage.scrollTop : 0;
+  const col = (n) => (picked ? 'div.col-12' : `div.col-${n}`);
 
   const streak = d.streak || {};
   const totals = d.totals || {};
@@ -208,7 +221,7 @@ function render(d) {
   const days = totals.days_practiced ?? streak.total_days ?? 0;
 
   $('#an-grid').replaceChildren(
-    h('div.col-6', null, mod('All time', d.range_days ? `last ${d.range_days} days` : null,
+    h(col(6), null, mod('All time', d.range_days ? `last ${d.range_days} days` : null,
       h('div.stats', null,
         stat(humanMinutes(seconds), 'Total practice', `${count(totals.sessions)} sessions`,
              'stat__value--amber'),
@@ -221,61 +234,71 @@ function render(d) {
       h('div.note', { id: 'an-today', style: { marginTop: '12px' } },
         'Nothing logged today yet.'))),
 
-    h('div.col-6', null, mod('Activity', h('span', { id: 'cal-aside' }, ''),
+    h(col(6), null, mod('Activity', h('span', { id: 'cal-aside' }, ''),
       h('div.calx__nav', null,
         h('button.btn', { id: 'cal-prev', onclick: () => stepYear(-1) }, '‹'),
         h('span.calx__year', { id: 'cal-year' }, String(calYear || new Date().getFullYear())),
         h('button.btn', { id: 'cal-next', onclick: () => stepYear(1) }, '›')),
       h('div.calx', { id: 'cal-host' }))),
 
-    h('div.col-12', null, mod('Keys you have played', 'every note, all time',
+    h(col(12), null, mod('Keys you have played', 'every note, all time',
       pianoMap(d.note_heatmap, d.range),
       rangeLine(d.range))),
 
-    h('div.col-6', null, mod('What key you play in', null,
+    h(col(6), null, mod('What key you play in', null,
       keyList(d.keys))),
 
-    h('div.col-6', null, mod('Note circle', 'every note, ignoring octave',
+    h(col(6), null, mod('Note circle', 'every note, ignoring octave',
       wheel(d.pitch_classes))),
 
-    h('div.col-6', null, mod('Chords', 'most played',
+    h(col(6), null, mod('Chords', 'most played',
       chordList(d.top_chords))),
 
-    h('div.col-6', null, mod('Chord qualities', null,
+    h(col(6), null, mod('Chord qualities', null,
       qualities(d.chord_qualities))),
 
-    h('div.col-12', null, mod('Intervals', 'between consecutive notes',
+    h(col(12), null, mod('Intervals', 'between consecutive notes',
       intervals(d.intervals))),
 
-    h('div.col-6', null, mod('When you practise', 'hour of the day',
+    h(col(6), null, mod('When you practise', 'hour of the day',
       hours(d.hours))),
 
-    h('div.col-6', null, mod('Which day', null,
+    h(col(6), null, mod('Which day', null,
       weekdays(d.weekdays))),
 
-    h('div.col-6', null, mod('Velocity', 'mean, with the range you covered',
+    h(col(6), null, mod('Velocity', 'mean, with the range you covered',
       velocity(d.velocity_by_day),
       info(
         'The band is the softest and loudest note of the day. Its widening is what ',
         'dynamics developing actually looks like; a flat line means fixed touch.'))),
 
-    h('div.col-6', null, mod('Notes per minute', 'while actually playing',
+    h(col(6), null, mod('Notes per minute', 'while actually playing',
       speed(d.notes_per_minute),
       info(
         'Idle time is already subtracted, so this is density, not diligence. ',
         'It goes up with faster pieces and down with harder ones.'))),
 
-    h('div.col-4', null, mod('Session length', null,
+    h(col(4), null, mod('Session length', null,
       sessionLengths(d.session_lengths))),
 
-    h('div.col-4', null, mod('Sounds you reach for', null,
+    h(col(4), null, mod('Sounds you reach for', null,
       presets(d.presets))),
 
-    h('div.col-4', null, mod('Sight reading', 'all attempts',
+    h(col(4), null, mod('Sight reading', 'all attempts',
       sightread(d.sightread))),
   );
 
   if (stage && stageTop) stage.scrollTop = stageTop;
+  // On a page: hide what was not picked again, once layout.js has named the new panels.
+  // Its MutationObserver was queued by the replaceChildren above, so this runs after it.
+  if (picked && host) queueMicrotask(() => { if (host) pickPanels(host, picked); });
+}
+
+/* The element that scrolls this view: the stage on the tab; on a page, the pane --
+   or, in a one-column stack, the panes area (the same choice as layout.js build()). */
+function scroller() {
+  const grid = $('#an-grid');
+  return grid?.closest('.page--stack .page__panes') || grid?.closest('.page__pane') || $('#stage');
 }
 
 /* ── small shared bits ────────────────────────────────────────────────────── */

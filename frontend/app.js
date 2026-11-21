@@ -19,6 +19,7 @@ import { createSongs } from './songs.js';
 import { attachLayout, detachLayout, primeLayout } from './layout.js';
 import { MAX_PAGES, fullWidth, pageBuilder, pageShell, pickPanels, savePages,
   validPages } from './pages.js';
+import { icon } from './icons.js';
 import { $, api, h, hms, noteName, paint as paintSlider, toast } from './ui.js';
 import { startTour, tourOpen } from './tour.js';
 import { keyLabel } from './prefs.js';
@@ -528,17 +529,151 @@ const navPages = $('#nav-pages');
 const navNew = $('#nav-new-page');
 
 function paintNav(id = currentId) {
+  closeNavMenu();
   const pageId = /^page\/([a-z0-9-]+)/.exec(id || '')?.[1];
   navPages?.replaceChildren(...pages.map((p, i) => h('a.nav__item.nav__item--page', {
     href: `#page/${p.id}`, 'data-page': p.id, title: p.name,
+    oncontextmenu: (e) => { e.preventDefault(); openNavMenu(p, e.currentTarget, e); },
   },
-    h('span.nav__dot'),
+    icon(p.icon),
     i < 3 && binds[`page:${i + 1}`] ? h('span.nav__key', null, keyLabel(binds[`page:${i + 1}`])) : null,
     h('span.nav__label', null, p.name))));
   for (const a of document.querySelectorAll('.nav__item')) {
     a.classList.toggle('is-active', pageId ? a.dataset.page === pageId : a.dataset.view === id);
   }
   navNew?.toggleAttribute('hidden', pages.length >= MAX_PAGES);
+  paintFold();
+}
+
+/* ── the nav folded to icons (ui.nav_collapsed) ───────────────────────────── */
+/* Folded, an item is only its icon, so each carries its name as a native tooltip --
+   with its key, which the folded item no longer prints. A page's tooltip is its name
+   either way (paintNav). */
+const navFold = $('#nav-fold');
+let navFolded = false;
+
+function paintFold() {
+  document.body.classList.toggle('is-navfold', navFolded);
+  navFold?.setAttribute('aria-pressed', String(navFolded));
+  if (navFold) navFold.title = navFolded ? 'Unfold the menu' : 'Fold the menu to icons';
+  for (const a of document.querySelectorAll('.nav__item[data-view], #nav-new-page')) {
+    const name = a.querySelector('.nav__label')?.textContent || '';
+    const key = a.querySelector('.nav__key')?.textContent;
+    if (navFolded) a.title = key ? `${name} (${key})` : name;
+    else a.removeAttribute('title');
+  }
+}
+
+function setFold(on, { persist = true } = {}) {
+  navFolded = !!on;
+  paintFold();
+  // The panels on screen just got wider or narrower; layout.js repacks on a resize.
+  window.dispatchEvent(new Event('resize'));
+  if (persist) {
+    api.post('/api/settings', { ui: { nav_collapsed: navFolded } })
+      .then((settings) => { if (settings) ctx.state.settings = settings; })
+      .catch((err) => toast(err.message, 'bad'));
+  }
+}
+
+navFold?.addEventListener('click', () => setFold(!navFolded));
+
+/* ── right-click on a page in the nav: Edit, Rename, Delete ──────────────── */
+/* Inline, no browser dialogs: Rename turns the item's label into a field, and Delete
+   asks in the menu itself. Each acts on the list as it is on disk, like the builder. */
+let navMenu = null;
+const MENU_ICONS = { edit: 'sheet', rename: 'note', delete: 'flat' };
+
+function closeNavMenu() {
+  if (!navMenu) return;
+  navMenu.remove();
+  navMenu = null;
+  document.removeEventListener('pointerdown', menuAway, true);
+  document.removeEventListener('keydown', menuKey, true);
+  window.removeEventListener('blur', closeNavMenu);
+}
+
+function menuAway(e) { if (navMenu && !navMenu.contains(e.target)) closeNavMenu(); }
+function menuKey(e) {
+  if (e.key !== 'Escape') return;
+  e.preventDefault();
+  e.stopPropagation();      // Esc is panic; closing a menu is no reason to stop the band
+  closeNavMenu();
+}
+
+function openNavMenu(page, item, e) {
+  closeNavMenu();
+  const entry = (act, label, onclick, extra = '') => h('button.navmenu__item' + extra,
+    { type: 'button', role: 'menuitem', 'data-act': act, onclick }, icon(MENU_ICONS[act]), label);
+  const menu = h('div.navmenu', { id: 'nav-menu', role: 'menu', 'data-page': page.id });
+  const paintMenu = (asking) => {
+    menu.replaceChildren(...(asking
+      ? [h('div.navmenu__ask', null, `Delete "${page.name}"? Its panels stay on their tabs.`),
+         h('div.navmenu__row', null,
+           h('button.btn.btn--sm', { type: 'button', id: 'nav-menu-yes', onclick: () => deletePage(page) }, 'Delete'),
+           h('button.btn.btn--sm', { type: 'button', id: 'nav-menu-no', onclick: () => paintMenu(false) }, 'Keep'))]
+      : [entry('edit', 'Edit page', () => { closeNavMenu(); location.hash = `page/${page.id}/edit`; }),
+         entry('rename', 'Rename', () => { closeNavMenu(); renamePage(page); }),
+         h('div.navmenu__sep'),
+         entry('delete', 'Delete', () => paintMenu(true), '.navmenu__item--bad')]));
+    menu.querySelector('button')?.focus();
+  };
+  navMenu = menu;
+  document.body.append(menu);
+  paintMenu(false);
+  // At the pointer (or beside the item, from the keyboard's menu key), inside the window.
+  const r = menu.getBoundingClientRect();
+  const at = item.getBoundingClientRect();
+  const x = Math.min(e.clientX || at.right, innerWidth - r.width - 6);
+  const y = Math.min(e.clientY || at.top, innerHeight - r.height - 6);
+  menu.style.left = `${Math.max(6, x)}px`;
+  menu.style.top = `${Math.max(6, y)}px`;
+  document.addEventListener('pointerdown', menuAway, true);
+  document.addEventListener('keydown', menuKey, true);
+  window.addEventListener('blur', closeNavMenu);
+}
+
+function renamePage(page) {
+  // Folded, there is no label to edit in place: unfold for the rename.
+  if (navFolded) setFold(false);
+  const item = navPages?.querySelector(`.nav__item[data-page="${page.id}"]`);
+  const label = item?.querySelector('.nav__label');
+  if (!label) return;
+  let done = false;
+  const input = h('input.nav__rename', {
+    id: 'nav-rename', type: 'text', maxlength: '40', value: page.name, 'aria-label': 'Page name',
+  });
+  const finish = async (keep) => {
+    if (done) return;
+    done = true;
+    const name = input.value.trim().slice(0, 40);
+    if (!keep || !name || name === page.name) { paintNav(); return; }
+    const now = await pagesOnDisk();
+    if (now && await storePages(now.map((p) => (p.id === page.id ? { ...p, name } : p)))) {
+      // The page's own header carries the name too; renamed in place, so a band
+      // playing on the page plays on.
+      const head = stage.querySelector(`.page[data-page="${page.id}"] .page__name`);
+      if (head) head.textContent = name;
+    } else paintNav();
+  };
+  input.addEventListener('keydown', (e) => {
+    e.stopPropagation();       // a name being typed must not fire the hotkeys
+    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+    if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+  });
+  input.addEventListener('blur', () => finish(true));
+  // A click in the field is a click on the link around it, which would navigate.
+  input.addEventListener('click', (e) => e.preventDefault());
+  label.replaceWith(input);
+  input.focus();
+  input.select();
+}
+
+async function deletePage(page) {
+  closeNavMenu();
+  const now = await pagesOnDisk();
+  if (!now || !await storePages(now.filter((p) => p.id !== page.id))) return;
+  if (currentId === `page/${page.id}` || currentId === `page/${page.id}/edit`) location.hash = 'play';
 }
 
 function openBuilder(page) {
@@ -1736,6 +1871,7 @@ window.addEventListener('beforeunload', () => { if (ws) { ws.onclose = null; ws.
   // something you did last week is an app that has taken a decision off you.
   primeLayout(ctx.state);
   pages = validPages(ctx.state?.settings?.ui?.pages);
+  navFolded = !!ctx.state?.settings?.ui?.nav_collapsed;
   paintNav('');
   for (const problem of ctx.state.errors || []) toast(problem, 'bad', 12000);
   await route();
