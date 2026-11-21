@@ -124,6 +124,12 @@ const CSS = `
 .keys-kb.kb--flow .key--black.is-scale{fill:color-mix(in oklab,var(--key-tone,#58c4d4) 30%,var(--key-black,#16171b))}
 .keys-kb.kb--flow .key--white.is-tone{fill:color-mix(in oklab,var(--key-tone,#58c4d4) 78%,var(--key-white,#f2f2ef))}
 .keys-kb.kb--flow .key--black.is-tone{fill:var(--key-tone,#58c4d4)}
+/* Jam's scale pin: every key of the pinned scale, across the keyboard, for the whole key.
+   An outline and never a fill, so it cannot contradict the chord's fill -- outline is "in
+   your scale", fill "good on this chord". Before suggest2 and sig so their strokes win;
+   kb--nopin (Guide Dark) stops drawing it and keeps the class for the held rule below. */
+.keys-kb.kb--flow .key.is-pin{stroke:var(--key-pin,var(--key-tone,#58c4d4));stroke-width:2}
+.keys-kb.kb--flow.kb--nopin .key.is-pin:not(.is-suggest2):not(.is-sig){stroke:var(--key-edge,#00000059);stroke-width:.7}
 @keyframes kb-suggest{0%,100%{fill:var(--key-suggest,#ffa62b)}50%{fill:color-mix(in oklab,var(--key-suggest,#ffa62b) 45%,var(--key-white,#f2f2ef))}}
 .keys-kb.kb--flow .key.is-suggest{fill:var(--key-suggest,#ffa62b);animation:kb-suggest 1.1s ease-in-out infinite}
 .keys-kb.kb--flow .key.is-suggest2{stroke:var(--key-suggest,#ffa62b);stroke-width:2.6}
@@ -135,6 +141,8 @@ const CSS = `
 .keys-kb.kb--flow .key.is-held{animation:none}
 .keys-kb.kb--flow .key.is-held.is-scale{fill:var(--key-held,#3f9dff)}
 .keys-kb.kb--flow .key.is-held:not(.is-scale){fill:var(--key-spicy,#ff5f4d)}
+/* A held key of the pinned scale is in your scale, even a rub left unfilled: not spicy. */
+.keys-kb.kb--flow .key.is-held.is-pin{fill:var(--key-held,#3f9dff)}
 /* A chord tone outside the key — minor V's raised third, G sharp in A minor — is still
    the chord, so this comes after the spicy rule. */
 .keys-kb.kb--flow .key.is-held.is-tone{fill:var(--key-good,#74cf86)}

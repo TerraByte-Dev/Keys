@@ -985,6 +985,22 @@ def source_checks() -> None:
        and 'bass=bool(body.get("bass", True)), comp=bool(body.get("comp", True))' in server
        and 'bass=None if body.get("bass") is None else bool(body["bass"])' in server
        and 'comp=None if body.get("comp") is None else bool(body["comp"])' in server)
+    # The pieces the driver above checks in harmony.js are the ones jam.js really uses.
+    ok("compose() asks wanderDue() at each phrase start, with the level and the Wander switch",
+       "wanderDue(opt.level, opt.wander, phrasesInKey)" in body("compose"))
+    ok("Pop and Minor charts pass the level, and Solo the pin's safe chords; Blues passes the level",
+       "level: opt.level,\n      allowed: m === 'songs' ? safeChords(plan) : null" in body("freshGen")
+       and "createBlues({ tonic: pcOf(plan.key), minor: mode === 'minor', level: opt.level })" in body("freshGen"))
+    ok("a pinned note is never judged out", "now.scale.includes(pc) ? 'rub' : pinned ? 'color' : 'out'" in body("frame"))
+    kb = (FRONTEND / "keyboard.js").read_text(encoding="utf-8")
+    spicy = kb.find(".key.is-held:not(.is-scale){fill:var(--key-spicy")
+    safe = kb.find(".key.is-held.is-pin{fill:var(--key-held")
+    ok("a held pinned key is not painted spicy: its rule follows the spicy one",
+       0 < spicy < safe and "kb.setMarks('pin'" in body("paintKeys"), f"spicy at {spicy}, pin at {safe}")
+    ok("the band hears the parts' switches and sounds: start sends them, the toggles AND with the seat",
+       "comp_program: opt.compSound, bass_program: opt.bassSound" in body("start")
+       and "bass: opt.bass && seat() !== 'bass', comp: opt.comp && seat() !== 'chords'" in src
+       and "**_programs(body))}" in server)
     ok("panic stops the band", "self.band.stop()" in server)
     ok("shutdown stops the band", "self.band.shutdown()" in server)
 
