@@ -335,12 +335,13 @@ on opening a song — so someone who only plays along never downloads it.
 in the frame it happened cost the song about 100 ms every time. `engrave.js` keeps the last
 few pages by score id and page, and `prerenderPage()` engraves the page after the playhead's
 in `requestIdleCallback`: at once while paused, and while playing once the playhead is in the
-last two bars of its page. It only ever renders the score already in the toolkit, so it can
+last two bars of its page. Never during a scrub drag, which would engrave every page the drag
+crosses; the page the drag lets go on gets its next one then. It only ever renders the score already in the toolkit, so it can
 never be what downloads the engraver, and it touches no clock. The pages are emptied on every
 parse, because Verovio mints element ids per load and the measure map is matched on them.
 The SVG scales to its box, so a resize or fullscreen changes nothing that is kept. While
-playing, the idle render is still one main-thread render; it lands mid-page, where the
-reader is not looking for the next system, instead of at the turn.
+playing, the idle render is still one main-thread render: it moves from the turn itself to
+a gap in the page's last two bars, just before it.
 
 ### The note roll has two directions, and they are modes rather than a mixture
 

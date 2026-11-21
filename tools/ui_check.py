@@ -672,9 +672,9 @@ TR_BARS = 160
 TR_STEPS = "CDEFGAB"
 
 
-def transport_fixture() -> str:
+def transport_fixture(count: int = TR_BARS) -> str:
     bars = []
-    for i in range(TR_BARS):
+    for i in range(count):
         attrs = ("<attributes><divisions>1</divisions><key><fifths>0</fifths></key>"
                  "<time><beats>4</beats><beat-type>4</beat-type></time>"
                  "<clef><sign>G</sign><line>2</line></clef></attributes>"
@@ -689,11 +689,11 @@ def transport_fixture() -> str:
 
 # Import it the way the drawer does (raw bytes, name in a header), then open it on the
 # roll through the same startGhost the song rows call.
-TR_OPEN = """async (xml) => {
+TR_OPEN = """async ([xml, sheet]) => {
   const r = await fetch('/api/scores', { method: 'POST', headers: { 'x-filename': 'transport-check.musicxml' }, body: xml });
   const meta = (await r.json()).score;
   const payload = await (await fetch(`/api/scores/${meta.id}/notes`)).json();
-  (await import('/app.js')).startGhost(payload, meta);
+  (await import('/app.js')).startGhost(payload, meta, { sheet });
   return meta.measures;
 }"""
 
@@ -712,18 +712,23 @@ TR_READ = """() => ({
 })"""
 
 
-# Every engrave Verovio does from here, timed, and every time the page's SVG is swapped.
-# The spy sits on the toolkit itself, under engrave.js. A turn that engraves does it in
-# the same task as the swap, just before it; one served from a page engraved ahead has
-# no engrave anywhere near it.
+# Every engrave Verovio does from here, timed, with the page it drew and the bar the
+# readout showed then, and every time the page's SVG is swapped. The spy sits on the
+# toolkit itself, under engrave.js. A turn that engraves does it in the same task as the
+# swap, just before it; one served from a page engraved ahead has no engrave near it.
 TURN_SPY = """async () => {
   const tk = await (await import('/engrave.js')).verovio();
   if (!window.__unspy) {
     const real = tk.renderToSVG;
-    tk.renderToSVG = function (...a) { window.__engraves.push(performance.now()); return real.apply(this, a); };
+    tk.renderToSVG = function (...a) {
+      window.__engraves.push(performance.now());
+      window.__drawn.push([a[0], document.querySelector('#ghost-bar')?.textContent || '']);
+      return real.apply(this, a);
+    };
     window.__unspy = () => { delete tk.renderToSVG; window.__unspy = null; };
   }
   window.__engraves = [];
+  window.__drawn = [];
   window.__swaps = [];
   window.__swapObs?.disconnect();
   window.__swapObs = new MutationObserver(() => window.__swaps.push(performance.now()));
@@ -735,7 +740,8 @@ TURN_READ = """() => {
   window.__swapObs.disconnect();
   window.__unspy?.();
   const turn = window.__swaps[window.__swaps.length - 1];
-  return { turn: turn ?? null, engraves: window.__engraves.length,
+  return { turn: turn ?? null, engraves: window.__engraves.length, drawn: window.__drawn,
+           before: window.__engraves.filter((t) => t < turn).length,
            late: window.__engraves.filter((t) => turn - t >= 0 && turn - t < 200).length };
 }"""
 
@@ -779,7 +785,7 @@ def transport_checks(browser, port: int, errs: list[str]) -> list[str]:
     page.goto(f"http://127.0.0.1:{port}/#play", wait_until="networkidle")
     page.wait_for_timeout(1500)
     page.evaluate(SPY)
-    bars = page.evaluate(TR_OPEN, transport_fixture())
+    bars = page.evaluate(TR_OPEN, [transport_fixture(), False])
     page.wait_for_timeout(600)
     stir()
     r = read()
@@ -1074,26 +1080,87 @@ def transport_checks(browser, port: int, errs: list[str]) -> list[str]:
           spy["turn"] is not None and spy["late"] == 0,
           f"{spy['late']} engrave(s) in the 200 ms before the turn, {spy['engraves']} in all")
 
-    # A drag from the last bar to the first crosses every page. Engraving each one on the
-    # way is a main-thread render per page; it should be one, for where the drag ends.
-    page.evaluate("""() => { window.__renders = 0;
-      new MutationObserver((m) => { window.__renders += m.length; })
-        .observe(document.querySelector('#roll-paper'), { childList: true }); }""")
+    # -- the page after the playhead's, engraved ahead ------------------------------------
+    # A longer copy of the fixture, freshly imported: a new score, so engrave.js holds none
+    # of its pages. Opened paused on page 1, which engraves page 2 ahead at once.
+    big = TR_BARS * 2
+    page.evaluate(TR_OPEN, [transport_fixture(big), True])
+    try:
+        page.wait_for_function("document.querySelector('#roll-page-n').textContent.startsWith('1/')"
+                               " && document.querySelectorAll('#roll-paper g.measure[data-bar]').length > 0",
+                               timeout=60000)
+    except Exception:  # noqa: BLE001 -- reported below
+        pass
+    page.wait_for_timeout(1000)                # page 2's idle engrave
+
+    def last_on() -> int:                      # the last bar printed on the page shown
+        return page.evaluate("Math.max(...[...document.querySelectorAll('#roll-paper g.measure[data-bar]')]"
+                             ".map((g) => +g.dataset.bar))")
+
+    r = read()
+    pages = int(r["pageN"].split("/")[1]) if "/" in r["pageN"] else 0
+    end1 = last_on()
+    check(f"a {big}-bar copy engraves to at least four pages", pages >= 4, r["pageN"])
+    page.evaluate(TURN_SPY)
+
+    # A scrub drag from page 1 into page 2, held there. Each step is a seek; none may
+    # engrave or swap a page while the button is down -- page 3 included, the page after
+    # the one under the pointer.
     sb = page.evaluate("""() => { const r = document.querySelector('#ghost-scrub').getBoundingClientRect();
       return { x: r.left, y: r.top, w: r.width, h: r.height }; }""")
     sy = sb["y"] + sb["h"] / 2
-    page.mouse.move(sb["x"] + sb["w"] - 2, sy)
+
+    def at(n: int) -> float:                   # x of the middle of written bar n of the copy
+        return sb["x"] + ((n - 1) * 4 + 2) / (big * 4) * sb["w"]
+
+    goal = end1 + 10                           # index end1 + 9: page 2, ten bars in
+    page.mouse.move(at(2), sy)
     page.mouse.down()
-    page.mouse.move(sb["x"] + 2, sy, steps=16)
+    page.mouse.move(at(goal), sy, steps=16)
     page.wait_for_timeout(1500)
-    during = page.evaluate("window.__renders")
+    during = page.evaluate("[window.__engraves.length, window.__swaps.length]")
     page.mouse.up()
-    page.wait_for_function(f"document.querySelector('#roll-page-n').textContent === '1/{pages}'", timeout=8000)
+    page.wait_for_function(f"document.querySelector('#roll-page-n').textContent === '2/{pages}'", timeout=8000)
     page.wait_for_timeout(800)
     r = read()
-    check("a scrub drag across the pages engraves once, when it lets go",
-          during == 0 and r["pageN"] == f"1/{pages}" and r["now"] == [0],
-          f"{during} renders mid-drag, then page {r['pageN']}, current {r['now']}")
+    check("a scrub drag across a page engraves and turns nothing until it lets go, then turns once",
+          during == [0, 0] and r["pageN"] == f"2/{pages}" and r["now"] == [goal - 1],
+          f"{during[0]} engrave(s) and {during[1]} swap(s) mid-drag, then page {r['pageN']}, current {r['now']}")
+
+    # Playing, the next page is engraved only once the playhead is in the last two bars of
+    # its own. Paused on page 2 just now, page 3 was engraved ahead; page 4 was not. Play,
+    # and while playing go to page 3 (served ready), then to five bars before its end.
+    # Page 4 must wait for the last two bars of page 3 and still be ready for the turn.
+    page.click("#ghost-wait")                  # wait off: the clock runs without a piano
+    page.evaluate("""() => { const s = document.querySelector('#ghost-bpm'); s.value = '240';
+      s.dispatchEvent(new Event('input', { bubbles: true })); }""")
+    end2 = last_on()
+
+    def goto(n: int) -> None:
+        page.click("#ghost-bar")
+        page.keyboard.type(str(n))
+        page.keyboard.press("Enter")
+
+    press("Space", 300)
+    page.evaluate(TURN_SPY)
+    goto(end2 + 2)                             # index end2 + 1: page 3's first bar
+    page.wait_for_function(f"document.querySelector('#roll-page-n').textContent === '3/{pages}'", timeout=8000)
+    end3 = last_on()
+    goto(end3 - 4)                             # index end3 - 5: five bars from the end of the page
+    page.wait_for_function(f"document.querySelector('#roll-page-n').textContent === '4/{pages}'", timeout=12000)
+    page.wait_for_timeout(300)
+    r = read()
+    press("Space", 200)
+    page.click("#ghost-wait")                  # and back on, as the settings had it
+    spy = page.evaluate(TURN_READ)
+    # The readout counts written bars, index + 1. Page 3's last two bars are indices
+    # end3 - 1 and end3: written end3 and end3 + 1.
+    ahead = [int(b.split()[1]) for p, b in spy["drawn"] if p == 4 and b.startswith("bar ")]
+    check("playing, the next page is engraved in the last two bars of the page, not before",
+          bool(ahead) and min(ahead) >= end3 and r["pageN"] == f"4/{pages}",
+          f"page 4 engraved at bar(s) {ahead}, page 3 ends at bar {end3 + 1}, now {r['pageN']}")
+    check("...so the turn to it engraves nothing", spy["turn"] is not None and spy["late"] == 0
+          and spy["before"] >= 1, f"{spy['late']} engrave(s) in the 200 ms before the turn, {spy['before']} before it")
 
     # The tour over a play-along: Space on its buttons still presses them.
     page.evaluate("""async () => { const a = await import('/app.js');

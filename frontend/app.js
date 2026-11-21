@@ -975,7 +975,8 @@ function decorateSheet(paper) {
 
    A turn the engraver has not got ahead of is a synchronous engrave of a whole page.
    During a scrub drag it waits for the pointer to come up rather than engraving every
-   page the drag crosses. The page after the playhead's is engraved ahead, in idle time:
+   page the drag crosses -- and so does the look-ahead below; endScrub's repaint queues
+   the one after the landing page. The page after the playhead's is engraved ahead, in idle time:
    while paused at once, since nothing is lost then, and while playing once the playhead
    is in the last two bars of its page. */
 function paintSheet() {
@@ -1006,7 +1007,7 @@ function paintSheet() {
   }
   sheetFollow = false;
   const on = sheetPageOf[cur];
-  if (on && on < sheetPages && (!g.playing || cur >= sheetPageEnd[on] - 1)) {
+  if (!scrubDrag && on && on < sheetPages && (!g.playing || cur >= sheetPageEnd[on] - 1)) {
     engraver?.prerenderPage(sheetScoreId, on + 1);
   }
 }
