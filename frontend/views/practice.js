@@ -52,14 +52,14 @@ export default {
       // A panel like the others (drag it, size it): the shelf, or the open run in its
       // place. data-slot keeps its name 'exercises' whatever the run's title says, for
       // the saved layout and for a custom page.
-      h('div.col-6', { id: 'ex-host', 'data-slot': 'exercises' },
+      h('div.col-12', { id: 'ex-host', 'data-slot': 'exercises' },
         mod('Exercises', null, h('div.empty', null, 'loading exercises...'))),
-      h('div.col-3', null, mod('Now', null,
+      h('div.col-6', null, mod('Now', null,
         h('div.stats', { id: 'practice-hud' },
           h('div.empty', null, 'waiting for the first note')),
         h('div.btnrow', { style: { marginTop: '14px' } },
           h('button.btn', { onclick: () => endSession() }, 'End session')))),
-      h('div.col-3', null, mod('Timing', 'from your last ~96 notes',
+      h('div.col-6', null, mod('Timing', 'from your last ~96 notes',
         h('div.stats', { id: 'practice-timing' },
           h('div.empty', null, 'play something')),
         info(
