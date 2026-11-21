@@ -712,6 +712,34 @@ TR_READ = """() => ({
 })"""
 
 
+# Every engrave Verovio does from here, timed, and every time the page's SVG is swapped.
+# The spy sits on the toolkit itself, under engrave.js. A turn that engraves does it in
+# the same task as the swap, just before it; one served from a page engraved ahead has
+# no engrave anywhere near it.
+TURN_SPY = """async () => {
+  const tk = await (await import('/engrave.js')).verovio();
+  if (!window.__unspy) {
+    const real = tk.renderToSVG;
+    tk.renderToSVG = function (...a) { window.__engraves.push(performance.now()); return real.apply(this, a); };
+    window.__unspy = () => { delete tk.renderToSVG; window.__unspy = null; };
+  }
+  window.__engraves = [];
+  window.__swaps = [];
+  window.__swapObs?.disconnect();
+  window.__swapObs = new MutationObserver(() => window.__swaps.push(performance.now()));
+  window.__swapObs.observe(document.querySelector('#roll-paper'), { childList: true });
+}"""
+
+# The last swap, and how many engraves came in the 200 ms before it. Ends the spy.
+TURN_READ = """() => {
+  window.__swapObs.disconnect();
+  window.__unspy?.();
+  const turn = window.__swaps[window.__swaps.length - 1];
+  return { turn: turn ?? null, engraves: window.__engraves.length,
+           late: window.__engraves.filter((t) => turn - t >= 0 && turn - t < 200).length };
+}"""
+
+
 def transport_checks(browser, port: int, errs: list[str]) -> list[str]:
     """The roll's transport, driven like a person: keys, buttons, the scrub, the page."""
     fails: list[str] = []
@@ -967,6 +995,7 @@ def transport_checks(browser, port: int, errs: list[str]) -> list[str]:
     except Exception:  # noqa: BLE001 -- reported below
         pass
     page.wait_for_timeout(300)
+    page.evaluate(TURN_SPY)
     r = read()
     pages = int(r["pageN"].split("/")[1]) if "/" in r["pageN"] else 0
     check("Sheet engraves the song with its measures matched to bars, over more than one page",
@@ -991,6 +1020,11 @@ def transport_checks(browser, port: int, errs: list[str]) -> list[str]:
     r = read()
     check("going to the last bar turns to the last page and marks it", r["pageN"] == f"{pages}/{pages}"
           and r["now"] == [TR_BARS - 1], f"page {r['pageN']}, current {r['now']}")
+    # A page never shown before, so had the turn found it ready, it was engraved ahead.
+    spy = page.evaluate(TURN_READ)
+    check("...a page it had never shown, engraved ahead while paused: the turn engraves nothing",
+          spy["turn"] is not None and spy["late"] == 0,
+          f"{spy['late']} engrave(s) in the 200 ms before the turn, {spy['engraves']} in all")
     page.click("#roll-page-prev")
     page.wait_for_timeout(1600)                # past a heartbeat
     check("...a page turned back by hand stays turned while paused",
@@ -1019,6 +1053,7 @@ def transport_checks(browser, port: int, errs: list[str]) -> list[str]:
     # page itself; the bar after it is, by construction, on the next one.
     page.click("#ghost-loop-clear")
     last = page.evaluate("Math.max(...[...document.querySelectorAll('#roll-paper g.measure[data-bar]')].map((g) => +g.dataset.bar))")
+    page.evaluate(TURN_SPY)
     page.click("#ghost-wait")                  # wait off: the clock runs without a piano
     page.evaluate("""() => { const s = document.querySelector('#ghost-bpm'); s.value = '240';
       s.dispatchEvent(new Event('input', { bubbles: true })); }""")
@@ -1034,6 +1069,10 @@ def transport_checks(browser, port: int, errs: list[str]) -> list[str]:
     check("playing over the page break turns the page", before == f"{pages - 1}/{pages}"
           and r["pageN"] == f"{pages}/{pages}" and r["now"] and r["now"][0] > last,
           f"{before} -> {r['pageN']}, current {r['now']} past {last}")
+    spy = page.evaluate(TURN_READ)
+    check("...from a page engraved ahead: the turn itself engraves nothing",
+          spy["turn"] is not None and spy["late"] == 0,
+          f"{spy['late']} engrave(s) in the 200 ms before the turn, {spy['engraves']} in all")
 
     # A drag from the last bar to the first crosses every page. Engraving each one on the
     # way is a main-thread render per page; it should be one, for where the drag ends.
