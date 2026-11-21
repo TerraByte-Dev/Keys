@@ -206,6 +206,19 @@ silently hands the newcomer the incumbent's saved slot and width. The metronome'
 too, and the collision would have applied a `col-3` width to a `col-6` panel, differently at different window
 widths.
 
+**A panel's width is a preference; what it renders at is measured.** The arrows step a panel through spans
+4, 6, 8 and 12 of the 12-column grid (a third, a half, two thirds, all of it) and that choice is what is
+saved. What it renders at is the larger of that and its **minimum span**: `layout.js` `fit()` measures each
+panel's content at min-content with the panel set to each span's pixel width in turn (so its
+`@container panel` queries answer for that width) and takes the smallest that holds it. A quarter (3) used
+to be on offer and was dropped: at a 1280px window it was 256px, under the minimum of 26 of 42 panels.
+The measurement is against the grid's own width, so a custom page's pane is just a narrower grid: there a
+panel rises to what it needs, up to the whole pane, in its narrow layout, and the page builder warns when a
+picked panel's minimum (`pages.js` `PANELS[].min`, held against the DOM by `ui_check`) is wider than a pane
+at the current window. Two render-only adjustments keep the masonry tidy: a panel with empty columns beside
+it for its whole height is widened over them, and a panel with nothing under it until something further
+down has its card drawn down to meet it, so every vertical gap is the 14px column gap.
+
 ### The roll is full screen or it is not open
 
 There used to be a 150px strip as well, and it was the worst of both ends: at 100 px/s
