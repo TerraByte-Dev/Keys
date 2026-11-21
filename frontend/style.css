@@ -1043,11 +1043,20 @@ body::after {
 /* A row of fields a view laid out itself (Pedal's four, Audio output's three): one row,
    each field an equal share, at every width a panel reaches. Beats the inline grid. */
 :where(.grid--packed > [data-panel] > .mod) > div:has(> .field + .field) {
-  display: flex !important; gap: var(--gap) !important; align-items: flex-end;
+  display: flex !important; flex-wrap: wrap; gap: var(--gap) !important; align-items: flex-start;
 }
 :where(.grid--packed > [data-panel] > .mod) > div:has(> .field + .field) > * {
-  flex: 1 1 0; min-width: 0; margin-bottom: 0;
+  flex: 1 1 calc(var(--ctl-h) * 3); min-width: 0; margin-bottom: 0;
 }
+/* A select is as wide as its longest choice or its text is cut: it takes that much. A
+   dial needs less than a slider. */
+:where(.grid--packed > [data-panel] > .mod) > div:has(> .field + .field) > .field:has(> select) { flex-basis: auto; }
+:where(.grid--packed > [data-panel] > .mod) > div:has(> .field + .field) > .field:has(.knob) { flex-basis: calc(var(--ctl-h) * 2.2); }
+@container panel (max-width: 560px) {
+  :where(.grid--packed > [data-panel] > .mod) > div:has(> .field + .field) > * { flex-basis: calc(var(--ctl-h) * 2.8); }
+}
+/* Its value goes under its name when the two do not fit side by side. */
+.grid--packed .field__label { flex-wrap: wrap; column-gap: 6px; row-gap: 0; }
 .grid--packed .field__label > span:first-child { min-width: 0; overflow-wrap: anywhere; }
 /* Stat cards: four to a row still in a third of a window; the note under each one
    stays on one line. */
@@ -1069,6 +1078,9 @@ body::after {
 .grid--packed .th__roots { flex: 1 1 auto; }
 .grid--packed .th__root { flex: 1 1 0; min-width: 20px; padding: 4px 0; }
 .grid--packed .th__shape { min-width: 0; flex: 1 1 120px; min-height: var(--ctl-h); }
+/* Play's instrument and profile shelves scroll inside themselves: about seven rows, so
+   the two columns of Play end level and Loop station starts with no hole above it. */
+.grid--packed > [data-panel="instruments"] .scroller { max-height: calc(var(--ctl-h) * 6.7); }
 /* The loop station's transport: a well of its own, so its padding is the tier's. */
 .grid--packed .loop__transport { padding: calc(var(--gap) * .8); gap: var(--gap); margin-bottom: calc(var(--gap) * .8); }
 .grid--packed .loop__state { min-width: 0; }
@@ -1077,12 +1089,13 @@ body::after {
 /* The zone editor and the split builder: fields two or more to a row, never one. */
 .grid--packed .zone { padding: calc(var(--gap) * .8); margin-bottom: calc(var(--gap) * .8); }
 .grid--packed .zone__head { margin-bottom: calc(var(--gap) * .8); }
-.grid--packed .zone__grid { grid-template-columns: repeat(auto-fit, minmax(calc(var(--ctl-h) * 2.9), 1fr)); gap: var(--gap); }
+.grid--packed .zone__grid { grid-template-columns: repeat(auto-fit, minmax(calc(var(--ctl-h) * 3.4), 1fr)); gap: var(--gap); }
 .grid--packed .build .field { gap: 3px; }
 /* Cards in a row (Build one's three, the exercise shelf): narrower cards before fewer. */
-.grid--packed .builds { grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--ctl-h) * 5.1)), 1fr)); }
+.grid--packed .builds { grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--ctl-h) * 6)), 1fr)); }
 /* An exercise card is a name and Open: one line, not a box with a button under it. */
-#ex-host .build { flex-direction: row; align-items: center; justify-content: space-between; }
+#ex-host .build { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+#ex-host .build__title { flex: 1 1 auto; }
 #ex-host .build > .btn:last-child { width: auto; margin: 0; flex: none; }
 #ex-host .build__title { min-width: 0; }
 @container panel (max-width: 380px) {
@@ -1091,7 +1104,6 @@ body::after {
 @container panel (max-width: 380px) {
   .th__chord .th__csym { font-size: 11px; }
   .th__chord .th__croman { font-size: 12px; }
-  .zone__grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
 }
 
 /* A panel: a dark card on a lighter stage, its name in plain white at the top. */
@@ -1122,10 +1134,10 @@ body::after {
    hover that shows the arrows also gives them their width. */
 .mod__grip {
   display: flex; gap: 3px; opacity: 0; transition: opacity .14s var(--ease);
-  max-width: 0; margin-left: -10px; overflow: hidden;
+  max-width: 0; margin-left: -10px; overflow: hidden; visibility: hidden;
 }
 .mod:hover .mod__grip, .mod__head:focus-within .mod__grip {
-  opacity: 1; max-width: none; margin-left: 0; overflow: visible;
+  opacity: 1; max-width: none; margin-left: 0; overflow: visible; visibility: visible;
 }
 .mod__btn:disabled { opacity: .35; cursor: default; }
 .mod__btn:disabled:hover { color: var(--ink-dim); border-color: var(--hairline); }
@@ -1525,7 +1537,7 @@ select option { background: var(--panel-2); color: var(--ink); }
 /* ── metronome ──────────────────────────────────────────────────────────── */
 .beats { display: flex; gap: 8px; align-items: center; }
 .beat {
-  width: 16px; height: 16px; border-radius: 50%;
+  width: calc(var(--ctl-h) * .5); height: calc(var(--ctl-h) * .5); border-radius: 50%;
   background: var(--panel-0); border: 1px solid var(--hairline);
   transition: background .05s linear, box-shadow .35s var(--ease), border-color .05s linear;
 }
@@ -1533,7 +1545,7 @@ select option { background: var(--panel-2); color: var(--ink); }
 .beat.is-down.is-on { background: var(--amber-hot); box-shadow: 0 0 20px var(--amber-hot); }
 
 .bpm {
-  font-family: var(--font-mono); font-size: 62px; font-weight: 600;
+  font-family: var(--font-mono); font-size: calc(var(--ctl-h) * 1.5); font-weight: 600;   /* 45 at full: a readout, not a poster */
   color: var(--ink); line-height: 1; font-variant-numeric: tabular-nums;
   letter-spacing: -.02em;
 }

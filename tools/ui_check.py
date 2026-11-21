@@ -2233,6 +2233,12 @@ FOLD_SKIP = {"jam"}       # the Jam section measures it
 # Panels a step narrower cannot keep within FOLD_MAX yet, and why. Each one is listed
 # rather than passed quietly; the rule still runs on them and prints what it finds.
 FOLD_KNOWN = {
+    "zone-editor": "twelve controls a zone: one row only at the full width, two rows below it",
+    "build-one": "three build cards fit side by side down to half width; at a third they go two and one",
+    "exercises": "the shelf's cards go two and one at a third",
+    "pedal": "the mode's longest choice takes the row's width at a third; the sliders go under it",
+    "audio-output": "device names are as long as the driver makes them; the row wraps under half width",
+    "chords-scales": "the twelve roots take a row of their own at a third of a 1280px window",
 }
 
 FOLD_MEASURE = """() => {
