@@ -60,9 +60,9 @@
 import { api, fill, focusBtn, h, info, mod, slider, toast, toggle } from './ui.js';
 import { ghostArmed, onPanic } from './app.js';
 import {
-  ROOMS, bluesChord, bluesNote, bluesScale, createAsks, createBlues, createLoop, createProgression, createVamp,
-  crossing, echoScore, guideLevel, keysIn, lick, loopRole, loopRoman, loopScale, palette, pinSafe, question,
-  roomScale, roomSig, seatTarget, seatZone, wanderDue,
+  ROOMS, SCALE_KEYS, bluesChord, bluesNote, bluesScale, createAsks, createBlues, createLoop, createProgression,
+  createVamp, crossing, echoScore, fitOf, guideLevel, keyMoves, keysIn, lick, loopRole, loopRoman, loopScale, palette,
+  pinSafe, question, roomScale, roomSig, seatTarget, seatZone, spellRoot, spellUp, wanderDue,
 } from './harmony.js';
 
 /* The keys on offer, easiest first. The hint is what a beginner actually wants to
@@ -193,9 +193,11 @@ export function createJam(ctx, { onStart } = {}) {
   let clock = null;            // { pos, at, barMs }: bar `pos` was heard at performance.now() `at`
   let shownBar = -1, shownCross = '';
   let raf = 0;
-  let phrasesInKey = 0;
+  // Phrases finished in this key, for a key change (harmony.js wanderDue). -1 until the
+  // stream's first phrase starts (newGen).
+  let phrasesInKey = -1;
   // Times through a progression since the lights came back (harmony.js guideLevel).
-  // -1 until the first one starts. Not phrasesInKey: that only counts with Wander on.
+  // -1 until the first one starts. Not phrasesInKey: that only counts Pop and Minor's Solo.
   let times = -1;
   // Where Fading started counting from: picking Fading mid-song starts it at full.
   let fadeFrom = 0;
@@ -473,18 +475,13 @@ export function createJam(ctx, { onStart } = {}) {
     return req;
   }
 
-  /* Neighbouring keys differ by one note -- or by none, for the relative major/minor. */
-  function neighbours(id) {
-    const k = KEYS.find((x) => x.id === id);
-    const t = pcOf(k.key);
-    const major = k.mode === 'major';
-    const want = [
-      { pc: major ? (t + 9) % 12 : (t + 3) % 12, mode: major ? 'natural_minor' : 'major', w: 3 },
-      { pc: (t + 7) % 12, mode: k.mode, w: 1 },
-      { pc: (t + 5) % 12, mode: k.mode, w: 1 },
-    ];
-    return want.map((x) => ({ ...x, k: KEYS.find((c) => pcOf(c.key) === x.pc && c.mode === x.mode) }))
-      .filter((x) => x.k);
+  /* Neighbouring keys differ by one note -- or by none, for the relative major/minor.
+     Which ones, and how likely, by level: harmony.js keyMoves. */
+  function neighbours(id, level = 0) {
+    const k = keyOf(id);
+    const find = (pc, major) => KEYS.find((c) => pcOf(c.key) === pc && isMajor(c) === major);
+    return keyMoves(pcOf(k.key), isMajor(k), level, (pc, major) => !!find(pc, major))
+      .map((x) => ({ ...x, k: find(x.pc, x.major) }));
   }
 
   const modeOf = (p) => (p.mode === 'major' ? 'major' : 'minor');
@@ -560,42 +557,63 @@ export function createJam(ctx, { onStart } = {}) {
   /* Until you write one, the key's I-V-vi-IV (i-VI-III-VII in minor), so it follows the key. */
   const defaultMine = (p) => (modeOf(p) === 'major' ? [0, 4, 5, 3] : [0, 5, 2, 6])
     .map((d) => ({ root: p.chords[d].root, quality: p.chords[d].quality }));
-  const mineList = () => (opt.mine.length >= MINE_MIN ? opt.mine : plan ? defaultMine(plan) : [])
-    .map((c) => ({ ...c }));
+  /* A root named the way the key spells it (harmony.js spellRoot): F♯7 in E major and G♯°
+     in A minor, never G♭7 or A♭°. */
+  const rootIn = (p, pc, quality) => spellRoot(pc, quality, p.pcs, p.chords.map((c) => c.root));
+  /* Your chords in a key, each root named for it: a chord keeps its pitch, not its name. */
+  const mineFor = (p) => (opt.mine.length >= MINE_MIN ? opt.mine : defaultMine(p))
+    .map((c) => ({ root: rootIn(p, pcOf(c.root), c.quality), quality: c.quality }));
+  const mineList = () => (plan ? mineFor(plan) : opt.mine.map((c) => ({ ...c })));
   const mineSig = (p, list) => JSON.stringify([p.id, opt.pin, list]);
 
   /* Your chords, spelled by the server, each with the scale it is judged against
-     (harmony.js loopScale): the pin if one is on, the key if the chord is in it, else its
-     own scale by quality, fetched like every other scale. */
+     (harmony.js loopScale): the pin if one is on, the key if the chord is in it (in a
+     minor key, its harmonic minor for V and the leading-tone chord), else its own scale
+     by quality, fetched like every other scale. A scale that cannot be had leaves the
+     chord judged against the key: one odd chord never stops the band. */
   async function loadMine(p) {
-    const list = opt.mine.length >= MINE_MIN ? opt.mine.map((c) => ({ ...c })) : defaultMine(p);
+    const list = mineFor(p);
     const sig = mineSig(p, list);
     if (mine?.sig === sig) return mine;
     const pin = pinOf(p);
-    const tonic = pcOf(p.key);
+    const scaleOf = (key, mode) => getJson(`/api/theory/scale?key=${encodeURIComponent(key)}&mode=${mode}`)
+      .catch(() => null);
     const chords = await Promise.all(list.map(async (c) => {
       const ch = await getJson(`/api/theory/chord?root=${encodeURIComponent(c.root)}&quality=${encodeURIComponent(c.quality)}`);
-      const which = loopScale(ch.pcs, c.quality, p.pcs, !!pin);
+      const own = loopScale(ch.pcs, c.quality, p.pcs);
       let scale = p.pcs, title = p.title, names = keyNames(p);
-      if (which === 'pin') ({ pcs: scale, title, names } = pin);
-      else if (which !== 'key') {
-        const sc = await getJson(`/api/theory/scale?key=${encodeURIComponent(ch.root)}&mode=${which}`);
-        ({ pcs: scale, title, names } = sc);
+      if (pin) ({ pcs: scale, title, names } = pin);
+      else if (own === 'harmonic') {
+        const sc = await scaleOf(p.key, 'harmonic_minor');
+        if (sc) {
+          ({ pcs: scale, names } = sc);
+          title = pretty(sc.title);
+        }
+      } else if (own !== 'key') {
+        // Asked for by a name the server knows, then spelled from the chord's own letter.
+        const sc = await scaleOf(SCALE_KEYS[ch.pcs[0]], own);
+        if (sc) {
+          scale = sc.pcs;
+          names = spellUp(ch.root, sc.pcs);
+          title = pretty(ch.root + sc.title.slice(sc.root.length));
+        }
       }
       const root = ch.pcs[0];
-      return { roman: loopRoman(root, c.quality, p.pcs), pcs: ch.pcs, root, role: loopRole(root, c.quality, tonic),
+      return { roman: loopRoman(root, c.quality, p.pcs), pcs: ch.pcs, root, role: loopRole(ch.pcs, c.quality, p.pcs),
         symbol: pretty(ch.title), names: ch.names, scale, scaleTitle: title, scaleNames: names,
-        out: !ch.pcs.every((pc) => p.pcs.includes(pc)) };
+        out: own !== 'key' && own !== 'harmonic' };
     }));
     const out = { sig, chords };
     // A newer edit may have landed while this one was loading: keep the newest.
-    const now = opt.mine.length >= MINE_MIN ? opt.mine : defaultMine(p);
-    if (mineSig(p, now) === sig) mine = out;
+    if (mineSig(p, mineFor(p)) === sig) mine = out;
     return out;
   }
 
   /* Everything the music needs before a chord can be charted: the key, its pin, your
-     chords. Shared by Start, a new key and every restart; only the newest call wins. */
+     chords -- and for Pop and Minor the neighbouring keys with the same pin, because a
+     key change (level 4, Wander) is written into the chart the moment it is decided and
+     can only go to a key already here. Shared by Start, a new key, a new pin and every
+     restart; only the newest call wins. */
   let readyTok = 0;
   async function ready() {
     const tok = ++readyTok;
@@ -603,6 +621,7 @@ export function createJam(ctx, { onStart } = {}) {
       const p = await loadPlan(opt.key);
       if (opt.pin !== 'off') await loadPin(p, opt.pin);
       if (opt.music === 'mine') await loadMine(p);
+      if (play() === 'songs') await prefetchNeighbours();
       if (destroyed || tok !== readyTok) return false;
       plan = p;
       return true;
@@ -635,12 +654,7 @@ export function createJam(ctx, { onStart } = {}) {
   // A name for a note outside the key: the blues' flat 7ths and blue notes are flats.
   const nameIn = (p, pc) => p.chords.flatMap((c) => c.names).find((n) => pcOf(n) === pc) || FLATS[pc];
   /* A stacked chord's notes spelled up from its root a letter-third at a time. */
-  const LETTERS = 'CDEFGAB';
-  const stack = (root, pcs) => pcs.map((pc, i) => {
-    const letter = LETTERS[(LETTERS.indexOf(root[0]) + 2 * i) % 7];
-    const d = ((pc - PC[letter] + 18) % 12) - 6;
-    return letter + (d > 0 ? '#'.repeat(d) : 'b'.repeat(-d));
-  });
+  const stack = (root, pcs) => spellUp(root, pcs, 2);
 
   /* Modal: every room is on the white keys, so the names are the letters. */
   function modalEntry(c) {
@@ -718,19 +732,23 @@ export function createJam(ctx, { onStart } = {}) {
   const ahead_ = () => (play() === 'echo' ? 4 : AHEAD);
 
   /* The next `n` bars of music, continuing the progression. A wander is decided at a
-     phrase boundary, so the new key starts on a phrase's first chord. */
+     phrase boundary, so the new key starts on a phrase's first chord -- marked, so Stop
+     can tell a key that was written ahead from one that was heard. */
   function compose(n) {
     const out = [];
     while (out.length < n) {
       const upcoming = prog.peek();
+      let moved = false;
       if (play() === 'songs' && upcoming.step === 0 && upcoming.pass === 1) {
+        // The phrases finished in this key: the stream's first phrase starting makes it 0.
         phrasesInKey++;
-        if (wanderDue(opt.level, opt.wander, phrasesInKey)) wander();
+        if (wanderDue(opt.level, opt.wander, phrasesInKey)) moved = wander();
       }
       const c = prog.next();
       // A vamp is two chords: Modal counts a time through every fourth time round it.
       if (c.step === 0 && (c.cycle ?? 0) % 4 === 0) times++;
       const e = entryFor(c);
+      if (moved) e.wandered = true;
       // Stamped now, so a bar re-laid by rechart() keeps the level it was charted with.
       e.times = Math.max(0, times);
       e.level = guideLevel(e.times - fadeFrom, opt.guide);
@@ -761,11 +779,11 @@ export function createJam(ctx, { onStart } = {}) {
 
   /* A new key at a phrase boundary: Wander's, or level 4's every second phrase. Only to a
      key already loaded (with its pin), because the chart is being written now. Pop and
-     Minor follow it to the relative key's side. */
+     Minor follow it to the relative key's side. True if it moved. */
   function wander() {
-    const choices = neighbours(opt.key).filter((x) => plans.has(x.k.id)
+    const choices = neighbours(opt.key, opt.level).filter((x) => plans.has(x.k.id)
       && (opt.pin === 'off' || pins.has(`${x.k.id}:${opt.pin}`)));
-    if (!choices.length) return;
+    if (!choices.length) return false;
     const total = choices.reduce((a, x) => a + x.w, 0);
     let r = Math.random() * total;
     const pick = choices.find((x) => (r -= x.w) < 0) || choices[0];
@@ -773,10 +791,10 @@ export function createJam(ctx, { onStart } = {}) {
     plan = plans.get(pick.k.id);
     opt.key = pick.k.id;
     if (opt.music === 'pop' || opt.music === 'minor') opt.music = isMajor(plan) ? 'pop' : 'minor';
-    phrasesInKey = 0;
     times = -1;
     fadeFrom = 0;
     newGen();
+    phrasesInKey = 0;            // the new key's first phrase is starting now
     const added = plan.pcs.filter((pc) => !before.has(pc));
     const names = plan.chords.flatMap((c) => c.names);
     const what = added.length
@@ -784,12 +802,14 @@ export function createJam(ctx, { onStart } = {}) {
       : 'same notes, new home';
     toast(`Coming up: ${plan.title} — ${what}`, 'good');
     prefetchNeighbours();
+    return true;
   }
 
+  /* A neighbour that will not load is one fewer place to go, never an error. */
   function prefetchNeighbours() {
-    for (const x of neighbours(opt.key)) {
-      loadPlan(x.k.id).then((p) => (opt.pin !== 'off' ? loadPin(p, opt.pin) : null)).catch(() => {});
-    }
+    const pin = opt.pin;
+    return Promise.all(neighbours(opt.key).map((x) => loadPlan(x.k.id)
+      .then((p) => (pin !== 'off' ? loadPin(p, pin) : null)).catch(() => {})));
   }
 
   async function setKey(id) {
@@ -797,11 +817,9 @@ export function createJam(ctx, { onStart } = {}) {
     keySelect.value = id;
     save();
     if (!(await ready()) || destroyed || opt.key !== id) return;
-    phrasesInKey = 0;
     times = -1;
     fadeFrom = 0;
     newGen();
-    prefetchNeighbours();
     paintMine();
     if (playing) rechart(true);
     else if (starting) stale = true;
@@ -858,7 +876,26 @@ export function createJam(ctx, { onStart } = {}) {
     playing = false;
     if (!quietly) api.post('/api/band/stop').catch(() => {});
     release();
+    settle();
     idle();
+  }
+
+  /* Stopped. A key change is written into the chart bars before it is heard, so the key
+     the composer is in may be one nobody heard: go back to the key before the first such
+     change still ahead -- the one you heard, or one you picked that had not come round
+     yet -- and save it, so the controls, the settings and the next Start agree. The next
+     Start opens a fresh progression in it, on I. */
+  function settle() {
+    const at = Math.max(0, shownBar);
+    const j = chart.findIndex((e, i) => i > at && e.wandered);
+    const p = j > 0 ? chart[j - 1].plan : null;
+    if (p && p.id !== opt.key) {
+      plan = p;
+      opt.key = p.id;
+      if (opt.music === 'pop' || opt.music === 'minor') opt.music = isMajor(p) ? 'pop' : 'minor';
+      save();
+    }
+    newGen();
   }
 
   function configure(patch) {
@@ -945,18 +982,21 @@ export function createJam(ctx, { onStart } = {}) {
     if (playing) configure(parts());
   }
 
-  /* A level is a preset you pick: a new stream at it, from the next free bar. */
+  /* A level is a preset you pick: a new stream at it, from the next free bar. Answer asks
+     the same questions at every level, so there it changes nothing and drops nothing. */
   function setLevel(n) {
     opt.level = n;
     save();
     applyMode();
-    restart();
+    if (play() !== 'answer') restart();
   }
 
-  /* Off / Key / Pentatonic / Blues. A Pentatonic or Blues pin changes which chords may be
-     played, so the stream starts again under it; Off and Key only change the drawing. */
+  /* Off / Key / Pentatonic / Blues. A Pentatonic or Blues pin changes which chords Solo
+     plays, and any pin the scale your chords are judged by: those start the stream again.
+     Everything else -- Off and Key, and any pin in Answer, Echo and Blues -- only changes
+     the drawing, and keeps the exchange in progress and the count. */
   function setPin(id) {
-    const filtered = (x) => x === 'penta' || x === 'blues' || opt.music === 'mine';
+    const filtered = (x) => opt.music === 'mine' || (play() === 'songs' && (x === 'penta' || x === 'blues'));
     const was = opt.pin;
     opt.pin = id;
     save();
@@ -988,7 +1028,6 @@ export function createJam(ctx, { onStart } = {}) {
     fadeFrom = 0;
     resetCount();
     if (!(await ready())) return;
-    phrasesInKey = 0;
     newGen();
     paintMine();
     if (!prog) return;
@@ -1003,6 +1042,7 @@ export function createJam(ctx, { onStart } = {}) {
   function newGen() {
     prog = freshGen();
     progFor = genKey();
+    phrasesInKey = -1;           // no phrase of it started yet
   }
 
   function resetCount() {
@@ -1211,10 +1251,9 @@ export function createJam(ctx, { onStart } = {}) {
       // The ringed note is the mode's colour, even where palette() calls it a rub:
       // Phrygian's F over E minor is the whole point of Phrygian.
       const sig = !!now.sig?.includes(pc) && !now.pal.chord.includes(pc);
-      // A note of the pinned scale is never "outside": the Blues pin's blue note is colour.
-      const pinned = !!pinOf(now.plan)?.pcs.includes(pc);
-      const fit = now.pal.chord.includes(pc) ? 'chord' : now.pal.color.includes(pc) || sig ? 'color'
-        : now.scale.includes(pc) ? 'rub' : pinned ? 'color' : 'out';
+      // A note of the pinned scale is never "outside" (harmony.js fitOf).
+      const pin = pinOf(now.plan);
+      const fit = fitOf(pc, { pal: now.pal, scale: now.scale, sig: now.sig || [], pin: pin?.pcs, blue: pin?.blue });
       tally[fit]++;
       if (sig) tally.sig++;
       if (cross && !cross.hit && pc === cross.land % 12) { cross.hit = true; tally.landed++; }
@@ -1662,7 +1701,8 @@ export function createJam(ctx, { onStart } = {}) {
       h('span.jam__muted', null, `${list.length} chords, ${opt.bars} bar${opt.bars === 1 ? '' : 's'} each`));
     if (editing < 0) { fill(mineEl.picker); return; }
     const c = list[editing];
-    const roots = vocab?.roots || FLATS;
+    // Index is pitch class; each named the way this key spells it, for this kind of chord.
+    const roots = (vocab?.roots || FLATS).map((r, pc) => (plan ? rootIn(plan, pc, c.quality) : r));
     const quals = QUALS.filter((q) => !vocab || vocab.qualities.some((v) => v.id === q.id));
     const chip = (on, onclick, ...kids) => h('button.jam__pick' + (on ? '.is-on' : ''), { onclick }, ...kids);
     fill(mineEl.picker,
@@ -1719,7 +1759,6 @@ export function createJam(ctx, { onStart } = {}) {
   ready().then((ok) => {
     if (!ok || destroyed || starting || playing) return;
     newGen();
-    prefetchNeighbours();
     paintMine();
     idle();
   });

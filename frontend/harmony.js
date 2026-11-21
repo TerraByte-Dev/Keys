@@ -273,14 +273,47 @@ export function pinSafe(scale, mode, pin, blue = null) {
 }
 
 /**
- * Whether to change key at this phrase boundary. `count` is the phrases started in this
- * key, this one included. Level 4 always moves on the second; levels 2 and 3 move only
- * with Wander on, after three, on a coin; level 1 never does.
+ * Whether to change key at this phrase boundary. `count` is the phrases finished in this
+ * key. Level 4 always moves after the second; levels 2 and 3 move only with Wander on,
+ * after three, on a coin; level 1 never does.
  */
 export function wanderDue(level, on, count, rng = Math.random) {
   if (level >= 4) return count >= 2;
   if (level <= 1 || !on) return false;
   return count >= 3 && rng() < 0.5;
+}
+
+/**
+ * Where a key change can go: the relative key (the same notes, the other home) or a key a
+ * fifth up or down (one note changed). `has(pc, major)` says whether a key is on offer.
+ * Wander favours the relative 3 to 1, the gentlest move. Level 4 is for changing scales
+ * in real time, and the relative changes none of the notes -- nor, under a pin, any of
+ * the outline -- so it goes a fifth, and to the relative only from a key with neither
+ * fifth on offer. Returns [{ pc, major, w }].
+ */
+export function keyMoves(tonic, major, level, has) {
+  const all = [
+    { pc: (tonic + (major ? 9 : 3)) % 12, major: !major, w: 3, fifth: false },
+    { pc: (tonic + 7) % 12, major, w: 1, fifth: true },
+    { pc: (tonic + 5) % 12, major, w: 1, fifth: true },
+  ].filter((x) => has(x.pc, x.major));
+  return level >= 4 && all.some((x) => x.fifth) ? all.filter((x) => x.fifth) : all;
+}
+
+/**
+ * How a note you played fit the chord sounding: 'chord'; 'color' (the palette's, or the
+ * ringed note of a mode or the blues); 'rub' (in the chord's scale, a half step over one
+ * of its notes); or 'out'. A note of a pinned scale is never out: the Blues pin's blue
+ * note is colour, the way Blues mode treats it, and any other pinned note the chord's
+ * own scale leaves out is a rub -- G natural over minor's V (E G♯ B), E over the blues'
+ * IV7 (F A C E♭). `pin` is the pinned pitch classes, `blue` its blue note.
+ */
+export function fitOf(pc, { pal, scale, sig = [], pin = null, blue = null }) {
+  if (pal.chord.includes(pc)) return 'chord';
+  if (pal.color.includes(pc) || sig.includes(pc)) return 'color';
+  if (scale.includes(pc)) return 'rub';
+  if (pin?.includes(pc)) return pc === blue ? 'color' : 'rub';
+  return 'out';
 }
 
 /* ── what sounds good, and how to cross a change ─────────────────────────── */
@@ -478,39 +511,94 @@ export function createVamp(room) {
 export const OWN_MODE = { '': 'major', maj7: 'major', m: 'dorian', m7: 'dorian', 7: 'mixolydian',
   sus4: 'mixolydian', dim: 'locrian' };
 
-/* What a chord does in the key: the key's own root is home, a chord whose root pulls to
-   it (V, vii, or any dominant 7th) pulls, and the rest travel. */
-export function loopRole(root, quality, tonic) {
-  const at = (root - tonic + 12) % 12;
-  if (at === 0) return 'home';
-  if (at === 7 || at === 11 || quality === '7') return 'pull';
+/* The name a scale is asked of the server by. It knows the keys by their usual names, up
+   to seven flats or sharps -- F sharp and C sharp, but no G sharp, D sharp, A sharp or E
+   sharp anything -- and every pitch class has one of these. The notes are then spelled
+   from the chord's own letter (spellUp): over D♯m, D♯ dorian, not E♭'s names. */
+export const SCALE_KEYS = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+
+const LETTERS = 'CDEFGAB';
+const LETTER_PC = [0, 2, 4, 5, 7, 9, 11];
+
+/* Pitch classes named up from `root` a letter at a time (`by` 1: a scale) or a third at a
+   time (`by` 2: a stacked chord), each letter given whatever accidental reaches its pitch. */
+export function spellUp(root, pcs, by = 1) {
+  const from = LETTERS.indexOf(root[0]);
+  return pcs.map((pc, i) => {
+    const at = (from + by * i) % 7;
+    const d = ((pc - LETTER_PC[at] + 18) % 12) - 6;
+    return LETTERS[at] + (d > 0 ? '#'.repeat(d) : 'b'.repeat(-d));
+  });
+}
+
+/* A key's seven pitch classes are a minor key when its 3rd is a minor 3rd over home. */
+const minorKey = (scale) => (scale[2] - scale[0] + 12) % 12 === 3;
+
+/* A root outside the key is either a degree raised (a sharp: ♯iv°) or the degree above
+   lowered (a flat: ♭VII). Raised: a diminished chord, which leads up a half step into the
+   degree above (C♯° to Dm, G♯° to Am); the tritone over home (♯iv); and in a minor key
+   everything but the ♭II, because its outside notes are the major key's 3rd and the
+   melodic minor's raised 6th and 7th. Lowered: the rest of a major key's, the borrowed
+   ♭II ♭III ♭VI ♭VII. `at` is the root in semitones over home. */
+const raised = (at, quality, minor) => quality === 'dim' || at === 6 || (minor && at !== 1);
+
+/* A chord root's name in a key. One of the key's notes keeps the key's own name (F♯ in E
+   major); one outside it is the raised degree below or the lowered degree above, the way
+   loopRoman numbers it -- unless that comes out as a white key with an accidental (E♯,
+   F♭) where the other name is plain. `names` are the key's seven notes in order, as the
+   server spells them. Never more than one accidental, so the server can spell the chord. */
+export function spellRoot(pc, quality, scale, names) {
+  const i = scale.indexOf(pc);
+  if (i >= 0) return names[i];
+  const below = names[scale.indexOf((pc + 11) % 12)];
+  const above = names[scale.indexOf((pc + 1) % 12)];
+  const sharp = below.endsWith('b') ? below.slice(0, -1) : below + '#';
+  const flat = above.endsWith('#') ? above.slice(0, -1) : above + 'b';
+  const [want, other] = raised((pc - scale[0] + 12) % 12, quality, minorKey(scale)) ? [sharp, flat] : [flat, sharp];
+  return want.length > 1 && other.length === 1 ? other : want;
+}
+
+/* What a chord does in the key, in the words the progressions use (ROLE): home on the
+   key's root, and on a major key's own iii and vi, which share two notes with I; pull on
+   the 5th (V, V7, minor's v), on the leading-tone diminished chord, and on a minor key's
+   own VII; away for the rest -- IV7 and the secondary dominants among them, which pull
+   somewhere other than home. `scale` is the key's seven pitch classes. */
+export function loopRole(pcs, quality, scale) {
+  const at = (pcs[0] - scale[0] + 12) % 12;
+  const own = pcs.every((pc) => scale.includes(pc));
+  const minor = minorKey(scale);
+  if (at === 0 || (!minor && own && (at === 4 || at === 9))) return 'home';
+  if (at === 7 || (at === 11 && quality === 'dim') || (minor && own && at === 10)) return 'pull';
   return 'away';
 }
 
 /* What a chord of your loop is judged against: the pin when one is on (so the outline
    you were promised is what counts), the key when the chord is inside it, else its own
-   scale by quality. Returns 'pin', 'key' or an OWN_MODE id. */
+   scale by quality. In a minor key a chord on the raised 7th -- V, V7, the leading-tone
+   diminished chord -- is the key's own harmonic minor, the way Minor music judges its V:
+   Mixolydian would light the major key's 3rd and 6th over it. Returns 'pin', 'key',
+   'harmonic' or an OWN_MODE id. */
 export function loopScale(pcs, quality, key, pinned = false) {
   if (pinned) return 'pin';
   if (pcs.every((pc) => key.includes(pc))) return 'key';
+  const lead = (key[0] + 11) % 12;
+  if (minorKey(key) && pcs.includes(lead) && pcs.every((pc) => pc === lead || key.includes(pc))) return 'harmonic';
   return OWN_MODE[quality] || 'major';
 }
 
 /* The roman numeral of a chord against the key's seven pitch classes: by scale degree,
-   lower case when minor or diminished, flat or sharp of a degree when outside the key. */
+   lower case when minor or diminished, and outside the key a raised degree or a lowered
+   one, as spellRoot names it: ♯iv°, ♭VII, ♯vii° in a minor key. */
 const NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
 export function loopRoman(root, quality, scale) {
   let d = scale.indexOf(root), acc = '';
-  // Outside the key: a flat of the degree above (♭III, ♭VII), except the tritone over
-  // home, which is written as the raised 4th.
-  const tritone = (root - scale[0] + 12) % 12 === 6;
   if (d < 0) {
-    d = tritone ? -1 : scale.indexOf((root + 1) % 12);
-    acc = '♭';
-    if (d < 0) { d = scale.indexOf((root + 11) % 12); acc = '♯'; }
+    const up = raised((root - scale[0] + 12) % 12, quality, minorKey(scale));
+    d = scale.indexOf((root + (up ? 11 : 1)) % 12);
+    acc = up ? '♯' : '♭';
   }
   const low = /^m(?!aj)|^dim/.test(quality);
-  const n = NUMERALS[Math.max(0, d)];
+  const n = NUMERALS[d];
   const tail = { dim: '°', m: '', '': '' }[quality] ?? quality.replace(/^m(?!aj)/, '');
   return acc + (low ? n.toLowerCase() : n) + tail;
 }
