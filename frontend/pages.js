@@ -73,21 +73,24 @@ export const PANELS = [
 const panelsOf = (view) => PANELS.filter((p) => p.view === view).map((p) => p.slug);
 
 /* What "Start from" fills the builder with. Solo practice is two across, not three: a
-   third of a 1280 window gave Jam a 344px pane, and Jam in it ran 1711px tall. */
+   third of a 1280 window gave Jam a 344px pane, and Jam in it ran 1711px tall. Jam has
+   its column to itself; the two panels you solo with stack in the other. Everything
+   puts Stats under Practice and Tools, which is the shorter column of the two. */
+const all = (view, col) => ({ view, col, panels: panelsOf(view) });
 export const STARTERS = {
   solo: {
     label: 'Solo practice',
     cols: 2,
     panes: [
-      { view: 'practice', panels: ['jam'] },
-      { view: 'play', panels: ['scale-highlighter', 'tempo'] },
-      { view: 'tools', panels: ['chords-scales'] },
+      { view: 'practice', col: 0, panels: ['jam'] },
+      { view: 'play', col: 1, panels: ['scale-highlighter', 'tempo'] },
+      { view: 'tools', col: 1, panels: ['chords-scales'] },
     ],
   },
   everything: {
     label: 'Everything',
     cols: 2,
-    panes: PAGE_VIEWS.map((view) => ({ view, panels: panelsOf(view) })),
+    panes: [all('play', 0), all('layers', 0), all('practice', 1), all('tools', 1), all('stats', 1)],
   },
   blank: { label: 'Blank', cols: 2, panes: [] },
 };
@@ -111,17 +114,23 @@ export function validPages(raw) {
         .filter((s) => known.includes(s));
       if (!panels.length) continue;
       seen.add(view);
-      panes.push({ view, panels });
+      panes.push({ view, panels, col: pane.col });
     }
     if (!panes.length) continue;
     ids.add(id);
     const name = typeof p.name === 'string' ? p.name.trim().slice(0, 40) : '';
+    const cols = [1, 2, 3].includes(p.cols) ? p.cols : 2;
+    // A page from before columns (0.14, 0.15) was a grid filled row by row, so pane i
+    // stood in column i % cols: that is the column it keeps, in the order it had.
+    panes.forEach((pane, i) => {
+      if (!(Number.isInteger(pane.col) && pane.col >= 0 && pane.col < cols)) pane.col = i % cols;
+    });
     out.push({
       id,
       name: name || `Page ${out.length + 1}`,
       // A page from before icons, or one naming an icon this build does not draw.
       icon: ICON_NAMES.includes(p.icon) ? p.icon : DEFAULT_ICON,
-      cols: [1, 2, 3].includes(p.cols) ? p.cols : 2,
+      cols,
       panes,
     });
   }
@@ -133,25 +142,26 @@ export async function savePages(list) {
 }
 
 /* ── the page itself ──────────────────────────────────────────────────────── */
-/* A header strip and the panes. Columns as asked, as many rows as the panes need --
-   which makes four panes at two columns the 2x2. Each pane scrolls on its own.
+/* A header strip and the columns. A column is a stack: its panes top to bottom, each
+   as tall as what it holds, and the column the one thing that scrolls -- each column
+   on its own, so a long Play beside a short Jam never drags Jam out of view. There are
+   no rows across columns. A grid of rows (0.14, 0.15) made four panes at two columns a
+   2x2 whose second row started wherever the taller pane above it ended: quarters.
 
-   One row fills the stage. More than one cannot all fit: shared out of a 720px window
-   they were 120-190px slivers, each with its own scrollbar. So every row gets at least
-   ROW_MIN and the page scrolls past that. One column is not a grid at all but a stack:
-   each pane as tall as what it holds, and the page the only scroller. */
-const ROW_MIN = 420;
+   A column nothing was put in is left out rather than drawn empty, so three columns
+   chosen for two panes is two columns as wide as the stage allows. */
+export function columnsOf(page) {
+  const used = [...new Set(page.panes.map((p) => p.col))].sort((a, b) => a - b);
+  return used.map((c) => page.panes.filter((p) => p.col === c));
+}
 
 export function pageShell(page, { onEdit }) {
-  const n = page.panes.length;
-  const cols = Math.max(1, Math.min(page.cols, n));
-  const rows = Math.ceil(n / cols);
-  const stack = cols === 1 && n > 1;
-  const panes = page.panes.map((p) => ({
+  const columns = columnsOf(page).map((list) => list.map((p) => ({
     ...p,
     el: h('div.page__pane', { 'data-view': p.view }),
-  }));
-  const el = h('div.page' + (stack ? '.page--stack' : ''), { 'data-page': page.id },
+  })));
+  const panes = columns.flat();
+  const el = h('div.page', { 'data-page': page.id },
     h('div.page__head', null,
       icon(page.icon, 'page__icon'),
       h('span.page__name', null, page.name),
@@ -159,13 +169,8 @@ export function pageShell(page, { onEdit }) {
       h('span.list__spacer'),
       h('button.btn.page__edit', { onclick: onEdit, title: 'Change what is on this page' },
         'Edit')),
-    h('div.page__panes', {
-      style: {
-        gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-        gridTemplateRows: stack ? 'none'
-          : rows === 1 ? 'minmax(0, 1fr)' : `repeat(${rows}, minmax(${ROW_MIN}px, 1fr))`,
-      },
-    }, panes.map((p) => p.el)));
+    h('div.page__panes', { style: { gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` } },
+      columns.map((list, i) => h('div.page__col', { 'data-col': String(i) }, list.map((p) => p.el)))));
   return { el, panes };
 }
 
@@ -173,8 +178,8 @@ const COL = /^col-\d+$/;
 
 /* How wide a pane's panel grid comes out with this many columns in a stage this wide:
    the page's side padding (style.css .stage:has(> .page), 14px each side), the 10px
-   between panes, then the pane's own 4px scrollbar gutter -- which with the 10px is
-   the 14px between one pane's panels and the next's. */
+   between columns, then the column's own 4px scrollbar gutter -- which with the 10px
+   is the 14px between one column's panels and the next's. */
 export function paneWidth(stageWidth, cols) {
   return (stageWidth - 28 - (cols - 1) * 10) / cols - 4;
 }
@@ -215,15 +220,17 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
     name: page?.name || '',
     icon: page?.icon || DEFAULT_ICON,
     cols: page?.cols || 2,
-    order: [],                        // views, in pane order
+    columns: [],                      // views, per column, top to bottom
     picked: Object.fromEntries(PAGE_VIEWS.map((v) => [v, new Set()])),
   };
   const load = (src) => {
     draft.cols = src.cols;
-    draft.order = src.panes.map((p) => p.view);
+    draft.columns = Array.from({ length: src.cols }, (_, c) =>
+      src.panes.filter((p) => p.col === c).map((p) => p.view));
     for (const v of PAGE_VIEWS) draft.picked[v] = new Set();
     for (const p of src.panes) draft.picked[p.view] = new Set(p.panels);
   };
+  const inPage = () => draft.columns.flat();
   load(page || STARTERS.solo);
 
   const nameIn = h('input.page__namein', {
@@ -267,24 +274,51 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
             h('span.toggle__track'), p.title)))));
     colsSeg.replaceChildren(...[1, 2, 3].map((n) =>
       h('button.seg__btn' + (n === draft.cols ? '.is-on' : ''), {
-        onclick: () => { if (n !== draft.cols) draft.start = null; draft.cols = n; paint(); },
+        onclick: () => { if (n !== draft.cols) { draft.start = null; setCols(n); } paint(); },
       }, String(n))));
-    // Across, as the page lays them out; arrows that point the way a pane moves.
-    const across = Math.max(1, Math.min(draft.cols, draft.order.length));
-    orderList.style.setProperty('--cols', String(across));
-    const [back, fwd] = across > 1 ? ['←', '→'] : ['↑', '↓'];
-    orderList.replaceChildren(...(draft.order.length
-      ? draft.order.map((view, i) => h('div.pb__row', { 'data-view': view },
-        h('span.pb__pos', null, String(i + 1)),
-        h('span.pb__rname', null, VIEW_TITLES[view]),
-        h('span.pb__rsub', null, `${draft.picked[view].size} panel${draft.picked[view].size > 1 ? 's' : ''}`),
-        h('span.list__spacer'),
-        h('button.btn.btn--sm', { title: 'earlier', disabled: i === 0, onclick: () => move(i, -1) }, back),
-        h('button.btn.btn--sm', {
-          title: 'later', disabled: i === draft.order.length - 1, onclick: () => move(i, 1),
-        }, fwd)))
-      : [h('div.empty', null, 'Tick a panel above and its tab becomes a pane here.')]));
+    paintColumns();
     paintWarn();
+  }
+
+  /* The page in miniature: its columns side by side, each pane a card in its column,
+     with arrows that move it the way they point. A column with nothing in it is shown
+     (it is somewhere a pane can go), but the page leaves it out. */
+  function paintColumns() {
+    orderList.style.setProperty('--cols', String(draft.cols));
+    if (!inPage().length) {
+      orderList.replaceChildren(h('div.empty.pb__none', null, 'Tick a panel above and its tab becomes a pane here.'));
+      return;
+    }
+    const last = draft.cols - 1;
+    const arrow = (dir, title, off, fn) => h('button.btn.btn--sm.pb__mv', {
+      type: 'button', 'data-move': dir, title, 'aria-label': title, disabled: off, onclick: fn,
+    }, { left: '←', right: '→', up: '↑', down: '↓' }[dir]);
+    // Filtered: the DOM's own replaceChildren prints a null child as the text "null".
+    orderList.replaceChildren(...draft.columns.map((list, c) => h('div.pb__col', { 'data-col': String(c) },
+      ...[draft.cols > 1 ? h('div.pb__chead', null, `Column ${c + 1}`) : null,
+        ...(list.length ? list.map((view, i) => {
+          const names = PANELS.filter((p) => p.view === view && draft.picked[view].has(p.slug)).map((p) => p.title);
+          return h('div.pb__row', { 'data-view': view },
+            h('div.pb__rtext', null,
+              h('span.pb__rname', null, VIEW_TITLES[view]),
+              h('span.pb__rsub', { title: names.join(', ') }, names.join(' · '))),
+            h('div.pb__arrows', null, ...[
+              draft.cols > 1 ? arrow('left', 'Move to the column on the left', c === 0, () => shift(c, i, -1)) : null,
+              arrow('up', 'Move up', i === 0, () => move(c, i, -1)),
+              arrow('down', 'Move down', i === list.length - 1, () => move(c, i, 1)),
+              draft.cols > 1 ? arrow('right', 'Move to the column on the right', c === last, () => shift(c, i, 1)) : null,
+            ].filter(Boolean)));
+        }) : [h('div.pb__hole', null, 'Empty: left off the page')])].filter(Boolean))));
+  }
+
+  /* A new column count keeps the panes in reading order -- down the first column, then
+     the next -- and shares them out in runs as even as they go: Play + Layers |
+     Practice + Tools + Stats is Play + Layers | Practice + Tools | Stats at three. */
+  function setCols(n) {
+    const flat = inPage();
+    const per = Math.max(1, Math.ceil(flat.length / n));
+    draft.cols = n;
+    draft.columns = Array.from({ length: n }, (_, c) => flat.slice(c * per, (c + 1) * per));
   }
 
   /* A panel narrower than its own minimum cannot be laid out, only clipped (a pane does
@@ -294,7 +328,7 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
      the builder does not have. */
   function paintWarn() {
     const stage = document.getElementById('stage');
-    const cols = Math.max(1, Math.min(draft.cols, draft.order.length));
+    const cols = Math.max(1, draft.columns.filter((l) => l.length).length);
     const room = stage ? paneWidth(stage.getBoundingClientRect().width, cols) : Infinity;
     const tight = PANELS.filter((p) => p.min && draft.picked[p.view].has(p.slug) && p.min > room);
     warn.hidden = !tight.length;
@@ -302,31 +336,48 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
     const names = tight.map((p) => p.title);
     const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0];
     warn.textContent = `${list} ${names.length > 1 ? 'need' : 'needs'} a wider column than `
-      + `${cols} across gives at this window size (${Math.floor(room)}px). Fewer columns, or a wider window.`;
+      + `${cols} across ${cols > 1 ? 'give' : 'gives'} at this window size (${Math.floor(room)}px). `
+      + 'Fewer columns, or a wider window.';
   }
 
   function tick(view, slug, on) {
     const set = draft.picked[view];
     if (on) set.add(slug); else set.delete(slug);
-    if (set.size && !draft.order.includes(view)) draft.order.push(view);
-    if (!set.size) draft.order = draft.order.filter((v) => v !== view);
+    // A new pane goes to the foot of the column with the fewest in it.
+    if (set.size && !inPage().includes(view)) {
+      const lens = draft.columns.map((l) => l.length);
+      draft.columns[lens.indexOf(Math.min(...lens))].push(view);
+    }
+    if (!set.size) draft.columns = draft.columns.map((l) => l.filter((v) => v !== view));
     draft.start = null;               // your own now, not the starter's
     note.hidden = true;
     paint();
   }
 
-  function move(i, by) {
+  // Up or down inside its column.
+  function move(c, i, by) {
+    const list = draft.columns[c];
     const j = i + by;
-    if (j < 0 || j >= draft.order.length) return;
-    [draft.order[i], draft.order[j]] = [draft.order[j], draft.order[i]];
+    if (j < 0 || j >= list.length) return;
+    [list[i], list[j]] = [list[j], list[i]];
+    draft.start = null;
+    paint();
+  }
+
+  // Into the next column over, at the same height in it where it can be.
+  function shift(c, i, by) {
+    const to = draft.columns[c + by];
+    if (!to) return;
+    const [view] = draft.columns[c].splice(i, 1);
+    to.splice(Math.min(i, to.length), 0, view);
     draft.start = null;
     paint();
   }
 
   function save() {
-    const panes = draft.order.map((view) => ({
-      view, panels: panelsOf(view).filter((s) => draft.picked[view].has(s)),
-    }));
+    const panes = draft.columns.flatMap((list, col) => list.map((view) => ({
+      view, col, panels: panelsOf(view).filter((s) => draft.picked[view].has(s)),
+    })));
     if (!panes.length) {
       note.hidden = false;
       note.textContent = 'Pick at least one panel for the page to show.';
@@ -371,7 +422,7 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
         icons,
         h('div.pb__lbl', null, 'Panels'),
         checks,
-        h('div.pb__lbl', null, 'Panes, in order'),
+        h('div.pb__lbl', null, 'Where each pane goes'),
         warn,
         orderList,
         note),

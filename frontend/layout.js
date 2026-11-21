@@ -500,11 +500,9 @@ export function attachLayout(grid, viewId) {
     // A rebuild changes every panel's height, and it lands after the view has already
     // restored its own scroll position -- Stats does exactly that. Without this, every
     // refresh while you are reading the bottom of the page throws you somewhere else.
-    // On a custom page each pane is its own scroller, so the one to hold still is the
-    // pane this grid lives in, not the stage -- except in a one-column stack, where
-    // the panes grow and the page scrolls them.
-    const stage = grid.closest('.page--stack .page__panes') || grid.closest('.page__pane')
-      || document.getElementById('stage');
+    // On a custom page each column is its own scroller, so the one to hold still is
+    // the column this grid lives in, not the stage.
+    const stage = grid.closest('.page__col') || document.getElementById('stage');
     const top = stage ? stage.scrollTop : 0;
     const seen = new Set();
     const cols = [...grid.children].filter(isPanel);

@@ -1334,16 +1334,19 @@ SHOWN = """() => [...document.querySelectorAll('.page__pane')].map((p) => ({
 
 # Every pane on the page, measured as a user meets it: no control past the pane's sides
 # (the pane does not scroll sideways, so one there cannot be reached -- Chords & scales'
-# Bb and B were), and no pane cut to a sliver. A pane may be short only if it shows all
-# it holds; otherwise it gets SLIVER_PX at least.
+# Bb and B were), and no column cut to a sliver. A column may be short only if it shows
+# all it holds; otherwise it gets SLIVER_PX at least.
 PANE_FIT = """() => {
   const out = [];
+  for (const col of document.querySelectorAll('.page__col')) {
+    const cr = col.getBoundingClientRect();
+    if (cr.height < SLIVER && col.scrollHeight > col.clientHeight + 1) {
+      out.push(`column ${col.dataset.col}: a ${Math.round(cr.height)}px sliver over ${col.scrollHeight}px of panels`);
+    }
+  }
   for (const pane of document.querySelectorAll('.page__pane')) {
     const pr = pane.getBoundingClientRect();
     const v = pane.dataset.view;
-    if (pr.height < SLIVER && pane.scrollHeight > pane.clientHeight + 1) {
-      out.push(`${v}: a ${Math.round(pr.height)}px sliver over ${pane.scrollHeight}px of panels`);
-    }
     for (const el of pane.querySelectorAll('button, select, input, a[href]')) {
       if (el.closest('.is-unpicked')) continue;
       const r = el.getBoundingClientRect();
@@ -1386,10 +1389,10 @@ JUNK = """() => {
 }"""
 
 # Jam's pane on a page, the band playing: is the Now chord, the Next chord and the strip
-# where you can see them -- inside the pane, and the part of it the panes area shows?
+# where you can see them -- inside the pane, and the part of it its column shows?
 JAM_SEEN = """() => {
   const pane = document.querySelector('.page__pane[data-view="practice"]');
-  const p = pane.getBoundingClientRect(), a = pane.closest('.page__panes').getBoundingClientRect();
+  const p = pane.getBoundingClientRect(), a = pane.closest('.page__col').getBoundingClientRect();
   const top = Math.max(p.top, a.top), bottom = Math.min(p.bottom, a.bottom);
   const r = (s) => pane.querySelector(s)?.getBoundingClientRect();
   const inside = (b) => !!b && b.height > 0 && b.top >= top - 1 && b.bottom <= bottom + 1;
@@ -1399,6 +1402,27 @@ JAM_SEEN = """() => {
            strip: !!strip && strip.height > 0 && (Math.min(strip.bottom, bottom) - strip.top) / strip.height,
            pane: [Math.round(top), Math.round(bottom)], sym: Math.round(r('.jam__sym')?.top ?? -1) };
 }"""
+
+# What scrolls on a page, of the page's own boxes and the stage: a column by its index,
+# anything else by its view or class. Panels' own scrollers (a list) are not counted.
+SCROLLERS = """() => [...document.querySelectorAll('#stage, .page, .page__panes, .page__col, .page__pane')]
+  .filter((e) => e.scrollHeight > e.clientHeight + 1 && ['auto', 'scroll'].includes(getComputedStyle(e).overflowY))
+  .map((e) => e.classList.contains('page__col') ? `col ${e.dataset.col}` : (e.dataset.view || e.id || e.className))"""
+
+# The page on screen as columns: each column's panes, top to bottom, with their edges.
+COLUMNS = """() => [...document.querySelectorAll('.page__col')].map((c) => ({
+  col: c.dataset.col,
+  panes: [...c.querySelectorAll(':scope > .page__pane')].map((p) => {
+    const r = p.getBoundingClientRect();
+    return { view: p.dataset.view, top: Math.round(r.top), bottom: Math.round(r.bottom) };
+  }) }))"""
+
+# The builder's column preview: each column's pane names, top to bottom.
+PREVIEW = """() => [...document.querySelectorAll('#pb-order .pb__col')].map((c) =>
+  [...c.querySelectorAll('.pb__rname')].map((n) => n.textContent))"""
+
+POST_PAGES = """(pages) => fetch('/api/settings', { method: 'POST',
+  headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ui: { pages } }) })"""
 
 # Under Jam's flow fills, a highlight owner must change no key's fill (it lit exactly the
 # keys Jam leaves dark, in Jam's chord colour) and must draw a ring Jam does not use. Each
@@ -1623,7 +1647,7 @@ def pages_checks(browser, port: int, errs: list[str]) -> list[str]:
     f = page.evaluate("""() => ({ on: document.body.classList.contains('is-focusing'),
       jam: !!document.querySelector('[data-focus="on"] .jam'),
       others: [...document.querySelectorAll('.page__pane')].filter(p => !p.dataset.focus
-        && getComputedStyle(p).display !== 'none').length,
+        && p.getClientRects().length).length,
       fill: document.querySelector('[data-focus="on"]').getBoundingClientRect().height
         / (() => { const s = document.getElementById('stage'), c = getComputedStyle(s);
           return s.clientHeight - parseFloat(c.paddingTop) - parseFloat(c.paddingBottom); })() })""")
@@ -1834,7 +1858,7 @@ def pages_fix_checks(browser, port: int, errs: list[str]) -> list[str]:
     page.evaluate(toggle)
     page.wait_for_timeout(500)
 
-    # 3. A one-column page is a stack, and a 2x2 on a short window is not four slivers.
+    # 3. A one-column page is one stack, and five panes on a short window are not slivers.
     sid = make("Stack", {"practice": ["songs"], "tools": ["chords-scales"], "play": ["instruments"]}, 1)
     page.set_viewport_size({"width": 1280, "height": 720})
     for name, pid in (("Stack", sid), ("Everything", everything)):
@@ -1842,12 +1866,77 @@ def pages_fix_checks(browser, port: int, errs: list[str]) -> list[str]:
         hs = page.evaluate("""[...document.querySelectorAll('.page__pane')]
           .map(p => Math.round(p.getBoundingClientRect().height))""")
         bad = page.evaluate(PANE_FIT)
-        check(f"{name} @1280x720: panes {hs}px tall, none a sliver, every control in reach",
+        check(f"{name} @1280x720: panes {hs}px tall, no column a sliver, every control in reach",
               bool(pid) and bool(hs) and not bad, "; ".join(bad))
     go(f"page/{sid}", 1800)
-    inner = page.evaluate("""() => [...document.querySelectorAll('.page__pane')]
-      .filter((p) => p.scrollHeight > p.clientHeight + 1).map((p) => p.dataset.view)""")
-    check("...and a one-column page has no scrollers inside it, only the page", inner == [], str(inner))
+    inner = page.evaluate(SCROLLERS)
+    check("...and a one-column page scrolls in one place, its column: no pane scrolls inside it",
+          inner == ["col 0"], str(inner))
+
+    # 3b. Real columns. A page saved by 0.15 (no `col`: a grid filled row by row) keeps
+    #     each pane in the column it stood in, in order; each column is a stack with no
+    #     row shared across columns, and scrolls on its own.
+    page.set_viewport_size({"width": 1600, "height": 1000})
+    now = page.evaluate("async () => (await (await fetch('/api/settings')).json()).ui.pages")
+    old = {"id": "old-grid", "name": "Old grid", "cols": 2, "panes": [
+        {"view": "practice", "panels": ["jam"]}, {"view": "play", "panels": ["instruments"]},
+        {"view": "tools", "panels": ["chords-scales"]}, {"view": "layers", "panels": ["layout"]}]}
+    page.evaluate(POST_PAGES, now + [old])
+    page.reload(wait_until="networkidle")
+    page.wait_for_timeout(1500)
+    go("page/old-grid", 2800)
+    cols = page.evaluate(COLUMNS)
+    check("a 0.15 page (no columns saved) opens with pane i in column i % 2, in its order: "
+          "Practice, Tools | Play, Layers",
+          [[p["view"] for p in c["panes"]] for c in cols] == [["practice", "tools"], ["play", "layers"]],
+          str(cols))
+    rows = [f"{c['panes'][k]['view']} starts {c['panes'][k]['top'] - c['panes'][k - 1]['bottom']}px under "
+            f"{c['panes'][k - 1]['view']}" for c in cols for k in range(1, len(c["panes"]))
+            if not 12 <= c["panes"][k]["top"] - c["panes"][k - 1]["bottom"] <= 16]
+    tops = {c["panes"][0]["top"] for c in cols}
+    check("...each column a stack: a pane 14px under the one above it in its own column, whatever "
+          "the other column holds, and both columns start level", not rows and len(tops) == 1,
+          "; ".join(rows) + f" tops {tops}")
+    sc = page.evaluate("""() => { const [a, b] = document.querySelectorAll('.page__col');
+      a.scrollTop = a.scrollHeight; const st = document.getElementById('stage');
+      return { a: a.scrollTop, b: b.scrollTop, stage: st.scrollTop,
+               stageScrolls: st.scrollHeight > st.clientHeight + 1 }; }""")
+    check("...and each column scrolls on its own: the first to its foot, the second and the stage stay put",
+          sc["a"] > 100 and sc["b"] == 0 and sc["stage"] == 0 and not sc["stageScrolls"], str(sc))
+
+    # 3c. The builder shows the page as columns and moves a pane between and within them.
+    go("page/old-grid/edit", 900)
+    prev = page.evaluate(PREVIEW)
+    check("the builder previews the page as its columns", prev == [["Practice", "Tools"], ["Play", "Layers"]],
+          str(prev))
+    page.click("#pb-order .pb__col[data-col='0'] .pb__row[data-view='practice'] [data-move='right']")
+    after_right = page.evaluate(PREVIEW)
+    page.click("#pb-order .pb__col[data-col='1'] .pb__row[data-view='layers'] [data-move='up']")
+    after_up = page.evaluate(PREVIEW)
+    dis = page.evaluate("""() => [...document.querySelectorAll('#pb-order .pb__row')].map((r) =>
+      r.dataset.view + ':' + [...r.querySelectorAll('[data-move]')].filter((b) => b.disabled).map((b) => b.dataset.move).join('')
+      ).join(' ')""")
+    check("...→ moves a pane into the next column at the same height, ↑ up its own column, and an arrow "
+          "with nowhere to go is disabled",
+          after_right == [["Tools"], ["Practice", "Play", "Layers"]]
+          and after_up == [["Tools"], ["Practice", "Layers", "Play"]]
+          and dis == "tools:leftupdown practice:upright layers:right play:downright", f"{after_right} {after_up} {dis}")
+    page.click("#pb-cols button:text-is('3')")
+    three = page.evaluate(PREVIEW)
+    page.click("#pb-cols button:text-is('2')")
+    check("...a new column count shares the panes out in reading order",
+          three == [["Tools", "Practice"], ["Layers", "Play"], []], str(three))
+    page.click("#pb-save")
+    page.wait_for_timeout(2600)
+    cols = page.evaluate(COLUMNS)
+    stored = page.evaluate("""async () => (await (await fetch('/api/settings')).json()).ui.pages
+      .find((p) => p.id === 'old-grid').panes.map((p) => [p.view, p.col])""")
+    check("...and saved, the page is those columns",
+          [[p["view"] for p in c["panes"]] for c in cols] == [["tools", "practice"], ["layers", "play"]]
+          and stored == [["tools", 0], ["practice", 0], ["layers", 1], ["play", 1]], f"{cols} / {stored}")
+    page.evaluate(POST_PAGES, now)
+    page.reload(wait_until="networkidle")
+    page.wait_for_timeout(1500)
     page.set_viewport_size({"width": 1280, "height": 860})
     go(f"page/{solo}", 2600)
     b = page.evaluate("""() => { const el = [...document.querySelectorAll('#th-roots button')]
@@ -1953,8 +2042,22 @@ PANE_GAPS = """() => {
     if (Math.abs(a.top - b.top) > 2) continue;       // the next row, not the next column
     gaps.push(Math.round(edge(panes[i], 'left') - edge(panes[i - 1], 'right')));
   }
-  return { gaps, bars: panes.map((p) => p.offsetWidth - p.clientWidth) };
+  return { gaps, bars: [...document.querySelectorAll('.page__col')].map((c) => c.offsetWidth - c.clientWidth) };
 }"""
+
+# The nav as it is drawn now: its width, the labels showing, the stage's left edge, and
+# what the body says.
+NAV = """() => ({
+  w: Math.round(document.getElementById('nav').getBoundingClientRect().width),
+  labels: [...document.querySelectorAll('#nav .nav__label, #nav .nav__key')]
+    .filter((e) => e.getBoundingClientRect().width > 0).length,
+  named: [...document.querySelectorAll('#nav .nav__item')].filter((a) => a.getAttribute('aria-label') || a.title).length,
+  items: document.querySelectorAll('#nav .nav__item').length,
+  stage: Math.round(document.getElementById('stage').getBoundingClientRect().left),
+  open: document.body.classList.contains('is-navopen'),
+  pinned: document.body.classList.contains('is-navpinned'),
+  // What the pointer would hit just right of the folded strip, in the stage's band.
+  over: document.elementFromPoint(120, 300)?.closest('#nav') ? 'nav' : 'stage' })"""
 
 # The builder card, its scrolling middle and its footer, measured.
 FOOT = """() => {
@@ -2082,19 +2185,20 @@ def nav_checks(browser, port: int, errs: list[str]) -> list[str]:
     check("...and after Stats refreshes itself, still only those, each the pane's full width",
           after["shown"] == ["all-time", "keys-you-have-played"] and not after["narrow"], str(after))
 
-    # 4. Panes as one workspace: panel to panel across a pane edge is the grid's own 14px,
-    #    and no pane draws a scrollbar wider than a hairline.
+    # 5. Columns as one workspace: panel to panel across a column edge is the grid's own
+    #    14px, and no column draws a scrollbar wider than a hairline.
     two = [p for p in saved_pages if p.get("cols") == 2 and len(p.get("panes", [])) >= 2]
     target = two[0]["id"] if two else pid
     for vw, vh in ((1600, 1000), (1280, 800)):
         page.set_viewport_size({"width": vw, "height": vh})
         go(f"page/{target}", 2600)
         g = page.evaluate(PANE_GAPS)
-        check(f"panes @{vw}x{vh}: 14px from one pane's panels to the next's, scrollbars a hairline at most",
+        check(f"columns @{vw}x{vh}: 14px from one column's panels to the next's, scrollbars a hairline at most",
               g["gaps"] and all(12 <= x <= 16 for x in g["gaps"]) and all(b <= 4 for b in g["bars"]), str(g))
     page.set_viewport_size({"width": 1600, "height": 1000})
 
-    # 5. Right-click a page in the nav: Edit, Rename, Delete -- inline.
+    # 6. Right-click a page in the nav: Edit, Rename, Delete -- inline, the nav held open
+    #    while the menu or the rename field is up, wherever the pointer goes.
     def menu() -> None:
         page.click(f"#nav-pages [data-page='{pid}']", button="right")
         page.wait_for_timeout(250)

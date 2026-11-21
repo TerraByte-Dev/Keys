@@ -817,9 +817,8 @@ export function toggleFocus(on, { target = null, keepFullscreen = false } = {}) 
     if (immersive) return false;
     const el = target || focusTarget();
     if (!el || !stage.contains(el)) return false;
-    // On a page the pane scrolls, and with more than one row so does the panes area;
-    // those are the positions to come back to.
-    focusScrolls = [el.closest('.page__pane'), el.closest('.page__panes'), stage]
+    // On a page the column scrolls: that is the position to come back to.
+    focusScrolls = [el.closest('.page__col'), stage]
       .filter(Boolean).map((n) => [n, n.scrollTop]);
     el.dataset.focus = 'on';
     for (let n = el.parentElement; n && n !== stage; n = n.parentElement) n.dataset.focus = 'path';
