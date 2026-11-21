@@ -546,9 +546,11 @@ def jam_checks(browser, port: int, errs: list[str]) -> list[str]:
     shown = page.evaluate("""() => Object.fromEntries([...document.querySelectorAll('.jam__opt')].filter((o) => o.offsetParent)
       .map((o) => [o.querySelector('.jam__lbl').textContent, o.querySelector('.seg__btn.is-on')?.textContent ?? o.querySelector('select')?.value]))""")
     sound = page.evaluate("[...document.querySelectorAll('.jam__part select')][1].selectedOptions[0].textContent")
+    # Answer shows no Level (it changes nothing there); the level it keeps is read off the control.
+    level = page.evaluate("document.querySelector('.jam__opt--level .seg__btn.is-on')?.textContent")
     check("old settings carry over (Answer in A minor: Minor, Answer, level 3); nonsense falls back",
-          shown.get("Music") == "Minor" and shown.get("Play") == "Answer" and shown.get("Level") == "3"
-          and shown.get("Key") == "A-minor" and shown.get("Scale") == "Off" and sound == "Style's own", f"{shown} {sound}")
+          shown.get("Music") == "Minor" and shown.get("Play") == "Answer" and "Level" not in shown and level == "3"
+          and shown.get("Key") == "A-minor" and shown.get("Scale") == "Off" and sound == "Style's own", f"{shown} level {level} {sound}")
     page.request.post(f"{base}/api/settings", data={"ui": {"jam": {
         "music": "pop", "game": "solo", "level": 1, "key": "C-major", "pin": "off", "bars": 1, "compSound": None, "mine": []}}})
     page.reload(wait_until="networkidle")              # the same URL: goto() would not reload
@@ -1294,6 +1296,75 @@ STARTER_WANT = {
 }
 
 
+# A stringified nothing anywhere in the stage, the builder's footer included: the AUDIT
+# above walks only a tab's grid.
+JUNK = """() => {
+  const out = [];
+  const w = document.createTreeWalker(document.getElementById('stage'), NodeFilter.SHOW_TEXT);
+  for (let n = w.nextNode(); n; n = w.nextNode()) {
+    if (/^(null|undefined|NaN|\\[object Object\\])+$/.test(n.textContent.trim())) {
+      out.push(`"${n.textContent.trim()}" in #${n.parentElement.id || n.parentElement.className}`);
+    }
+  }
+  return out;
+}"""
+
+# Jam's pane on a page, the band playing: is the Now chord, the Next chord and the strip
+# where you can see them -- inside the pane, and the part of it the panes area shows?
+JAM_SEEN = """() => {
+  const pane = document.querySelector('.page__pane[data-view="practice"]');
+  const p = pane.getBoundingClientRect(), a = pane.closest('.page__panes').getBoundingClientRect();
+  const top = Math.max(p.top, a.top), bottom = Math.min(p.bottom, a.bottom);
+  const r = (s) => pane.querySelector(s)?.getBoundingClientRect();
+  const inside = (b) => !!b && b.height > 0 && b.top >= top - 1 && b.bottom <= bottom + 1;
+  const strip = r('.jam__mid .strip');
+  return { go: inside(r('.jam__go')), now: inside(r('.jam__sym:not(.jam__sym--next)')),
+           next: inside(r('.jam__sym--next')),
+           strip: !!strip && strip.height > 0 && (Math.min(strip.bottom, bottom) - strip.top) / strip.height,
+           pane: [Math.round(top), Math.round(bottom)], sym: Math.round(r('.jam__sym')?.top ?? -1) };
+}"""
+
+# Under Jam's flow fills, a highlight owner must change no key's fill (it lit exactly the
+# keys Jam leaves dark, in Jam's chord colour) and must draw a ring Jam does not use. Each
+# highlighted key is read as it is, then with its is-highlight taken off for a moment.
+HL_FILLS = """() => {
+  const keys = [...document.querySelectorAll('#dock .key')];
+  for (const k of keys) k.style.transition = 'none';
+  const lit = keys.filter((k) => k.classList.contains('is-highlight'));
+  const cs = (k) => getComputedStyle(k);
+  const ring = (k) => !k.classList.contains('is-suggest2') && !k.classList.contains('is-sig');
+  // Jam's chord colour and its pin's, as the dock resolves them.
+  const colour = (v) => { const e = document.createElement('span'); e.style.color = `var(${v})`;
+    document.getElementById('dock').append(e); const c = getComputedStyle(e).color; e.remove(); return c; };
+  const toneFill = colour('--key-tone'), pinStroke = colour('--key-pin');
+  const out = { flow: document.querySelector('#dock .keys-kb').classList.contains('kb--flow'),
+    lit: lit.length, changed: [], plain: [], toneFill, sameAsTone: 0, sameAsPin: 0, dashedElsewhere: 0 };
+  const withHl = lit.map((k) => [cs(k).fill, cs(k).stroke, cs(k).strokeDasharray]);
+  lit.forEach((k) => k.classList.remove('is-highlight'));
+  lit.forEach((k, i) => {
+    if (cs(k).fill !== withHl[i][0]) out.changed.push(`${k.dataset.midi}: ${withHl[i][0]} vs ${cs(k).fill}`);
+    if (ring(k) && (withHl[i][2] === 'none' || cs(k).strokeDasharray !== 'none')) out.plain.push(k.dataset.midi);
+    if (withHl[i][1] === toneFill) out.sameAsTone++;
+    if (withHl[i][1] === pinStroke) out.sameAsPin++;
+  });
+  lit.forEach((k) => k.classList.add('is-highlight'));
+  out.dashedElsewhere = keys.filter((k) => !lit.includes(k) && cs(k).strokeDasharray !== 'none').length;
+  for (const k of keys) k.style.transition = '';
+  return out;
+}"""
+
+# Every shortcut 0.13.0 shipped, as it shipped them, with the metronome moved to 7 -- a
+# map saved before pages existed. Written out here, not read from app.js.
+KEYS_013 = {"view:play": "1", "view:practice": "2", "view:layers": "3", "view:tools": "4",
+            "view:stats": "5", "view:settings": "6", "panic": "Escape", "metronome": "7",
+            "roll": "v", "immersive": "f", "focus": "g", "songs": "s", "settings": ",",
+            "octave-down": "z", "octave-up": "x"}
+# And 0.14's own, page shortcuts included, to put back afterwards.
+KEYS_014 = {**KEYS_013, "metronome": "m", "page:1": "7", "page:2": "8", "page:3": "9"}
+
+METRO = "async () => (await (await fetch('/api/state')).json()).metronome.running"
+
+
 def pages_checks(browser, port: int, errs: list[str]) -> list[str]:
     """Pages: the registry against the DOM, the builder, panes, hotkeys, reload; and
     Chords & scales lighting the whole dock without the touch keys wiping it."""
@@ -1357,6 +1428,10 @@ def pages_checks(browser, port: int, errs: list[str]) -> list[str]:
     page.wait_for_timeout(1300)
 
     # 3. Each starter, made through the builder.
+    go("page/new", 600)
+    junk = page.evaluate(JUNK)
+    check("a new page's builder prints no stringified nothing (its footer's absent buttons)",
+          not junk, "; ".join(junk))
     made = {}
     for key in ("solo", "everything", "blank"):
         go("page/new", 600)
@@ -1407,10 +1482,30 @@ def pages_checks(browser, port: int, errs: list[str]) -> list[str]:
     page.set_viewport_size({"width": 1600, "height": 1000})
 
     # 5. Solo practice: the band, Play's scale highlighter and Jam's marks on one dock.
+    # Chords & scales opens on C major; on a page it lights nothing until asked, or the
+    # whole dock would be its scale before Jam had lit a key.
+    go(f"page/{made['solo']}", 2600)
+    quiet = page.evaluate(LIT)["lit"]
+    asked = page.evaluate("document.getElementById('th-dock')?.classList.contains('is-on')")
+    check("Solo practice: Chords & scales leaves the dock alone until Show on keys is pressed",
+          quiet == [] and asked is False, f"{len(quiet)} lit, toggle on: {asked}")
+    for w, h in ((1280, 800), (1600, 1000)):
+        page.set_viewport_size({"width": w, "height": h})
+        go(f"page/{made['solo']}", 2600)
+        page.click(".page__pane[data-view='practice'] .jam__go")
+        page.wait_for_timeout(2600)
+        seen = page.evaluate(JAM_SEEN)
+        check(f"Solo practice @{w}x{h}, the band playing: Stop, the Now and Next chords and most of the "
+              "strip are in Jam's pane without scrolling it",
+              seen["go"] and seen["now"] and seen["next"] and seen["strip"] >= 0.6, str(seen))
+        page.click(".page__pane[data-view='practice'] .jam__go")
+        page.wait_for_timeout(600)
+    page.set_viewport_size({"width": 1600, "height": 1000})
     go(f"page/{made['solo']}", 2600)
     page.click(".page__pane[data-view='practice'] .jam__go")
     # C blues on Play's highlighter, beside Chords & scales' C major: two owners whose
     # union is checked, so neither can be hiding behind the other.
+    page.click("#th-dock")
     page.select_option("#scale-mode", "blues")
     page.click("#scale-toggle")
     page.wait_for_timeout(1800)
@@ -1421,6 +1516,24 @@ def pages_checks(browser, port: int, errs: list[str]) -> list[str]:
     check("Solo practice: the band plays", page.evaluate(BAND).get("running") is True)
     check("...and the scale highlighter, Chords & scales and Jam's marks are on the dock together",
           sorted(k["lit"]) == want and jam > 0, f"{len(k['lit'])} lit of {len(want)}, {jam} Jam marks")
+    fills = page.evaluate(HL_FILLS)
+    check("...where the highlight changes no key's fill, Jam's lit or unlit, and rings each of its keys "
+          "dashed, in neither Jam's chord colour nor its pin's",
+          fills["flow"] and fills["lit"] == len(want) and not fills["changed"] and not fills["plain"]
+          and fills["toneFill"] and fills["sameAsTone"] == 0 and fills["sameAsPin"] == 0
+          and fills["dashedElsewhere"] == 0, str(fills)[:600])
+    # The same under Fading, Dark and a pin, where Jam paints its marked keys plain.
+    for guide, pin in (("Dark", "Key"), ("Fading", "Pentatonic")):
+        page.click(f".page__pane[data-view='practice'] .jam__opt--guide .seg__btn:text-is('{guide}')")
+        page.click(f".page__pane[data-view='practice'] .jam__opt--pin .seg__btn:text-is('{pin}')")
+        page.wait_for_timeout(1500)
+        fills = page.evaluate(HL_FILLS)
+        check(f"...and with the guide on {guide} and a {pin} pin",
+              fills["flow"] and fills["lit"] > 0 and not fills["changed"] and not fills["plain"]
+              and fills["dashedElsewhere"] == 0, str(fills)[:600])
+    page.click(".page__pane[data-view='practice'] .jam__opt--guide .seg__btn:text-is('Full')")
+    page.click(".page__pane[data-view='practice'] .jam__opt--pin .seg__btn:text-is('Off')")
+    page.wait_for_timeout(600)
     page.evaluate("async () => (await import('/app.js')).ctx.kb.setRange(36, 96)")
     page.wait_for_timeout(1600)
     lit = sorted(page.evaluate(LIT)["lit"])
@@ -1482,11 +1595,37 @@ def pages_checks(browser, port: int, errs: list[str]) -> list[str]:
           page.evaluate("location.hash") == f"#page/{made['solo']}" and len(again) == 3
           and page.evaluate("document.querySelectorAll('#nav-pages .nav__item').length") == 3, str(again))
 
+    # 7b. Shortcuts saved by 0.13, before pages had any: a metronome on 7 stays the
+    #     metronome, and page 1 starts unset instead of shadowing it.
+    post = """(keys) => fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keys }) })"""
+    page.evaluate(post, KEYS_013)
+    go("play", 300)
+    page.reload(wait_until="networkidle")
+    page.wait_for_timeout(2000)
+    binds = page.evaluate("async () => (await import('/app.js')).getBinds()")
+    page.evaluate("document.activeElement?.blur?.()")
+    page.keyboard.press("7")
+    page.wait_for_timeout(1200)
+    ran, where = page.evaluate(METRO), page.evaluate("location.hash")
+    check("a 0.13 map with the metronome on 7: 7 starts the metronome, page 1 is left unset",
+          ran is True and where == "#play" and binds.get("metronome") == "7" and not binds.get("page:1")
+          and binds.get("page:2") == "8", f"running {ran}, at {where}, binds {binds}")
+    page.keyboard.press("7")
+    page.wait_for_timeout(600)
+    page.evaluate(post, KEYS_014)
+    page.reload(wait_until="networkidle")
+    page.wait_for_timeout(2000)
+
     # 8. Edit, then delete with the inline confirm.
     go(f"page/{made['blank']}", 1800)
     page.click(".page__edit")
     page.wait_for_timeout(500)
+    junk = page.evaluate(JUNK)
     page.click("#pb-delete")
+    junk += page.evaluate(JUNK)
+    check("an edited page's builder prints no stringified nothing, before Delete and while it asks",
+          not junk, "; ".join(junk))
     page.click("#pb-yes")
     page.wait_for_timeout(1200)
     names = page.evaluate("[...document.querySelectorAll('#nav-pages .nav__item')].map(a => a.textContent)")
@@ -1635,8 +1774,10 @@ def pages_fix_checks(browser, port: int, errs: list[str]) -> list[str]:
     check("...and a one-column page has no scrollers inside it, only the page", inner == [], str(inner))
     page.set_viewport_size({"width": 1280, "height": 860})
     go(f"page/{solo}", 2600)
-    b = page.evaluate("""() => { const r = [...document.querySelectorAll('#th-roots button')]
-        .find((x) => x.textContent === 'B').getBoundingClientRect();
+    b = page.evaluate("""() => { const el = [...document.querySelectorAll('#th-roots button')]
+        .find((x) => x.textContent === 'B');
+      el.scrollIntoView({ block: 'center' });
+      const r = el.getBoundingClientRect();
       return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.textContent; }""")
     check("Solo practice @1280x860: Chords & scales' B root is on screen to click", b == "B", repr(b))
     page.set_viewport_size({"width": 1600, "height": 1000})

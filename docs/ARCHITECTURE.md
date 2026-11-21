@@ -259,7 +259,11 @@ keys off blanked the scale you had just picked. Labels work the same way:
 `setKeyLabel(midi, text, owner)` shows the newest label on a key and clearing it shows the one
 beneath, so Jam relabelling its landing key every bar no longer wipes FIXED / SOFT / MEDIUM /
 HARD. The router's `clearHighlights()` and `clearAllLabels()` are the only "everything off".
-Jam's marks are a separate layer and are not owned.
+Jam's marks are a separate layer and are not owned. The two layers do not share a look:
+while the band plays (`kb--flow`) a highlight is a dashed ring in `--key-mark` and changes
+no fill, because as a fill it lost to Jam's on every key Jam marks and kept Jam's chord cyan
+on exactly the keys Jam leaves dark. Chords & scales paints the dock only with its Show on
+keys on, which a page starts off.
 
 ### Jam: a level you pick, and a scale pinned over the key
 
