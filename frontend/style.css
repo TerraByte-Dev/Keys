@@ -3415,30 +3415,46 @@ body.is-focusing .exrun .stat__note { font-size: 14px; }
 .nav__item--new { height: 32px; font-size: 12px; color: var(--ink-faint); }
 .nav__item--new .nav__icon { opacity: .6; }
 
-/* Fold: the nav as a strip of icons, each named by its native tooltip (app.js). The
-   button sits at the foot of the nav; the grid column is set here rather than through
-   --nav-w, which the rail's brand is sized by. Not at phone width, where the nav is a
-   bottom bar already, nor in focus or immersive, which zero the column themselves. */
-.nav__fold {
+/* The nav at rest is a 52px strip of icons; the pointer over it, or keyboard focus in
+   it, opens it (app.js is-navopen) to its full width as a layer OVER the stage, which
+   keeps its place. The grid column stays 52px either way -- set here, not through
+   --nav-w, which the rail's brand is sized by -- and the open nav is a grid item wider
+   than its track, drawn above the stage beside it. Every icon sits at the same x
+   folded and open (6px nav padding + 11px), so opening only uncovers the labels: the
+   items are their open width from the first frame and the nav's own edge, moving out,
+   reveals them. Pinned (is-navpinned) it is the full-width column of before and the
+   stage moves over for it. Not at phone width, where the nav is a bottom bar, nor in
+   focus or immersive, which hide it. */
+.nav__pin {
   margin-top: auto;
   display: flex; align-items: center; gap: 11px;
-  height: 32px; padding: 0 10px;
+  height: 32px; padding: 0 10px; flex: none;
   background: none; border: 0; border-radius: var(--radius);
   color: var(--ink-faint); font: inherit; font-size: 12px; cursor: pointer;
   transition: color .16s var(--ease), background .16s var(--ease);
 }
-.nav__fold:hover { color: var(--ink); background: var(--panel-2); }
-.nav__fold:focus-visible { outline: 2px solid var(--amber); outline-offset: -2px; }
-.nav__fold .nav__icon { transition: transform .18s var(--ease); }
+.nav__pin:hover { color: var(--ink); background: var(--panel-2); }
+.nav__pin:focus-visible { outline: 2px solid var(--amber); outline-offset: -2px; }
+.nav__pin[aria-pressed="true"] { color: var(--ink-dim); }
+.nav__pin[aria-pressed="true"] .nav__icon { color: var(--amber); opacity: 1; transform: rotate(-30deg); }
+.nav__pin[aria-pressed="true"] .nav__pinhead { fill: currentColor; }
+.nav__pin .nav__icon { transition: transform .18s var(--ease); }
 @media (min-width: 721px) {
-  body.is-navfold:not(.is-immersive):not(.is-focusing) { grid-template-columns: 52px 1fr; }
-  body.is-navfold .nav { padding: 10px 6px; overflow: hidden; }
-  body.is-navfold :is(.nav__item, .nav__fold) { justify-content: center; padding: 0; gap: 0; }
-  body.is-navfold :is(.nav__label, .nav__key) { display: none; }
-  body.is-navfold .nav__item.is-active::before { left: -6px; }
-  body.is-navfold .nav__item--page { height: 38px; }
-  body.is-navfold .nav__rule { margin: 6px 4px; }
-  body.is-navfold .nav__fold .nav__icon { transform: scaleX(-1); }
+  body:not(.is-navpinned):not(.is-immersive):not(.is-focusing) { grid-template-columns: 52px 1fr; }
+  body:not(.is-navpinned) .nav {
+    position: relative; z-index: 60; width: 52px; min-width: 0;
+    padding: 10px 6px; overflow: hidden;
+    transition: width .15s var(--ease), box-shadow .15s var(--ease);
+  }
+  body:not(.is-navpinned) :is(.nav__item, .nav__pin) { padding: 0 10px 0 11px; flex: none; }
+  body:not(.is-navpinned) .nav__item.is-active::before { left: -6px; }
+  body:not(.is-navpinned) .nav__rule { margin: 8px 4px; }
+  body:not(.is-navpinned):not(.is-navopen) :is(.nav__label, .nav__key) { display: none; }
+  body.is-navopen:not(.is-navpinned) .nav {
+    width: var(--nav-w);
+    box-shadow: 14px 0 28px -14px var(--shadow-deep);
+  }
+  body.is-navopen:not(.is-navpinned) :is(.nav__item, .nav__pin) { width: calc(var(--nav-w) - 13px); }
 }
 
 /* Right-click on a page in the nav: Edit, Rename, Delete. Fixed, so the nav's own

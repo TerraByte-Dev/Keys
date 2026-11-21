@@ -2024,10 +2024,10 @@ def pages_fix_checks(browser, port: int, errs: list[str]) -> list[str]:
     return fails
 
 
-# ── the nav: folded to icons, a page's icon, its right-click menu; the builder's foot ──
+# ── the nav: open on hover, pinned, a page's icon, its right-click menu; the builder's foot ──
 # Per pane of the page on screen: the gap from the last panel of one pane to the first
-# panel of the next (the panels' own edges, which is what the eye reads as the gap),
-# and the width of each pane's scrollbar.
+# panel of the next column's (the panels' own edges, which is what the eye reads as the
+# gap), and the width of each column's scrollbar.
 PANE_GAPS = """() => {
   const panes = [...document.querySelectorAll('.page__pane')];
   const edge = (p, side) => {
@@ -2073,9 +2073,10 @@ FOOT = """() => {
 
 
 def nav_checks(browser, port: int, errs: list[str]) -> list[str]:
-    """The nav folded to icons and back, saved; a page's icon from the builder's picker;
-    right-click Edit / Rename / Delete, inline; the builder's footer on its bottom edge;
-    Stats on a page; and panes that read as one workspace."""
+    """The nav opening under the pointer over the stage and folding when it leaves, pinned
+    open and saved; a page's icon from the builder's picker; right-click Edit / Rename /
+    Delete, inline, the nav held open for them; the builder's footer on its bottom edge;
+    Stats on a page; and columns that read as one workspace."""
     fails: list[str] = []
     page = browser.new_page(viewport={"width": 1600, "height": 1000})
     page.on("pageerror", lambda e: errs.append(str(e)))
@@ -2089,7 +2090,7 @@ def nav_checks(browser, port: int, errs: list[str]) -> list[str]:
         page.evaluate(f"location.hash = '{hash_}'")
         page.wait_for_timeout(wait)
 
-    print("\nthe nav: folding, page icons, the right-click menu; the builder's foot; Stats on a page")
+    print("\nthe nav: open on hover, pinned, page icons, the right-click menu; the builder's foot; Stats on a page")
     page.goto(f"http://127.0.0.1:{port}/#play", wait_until="networkidle")
     # The tour put away again: the Settings reset in the section before brought it back.
     page.evaluate("""() => fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -2098,33 +2099,85 @@ def nav_checks(browser, port: int, errs: list[str]) -> list[str]:
     page.wait_for_timeout(1600)
     saved_pages =page.evaluate("async () => (await (await fetch('/api/settings')).json()).ui.pages || []")
 
-    # 1. Fold: icons only, each named by its tooltip, the number keys as before, kept.
-    page.click("#nav-fold")
-    page.wait_for_timeout(500)
-    folded = page.evaluate("""() => ({
-      w: document.getElementById('nav').getBoundingClientRect().width,
-      labels: [...document.querySelectorAll('#nav .nav__label, #nav .nav__key')]
-        .filter((e) => e.getBoundingClientRect().width > 0).length,
-      untitled: [...document.querySelectorAll('#nav .nav__item')].filter((a) => !a.title).length,
-      stage: document.getElementById('stage').getBoundingClientRect().left })""")
-    check("Fold: the nav is a ~52px strip of icons, no label or key chip showing, every item titled",
-          folded["w"] <= 56 and folded["labels"] == 0 and folded["untitled"] == 0, str(folded))
+    # 1. At rest: a strip of icons, every item named. The pointer opens it over the stage
+    #    (which does not move) after a beat, and leaving folds it after a longer one; a
+    #    pointer only crossing it does not open it at all. No click anywhere.
+    page.mouse.move(900, 400)
+    page.wait_for_timeout(400)
+    rest = page.evaluate(NAV)
+    check("at rest the nav is a ~52px strip of icons, no label or key chip showing, every item named",
+          rest["w"] <= 56 and rest["labels"] == 0 and rest["named"] == rest["items"] and not rest["open"]
+          and not rest["pinned"], str(rest))
+    page.mouse.move(26, 160)
+    page.wait_for_timeout(30)
+    page.mouse.move(900, 400)
+    page.wait_for_timeout(400)
+    crossed = page.evaluate(NAV)
+    check("...a pointer that only crosses it (30ms) does not open it", crossed["w"] <= 56 and not crossed["open"],
+          str(crossed))
+    page.mouse.move(26, 160)
+    page.wait_for_timeout(40)
+    early = page.evaluate(NAV)["open"]
+    page.wait_for_timeout(360)
+    hover = page.evaluate(NAV)
+    check("...the pointer resting on it opens it (not before ~80ms) to its full width, labels and keys showing, "
+          "as a layer over the stage: the stage does not move",
+          not early and hover["open"] and hover["w"] >= 170 and hover["labels"] >= 9
+          and hover["stage"] == rest["stage"] and hover["over"] == "nav", f"{hover}, open at 40ms: {early}")
+    page.mouse.move(600, 400)
+    page.wait_for_timeout(120)
+    still = page.evaluate(NAV)["open"]
+    page.wait_for_timeout(420)
+    left = page.evaluate(NAV)
+    check("...and leaving folds it, after a beat (~250ms), with nothing else changed",
+          still and not left["open"] and left["w"] <= 56 and left["stage"] == rest["stage"] and left["over"] == "stage",
+          f"open at 120ms: {still}, then {left}")
     page.evaluate("document.activeElement?.blur?.()")
     page.keyboard.press("2")
     page.wait_for_timeout(1500)
     check("...the number keys still change tab", page.evaluate("location.hash") == "#practice")
+    # Keyboard focus opens it as the pointer does; a click on a tab leaves no focus that holds it.
+    page.evaluate("document.querySelector('#nav .nav__item[data-view=\"tools\"]').focus({ focusVisible: true })")
+    page.keyboard.press("Shift+Tab")
+    page.keyboard.press("Tab")
+    page.wait_for_timeout(200)
+    kb = page.evaluate(NAV)
+    page.evaluate("document.activeElement?.blur?.()")
+    page.wait_for_timeout(400)
+    page.click("#nav .nav__item[data-view='play']")
+    page.wait_for_timeout(300)
+    clicked = page.evaluate(NAV)["open"]
+    page.mouse.move(900, 400)
+    page.wait_for_timeout(500)
+    gone = page.evaluate(NAV)
+    check("...a keyboard focus in it opens it; after a click on a tab it still folds once the pointer goes",
+          kb["open"] and kb["w"] >= 170 and clicked and not gone["open"] and page.evaluate("location.hash") == "#play",
+          f"keyboard {kb}, after click {clicked}, then {gone}")
+
+    # 2. Pinned: open beside the stage, which moves over for it; saved; kept on reload.
+    page.mouse.move(26, 160)
+    page.wait_for_timeout(300)
+    page.click("#nav-pin")
+    page.mouse.move(900, 400)
+    page.wait_for_timeout(600)
+    pin = page.evaluate(NAV)
+    saved = page.evaluate("async () => (await (await fetch('/api/settings')).json()).ui.nav_pinned")
+    check("Keep open pins it: full width with the pointer away, the stage beside it, saved (ui.nav_pinned)",
+          pin["pinned"] and pin["w"] >= 170 and pin["labels"] >= 9 and pin["stage"] >= pin["w"] and saved is True,
+          f"{pin}, saved {saved}")
     page.reload(wait_until="networkidle")
     page.wait_for_timeout(1600)
-    kept = page.evaluate("""async () => ({ body: document.body.classList.contains('is-navfold'),
-      saved: (await (await fetch('/api/settings')).json()).ui.nav_collapsed })""")
-    check("...and it stays folded after a reload (ui.nav_collapsed)", kept["body"] and kept["saved"] is True, str(kept))
-    page.click("#nav-fold")
-    page.wait_for_timeout(500)
-    w = page.evaluate("document.getElementById('nav').getBoundingClientRect().width")
-    saved = page.evaluate("async () => (await (await fetch('/api/settings')).json()).ui.nav_collapsed")
-    check("...and unfolds to its full width, saved", w >= 170 and saved is False, f"{w}px, saved {saved}")
+    again = page.evaluate(NAV)
+    check("...and it is still pinned after a reload", again["pinned"] and again["w"] >= 170, str(again))
+    page.click("#nav-pin")
+    page.mouse.move(900, 400)
+    page.wait_for_timeout(600)
+    un = page.evaluate(NAV)
+    saved = page.evaluate("async () => (await (await fetch('/api/settings')).json()).ui.nav_pinned")
+    check("...and unpinned it folds back to the strip, the stage back where it was, saved",
+          not un["pinned"] and un["w"] <= 56 and un["stage"] == rest["stage"] and saved is False, f"{un}, saved {saved}")
 
-    # 2. The builder: an icon picker, and the footer on the card's bottom edge.
+    # 3. The builder: an icon picker, and the footer on the card's bottom edge.
     for vw, vh in ((1280, 720), (1600, 1000)):
         page.set_viewport_size({"width": vw, "height": vh})
         go("page/new", 900)
@@ -2168,7 +2221,7 @@ def nav_checks(browser, port: int, errs: list[str]) -> list[str]:
       panes: [{ view: 'stats', panels: ['all-time'] }] }])[0].icon""")
     check("...and an icon this build does not draw loads as the default", bad == "note", repr(bad))
 
-    # 3. Stats on a page: exactly what was picked, the pane's width, and still so after it
+    # 4. Stats on a page: exactly what was picked, the pane's width, and still so after it
     #    refreshes itself (which replaces every panel it has).
     shown = {p["view"]: sorted(p["shown"]) for p in page.evaluate(SHOWN)}
     check("Stats is on the page with only the panels picked",
@@ -2206,6 +2259,12 @@ def nav_checks(browser, port: int, errs: list[str]) -> list[str]:
     menu()
     acts = page.evaluate("[...document.querySelectorAll('#nav-menu [data-act]')].map((b) => b.dataset.act)")
     check("right-click on a page: a menu of Edit, Rename and Delete", acts == ["edit", "rename", "delete"], str(acts))
+    box = page.evaluate("""() => { const r = document.getElementById('nav-menu').getBoundingClientRect();
+      return [r.right - 8, r.top + 8]; }""")
+    page.mouse.move(box[0], box[1])
+    page.wait_for_timeout(500)
+    held = page.evaluate(NAV)
+    check("...and the nav stays open with the pointer gone over to the menu", held["open"] and held["w"] >= 170, str(held))
     page.keyboard.press("Escape")
     page.wait_for_timeout(250)
     check("...Esc closes it", not page.evaluate("!!document.getElementById('nav-menu')"))
@@ -2218,7 +2277,12 @@ def nav_checks(browser, port: int, errs: list[str]) -> list[str]:
     page.wait_for_timeout(1500)
     menu()
     page.click("#nav-menu [data-act='rename']")
-    page.wait_for_timeout(200)
+    page.mouse.move(900, 400)
+    page.wait_for_timeout(500)
+    held = page.evaluate("() => ({ open: document.body.classList.contains('is-navopen'), "
+                         "field: !!document.getElementById('nav-rename') })")
+    check("...Rename holds the nav open while its field is up, the pointer away", held["open"] and held["field"],
+          str(held))
     page.fill("#nav-rename", "Renamed 7")
     page.press("#nav-rename", "Enter")
     page.wait_for_timeout(900)
@@ -2228,6 +2292,9 @@ def nav_checks(browser, port: int, errs: list[str]) -> list[str]:
     check("...Rename edits the name in place (typing 7 does not jump to page 1), saved and shown",
           names["nav"].endswith("Renamed 7") and names["saved"] == "Renamed 7" and names["head"] == "Renamed 7"
           and names["hash"] == f"#page/{pid}", str(names))
+    page.wait_for_timeout(400)
+    check("...and with the name in, the nav folds (the pointer is not on it)",
+          not page.evaluate("document.body.classList.contains('is-navopen')"))
     menu()
     page.click("#nav-menu [data-act='delete']")
     page.wait_for_timeout(200)

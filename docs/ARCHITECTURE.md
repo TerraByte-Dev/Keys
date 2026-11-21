@@ -239,6 +239,25 @@ panes** -- Play, Practice, Layers and Tools, as many as the page holds -- and sh
 panels you ticked in each. Saved as `ui.pages`, up to six, the first three on `7`, `8`, `9`;
 the route is `#page/<id>`.
 
+**A page is columns, not a grid.** Each pane is saved with the column it is in
+(`pane.col`, 0 to `cols - 1`) and the page is that many vertical stacks: each pane as tall as
+what it holds, 14px under the one above it, and each column scrolling on its own. There are
+no rows across columns. 0.14 and 0.15 laid panes out in a grid filled row by row, so a
+pane's second row started wherever the taller pane above it ended and four panes at two
+columns read as quarters; a page saved then, with no `col`, opens with pane *i* in column
+*i* % `cols`, which is where it stood, in the order it had. A column nothing was put in is
+left out, not drawn empty. The builder draws the page as its columns, each pane with arrows
+to move it a column over or up and down its own; a new column count shares the panes out
+in reading order. The scroller to hold still across a rebuild (`layout.js`, `stats.js`) is
+the column.
+
+**The nav opens under the pointer.** At rest it is a 52px strip of icons; the pointer over
+it (after 80ms, so a pointer crossing it does not flash it) or keyboard focus in it opens it
+to full width as a layer over the stage, which does not move or repack, and leaving folds
+it after 250ms. It stays open while a page's right-click menu or its rename field is up.
+**Keep open** pins it (`ui.nav_pinned`, off by default) as the full-width column the stage
+sits beside. It replaced 0.15's Fold button, which had to be pressed every time.
+
 **Each view at most once per page**, and that one rule is what makes it cheap. Every view
 module is a singleton with module-scoped state and document-wide ids: two copies of Play in
 one document would collide, one each of four different views never does. So the views mount
