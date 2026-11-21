@@ -2679,7 +2679,11 @@ body:not(.is-focusing) .jam__group--music .jam__gbody > .jam__opt:first-child > 
   --key-pin: var(--key-tone);
 }
 
-/* A group is a row of the console: its name in a narrow column, its options flowing. */
+/* A group is a row of the console: its name in a narrow column, its options flowing.
+   Focus flattens the groups into its one-line bar (focus section), so only the flex
+   box is unscoped. */
+.jam__group { display: flex; min-width: 0; }
+.jam__gbody { display: flex; flex-wrap: wrap; align-items: center; min-width: 0; }
 body:not(.is-focusing) .jam__group {
   display: grid; grid-template-columns: 58px minmax(0, 1fr); align-items: center; min-width: 0;
   padding: 5px 10px 5px 0;
@@ -2716,7 +2720,7 @@ body:not(.is-focusing) .jam__gbody { display: flex; flex-wrap: wrap; gap: 5px 14
 
 /* My chords: a chip per chord in one row, and the picker under the one being changed.
    A chord outside the key gets a dashed edge and says so. */
-.jam__group--mine .jam__gbody { flex-direction: column; align-items: stretch; gap: 5px; }
+body:not(.is-focusing) .jam__group--mine .jam__gbody { flex-direction: column; align-items: stretch; gap: 5px; }
 .jam__slots { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
 .jam__slot {
   display: inline-flex; align-items: stretch; overflow: hidden; height: var(--jam-h);
@@ -2865,6 +2869,7 @@ body:not(.is-focusing) .jam__try b { font-size: 20px; }
 body:not(.is-focusing) .jam__why { font-size: 12px; line-height: 1.4; }
 body:not(.is-focusing) .jam__heard { min-height: 17px; font-size: 12px; }
 body.is-focusing .jam__count { font-size: clamp(14px, 1.8vh, 18px); }
+body.is-focusing .jam__go { min-width: 170px; }
 
 /* The one-octave strip: what sounds good over this chord, true in every octave.
    Unlit keys sink toward the panel so the lit ones read at a glance. */
@@ -2971,15 +2976,18 @@ body.is-focusing .jam__count { font-size: clamp(14px, 1.8vh, 18px); }
    stretches it: the console keeps its rows, the stage keeps its two sides down to the
    compact tier, and what goes first is secondary text (the blurb, the slot count, the
    Start button's long name). */
+/* Folding, not growing: where the band's settings would take a third row, they go
+   behind their one-line summary (Pop · 96 bpm · 70%), one click from open. */
+@container panel (max-width: 960px) {
+  .jam__fold { display: inline-flex; }
+  .jam:not(.is-band-open) .jam__group--band .jam__gbody > :not(.jam__fold) { display: none; }
+}
 @container panel (max-width: 760px) {
   body:not(.is-focusing) .jam__group { grid-template-columns: 48px minmax(0, 1fr); }
   body:not(.is-focusing) .jam__gbody { gap: 5px 12px; }
   .jam__select { width: 150px; }
   .jam__field { width: 180px; }
   body:not(.is-focusing) .jam__go { width: auto; min-height: var(--jam-h); padding: 3px 14px; white-space: nowrap; }
-  /* Folding, not growing: the band's settings go behind their one-line summary. */
-  .jam__fold { display: inline-flex; }
-  .jam:not(.is-band-open) .jam__group--band .jam__gbody > :not(.jam__fold) { display: none; }
   .jam__pblurb { display: none; }
 }
 /* Compact: Start goes over the console, the stage's sides tighten. */
@@ -3014,7 +3022,7 @@ body.is-focusing .jam__count { font-size: clamp(14px, 1.8vh, 18px); }
   body:not(.is-focusing) .jam__coach { min-height: 0; }
   body:not(.is-focusing) .jam__heard { min-height: 0; }
   body:not(.is-focusing) .jam__heard:empty { display: none; }
-  body:not(.is-focusing) .jam { --jam-gap: 6px; }
+  body:not(.is-focusing) .jam { --jam-gap: 6px; --jam-h: min(var(--ctl-h, 24px), 24px); }
   .jam__pname { display: none; }      /* the chips are the progression; its name is the aside */
   .jam__field { width: 100%; }
   body:not(.is-focusing) .jam__stage {
