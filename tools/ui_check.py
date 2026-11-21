@@ -1959,6 +1959,13 @@ def nav_checks(browser, port: int, errs: list[str]) -> list[str]:
               and not f["stageScrolls"] and f["footTop"] == g["footTop"], f"{f} / {g}")
     page.set_viewport_size({"width": 1600, "height": 1000})
     go("page/new", 900)
+    # One surface, no group setting the height of the lot: at 1600x1000 the whole builder
+    # (name, icon, every panel, the panes in order) shows without scrolling its middle.
+    fit = page.evaluate("""() => { const b = document.querySelector('.pb__body');
+      const gs = [...document.querySelectorAll('.pb__group')].map((g) => g.scrollHeight);
+      return { scroll: b.scrollHeight - b.clientHeight, tallest: Math.max(...gs) }; }""")
+    check("builder @1600x1000: everything shows without scrolling, no panel group over 260px tall",
+          fit["scroll"] <= 1 and fit["tallest"] <= 260, str(fit))
     icons = page.evaluate("[...document.querySelectorAll('#pb-icon [data-icon]')].map((b) => b.dataset.icon)")
     real = page.evaluate("async () => (await import('/icons.js')).ICON_NAMES")
     check("the builder offers every preset icon", len(icons) >= 24 and icons == real, f"{len(icons)} of {len(real)}")
