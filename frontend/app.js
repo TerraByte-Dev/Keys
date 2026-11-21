@@ -21,6 +21,7 @@ import { MAX_PAGES, fullWidth, pageBuilder, pageShell, pickPanels, savePages,
   validPages } from './pages.js';
 import { $, api, h, hms, noteName, paint as paintSlider, toast } from './ui.js';
 import { startTour, tourOpen } from './tour.js';
+import { keyLabel } from './prefs.js';
 import { closeSettings, openSettings, settingsOpen } from './settings-overlay.js';
 
 import playView from './views/play.js';
@@ -532,7 +533,7 @@ function paintNav(id = currentId) {
     href: `#page/${p.id}`, 'data-page': p.id, title: p.name,
   },
     h('span.nav__dot'),
-    i < 3 && binds[`page:${i + 1}`] ? h('span.nav__key', null, binds[`page:${i + 1}`]) : null,
+    i < 3 && binds[`page:${i + 1}`] ? h('span.nav__key', null, keyLabel(binds[`page:${i + 1}`])) : null,
     h('span.nav__label', null, p.name))));
   for (const a of document.querySelectorAll('.nav__item')) {
     a.classList.toggle('is-active', pageId ? a.dataset.page === pageId : a.dataset.view === id);

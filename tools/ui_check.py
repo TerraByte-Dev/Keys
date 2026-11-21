@@ -1338,6 +1338,11 @@ def pages_checks(browser, port: int, errs: list[str]) -> list[str]:
               made[key] and shown == want, f"shown {shown}")
     navs = page.evaluate("[...document.querySelectorAll('#nav-pages .nav__item')].map(a => a.textContent)")
     check("...and each is a nav item under the tabs", len(navs) == 3, str(navs))
+    # A page's shortcut prints under the tabs as Settings prints it: Space, not a blank chip.
+    page.evaluate("async () => (await import('/app.js')).setBinds({ 'page:1': ' ' })")
+    chip = page.evaluate("document.querySelector('#nav-pages .nav__key')?.textContent")
+    page.evaluate("async () => (await import('/app.js')).setBinds({})")
+    check("...a page bound to Space says Space on its chip", chip == "Space", repr(chip))
 
     # 4. Every page at every size, each pane audited like a tab.
     for w, h in WIDTHS:

@@ -127,7 +127,8 @@ export function keysPanel(ctx) {
   return el;
 }
 
-function keyLabel(key) {
+/* A key as a person reads it: Space for ' ', a letter in capitals. Also the nav's page chips. */
+export function keyLabel(key) {
   if (!key) return '—';
   if (key === ' ') return 'Space';
   return key.length === 1 ? key.toUpperCase() : key;
@@ -135,12 +136,13 @@ function keyLabel(key) {
 
 /* While a song is loaded, Space and the arrows and Home are the song's (app.js SONG_KEYS)
    and a shortcut on one of them does not fire. Allowed -- with no song open it works --
-   but said, under the shortcut, so nobody finds out mid-song. */
+   but said, under the shortcut, so nobody finds out mid-song. Home is the song's on the
+   roll only: on the Sheet it scrolls the page, and a shortcut on it fires there. */
 const SONG_OWNS = {
   ' ': 'Space plays and pauses a loaded song',
   ArrowLeft: 'Left goes a bar back in a loaded song',
   ArrowRight: 'Right goes a bar on in a loaded song',
-  Home: 'Home takes a loaded song back to the top',
+  Home: 'On the roll, Home takes a loaded song back to the top',
 };
 
 function songWarn(key) {
