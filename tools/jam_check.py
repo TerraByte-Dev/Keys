@@ -34,11 +34,13 @@ were, and goes quiet from the first bar not already queued.
 from __future__ import annotations
 
 import json
+import os
 import random
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 from types import SimpleNamespace
@@ -46,6 +48,11 @@ from types import SimpleNamespace
 ROOT = Path(__file__).resolve().parent.parent
 FRONTEND = ROOT / "frontend"
 sys.path.insert(0, str(ROOT))
+# The band endpoints' sanitiser is checked by importing the server, which opens the
+# practice database: point the data directory at a throwaway one first, so this check
+# never writes a keys.db of its own -- or touches yours.
+SANDBOX = tempfile.mkdtemp(prefix="keys-jamcheck-")
+os.environ["KEYS_DATA_DIR"] = SANDBOX
 
 from backend import band as band_mod, theory   # noqa: E402
 
@@ -1034,7 +1041,7 @@ def main() -> int:
     driver.write_text(DRIVER, encoding="utf-8")
     try:
         proc = subprocess.run([node, str(driver)], capture_output=True, text=True,
-                              env={**__import__("os").environ, "JAM_KEYS": json.dumps(keys),
+                              env={**os.environ, "JAM_KEYS": json.dumps(keys),
                                    "JAM_ROOMS": json.dumps(rooms),
                                    "JAM_ALL_KEYS": json.dumps(all_keys)})
     finally:
@@ -1049,6 +1056,7 @@ def main() -> int:
     band_checks()
     source_checks()
 
+    shutil.rmtree(SANDBOX, ignore_errors=True)
     passed = all(p for _, p, _ in results)
     for label, p, detail in results:
         print(f"  [{'PASS' if p else 'FAIL'}] {label}" + (f" -- {detail}" if detail else ""))
