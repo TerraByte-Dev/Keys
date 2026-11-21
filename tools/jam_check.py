@@ -60,7 +60,7 @@ from backend import band as band_mod, theory   # noqa: E402
 KEYS = [("C", "major"), ("A", "natural_minor"), ("G", "major"), ("E", "natural_minor"),
         ("F", "major"), ("D", "natural_minor"), ("D", "major"), ("B", "natural_minor"),
         ("Bb", "major"), ("G", "natural_minor"), ("F#", "major"), ("Eb", "natural_minor"),
-        ("B", "major"), ("Bb", "natural_minor")]
+        ("Db", "major"), ("Bb", "natural_minor")]
 
 results: list[tuple[str, bool, str]] = []
 
@@ -1187,6 +1187,14 @@ def source_checks() -> None:
     stuck = [f"{key} {mode}" for key, mode in KEYS
              if ((pc(key) + 7) % 12, mode) not in offered and ((pc(key) + 5) % 12, mode) not in offered]
     ok("every key Jam offers has a key a fifth away to move to", not stuck, ", ".join(stuck) or f"{len(KEYS)} keys")
+    # Pop is the major keys and Minor the minor ones; switching between them moves the key
+    # to its relative (the same notes, the other home): a major key's is 9 semitones up, a
+    # minor key's 3. Every key needs one on offer, or the switch keeps a key of the wrong mode.
+    alone = [f"{key} {mode}" for key, mode in KEYS
+             if ((pc(key) + (9 if mode == "major" else 3)) % 12, "natural_minor" if mode == "major" else "major")
+             not in offered]
+    ok("every key Jam offers has its relative on offer, for a switch between Pop and Minor", not alone,
+       ", ".join(alone) or f"{len(KEYS)} keys")
     styles = [line.split("'")[1] for line in src.splitlines() if line.strip().startswith("{ id: '") and "bpm:" in line]
     ok("jam.js offers exactly the band's styles", sorted(styles) == sorted(band_mod.STYLES), str(styles))
     # Lights Out's counter lives in jam.js (the driver above runs the same rule): it

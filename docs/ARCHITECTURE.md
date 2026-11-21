@@ -250,9 +250,11 @@ key change at every second phrase, announced before it lands. Blues has its own 
 chords, the plain 12-bar, the 12-bar mixed with the quick change, and a turnaround that
 moves). Level 4 moves **by a fifth, never to the relative key**: the relative changes none
 of the notes, so it would change none of the scale you are meant to be following. Every key
-Jam offers has a key a fifth away on offer -- which is why B major and B♭ minor are in the
-list: without them F♯ major and E♭ minor had none, and fell back to the relative.
-`jam_check` asserts that by its own arithmetic.
+Jam offers has a key a fifth away on offer -- which is why D♭ major and B♭ minor are in the
+list: without them F♯ major and E♭ minor had none, and fell back to the relative. The two are
+each other's relative as well, so every key also has one to move to when Music switches
+between Pop and Minor (B major, the other fifth from F♯, has no relative minor on offer and
+would leave that switch on a major key). `jam_check` asserts both by its own arithmetic.
 
 **The scale pin: outline is "in your scale", fill is "good on this chord".** `Scale` pins one
 scale over the whole key -- the key's own, its pentatonic or its blues, spelled by the server

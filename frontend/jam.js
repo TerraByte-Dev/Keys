@@ -80,8 +80,9 @@ const KEYS = [
   { id: 'G-minor', key: 'G', mode: 'natural_minor' },
   { id: 'F#-major', key: 'F#', mode: 'major', note: 'your black-key habit' },
   { id: 'Eb-minor', key: 'Eb', mode: 'natural_minor', note: 'the black keys, moodier' },
-  // A fifth from each of the two above, so level 4 and Wander move by a fifth from them too.
-  { id: 'B-major', key: 'B', mode: 'major' },
+  // A fifth from each of the two above, so level 4 and Wander move by a fifth from them too,
+  // and each other's relative, so Pop and Minor can switch between them.
+  { id: 'Db-major', key: 'Db', mode: 'major' },
   { id: 'Bb-minor', key: 'Bb', mode: 'natural_minor' },
 ];
 const STYLES = [
@@ -424,7 +425,7 @@ export function createJam(ctx, { onStart } = {}) {
     lightSeg(musicSeg, MUSICS, music);
     lightSeg(gameSeg, GAMES, opt.game);
     lightSeg(levelSeg, LEVELS, opt.level);
-    // Pop offers the major keys, Minor the minor ones; Blues and My chords all twelve.
+    // Pop offers the major keys, Minor the minor ones; Blues and My chords every key.
     const want = music === 'pop' ? true : music === 'minor' ? false : null;
     for (const o of keySelect.options) {
       const off = want !== null && isMajor(keyOf(o.value)) !== want;
