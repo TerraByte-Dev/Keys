@@ -28,7 +28,13 @@ the band, and hand over to the roll without the two fighting over fullscreen.
 each starter made through the builder and audited pane by pane at all three widths, and
 the dock's highlight owners: Chords & scales across the whole keyboard, the touch keys
 and Play's scale highlighter on top of it without wiping it, all of it back after a
-range change.
+range change. Every pane is held to two more rules: no control past its sides (a pane
+does not scroll sideways) and no pane cut to a sliver.
+
+**Then what several views in one document got wrong.** Layers beside Play following
+Play's instrument pick; Touch response's labels surviving the band; G with an exercise
+run waiting; a Settings reset keeping the pages; the builder's Save in reach; hidden
+panels doing nothing per frame; and no listener or observer left behind by a page.
 """
 
 from __future__ import annotations
@@ -442,6 +448,37 @@ SHOWN = """() => [...document.querySelectorAll('.page__pane')].map((p) => ({
     .filter((e) => e.getBoundingClientRect().height > 0)
     .map((e) => e.dataset.panel || e.dataset.slot).filter(Boolean) }))"""
 
+# Every pane on the page, measured as a user meets it: no control past the pane's sides
+# (the pane does not scroll sideways, so one there cannot be reached -- Chords & scales'
+# Bb and B were), and no pane cut to a sliver. A pane may be short only if it shows all
+# it holds; otherwise it gets SLIVER_PX at least.
+PANE_FIT = """() => {
+  const out = [];
+  for (const pane of document.querySelectorAll('.page__pane')) {
+    const pr = pane.getBoundingClientRect();
+    const v = pane.dataset.view;
+    if (pr.height < SLIVER && pane.scrollHeight > pane.clientHeight + 1) {
+      out.push(`${v}: a ${Math.round(pr.height)}px sliver over ${pane.scrollHeight}px of panels`);
+    }
+    for (const el of pane.querySelectorAll('button, select, input, a[href]')) {
+      if (el.closest('.is-unpicked')) continue;
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) continue;
+      // Inside a sideways scroller of its own (the interval ribbon), it can be scrolled to.
+      let n = el.parentElement, own = false;
+      for (; n && n !== pane; n = n.parentElement) {
+        const ox = getComputedStyle(n).overflowX;
+        if ((ox === 'auto' || ox === 'scroll') && n.scrollWidth > n.clientWidth) { own = true; break; }
+      }
+      if (own || (r.right <= pr.right + 1 && r.left >= pr.left - 1)) continue;
+      const what = (el.textContent || el.title || el.id || el.type || '').trim().slice(0, 16);
+      out.push(`${v}: ${el.tagName.toLowerCase()} "${what}" at x ${Math.round(r.left)}-${Math.round(r.right)}, `
+        + `pane ${Math.round(pr.left)}-${Math.round(pr.right)}`);
+    }
+  }
+  return out;
+}""".replace("SLIVER", "300")
+
 # The three starters as the spec words them -- not read from pages.js, which is what is
 # being tested. Blank gets two panels ticked by hand.
 STARTER_WANT = {
@@ -552,7 +589,9 @@ def pages_checks(browser, port: int, errs: list[str]) -> list[str]:
                     continue
                 bad += [f"{v}: {b}" for b in a["over"] + a["junk"] + a["hollow"]]
                 bad += [f"{v}: {t} has no row span" for t in a["unspanned"]]
-            check(f"{key} @{w}x{h}: {len(panes)} panes, no overlap, no gaps, nothing stringified",
+            bad += page.evaluate(PANE_FIT)
+            check(f"{key} @{w}x{h}: {len(panes)} panes, no overlap, no gaps, nothing stringified, "
+                  "every control in reach, no slivers",
                   panes and not bad, "; ".join(bad))
     page.set_viewport_size({"width": 1600, "height": 1000})
 
@@ -647,6 +686,227 @@ def pages_checks(browser, port: int, errs: list[str]) -> list[str]:
     return fails
 
 
+# Counts what the app has hooked to the window and the DOM, from before its first line
+# runs: resize listeners on window, ResizeObservers not yet disconnected, and every
+# WebSocket (so a check can hand the app a frame as if the server sent it).
+HOOKS = """(() => {
+  const add = window.addEventListener, rem = window.removeEventListener;
+  window.__resize = new Set();
+  window.addEventListener = function (t, f, o) {
+    if (t === 'resize') window.__resize.add(f);
+    return add.call(this, t, f, o);
+  };
+  window.removeEventListener = function (t, f, o) {
+    if (t === 'resize') window.__resize.delete(f);
+    return rem.call(this, t, f, o);
+  };
+  const RO = window.ResizeObserver;
+  window.__ro = new Set();
+  window.ResizeObserver = class extends RO {
+    constructor(cb) { super(cb); window.__ro.add(this); }
+    disconnect() { window.__ro.delete(this); return super.disconnect(); }
+  };
+  const WS = window.WebSocket;
+  window.__ws = [];
+  window.WebSocket = class extends WS {
+    constructor(...a) { super(...a); window.__ws.push(this); }
+  };
+})()"""
+
+HOOKED = "() => ({ resize: window.__resize.size, ro: window.__ro.size })"
+
+ENGINE = """async () => (await (await fetch('/api/state')).json()).engine.zones
+  .map((z) => [z.program, z.name, z.enabled])"""
+
+
+def pages_fix_checks(browser, port: int, errs: list[str]) -> list[str]:
+    """What reviewers found once several views shared a document: Layers beside Play,
+    what a page leaves behind, hidden panels doing work, labels, focus, the builder."""
+    fails: list[str] = []
+    page = browser.new_page(viewport={"width": 1600, "height": 1000})
+    page.on("pageerror", lambda e: errs.append(str(e)))
+    page.add_init_script(HOOKS)
+
+    def check(label: str, passed: bool, detail: str = "") -> None:
+        print(f"  [{'PASS' if passed else 'FAIL'}] {label}" + (f" -- {detail}" if detail else ""))
+        if not passed:
+            fails.append(f"pages+: {label} {detail}".strip())
+
+    def go(hash_: str, wait: int = 2200) -> None:
+        page.evaluate(f"location.hash = '{hash_}'")
+        page.wait_for_timeout(wait)
+
+    def make(name: str, picks: dict[str, list[str]], cols: int) -> str:
+        go("page/new", 700)
+        page.click("#pb-start [data-start='blank']")
+        for view, slugs in picks.items():
+            for slug in slugs:
+                page.click(f"label:has(> input[data-view='{view}'][data-slug='{slug}'])")
+        page.click(f"#pb-cols button:text-is('{cols}')")
+        page.fill("#pb-name", name)
+        page.click("#pb-save")
+        page.wait_for_function("/^#page\\/p[a-z0-9]+$/.test(location.hash)", timeout=5000)
+        page.wait_for_timeout(2600)
+        return page.evaluate("location.hash.slice(6)")
+
+    print("\npages, once several views share a document")
+    page.goto(f"http://127.0.0.1:{port}/#play", wait_until="networkidle")
+    page.wait_for_timeout(2200)
+    pages = page.evaluate("async () => (await (await fetch('/api/settings')).json()).ui.pages")
+    ids = {p["name"]: p["id"] for p in pages}
+    solo, everything = ids.get("Test solo"), ids.get("Test everything")
+
+    # 1. The builder: which starter it holds, and Save in reach without scrolling.
+    page.set_viewport_size({"width": 1280, "height": 720})
+    go("page/new", 800)
+    on = page.evaluate("[...document.querySelectorAll('#pb-start .is-on')].map(b => b.dataset.start)")
+    check("a new page's builder shows Solo practice as the starter it holds", on == ["solo"], str(on))
+    reach = page.evaluate("""() => { const b = document.getElementById('pb-save').getBoundingClientRect();
+      const s = document.getElementById('stage').getBoundingClientRect();
+      return { inside: b.top >= s.top && b.bottom <= s.bottom,
+               hit: document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2)?.id }; }""")
+    check("...and Make the page is on screen at 1280x720 without a scroll",
+          reach["inside"] and reach["hit"] == "pb-save", str(reach))
+    page.click("label:has(> input[data-view='tools'][data-slug='pedal'])")
+    on = page.evaluate("document.querySelectorAll('#pb-start .is-on').length")
+    check("...and a panel ticked by hand means no starter is lit", on == 0, f"{on} lit")
+    page.click("#pb-cancel")
+    page.wait_for_timeout(600)
+    page.set_viewport_size({"width": 1600, "height": 1000})
+
+    # 2. Layers beside Play: Play's pick reaches the zone editor, and the editor's
+    #    toggle applies on top of it instead of posting a stale copy back.
+    make("Zones", {"play": ["instruments"], "layers": ["zone-editor"]}, 2)
+    rows = page.evaluate("""() => [...document.querySelectorAll('#inst-list .list__row')]
+      .map((r) => [+r.children[0].textContent, r.children[1].textContent])""")
+    first = rows[40] if len(rows) > 40 else None
+    page.click("#inst-list .list__row >> nth=40")
+    page.wait_for_timeout(1600)
+    shown = page.evaluate("document.getElementById('zname-0')?.textContent")
+    check("Play's instrument pick shows in the Layers pane beside it within a beat",
+          first is not None and shown == first[1], f"picked {first}, Layers shows {shown!r}")
+    toggle = "document.querySelector('#zone-list .zone__head label.toggle').click()"
+    page.evaluate(toggle)
+    page.wait_for_timeout(700)
+    z = page.evaluate(ENGINE)
+    check("...and turning the zone off there keeps Play's instrument",
+          first is not None and z[:1] == [[first[0], first[1], False]], str(z))
+    page.evaluate(toggle)
+    page.wait_for_timeout(700)
+    # Inside the beat: the pick's POST answered, no status frame since.
+    second = rows[24] if len(rows) > 24 else None
+    page.evaluate("""async () => { const a = await import('/app.js');
+      window.__eng = a.ctx.state.engine; }""")
+    page.click("#inst-list .list__row >> nth=24")
+    page.wait_for_function("""async () => (await import('/app.js')).ctx.state.engine !== window.__eng""",
+                           timeout=3000)
+    page.evaluate(toggle)
+    page.wait_for_timeout(700)
+    z = page.evaluate(ENGINE)
+    check("...even toggled straight after the pick, before a heartbeat",
+          second is not None and z[:1] == [[second[0], second[1], False]], str(z))
+    page.evaluate(toggle)
+    page.wait_for_timeout(500)
+
+    # 3. A one-column page is a stack, and a 2x2 on a short window is not four slivers.
+    sid = make("Stack", {"practice": ["songs"], "tools": ["chords-scales"], "play": ["instruments"]}, 1)
+    page.set_viewport_size({"width": 1280, "height": 720})
+    for name, pid in (("Stack", sid), ("Everything", everything)):
+        go(f"page/{pid}", 2600)
+        hs = page.evaluate("""[...document.querySelectorAll('.page__pane')]
+          .map(p => Math.round(p.getBoundingClientRect().height))""")
+        bad = page.evaluate(PANE_FIT)
+        check(f"{name} @1280x720: panes {hs}px tall, none a sliver, every control in reach",
+              bool(pid) and bool(hs) and not bad, "; ".join(bad))
+    go(f"page/{sid}", 1800)
+    inner = page.evaluate("""() => [...document.querySelectorAll('.page__pane')]
+      .filter((p) => p.scrollHeight > p.clientHeight + 1).map((p) => p.dataset.view)""")
+    check("...and a one-column page has no scrollers inside it, only the page", inner == [], str(inner))
+    page.set_viewport_size({"width": 1280, "height": 860})
+    go(f"page/{solo}", 2600)
+    b = page.evaluate("""() => { const r = [...document.querySelectorAll('#th-roots button')]
+        .find((x) => x.textContent === 'B').getBoundingClientRect();
+      return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.textContent; }""")
+    check("Solo practice @1280x860: Chords & scales' B root is on screen to click", b == "B", repr(b))
+    page.set_viewport_size({"width": 1600, "height": 1000})
+
+    # 4. Hidden panels cost nothing per frame. Solo practice keeps Tools' Touch response
+    #    in the DOM, unpicked; a frame with notes in it must not rebuild it. Counted per
+    #    frame, synchronously, so the 1 Hz status beat landing in between is not.
+    go(f"page/{solo}", 2600)
+    added = page.evaluate("""async () => {
+      let n = 0;
+      const mo = new MutationObserver(() => {});
+      mo.observe(document.getElementById('stage'), { childList: true, subtree: true });
+      const ws = window.__ws[window.__ws.length - 1];
+      for (let i = 0; i < 60; i++) {
+        mo.takeRecords();
+        ws.onmessage({ data: JSON.stringify({ t: 'f', on: [[60 + (i % 12), 40 + i]] }) });
+        for (const m of mo.takeRecords()) {
+          if (m.target.closest?.('.is-unpicked')) n += m.addedNodes.length;
+        }
+        await new Promise((r) => requestAnimationFrame(r));
+      }
+      mo.disconnect();
+      return { n, hidden: !!document.querySelector('.is-unpicked #touch-fill') };
+    }""")
+    check("60 frames of notes add nothing inside unpicked panels",
+          added["hidden"] and added["n"] == 0, str(added))
+
+    # 5. Focus on a page with a run waiting on the server: G still focuses Jam.
+    page.evaluate("fetch('/api/exercises/reading/start', { method: 'POST' })")
+    page.wait_for_timeout(500)
+    go("play", 1500)
+    go(f"page/{solo}", 2600)
+    page.evaluate("document.activeElement?.blur?.()")
+    page.keyboard.press("g")
+    page.wait_for_timeout(500)
+    f = page.evaluate("""() => ({ on: document.body.classList.contains('is-focusing'),
+      jam: !!document.querySelector('[data-focus="on"] .jam, [data-focus="on"].jam'),
+      run: !!document.querySelector('.page .exrun') })""")
+    check("G focuses Jam on a page while an exercise run waits, and the run stays off the page",
+          f["on"] and f["jam"] and not f["run"], str(f))
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(400)
+    page.evaluate("fetch('/api/exercises/stop', { method: 'POST' })")
+    page.wait_for_timeout(300)
+
+    # 6. Labels have owners: the band relabels a key every bar and every beat, and the
+    #    touch keys' names stay.
+    make("Touch", {"practice": ["jam"], "tools": ["touch-response"]}, 2)
+    page.click("#touch-show")
+    page.click(".page__pane[data-view='practice'] .jam__go")
+    page.wait_for_timeout(3500)
+    labels = page.evaluate("[...document.querySelectorAll('#dock .key-label.is-forced')].map(t => t.textContent)")
+    marks = page.evaluate("document.querySelectorAll('#dock .key.is-tone').length")
+    check("with the band playing beside it, the touch keys keep FIXED SOFT MEDIUM HARD",
+          {"FIXED", "SOFT", "MEDIUM", "HARD"} <= set(labels) and marks > 0,
+          f"labels {labels}, {marks} Jam marks")
+
+    # 7. Settings' reset keeps the pages you built, and the nav keeps showing them.
+    before = page.evaluate("document.querySelectorAll('#nav-pages .nav__item').length")
+    page.evaluate("""fetch('/api/data/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ what: 'settings', confirm: 'settings' }) })""")
+    page.wait_for_timeout(600)
+    go("play", 1500)
+    kept = page.evaluate("async () => ((await (await fetch('/api/settings')).json()).ui.pages || []).length")
+    check("a Settings reset keeps every page", kept == before and before == 5, f"{kept} of {before}")
+
+    # 8. Leaving a page leaves nothing behind: as many window listeners and observers
+    #    after ten round trips through the four-pane page as before them.
+    go("play", 1800)
+    base = page.evaluate(HOOKED)
+    for _ in range(10):
+        go(f"page/{everything}", 1400)
+        go("play", 900)
+    page.wait_for_timeout(800)
+    after = page.evaluate(HOOKED)
+    check("ten visits to a four-pane page leak no resize listener and no observer",
+          after == base, f"before {base}, after {after}")
+    page.close()
+    return fails
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=0,
@@ -718,6 +978,7 @@ def main() -> int:
                 page.close()
             fails.extend(jam_checks(browser, port, errs))
             fails.extend(pages_checks(browser, port, errs))
+            fails.extend(pages_fix_checks(browser, port, errs))
             browser.close()
     finally:
         if proc is not None:
