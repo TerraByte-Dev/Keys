@@ -2273,6 +2273,12 @@ def nav_checks(browser, port: int, errs: list[str]) -> list[str]:
     page.wait_for_timeout(800)
     check("...Edit opens the builder on that page", page.evaluate("location.hash") == f"#page/{pid}/edit"
           and page.evaluate("!!document.getElementById('pb-save')"))
+    # The pointer is still where Edit was, over the nav: it stays open until the pointer
+    # goes, and only then is the builder's Cancel, under its open width, there to press.
+    page.mouse.move(900, 400)
+    page.wait_for_timeout(450)
+    check("...and with the menu gone, the nav folds once the pointer leaves it",
+          not page.evaluate("document.body.classList.contains('is-navopen')"))
     page.click("#pb-cancel")
     page.wait_for_timeout(1500)
     menu()
