@@ -141,12 +141,16 @@ function shownSpan(el) {
  * Play's Click kit to full width under two columns of different heights -- 184k px2 of
  * hole where its half-width slot had 43k. */
 /* Something in the card wider than its box: the card or one of its blocks holding more
-   than its width (an overflow into the card's padding shows only on the block), or a
-   select cutting off the choice it shows -- a select that may shrink (a quarter's Pedal
-   mode) has no min-content to stop it, so it is asked directly. A block that scrolls
-   sideways on purpose is allowed to. */
-const overflows = (mod) => [mod, ...mod.children, ...mod.querySelectorAll('select')].some((n) => n.clientWidth
-  && n.scrollWidth > n.clientWidth + 1 && !/auto|scroll/.test(getComputedStyle(n).overflowX));
+   than its width (an overflow into the card's padding shows only on the block). A block
+   that scrolls sideways on purpose is allowed to. */
+const wider = (n) => n.clientWidth && n.scrollWidth > n.clientWidth + 1
+  && !/auto|scroll/.test(getComputedStyle(n).overflowX);
+const overflows = (mod) => [mod, ...mod.children].some(wider);
+/* And, when measuring a span, a select cutting off the choice it shows: a select that may
+   shrink (a quarter's Pedal mode) has no min-content to stop it, so it is asked directly.
+   Only there -- pack() asking it of every select on every pass re-measured Jam, whose
+   band selects change as it plays, every frame. */
+const cutsOff = (mod) => overflows(mod) || [...mod.querySelectorAll('select')].some(wider);
 
 function minSpan(col, px) {
   const mod = col.firstElementChild;
@@ -161,7 +165,7 @@ function minSpan(col, px) {
     // fields reports a min-content under the width its labels then need (Click kit's
     // three gains, 186px of min-content that overflowed 256px).
     mod.style.width = keep[1];
-    if (!overflows(mod)) { found = s; break; }
+    if (!cutsOff(mod)) { found = s; break; }
   }
   col.style.width = keep[0];
   mod.style.width = keep[1];

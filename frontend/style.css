@@ -1252,7 +1252,6 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
   /* Build one: one card at a time, picked on a row above them. */
   .grid--packed .builds__pick { display: flex; margin-bottom: var(--gap); }
   .grid--packed .builds__pick > .seg__btn { flex: 1 1 0; padding-inline: 4px; }
-  .grid--packed .builds[data-pick] > .build:not([data-build]) { display: flex; }
   .grid--packed .builds[data-pick="split"] > [data-build]:not([data-build="split"]),
   .grid--packed .builds[data-pick="layer"] > [data-build]:not([data-build="layer"]),
   .grid--packed .builds[data-pick="one"] > [data-build]:not([data-build="one"]) { display: none; }
