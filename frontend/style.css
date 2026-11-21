@@ -880,7 +880,8 @@ html.is-titlebar .rail {
 html.is-titlebar .rail button,
 html.is-titlebar .rail input,
 html.is-titlebar .rail .vol,
-html.is-titlebar .rail .lamp { app-region: no-drag; -webkit-app-region: no-drag; }  /* lamps: so their tooltips still show */
+html.is-titlebar .rail .clock,
+html.is-titlebar .rail .lamp { app-region: no-drag; -webkit-app-region: no-drag; }  /* lamps, clock: so their tooltips still show */
 html.is-titlebar .rail__brand { gap: 8px; width: calc(var(--nav-w) - 14px); }
 html.is-titlebar .rail__mark { width: 8px; height: 8px; box-shadow: 0 0 8px var(--amber); }
 html.is-titlebar .rail__name { font-size: 13.5px; }
