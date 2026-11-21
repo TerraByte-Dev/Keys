@@ -3223,7 +3223,7 @@ body.is-focusing .jam__go { min-width: 170px; }
     transform: rotate(180deg); justify-content: center; }
   body:not(.is-focusing) .jam__gbody { gap: 4px 10px; }
   .jam .seg { flex-wrap: wrap; }
-  .jam__select { width: 100%; min-width: 0; field-sizing: fixed; }
+  .jam__select { width: 100%; min-width: 0; field-sizing: fixed; font-size: 11px; padding-left: 6px; padding-right: 18px; }
   .jam__opt:has(> .jam__select) { flex: 1 1 100%; }   /* a key's whole name: narrower, a select holds more than it shows */
   body:not(.is-focusing) .jam__why { display: none; }    /* the why is the coach's aside; the what stays */
   body:not(.is-focusing) .jam__coach { min-height: 0; }
