@@ -818,7 +818,10 @@ body::after {
   border-bottom: 1px solid var(--hairline);
 }
 
-.rail__brand { display: flex; align-items: center; gap: 9px; width: calc(var(--nav-w) - 16px); }
+.rail__brand {
+  display: flex; align-items: center; gap: 9px; width: calc(var(--nav-w) - 16px);
+  min-width: max-content;   /* a narrow (collapsed) nav must not push the name into the lamps */
+}
 .rail__mark {
   width: 10px; height: 10px; border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, var(--amber-hot), var(--amber-deep));
