@@ -2803,8 +2803,9 @@ body.has-update #gear::after { top: 2px; right: 1px; }
 /* ── Jam ────────────────────────────────────────────────────────────────────
    The band plays, you solo. One panel that fits a screen and a pane: the options are
    a console (a group a row, a hairline between, the group's name down the left), the
-   stage is one box -- the chord, what comes next and the coach on the left, the beat
-   and the one-octave strip on the right -- and the band's console sits under it.
+   stage is one box -- whole-width, the chord and the coach left, the beat and the
+   one-octave strip centred, Next right; narrower, the strip moves to the right and Next
+   under the chord; at a quarter, one column -- and the band's console sits under it.
    Sizes come from the panel's density tokens (--ctl-h and friends, set per width);
    Jam caps them at its own compact sizes, so a roomier tier never pushes the console's
    Music row onto two lines, and it is dense with or without them. */
