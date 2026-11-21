@@ -154,6 +154,150 @@ def window_icon() -> Path | None:
     return candidate if candidate.exists() else None
 
 
+# -- the title bar ------------------------------------------------------------------
+#
+# The rail IS the title bar in the app window: Windows' caption strip is removed and the
+# page draws the drag area and the three buttons itself. This is NOT pywebview's
+# `frameless=True`. On winforms that sets FormBorderStyle.None, which takes the resize
+# border and Snap with it, and its drag region is a JavaScript mousemove loop calling
+# move(x, y) -- no Aero snap, no drag-down-to-restore. Instead the window keeps its
+# normal sizable style and only the caption is cut out of the non-client area
+# (WM_NCCALCSIZE), and WebView2's own `app-region: drag` support hands real caption
+# hit-tests to Windows. So: resize from the left, right and bottom edges and both bottom
+# corners, Snap (Win+arrows, drag to an edge, drag down from maximised), double-click
+# to maximise and the system menu on right-click, all done by Windows itself.
+#
+# What is lost: resizing from the TOP edge and the two top corners (the page covers
+# them), and the Snap Layouts flyout that hovering Windows' own maximise button shows.
+
+WM_CLOSE = 0x0010
+WM_NCCALCSIZE = 0x0083
+GWLP_WNDPROC = -4
+SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE = 3, 6, 9
+SWP_FRAMECHANGED_ONLY = 0x0020 | 0x0001 | 0x0002 | 0x0004 | 0x0010  # FRAMECHANGED|NOSIZE|NOMOVE|NOZORDER|NOACTIVATE
+
+_user32_lib = None
+_keep_alive: list = []   # the WNDPROC thunk; collected, the next message is a crash
+
+
+def _user32():
+    """A private user32 with its own prototypes.
+
+    Not ctypes.windll.user32: that instance is shared with pywebview, and setting
+    argtypes on its function objects would change them under pywebview's own calls.
+    """
+    global _user32_lib
+    if _user32_lib is None:
+        from ctypes import wintypes as w
+        u = ctypes.WinDLL("user32", use_last_error=True)
+        u.ShowWindowAsync.argtypes = (w.HWND, ctypes.c_int)
+        u.IsZoomed.argtypes = (w.HWND,)
+        u.PostMessageW.argtypes = (w.HWND, w.UINT, w.WPARAM, w.LPARAM)
+        u.CallWindowProcW.argtypes = (ctypes.c_void_p, w.HWND, w.UINT, w.WPARAM, w.LPARAM)
+        u.CallWindowProcW.restype = ctypes.c_ssize_t
+        u.SetWindowLongPtrW.argtypes = (w.HWND, ctypes.c_int, ctypes.c_void_p)
+        u.SetWindowLongPtrW.restype = ctypes.c_void_p
+        u.SetWindowPos.argtypes = (w.HWND, w.HWND, ctypes.c_int, ctypes.c_int,
+                                   ctypes.c_int, ctypes.c_int, w.UINT)
+        _user32_lib = u
+    return _user32_lib
+
+
+class WindowControls:
+    """The ENTIRE js_api: the three buttons at the right of the title bar, nothing else.
+
+    Every public method here is callable by any script the page runs, so this class is
+    a security boundary, not a convenience. tools/titlebar_check.py fails the build if
+    anything public beyond these three appears. State lives in underscored attributes,
+    which pywebview does not expose (and does not walk into).
+    """
+
+    def __init__(self) -> None:
+        self._hwnd = 0
+
+    def minimize(self) -> None:
+        if self._hwnd:
+            _user32().ShowWindowAsync(self._hwnd, SW_MINIMIZE)
+
+    def toggle_maximize(self) -> bool:
+        """Returns whether the window is now maximised, so the button can show it."""
+        if not self._hwnd:
+            return False
+        zoomed = bool(_user32().IsZoomed(self._hwnd))
+        # Async: a js_api call runs on its own thread, and a synchronous ShowWindow
+        # across threads waits on the UI thread's message loop.
+        _user32().ShowWindowAsync(self._hwnd, SW_RESTORE if zoomed else SW_MAXIMIZE)
+        return not zoomed
+
+    def close(self) -> None:
+        # Exactly what Windows' own X sends, so closing runs the same path it always did.
+        if self._hwnd:
+            _user32().PostMessageW(self._hwnd, WM_CLOSE, 0, 0)
+
+
+def drop_caption(hwnd: int) -> None:
+    """Remove the caption strip from a sizable window, keeping its resize frame.
+
+    Subclasses the window procedure for one message. WM_NCCALCSIZE asks how much of the
+    window is client area; the default answer insets the frame on all four sides plus
+    the caption. Putting the top edge back gives the page the strip where the caption
+    was, and leaves the left/right/bottom frame -- invisible on Windows 10/11 but still
+    the resize border -- exactly as Windows made it. Maximised, Windows hangs the frame
+    off-screen, so the top keeps one frame's worth (the inset the left edge just got) or
+    the title bar would be cut off.
+    """
+    from ctypes import wintypes as w
+    u = _user32()
+    WNDPROC = ctypes.WINFUNCTYPE(ctypes.c_ssize_t, w.HWND, w.UINT, w.WPARAM, w.LPARAM)
+    prev = [None]
+
+    def proc(h, msg, wp, lp):
+        if msg == WM_NCCALCSIZE and wp:
+            rect = ctypes.cast(lp, ctypes.POINTER(w.RECT)).contents
+            top, left = rect.top, rect.left
+            result = u.CallWindowProcW(prev[0], h, msg, wp, lp)
+            try:
+                rect.top = top + ((rect.left - left) if u.IsZoomed(h) else 0)
+            except Exception:  # noqa: BLE001 -- never raise out of a window procedure
+                pass
+            return result
+        return u.CallWindowProcW(prev[0], h, msg, wp, lp)
+
+    thunk = WNDPROC(proc)
+    _keep_alive.append(thunk)
+    prev[0] = u.SetWindowLongPtrW(hwnd, GWLP_WNDPROC, ctypes.cast(thunk, ctypes.c_void_p))
+    u.SetWindowPos(hwnd, None, 0, 0, 0, 0, SWP_FRAMECHANGED_ONLY)
+
+
+def title_bar_in_app() -> bool:
+    """The default is the app's own title bar; `"ui": {"titlebar": "windows"}` in
+    settings puts Windows' back (and the page then shows no window buttons)."""
+    try:
+        return config.settings.get("ui", "titlebar", default="app") != "windows"
+    except Exception:  # noqa: BLE001
+        return True
+
+
+def frame_window(window, controls: WindowControls) -> None:
+    """before_show handler: runs on the UI thread with the form and WebView2 built."""
+    try:
+        form = window.native
+        hwnd = int(form.Handle.ToInt64())
+        webview2 = form.browser.webview
+
+        def on_ready(sender, args):
+            # Without this WebView2 ignores `app-region: drag` and the rail is not a
+            # title bar at all. Set here because pywebview creates CoreWebView2 itself.
+            if args.IsSuccess:
+                sender.CoreWebView2.Settings.IsNonClientRegionSupportEnabled = True
+
+        webview2.CoreWebView2InitializationCompleted += on_ready
+        drop_caption(hwnd)
+        controls._hwnd = hwnd
+    except Exception as exc:  # noqa: BLE001 -- a plain window beats no window
+        print(f"  Title bar: keeping Windows' own ({exc}).")
+
+
 def run_window(url: str, dev: bool) -> bool:
     """Open Keys in a native window. Returns False if a window was not possible.
 
@@ -173,13 +317,20 @@ def run_window(url: str, dev: bool) -> bool:
         return False
 
     try:
-        webview.create_window(
+        in_app = title_bar_in_app()
+        controls = WindowControls() if in_app else None
+        window = webview.create_window(
             "Keys", url,
             width=1500, height=1000, min_size=(1024, 680),
             background_color="#08090a",   # --panel-0, so there is no white flash
+            # The page finds window.pywebview.api only when this is set, and that is
+            # what makes it draw the window buttons. See WindowControls.
+            js_api=controls,
             # text_select stays default. Turning it off suits an instrument panel right
             # up until you try to rename a layer or edit a track's notes.
         )
+        if controls is not None:
+            window.events.before_show += lambda: frame_window(window, controls)
         # debug=True gives WebView2's devtools on F12, which is the browser half of
         # --dev: console, network, and the element inspector for the keyboard SVG.
         #

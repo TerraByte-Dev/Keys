@@ -862,6 +862,59 @@ body::after {
 }
 .clock__dot.is-live { background: var(--amber); box-shadow: 0 0 9px var(--amber); }
 
+/* -- the rail as the window's title bar (app window only) ------------------
+   titlebar.js sets html.is-titlebar when keys.py has taken Windows' caption away.
+   The rail drops to title-bar height and everything in it goes one size down; the
+   rail itself is the drag area (WebView2 hands `app-region: drag` to Windows, which
+   is what keeps Snap, double-click-to-maximise and the system menu), and anything
+   you click is carved out of it with no-drag. A browser tab never gets the class,
+   so there the rail is exactly what it was. */
+html.is-titlebar { --rail-h: 36px; }
+html.is-titlebar .rail {
+  app-region: drag; -webkit-app-region: drag;
+  gap: 12px; padding: 0 0 0 14px;
+}
+html.is-titlebar .rail button,
+html.is-titlebar .rail input,
+html.is-titlebar .rail .vol { app-region: no-drag; -webkit-app-region: no-drag; }
+html.is-titlebar .rail__brand { gap: 8px; width: calc(var(--nav-w) - 14px); }
+html.is-titlebar .rail__mark { width: 8px; height: 8px; box-shadow: 0 0 8px var(--amber); }
+html.is-titlebar .rail__name { font-size: 13.5px; }
+html.is-titlebar .rail__lamps { gap: 4px; }
+html.is-titlebar .lamp { height: 22px; padding: 0 8px; gap: 6px; }
+html.is-titlebar .lamp__led { width: 6px; height: 6px; }
+html.is-titlebar .lamp__label,
+html.is-titlebar .lamp__value { font-size: 10.5px; }
+html.is-titlebar .rail__right { gap: 10px; }
+html.is-titlebar .clock { gap: 6px; }
+html.is-titlebar .clock__label { font-size: 10.5px; }
+html.is-titlebar .clock__value { font-size: 14px; }
+html.is-titlebar .rail .btn--panic {
+  min-height: 0; height: 24px; padding: 0 11px; font-size: 12px;
+}
+html.is-titlebar .vol { margin-left: 2px; }
+html.is-titlebar .vol__slider { width: 74px; }
+html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
+
+/* Minimise / maximise / close. Full rail height and flush to the corner, the way
+   Windows' own are, so throwing the mouse at the top-right still hits Close -- but
+   drawn in the panel's ink, with Close going red the way the panic button does. */
+.winctl {
+  align-self: stretch; display: flex; margin-left: 2px;
+  border-left: 1px solid var(--hairline);
+}
+.winctl__btn {
+  display: grid; place-items: center; width: 44px; height: 100%; padding: 0;
+  color: var(--ink-dim); background: transparent; border: 0; border-radius: 0;
+  cursor: default;
+  transition: color .12s var(--ease), background .12s var(--ease);
+}
+.winctl__btn:hover { color: var(--ink); background: var(--panel-3); }
+.winctl__btn:active { background: var(--panel-4); }
+.winctl__btn--close:hover { color: var(--gloss-hard); background: var(--red-deep); }
+.winctl__btn--close:active { background: var(--red); }
+.winctl__btn:focus-visible { outline: 2px solid var(--amber); outline-offset: -2px; }
+
 /* ── left nav ───────────────────────────────────────────────────────────── */
 .nav {
   grid-area: nav;
