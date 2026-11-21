@@ -110,11 +110,12 @@ export function keysPanel(ctx) {
     h('div.binds', { id: 'binds' },
       groups.flatMap((g) => [
         h('div.binds__head', null, g),
-        ...ACTIONS.filter((a) => a.group === g).map((a) =>
+        ...ACTIONS.filter((a) => a.group === g).flatMap((a) => [
           h('div.bind', { 'data-id': a.id },
             h('span.bind__label', null, a.label),
             h('button.bind__key', { onclick: (e) => capture(a.id, e.target, ctx) },
-              keyLabel(getBinds()[a.id])))),
+              keyLabel(getBinds()[a.id]))),
+          songWarn(getBinds()[a.id])]),
       ])),
     h('div.btnrow', { style: { marginTop: '12px' } },
       h('button.btn', { onclick: () => restore(ctx) }, 'Back to the defaults')),
@@ -126,9 +127,34 @@ export function keysPanel(ctx) {
   return el;
 }
 
-function keyLabel(key) {
+/* A key as a person reads it: Space for ' ', a letter in capitals. Also the nav's page chips. */
+export function keyLabel(key) {
   if (!key) return '—';
+  if (key === ' ') return 'Space';
   return key.length === 1 ? key.toUpperCase() : key;
+}
+
+/* While a song is loaded, Space and the arrows and Home are the song's (app.js SONG_KEYS)
+   and a shortcut on one of them does not fire. Allowed -- with no song open it works --
+   but said, under the shortcut, so nobody finds out mid-song. Home is the song's on the
+   roll only: on the Sheet it scrolls the page, and a shortcut on it fires there. */
+const SONG_OWNS = {
+  ' ': 'Space plays and pauses a loaded song',
+  ArrowLeft: 'Left goes a bar back in a loaded song',
+  ArrowRight: 'Right goes a bar on in a loaded song',
+  Home: 'On the roll, Home takes a loaded song back to the top',
+};
+
+function songWarn(key) {
+  const el = h('div.note.note--warn.bind__warn', { style: { margin: '2px 8px 6px' } });
+  paintWarn(el, key);
+  return el;
+}
+
+function paintWarn(el, key) {
+  const owner = SONG_OWNS[key];
+  el.hidden = !owner;
+  el.textContent = owner ? `${owner}; this shortcut won't fire then` : '';
 }
 
 function capture(id, btn, ctx) {
@@ -142,6 +168,7 @@ function capture(id, btn, ctx) {
     capturing = null;
     btn.classList.remove('is-capturing');
     btn.textContent = keyLabel(key ?? getBinds()[id]);
+    paintWarn(btn.closest('.bind').nextElementSibling, getBinds()[id]);
   };
 
   const onKey = (e) => {
@@ -158,7 +185,7 @@ function capture(id, btn, ctx) {
     // A key can only mean one thing, so taking it from another action leaves that
     // one unbound rather than silently shadowed.
     if (clash) {
-      delete next[clash.id];
+      next[clash.id] = '';             // named and empty: left out, it would get its default back
       toast(`${keyLabel(key)} was ${clash.label} — that one is now unset`, 'warn', 5000);
     }
     save(next, ctx);
@@ -175,6 +202,7 @@ function repaint() {
     const btn = row.querySelector('.bind__key');
     if (btn && !btn.classList.contains('is-capturing')) {
       btn.textContent = keyLabel(binds[row.dataset.id]);
+      paintWarn(row.nextElementSibling, binds[row.dataset.id]);
     }
   }
 }

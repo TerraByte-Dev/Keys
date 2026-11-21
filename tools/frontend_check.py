@@ -204,6 +204,49 @@ owners = sorted(p.relative_to(ROOT).as_posix() for p in modules
 step(f"only {IMPORTER} POSTs to /api/scores", owners == [IMPORTER],
      "uploaders: " + (", ".join(owners) or "none -- the importer itself is gone"))
 
+print("9. every writer of the dock's highlight names its owner")
+# The dock keeps one highlight set per owner and shows their union (keyboard.js
+# setHighlight). A writer that leaves the owner out lands on the shared default, which
+# is exactly the last-writer-wins layer that let the touch keys blank Chords & scales.
+# Inside a custom page, Play, Practice and Tools all light the one dock at once. The
+# panel's own small keyboard in theory.js is not the dock and is not matched.
+DOCK_HL = re.compile(r"(?:\b(?:ctx|appCtx)\??\.kb\??\.|\bdock\??\.)setHighlight\(")
+
+
+def call_args(text: str, start: int) -> list[str]:
+    """The top-level arguments of the call whose '(' is at `start`."""
+    depth, args, cur = 0, [], []
+    for ch in text[start:]:
+        if ch in "([{":
+            depth += 1
+            if depth == 1:
+                continue
+        elif ch in ")]}":
+            depth -= 1
+            if depth == 0:
+                args.append("".join(cur).strip())
+                return args
+        elif ch == "," and depth == 1:
+            args.append("".join(cur).strip())
+            cur = []
+            continue
+        cur.append(ch)
+    return args
+
+
+writers = []
+for path in modules:
+    text = path.read_text("utf-8")
+    for m in DOCK_HL.finditer(text):
+        args = call_args(text, m.end() - 1)
+        line = text.count("\n", 0, m.start()) + 1
+        writers.append((f"{path.relative_to(ROOT).as_posix()}:{line}", args))
+step("the scan found dock highlight writers at all", len(writers) >= 3, f"{len(writers)} found")
+for where, args in writers:
+    owner = args[1] if len(args) > 1 else ""
+    step(f"{where} names an owner", bool(re.fullmatch(r"""['"][a-z]+['"]""", owner)),
+         f"owner {owner or 'missing'}")
+
 print()
 print("ALL CHECKS PASSED" if ok else "SOMETHING FAILED")
 sys.exit(0 if ok else 1)

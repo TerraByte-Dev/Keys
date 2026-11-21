@@ -25,7 +25,7 @@ import threading
 import time
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 from . import config  # noqa: F401  (sets PATH + switch interval via backend/__init__)
 
@@ -245,6 +245,9 @@ class Engine:
         self._held: list[tuple | None] = [None] * 128
         # Channels with an enabled zone -- CC and pitch bend broadcast to these.
         self.active_channels: tuple[int, ...] = (0,)
+        # Told after every set_zones: the band picks its channels from the ones no zone
+        # uses, and a zone can arrive on one of them while it plays.
+        self.zone_listeners: list[Callable[[], None]] = []
 
         # --- pedal ------------------------------------------------------------
         # "" means FluidSynth handles the damper itself: CC 64 goes down the wire and
@@ -628,6 +631,8 @@ class Engine:
         self.active_channels = tuple(sorted(seen_channels)) or (0,)
         self._rebind_routes()
         self.warnings = warnings
+        for told in self.zone_listeners:
+            told()
         return warnings
 
     def _rebind_routes(self) -> None:

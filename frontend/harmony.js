@@ -13,6 +13,10 @@
  * same job in a different colour. Then the next phrase is picked by how well its first
  * chord follows the last one: a chord that pulls toward home goes home.
  *
+ * Levels are presets you pick, never unlocked: 1 is one common four-chord loop over and
+ * over, 2 rotates the four-chord loops, 3 is the whole songbook with its second-pass
+ * colour, 4 is the songbook with a key change every second phrase (jam.js).
+ *
  * Nothing in here touches the DOM or the clock. Chords come in as pitch classes (the
  * spelling comes from the server -- see jam.js), randomness comes in as a function,
  * and tools/jam_check.py drives this file under node with a seeded one.
@@ -81,6 +85,36 @@ export const PHRASES = {
   ],
 };
 
+/* Level 1's loops: the four-chord shapes a beginner meets first, one at a time. */
+export const BEGINNER = {
+  major: ['pop', 'sad-pop', 'fifties', 'three-chord'],
+  minor: ['epic', 'andalusian', 'watchtower', 'minor-three'],
+};
+
+/* Phrases for a pinned pentatonic or blues scale. Under that pin only the chords the
+   scale does not rub against are played (pinSafe() below), and none of the songbook's
+   phrases lives entirely on those -- every one of them has a V or a VII. These do, so
+   the whole pin really is good on every chord. Kept apart from PHRASES so the unpinned
+   levels play exactly what they always have. */
+export const SAFE_PHRASES = {
+  major: [
+    { id: 'sway', name: 'The gospel sway', seq: ['I', 'IV', 'I', 'IV'], w: 2,
+      blurb: 'Home and its fourth, back and forth: the Amen at the end of a hymn, on a loop.' },
+    { id: 'plagal-lift', name: 'Up and home', seq: ['I', 'ii', 'IV', 'I'], w: 1.5,
+      blurb: 'Climbs two chords and comes home without ever pulling. Soft and open.' },
+    { id: 'easy', name: 'Easy rock', seq: ['I', 'IV', 'vi', 'IV'], w: 2,
+      blurb: 'Out, down to the sad chord, back out. Never far from home.' },
+  ],
+  minor: [
+    { id: 'minor-sway', name: 'Minor sway', seq: ['i', 'iv', 'i', 'iv'], w: 2,
+      blurb: 'Home and its fourth in a minor key. Dark and steady.' },
+    { id: 'sink', name: 'The sink', seq: ['i', 'VI', 'iv', 'i'], w: 1.5,
+      blurb: 'Drama without the pull: down to the sixth, the fourth, and quietly home.' },
+    { id: 'bright-side', name: 'The bright side', seq: ['i', 'III', 'iv', 'VI'], w: 2,
+      blurb: 'Up to the bright chord, then down through the fourth to the sixth.' },
+  ],
+};
+
 /* Pitch classes for one chord of a key. `scale` is the key's seven pitch classes. */
 export function chordPcs(scale, roman) {
   const d = DEGREE[roman];
@@ -125,36 +159,63 @@ function pickWeighted(items, weight, rng) {
  *
  * `phrase` is the PHRASES entry being played, `step` is the chord's place in it, and
  * `pass` is 1 or 2. `varied` marks a chord swapped in on the second pass.
+ *
+ * `level` picks the pool (1: one beginner loop, repeated until skipPhrase(); 2: the
+ * four-chord loops, no second-pass swap; 3 and 4: everything). `allowed`, when given, is
+ * the only chords that may be played (a pinned scale's safe chords, pinSafe()): phrases
+ * using anything else are dropped and SAFE_PHRASES join the pool. Whatever the filter,
+ * the pool is never empty and a swap never leaves the chords the pool uses.
  */
-export function createProgression({ mode = 'major', scale, rng = Math.random }) {
-  const phrases = PHRASES[mode];
+export function createProgression({ mode = 'major', scale, rng = Math.random, level = 3, allowed = null }) {
   const roles = ROLE[mode];
+  const tonic = PALETTE[mode][0];
+  const fits = (p) => p.seq.every((r) => allowed.includes(r));
+  const all = allowed ? PHRASES[mode].concat(SAFE_PHRASES[mode]).filter(fits) : PHRASES[mode];
+  let phrases = all;
+  if (level <= 2) phrases = all.filter((p) => p.seq.length === 4);
+  // Level 1's beginner set; under a pin the safe loops are the beginner set.
+  if (level <= 1 && !allowed) phrases = phrases.filter((p) => BEGINNER[mode].includes(p.id));
+  if (!phrases.length) phrases = all.length ? all : PHRASES[mode];
+  // The chords this pool plays. A second-pass swap stays inside them.
+  const active = new Set(phrases.flatMap((p) => p.seq));
   const recent = [];          // the last few phrase ids, so none comes straight back
   let queue = [];
   let last = null;            // the chord before the queue
+  let loop = null;            // level 1: the one loop, until skipPhrase()
 
-  function plan() {
-    const avoid = new Set(recent.slice(-3));
+  function pick(avoid) {
     let pool = phrases.filter((p) => !avoid.has(p.id));
     if (!pool.length) pool = phrases;
     // The very first phrase starts on the key's own chord, so the ear learns where home
-    // is before anything leaves it. vi is "home" too, but it is not THE home.
-    if (!last) pool = pool.filter((p) => p.seq[0] === PALETTE[mode][0]);
-    const phrase = pickWeighted(pool, (p) => {
+    // is before anything leaves it. vi is "home" too, but it is not THE home. Filtered,
+    // then fallen back, so a pool with no phrase on the tonic still yields a phrase.
+    if (!last) {
+      const home = pool.filter((p) => p.seq[0] === tonic);
+      const any = phrases.filter((p) => p.seq[0] === tonic);
+      pool = home.length ? home : any.length ? any : pool;
+    }
+    return pickWeighted(pool, (p) => {
       if (!last) return p.w;
       let w = p.w * FOLLOW[roles[last]][roles[p.seq[0]]];
       if (p.seq[0] === last) w *= 0.5;     // the same chord across the seam stalls
       return w;
     }, rng);
+  }
+
+  function plan() {
+    // Level 1 keeps its one loop; skipPhrase() is the only way to another.
+    const phrase = level <= 1 && loop ? loop : pick(new Set(recent.slice(-3)));
+    if (level <= 1) loop = phrase;
     recent.push(phrase.id);
     if (recent.length > 6) recent.shift();
 
-    const passes = phrase.seq.length >= 8 ? 1 : 2;
+    // Level 1 plays its loop once per plan() and plans it again: over and over.
+    const passes = level <= 1 || phrase.seq.length >= 8 ? 1 : 2;
     const out = [];
     for (let pass = 1; pass <= passes; pass++) {
       const seq = phrase.seq.slice();
       const varied = new Array(seq.length).fill(false);
-      if (pass === 2 && rng() < 0.45) {
+      if (pass === 2 && level >= 3 && rng() < 0.45) {
         // Never the first chord (it names the phrase) and never a final pull (it is
         // what sends you on). Never a swap that repeats a neighbour.
         const spots = [];
@@ -165,7 +226,7 @@ export function createProgression({ mode = 'major', scale, rng = Math.random }) 
         const i = spots[Math.floor(rng() * spots.length)];
         if (i !== undefined) {
           const options = siblings(scale, mode, seq[i])
-            .filter((r) => r !== seq[i - 1] && r !== seq[i + 1]);
+            .filter((r) => r !== seq[i - 1] && r !== seq[i + 1] && active.has(r));
           if (options.length) {
             seq[i] = options[Math.floor(rng() * options.length)];
             varied[i] = true;
@@ -192,9 +253,67 @@ export function createProgression({ mode = 'major', scale, rng = Math.random }) 
       if (!queue.length) queue = plan();
       return queue[0];
     },
-    /* Drop the rest of this phrase and start a fresh one. */
-    skipPhrase() { queue = []; },
+    /* Drop the rest of this phrase and start a fresh one -- at level 1, a different loop. */
+    skipPhrase() {
+      queue = [];
+      if (level <= 1 && loop) loop = pick(new Set([loop.id]));
+    },
   };
+}
+
+/**
+ * The chords of a key a pinned scale is good on all the way through: no note of the pin
+ * sits a half step above one of the chord's notes (palette()'s rub). `blue` is a pitch
+ * class left out of that test -- the blues scale's blue note, which is colour here the
+ * way Blues mode treats it, not a rub. Returns romans from PALETTE[mode].
+ */
+export function pinSafe(scale, mode, pin, blue = null) {
+  const pins = pin.filter((pc) => pc !== blue);
+  return PALETTE[mode].filter((r) => !palette(chordPcs(scale, r), pins).rub.length);
+}
+
+/**
+ * Whether to change key at this phrase boundary. `count` is the phrases finished in this
+ * key. Level 4 always moves after the second; levels 2 and 3 move only with Wander on,
+ * after three, on a coin; level 1 never does.
+ */
+export function wanderDue(level, on, count, rng = Math.random) {
+  if (level >= 4) return count >= 2;
+  if (level <= 1 || !on) return false;
+  return count >= 3 && rng() < 0.5;
+}
+
+/**
+ * Where a key change can go: the relative key (the same notes, the other home) or a key a
+ * fifth up or down (one note changed). `has(pc, major)` says whether a key is on offer.
+ * Wander favours the relative 3 to 1, the gentlest move. Level 4 is for changing scales
+ * in real time, and the relative changes none of the notes -- nor, under a pin, any of
+ * the outline -- so it goes a fifth, and to the relative only from a key with neither
+ * fifth on offer. Returns [{ pc, major, w }].
+ */
+export function keyMoves(tonic, major, level, has) {
+  const all = [
+    { pc: (tonic + (major ? 9 : 3)) % 12, major: !major, w: 3, fifth: false },
+    { pc: (tonic + 7) % 12, major, w: 1, fifth: true },
+    { pc: (tonic + 5) % 12, major, w: 1, fifth: true },
+  ].filter((x) => has(x.pc, x.major));
+  return level >= 4 && all.some((x) => x.fifth) ? all.filter((x) => x.fifth) : all;
+}
+
+/**
+ * How a note you played fit the chord sounding: 'chord'; 'color' (the palette's, or the
+ * ringed note of a mode or the blues); 'rub' (in the chord's scale, a half step over one
+ * of its notes); or 'out'. A note of a pinned scale is never out: the Blues pin's blue
+ * note is colour, the way Blues mode treats it, and any other pinned note the chord's
+ * own scale leaves out is a rub -- G natural over minor's V (E G♯ B), E over the blues'
+ * IV7 (F A C E♭). `pin` is the pinned pitch classes, `blue` its blue note.
+ */
+export function fitOf(pc, { pal, scale, sig = [], pin = null, blue = null }) {
+  if (pal.chord.includes(pc)) return 'chord';
+  if (pal.color.includes(pc) || sig.includes(pc)) return 'color';
+  if (scale.includes(pc)) return 'rub';
+  if (pin?.includes(pc)) return pc === blue ? 'color' : 'rub';
+  return 'out';
 }
 
 /* ── what sounds good, and how to cross a change ─────────────────────────── */
@@ -383,6 +502,121 @@ export function createVamp(room) {
   };
 }
 
+/* ── my chords: a loop you write ─────────────────────────────────────────── */
+
+/* The scale a chord outside the key is judged against, by its quality (the server's
+   quality ids): a major chord is its own major key, a minor one Dorian (the minor with the
+   bright 6th that sits under most minor vamps), a 7th or sus4 Mixolydian, a diminished
+   one Locrian. Mode ids only -- the steps come from the server (/api/theory/scale). */
+export const OWN_MODE = { '': 'major', maj7: 'major', m: 'dorian', m7: 'dorian', 7: 'mixolydian',
+  sus4: 'mixolydian', dim: 'locrian' };
+
+/* The name a scale is asked of the server by. It knows the keys by their usual names, up
+   to seven flats or sharps -- F sharp and C sharp, but no G sharp, D sharp, A sharp or E
+   sharp anything -- and every pitch class has one of these. The notes are then spelled
+   from the chord's own letter (spellUp): over D♯m, D♯ dorian, not E♭'s names. */
+export const SCALE_KEYS = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+
+const LETTERS = 'CDEFGAB';
+const LETTER_PC = [0, 2, 4, 5, 7, 9, 11];
+
+/* Pitch classes named up from `root` a letter at a time (`by` 1: a scale) or a third at a
+   time (`by` 2: a stacked chord), each letter given whatever accidental reaches its pitch. */
+export function spellUp(root, pcs, by = 1) {
+  const from = LETTERS.indexOf(root[0]);
+  return pcs.map((pc, i) => {
+    const at = (from + by * i) % 7;
+    const d = ((pc - LETTER_PC[at] + 18) % 12) - 6;
+    return LETTERS[at] + (d > 0 ? '#'.repeat(d) : 'b'.repeat(-d));
+  });
+}
+
+/* A key's seven pitch classes are a minor key when its 3rd is a minor 3rd over home. */
+const minorKey = (scale) => (scale[2] - scale[0] + 12) % 12 === 3;
+
+/* A root outside the key is either a degree raised (a sharp: ♯iv°) or the degree above
+   lowered (a flat: ♭VII). Raised: a diminished chord, which leads up a half step into the
+   degree above (C♯° to Dm, G♯° to Am); the tritone over home (♯iv); and in a minor key
+   everything but the ♭II, because its outside notes are the major key's 3rd and the
+   melodic minor's raised 6th and 7th. Lowered: the rest of a major key's, the borrowed
+   ♭II ♭III ♭VI ♭VII. `at` is the root in semitones over home. */
+const raised = (at, quality, minor) => quality === 'dim' || at === 6 || (minor && at !== 1);
+
+/* A chord root's name in a key. One of the key's notes keeps the key's own name (F♯ in E
+   major); one outside it is the raised degree below or the lowered degree above, the way
+   loopRoman numbers it -- unless that comes out as a white key with an accidental (E♯,
+   F♭) where the other name is plain. `names` are the key's seven notes in order, as the
+   server spells them. Never more than one accidental, so the server can spell the chord. */
+export function spellRoot(pc, quality, scale, names) {
+  const i = scale.indexOf(pc);
+  if (i >= 0) return names[i];
+  const below = names[scale.indexOf((pc + 11) % 12)];
+  const above = names[scale.indexOf((pc + 1) % 12)];
+  const sharp = below.endsWith('b') ? below.slice(0, -1) : below + '#';
+  const flat = above.endsWith('#') ? above.slice(0, -1) : above + 'b';
+  const [want, other] = raised((pc - scale[0] + 12) % 12, quality, minorKey(scale)) ? [sharp, flat] : [flat, sharp];
+  return want.length > 1 && other.length === 1 ? other : want;
+}
+
+/* What a chord does in the key, in the words the progressions use (ROLE): home on the
+   key's root, and on a major key's own iii and vi, which share two notes with I; pull on
+   the 5th (V, V7, minor's v), on the leading-tone diminished chord, and on a minor key's
+   own VII; away for the rest -- IV7 and the secondary dominants among them, which pull
+   somewhere other than home. `scale` is the key's seven pitch classes. */
+export function loopRole(pcs, quality, scale) {
+  const at = (pcs[0] - scale[0] + 12) % 12;
+  const own = pcs.every((pc) => scale.includes(pc));
+  const minor = minorKey(scale);
+  if (at === 0 || (!minor && own && (at === 4 || at === 9))) return 'home';
+  if (at === 7 || (at === 11 && quality === 'dim') || (minor && own && at === 10)) return 'pull';
+  return 'away';
+}
+
+/* What a chord of your loop is judged against: the pin when one is on (so the outline
+   you were promised is what counts), the key when the chord is inside it, else its own
+   scale by quality. In a minor key a chord on the raised 7th -- V, V7, the leading-tone
+   diminished chord -- is the key's own harmonic minor, the way Minor music judges its V:
+   Mixolydian would light the major key's 3rd and 6th over it. Returns 'pin', 'key',
+   'harmonic' or an OWN_MODE id. */
+export function loopScale(pcs, quality, key, pinned = false) {
+  if (pinned) return 'pin';
+  if (pcs.every((pc) => key.includes(pc))) return 'key';
+  const lead = (key[0] + 11) % 12;
+  if (minorKey(key) && pcs.includes(lead) && pcs.every((pc) => pc === lead || key.includes(pc))) return 'harmonic';
+  return OWN_MODE[quality] || 'major';
+}
+
+/* The roman numeral of a chord against the key's seven pitch classes: by scale degree,
+   lower case when minor or diminished, and outside the key a raised degree or a lowered
+   one, as spellRoot names it: ♯iv°, ♭VII, ♯vii° in a minor key. */
+const NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+export function loopRoman(root, quality, scale) {
+  let d = scale.indexOf(root), acc = '';
+  if (d < 0) {
+    const up = raised((root - scale[0] + 12) % 12, quality, minorKey(scale));
+    d = scale.indexOf((root + (up ? 11 : 1)) % 12);
+    acc = up ? '♯' : '♭';
+  }
+  const low = /^m(?!aj)|^dim/.test(quality);
+  const n = NUMERALS[d];
+  const tail = { dim: '°', m: '', '': '' }[quality] ?? quality.replace(/^m(?!aj)/, '');
+  return acc + (low ? n.toLowerCase() : n) + tail;
+}
+
+/* Your loop as an endless stream, shaped like createProgression's chords. `chords` are
+   { roman, pcs, role, root, suffix }, played in order, round and round. */
+export function createLoop(chords) {
+  const phrase = { id: 'mine', name: 'Your loop', seq: chords.map((c) => c.roman),
+    blurb: 'The chords you picked, round and round. Change one and it plays from the next bar.' };
+  let i = 0;
+  const chord = (k) => ({ ...chords[k], bass: chords[k].root, phrase, step: k, pass: 1, varied: false });
+  return {
+    next() { const c = chord(i); i = (i + 1) % chords.length; return c; },
+    peek() { return chord(i); },
+    skipPhrase() { i = 0; },
+  };
+}
+
 /* ── the blues: twelve bars, and its own idea of what sounds good ──────── */
 
 export const BLUES_FORMS = {
@@ -400,11 +634,41 @@ export const BLUES_FORMS = {
       blurb: 'The blues in a minor key: The Thrill Is Gone. The turnaround sinks a half step into V.' },
   ],
 };
+/* The blues by level. 3 is BLUES_FORMS above. 1 is two chords, four bars each; 2 the
+   plain twelve bars on three chords, with no quick change; 4 the quick change with a
+   turnaround that moves. A chart moves by whole bars, so major's I-VI-ii-V turnaround is
+   laid a chord a bar across bars 8-10 (the jazz blues), and minor keeps its VI7-V7. */
+export const BLUES_LEVELS = {
+  major: {
+    1: [{ id: 'blues-vamp', name: 'Blues vamp', w: 1, seq: ['I7', 'I7', 'I7', 'I7', 'IV7', 'IV7', 'IV7', 'IV7'],
+      blurb: 'Two chords, four bars each. Home, then away, and round again.' }],
+    2: [BLUES_FORMS.major[0]],
+    3: BLUES_FORMS.major,
+    4: [{ id: 'jazz-blues', name: '12-bar blues, jazz turnaround', w: 1,
+      seq: ['I7', 'IV7', 'I7', 'I7', 'IV7', 'IV7', 'I7', 'V7/ii', 'ii7', 'V7', 'I7', 'V7'],
+      blurb: 'The quick change, then a turnaround that walks home: VI7, ii, V, home.' }],
+  },
+  minor: {
+    1: [{ id: 'minor-vamp', name: 'Minor blues vamp', w: 1, seq: ['i7', 'i7', 'i7', 'i7', 'iv7', 'iv7', 'iv7', 'iv7'],
+      blurb: 'Two chords, four bars each, in a minor key.' }],
+    2: [{ id: 'minor-plain', name: 'Plain minor blues', w: 1,
+      seq: ['i7', 'i7', 'i7', 'i7', 'iv7', 'iv7', 'i7', 'i7', 'V7', 'iv7', 'i7', 'V7'],
+      blurb: 'Twelve bars on three chords: home, its fourth, and the pull of V.' }],
+    3: BLUES_FORMS.minor,
+    4: [{ id: 'minor-quick', name: 'Minor blues, quick change', w: 1,
+      seq: ['i7', 'iv7', 'i7', 'i7', 'iv7', 'iv7', 'i7', 'i7', 'VI7', 'V7', 'i7', 'V7'],
+      blurb: 'A visit to iv in bar 2, and the turnaround that sinks a half step into V.' }],
+  },
+};
+
 // Root (semitones over home) and shape of each blues chord: every one a seventh chord,
-// because in the blues even home has a 7th on it.
-const BLUES_CHORD = { I7: [0, 0], IV7: [5, 0], V7: [7, 0], VI7: [8, 0], i7: [0, 1], iv7: [5, 1] };
+// because in the blues even home has a 7th on it. VI7 is minor's (on its flat sixth);
+// major's sixth-degree dominant is named for what it does, V7/ii, so the two never meet.
+const BLUES_CHORD = { I7: [0, 0], IV7: [5, 0], V7: [7, 0], VI7: [8, 0], i7: [0, 1], iv7: [5, 1],
+  'V7/ii': [9, 0], ii7: [2, 1] };
 const SHAPE = [[0, 4, 7, 10], [0, 3, 7, 10]];
-const BLUES_ROLE = { I7: 'home', i7: 'home', IV7: 'away', iv7: 'away', VI7: 'away', V7: 'pull' };
+const BLUES_ROLE = { I7: 'home', i7: 'home', IV7: 'away', iv7: 'away', VI7: 'away', V7: 'pull',
+  'V7/ii': 'pull', ii7: 'away' };
 const BLUES = [0, 3, 5, 6, 7, 10];          // the blues scale, over home
 
 export function bluesChord(tonic, roman) {
@@ -426,16 +690,20 @@ export function bluesScale(tonic, roman, keyMinor = false) {
   const [at, minor] = BLUES_CHORD[roman];
   // In a minor blues, V7 is harmonic minor's: its own scale keeps the key's flat 3rd and 6th,
   // where Mixolydian would light the major ones. VI7 is Lydian dominant, which keeps the key's 2nd.
+  // V7/ii (A7 in C) is the key with the chord's own raised 3rd: Mixolydian with a flat 6th,
+  // which keeps the key's 4th and 6th (D and F over A7) instead of Mixolydian's F sharp.
+  // ii7 is a minor 7th, so Dorian -- which on ii is the key's own seven notes.
   const shape = minor ? [0, 2, 3, 5, 7, 9, 10]
     : keyMinor && roman === 'V7' ? [0, 1, 4, 5, 7, 8, 10]
-      : keyMinor && roman === 'VI7' ? [0, 2, 4, 6, 7, 9, 10] : [0, 2, 4, 5, 7, 9, 10];
+      : keyMinor && roman === 'VI7' ? [0, 2, 4, 6, 7, 9, 10]
+        : roman === 'V7/ii' ? [0, 2, 4, 5, 7, 8, 10] : [0, 2, 4, 5, 7, 9, 10];
   const own = shape.map((s) => (tonic + at + s) % 12);
   return [...new Set([...own, ...BLUES.map((s) => (tonic + s) % 12)])].sort((a, b) => a - b);
 }
 
-/* Chorus after chorus, one chord a bar. */
-export function createBlues({ tonic, minor = false, rng = Math.random }) {
-  const forms = BLUES_FORMS[minor ? 'minor' : 'major'];
+/* Chorus after chorus, one chord a bar. `level` picks the forms (BLUES_LEVELS). */
+export function createBlues({ tonic, minor = false, rng = Math.random, level = 3 }) {
+  const forms = BLUES_LEVELS[minor ? 'minor' : 'major'][level] || BLUES_FORMS[minor ? 'minor' : 'major'];
   let form = null, i = 0;
   const chord = () => {
     if (!form) form = pickWeighted(forms, (f) => f.w, rng);

@@ -22,6 +22,29 @@
 let toolkit = null;          // the Verovio instance, built once
 let loading = null;          // in-flight load, so two clicks make one download
 let loadedId = '';           // which score is currently parsed into the toolkit
+let measures = null;         // measureMap()'s answer for that score
+
+/* Pages already engraved, newest last. A page is a synchronous render of ~200 ms, and a
+   turn mid-song used to pay it in the frame the page changed -- the roll caps a frame's
+   step at 0.1 s, so the song lost about 100 ms at every turn. Engraving the next page in
+   idle time while the song played only moved that frame a bar or two earlier: an idle
+   callback, once started, runs to the end. So the pages ahead are engraved while the
+   song is stopped (prerenderAhead), when a long frame costs it nothing, and a turn while
+   it plays only swaps the SVG in.
+   Keyed by score id and page, and emptied whenever a score is parsed: the element ids
+   in a page are minted per load, so a page from an earlier load of the same score would
+   carry ids the measure map no longer has. The options never change after the toolkit is
+   built and svgViewBox makes the SVG scale to its box, so a resize or a fullscreen
+   toggle leaves every page valid; anything that ever calls setOptions must empty this. */
+const PAGES_KEPT = 24;
+const pages = new Map();     // `${id}#${page}` -> SVG
+const queued = new Set();    // keys waiting for an idle moment
+
+function keep(key, svg) {
+  pages.delete(key);
+  pages.set(key, svg);
+  while (pages.size > PAGES_KEPT) pages.delete(pages.keys().next().value);
+}
 
 /* Verovio's own options. Page width/height are in tenths of a staff space -- its unit,
    not pixels -- and the SVG then scales to whatever box we put it in. */
@@ -73,6 +96,8 @@ export async function loadScore(id) {
   // Cleared first: a failed load leaves the toolkit holding whatever it had, and a
   // stale id would then hand the previous score's pages to the next caller.
   loadedId = '';
+  measures = null;          // element ids are minted per load, so the map dies with it
+  pages.clear();            // ...and so do the pages engraved from it
   const ok = isZip
     ? tk.loadZipDataBuffer(raw)
     : tk.loadData(new TextDecoder().decode(bytes));
@@ -90,5 +115,68 @@ export async function loadScore(id) {
  */
 export async function renderPage(id, page) {
   await loadScore(id);
-  return toolkit.renderToSVG(page);
+  const key = `${id}#${page}`;
+  const svg = pages.get(key) ?? toolkit.renderToSVG(page);
+  keep(key, svg);
+  return svg;
+}
+
+/** The page's SVG if it is already engraved, else undefined. Never renders, never loads. */
+export function cachedPage(id, page) {
+  return loadedId === id ? pages.get(`${id}#${page}`) : undefined;
+}
+
+/**
+ * Engrave the pages after `page` ahead, one per idle moment, so a turn to any of them
+ * costs nothing. As many as the cache keeps, the page shown among them.
+ *
+ * `ok` is asked again as each one comes up, and a page whose moment has passed is
+ * dropped rather than drawn: a render started is a whole render, so one that comes up
+ * after Play is pressed must not start. The caller asks again when the moment is back.
+ *
+ * Only ever for the score already in the toolkit: this never loads the engraver or a
+ * score, so it cannot be what downloads 7 MB.
+ */
+export function prerenderAhead(id, page, ok) {
+  if (!toolkit || loadedId !== id) return;
+  const last = Math.min(toolkit.getPageCount() || 1, page + PAGES_KEPT - 1);
+  const idle = globalThis.requestIdleCallback ?? ((fn) => setTimeout(fn, 50));
+  for (let n = page + 1; n <= last; n++) {
+    const key = `${id}#${n}`;
+    if (pages.has(key) || queued.has(key)) continue;
+    queued.add(key);
+    idle(() => {
+      queued.delete(key);
+      // Another score can have been parsed while this waited.
+      if (ok() && loadedId === id && !pages.has(key)) keep(key, toolkit.renderToSVG(n));
+    });
+  }
+}
+
+/**
+ * Every measure of a score in document order: the id its `<g>` carries in the SVG
+ * (`data-id`), the number written on it, and the page it lands on.
+ *
+ * This is the measure-level following ARCHITECTURE.md calls the honest route, and the
+ * only toolkit queries it makes are structural -- which measures exist, what they are
+ * numbered, which page holds each. Nothing here touches Verovio's millisecond timemap,
+ * which disagrees with score.py's quarter-note timeline on repeats, pickups and grace
+ * notes; the CLOCK stays ghost.js's, and this only says where its bars are printed.
+ *
+ * Built from the MEI Verovio already holds rather than by rendering every page: one
+ * serialisation per load, then one page lookup per measure. Cached until the next load,
+ * because the ids are generated per load and a stale map would point at nothing.
+ */
+export async function measureMap(id) {
+  await loadScore(id);
+  if (measures) return measures;
+  const out = [];
+  for (const [tag] of toolkit.getMEI().matchAll(/<measure\b[^>]*>/g)) {
+    const mid = /xml:id="([^"]+)"/.exec(tag)?.[1];
+    if (!mid) continue;
+    const n = /\sn="([^"]*)"/.exec(tag)?.[1] ?? '';
+    out.push({ id: mid, n, page: toolkit.getPageWithElement(mid) || 1 });
+  }
+  measures = out;
+  return out;
 }

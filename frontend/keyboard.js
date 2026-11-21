@@ -106,7 +106,9 @@ const CSS = `
 .keys-kb .key.is-ghost{fill:var(--key-ghost,#8a93a3)}
 .keys-kb .key.is-dead{opacity:.34}
 .keys-kb .key.is-dead.key--white{fill:var(--key-dead,#6b675f)}
-.keys-kb .key.is-highlight{fill:var(--key-highlight,#e0a53c)}
+/* A highlight owner fills the key -- except under Jam's flow fills, below, where it is a
+   mark of its own. :where() keeps this at the specificity the held rules were set against. */
+.keys-kb:where(:not(.kb--flow)) .key.is-highlight{fill:var(--key-highlight,#e0a53c)}
 .keys-kb .key.is-sustained{fill:var(--key-sustain,#6f5bd6)}
 .keys-kb .key.is-held{fill:var(--key-held,#3f9dff)}
 /* Velocity made visible: a soft strike barely leaves the resting colour, a hard
@@ -124,6 +126,18 @@ const CSS = `
 .keys-kb.kb--flow .key--black.is-scale{fill:color-mix(in oklab,var(--key-tone,#58c4d4) 30%,var(--key-black,#16171b))}
 .keys-kb.kb--flow .key--white.is-tone{fill:color-mix(in oklab,var(--key-tone,#58c4d4) 78%,var(--key-white,#f2f2ef))}
 .keys-kb.kb--flow .key--black.is-tone{fill:var(--key-tone,#58c4d4)}
+/* Jam's scale pin: every key of the pinned scale, across the keyboard, for the whole key.
+   An outline and never a fill, so it cannot contradict the chord's fill -- outline is "in
+   your scale", fill "good on this chord". Before suggest2 and sig so their strokes win;
+   kb--nopin (Guide Dark) stops drawing it and keeps the class for the held rule below. */
+.keys-kb.kb--flow .key.is-pin{stroke:var(--key-pin,var(--key-tone,#58c4d4));stroke-width:2}
+.keys-kb.kb--flow.kb--nopin .key.is-pin:not(.is-suggest2):not(.is-sig):not(.is-highlight){stroke:var(--key-edge,#00000059);stroke-width:.7}
+/* A highlight owner beside Jam (Play's scale highlighter or Chords & scales, on a page):
+   a dashed ring in a colour of its own and no fill. The fill is Jam's -- as a fill, the
+   highlight lit exactly the keys Jam leaves dark, in Jam's chord colour. Over the pin,
+   which it marks the same way; under suggest2 and sig, which are about to happen. */
+.keys-kb.kb--flow .key.is-highlight{stroke:var(--key-mark,#8a8578);stroke-width:2;stroke-dasharray:4 3}
+.keys-kb.kb--flow .key.is-suggest2,.keys-kb.kb--flow .key.is-sig{stroke-dasharray:none}
 @keyframes kb-suggest{0%,100%{fill:var(--key-suggest,#ffa62b)}50%{fill:color-mix(in oklab,var(--key-suggest,#ffa62b) 45%,var(--key-white,#f2f2ef))}}
 .keys-kb.kb--flow .key.is-suggest{fill:var(--key-suggest,#ffa62b);animation:kb-suggest 1.1s ease-in-out infinite}
 .keys-kb.kb--flow .key.is-suggest2{stroke:var(--key-suggest,#ffa62b);stroke-width:2.6}
@@ -135,6 +149,8 @@ const CSS = `
 .keys-kb.kb--flow .key.is-held{animation:none}
 .keys-kb.kb--flow .key.is-held.is-scale{fill:var(--key-held,#3f9dff)}
 .keys-kb.kb--flow .key.is-held:not(.is-scale){fill:var(--key-spicy,#ff5f4d)}
+/* A held key of the pinned scale is in your scale, even a rub left unfilled: not spicy. */
+.keys-kb.kb--flow .key.is-held.is-pin{fill:var(--key-held,#3f9dff)}
 /* A chord tone outside the key — minor V's raised third, G sharp in A minor — is still
    the chord, so this comes after the spicy rule. */
 .keys-kb.kb--flow .key.is-held.is-tone{fill:var(--key-good,#74cf86)}
@@ -193,6 +209,7 @@ class Keyboard {
     this._heldSpare = new Set();       // swapped with _held, never reallocated
     this._highlight = new Set();
     this._highlightSpare = new Set();
+    this._owners = new Map();          // owner -> Set of midi, see setHighlight()
     this._ghost = new Set();
     this._ghostSpare = new Set();
     this._dead = new Set();
@@ -200,7 +217,7 @@ class Keyboard {
     this._marks = new Map();           // name -> { cur, spare }, see setMarks()
     this._modes = new Set();           // board-wide kb--<name> classes, see setMode()
     this._sustained = new Set();
-    this._forced = new Set();
+    this._forced = new Map();          // midi -> Map(owner -> text), see setKeyLabel()
     this._pointers = new Map();        // pointerId -> midi currently sounding
 
     this._sustain = false;
@@ -396,9 +413,42 @@ class Keyboard {
     this._syncAria();
   }
 
-  setHighlight(midiArray) {
+  /* One highlight set per OWNER, and the keys show their union. Several panels light
+     the dock at once -- Play's scale highlighter, Chords & scales, the touch-setting
+     keys -- and with one shared set the last writer wiped the others, so turning the
+     touch keys off blanked the scale you had just picked. Each writer now replaces and
+     clears only its own owner; clearHighlights() is the router's "everything off".
+     Not on the frame path: written on a click or a range change, never per frame. */
+  setHighlight(midiArray, owner = 'main') {
     if (this._destroyed) return;
-    const next = this._layer(midiArray || [], this._highlight, this._highlightSpare, 'is-highlight');
+    let own = this._owners.get(owner);
+    if (!own) this._owners.set(owner, (own = new Set()));
+    own.clear();
+    const list = midiArray || [];
+    for (let i = 0; i < list.length; i++) {
+      const n = list[i] | 0;
+      if (this._el[n]) own.add(n);
+    }
+    this._paintHighlight();
+  }
+
+  clearHighlights() {
+    if (this._destroyed) return;
+    for (const own of this._owners.values()) own.clear();
+    this._paintHighlight();
+  }
+
+  // The union of every owner, diffed against what is drawn like any other layer.
+  _paintHighlight() {
+    const next = this._highlightSpare;
+    next.clear();
+    for (const own of this._owners.values()) for (const n of own) next.add(n);
+    for (const n of next) {
+      if (!this._highlight.has(n)) this._el[n].classList.add('is-highlight');
+    }
+    for (const n of this._highlight) {
+      if (!next.has(n)) this._el[n].classList.remove('is-highlight');
+    }
     this._highlightSpare = this._highlight;
     this._highlight = next;
   }
@@ -453,21 +503,46 @@ class Keyboard {
     cl.add('kb--labels-' + this._labels);
   }
 
-  setKeyLabel(midi, text) {
+  /* Labels have OWNERS too, for the same reason highlights do. Jam relabels the key it
+     wants you to land on every bar and clears its labels first, and with one shared set
+     that wiped the touch-setting keys' FIXED/SOFT/MEDIUM/HARD a second after you asked
+     for them, on a page with both. A writer clears only its own owner; the last label
+     set on a key is the one shown, and clearing it shows the one beneath.
+     clearAllLabels() is the router's "everything off". */
+  setKeyLabel(midi, text, owner = 'main') {
     const el = this._label[midi];
     if (this._destroyed || !el) return;
-    el.textContent = String(text);
-    el.classList.add('is-forced');
-    this._forced.add(midi);
+    let own = this._forced.get(midi);
+    if (!own) this._forced.set(midi, (own = new Map()));
+    own.delete(owner);                 // to the end: the newest label is the one shown
+    own.set(owner, String(text));
+    this._showLabel(midi);
   }
 
-  clearLabels() {
+  clearLabels(owner = 'main') {
     if (this._destroyed) return;
-    for (const n of this._forced) {
-      this._label[n].textContent = this._defaultLabel[n];
-      this._label[n].classList.remove('is-forced');
+    for (const [n, own] of this._forced) {
+      if (!own.delete(owner)) continue;
+      if (!own.size) this._forced.delete(n);
+      this._showLabel(n);
     }
+  }
+
+  clearAllLabels() {
+    if (this._destroyed) return;
+    const keys = [...this._forced.keys()];
     this._forced.clear();
+    for (const n of keys) this._showLabel(n);
+  }
+
+  _showLabel(n) {
+    const el = this._label[n];
+    if (!el) return;
+    const own = this._forced.get(n);
+    let text = null;
+    if (own) for (const t of own.values()) text = t;
+    el.textContent = text ?? this._defaultLabel[n];
+    el.classList.toggle('is-forced', text !== null);
   }
 
   /**
@@ -502,6 +577,7 @@ class Keyboard {
                        this._ghost, this._ghostSpare, this._dead, this._deadSpare,
                        this._sustained, this._forced]) set.clear();
     for (const m of this._marks.values()) { m.cur.clear(); m.spare.clear(); }
+    for (const own of this._owners.values()) own.clear();
 
     this.low = lo;
     this.high = hi;

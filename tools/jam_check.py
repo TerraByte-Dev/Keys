@@ -34,11 +34,13 @@ were, and goes quiet from the first bar not already queued.
 from __future__ import annotations
 
 import json
+import os
 import random
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 from types import SimpleNamespace
@@ -46,13 +48,19 @@ from types import SimpleNamespace
 ROOT = Path(__file__).resolve().parent.parent
 FRONTEND = ROOT / "frontend"
 sys.path.insert(0, str(ROOT))
+# The band endpoints' sanitiser is checked by importing the server, which opens the
+# practice database: point the data directory at a throwaway one first, so this check
+# never writes a keys.db of its own -- or touches yours.
+SANDBOX = tempfile.mkdtemp(prefix="keys-jamcheck-")
+os.environ["KEYS_DATA_DIR"] = SANDBOX
 
 from backend import band as band_mod, theory   # noqa: E402
 
 # Must match KEYS in frontend/jam.js -- checked below by reading that file.
 KEYS = [("C", "major"), ("A", "natural_minor"), ("G", "major"), ("E", "natural_minor"),
         ("F", "major"), ("D", "natural_minor"), ("D", "major"), ("B", "natural_minor"),
-        ("Bb", "major"), ("G", "natural_minor"), ("F#", "major"), ("Eb", "natural_minor")]
+        ("Bb", "major"), ("G", "natural_minor"), ("F#", "major"), ("Eb", "natural_minor"),
+        ("Db", "major"), ("Bb", "natural_minor")]
 
 results: list[tuple[str, bool, str]] = []
 
@@ -64,9 +72,12 @@ def ok(label: str, passed: bool, detail: str = "") -> None:
 DRIVER = r"""
 import { createProgression, crossing, guideLevel, keysIn, palette, seatTarget, seatZone, PALETTE, PHRASES, chordPcs,
   ROOMS, roomScale, roomSig, createVamp, BLUES_FORMS, bluesChord, bluesNote, bluesScale, createBlues,
-  lick, question, createAsks, echoScore } from './harmony.js';
+  lick, question, createAsks, echoScore, pinSafe, wanderDue, BLUES_LEVELS, SAFE_PHRASES,
+  createLoop, loopRole, loopRoman, loopScale, spellRoot, spellUp, keyMoves, fitOf } from './harmony.js';
 
 const keys = JSON.parse(process.env.JAM_KEYS);
+const served = JSON.parse(process.env.JAM_SERVED);
+const allKeys = JSON.parse(process.env.JAM_ALL_KEYS);
 const rooms = JSON.parse(process.env.JAM_ROOMS);
 const out = [];
 const ok = (label, passed, detail = '') => out.push({ label, passed: !!passed, detail });
@@ -444,7 +455,367 @@ function seeded(seed) {
      && e([60, 62], []).matched === 0 && e([64, 60], [60, 64]).matched === 1);
 }
 
-console.log(JSON.stringify(out));
+/* 10. Levels. The beginner loops are the spec's, written here, not read from harmony.js. */
+const DEG = { I: 0, ii: 1, iii: 2, IV: 3, V: 4, vi: 5, i: 0, III: 2, iv: 3, v: 4, VI: 5, VII: 6 };
+const BEGIN = { major: ['pop', 'sad-pop', 'fifties', 'three-chord'], minor: ['epic', 'andalusian', 'watchtower', 'minor-three'] };
+{
+  const bad = [];
+  let skips = 0;
+  for (const k of keys) {
+    const mode = k.mode === 'major' ? 'major' : 'minor';
+    for (const seed of [1, 5, 23]) {
+      const p = createProgression({ mode, scale: k.pcs, rng: seeded(seed), level: 1 });
+      const first = p.next();
+      if (first.roman !== PALETTE[mode][0]) bad.push(`${k.name}: opens on ${first.roman}`);
+      for (let round = 0; round < 4; round++) {
+        const ids = new Set();
+        const c0 = round ? p.next() : first;
+        ids.add(c0.phrase.id);
+        for (let i = 0; i < 59; i++) {
+          const c = p.next();
+          ids.add(c.phrase.id);
+          if (c.varied) bad.push(`${k.name}: L1 varied a chord`);
+          if (c.phrase.seq.length !== 4) bad.push(`${k.name}: L1 played ${c.phrase.id}`);
+        }
+        const [id] = [...ids];
+        if (ids.size !== 1) bad.push(`${k.name}: L1 played ${[...ids]} without New progression`);
+        if (!BEGIN[mode].includes(id)) bad.push(`${k.name}: ${id} is not a beginner loop`);
+        p.skipPhrase();
+        // The rest of the bar's loop is dropped: the next chord is a new loop's first.
+        const nx = p.peek();
+        if (nx.phrase.id === id || nx.step !== 0) bad.push(`${k.name}: New progression kept ${id}`);
+        else skips++;
+      }
+    }
+  }
+  ok('level 1: one beginner loop, over and over, unvaried, opening on home, until New progression picks another',
+     !bad.length, bad.length ? bad.slice(0, 3).join('; ') : `${skips} new progressions`);
+}
+{
+  const bad = [];
+  const seen = { major: new Set(), minor: new Set() };
+  for (const k of keys) {
+    const mode = k.mode === 'major' ? 'major' : 'minor';
+    const p = createProgression({ mode, scale: k.pcs, rng: seeded(k.pcs[0] + 3), level: 2 });
+    for (let i = 0; i < 800; i++) {
+      const c = p.next();
+      seen[mode].add(c.phrase.id);
+      if (c.phrase.seq.length !== 4 || c.step > 3) bad.push(`${k.name}: L2 played ${c.phrase.id}`);
+      if (c.varied) bad.push(`${k.name}: L2 varied a chord`);
+    }
+  }
+  const fours = (m) => PHRASES[m].filter((ph) => ph.seq.length === 4).map((ph) => ph.id);
+  const missing = ['major', 'minor'].flatMap((m) => fours(m).filter((id) => !seen[m].has(id)));
+  ok('level 2: every four-chord loop and nothing longer, none varied', !bad.length && !missing.length
+     && !seen.major.has('canon'), bad.length ? bad.slice(0, 3).join('; ') : `missing ${missing}`);
+}
+{
+  // Level 4: a key change at every second phrase boundary, never on a coin. jam.js's
+  // counter: +1 at each phrase start, back to 0 on a change.
+  const boundary = (level, on, n, rng) => {
+    const at = [];
+    let count = 0;
+    for (let b = 1; b <= n; b++) {
+      count++;
+      if (wanderDue(level, on, count, rng)) { at.push(b); count = 0; }
+    }
+    return at;
+  };
+  const four = boundary(4, false, 20, seeded(3));
+  const want = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20];
+  const one = boundary(1, true, 200, seeded(3));
+  const off = boundary(3, false, 200, seeded(3));
+  const three = boundary(3, true, 200, seeded(3));
+  ok('level 4 changes key at every second phrase boundary; level 1 and Wander off never do',
+     JSON.stringify(four) === JSON.stringify(want) && !one.length && !off.length,
+     `L4 ${four}; L1 ${one.length}; off ${off.length}`);
+  ok('...and levels 2-3 with Wander on still wait three phrases and toss a coin',
+     three.length > 5 && three.every((b, i) => b - (three[i - 1] || 0) >= 3)
+     && three.some((b, i) => b - (three[i - 1] || 0) > 3), `${three.slice(0, 8)}`);
+}
+
+/* 11. The scale pin. Every key, both modes; the pin's notes and the rub test are written
+       here as arithmetic, never taken from harmony.js. */
+const SHAPES = { major_pentatonic: [0, 2, 4, 7, 9], minor_pentatonic: [0, 3, 5, 7, 10], blues: [0, 3, 5, 6, 7, 10] };
+const at = (tonic, steps) => steps.map((s) => (tonic + s) % 12);
+function pinOf(kind, mode, tonic) {
+  if (kind === 'penta') return { pcs: at(tonic, SHAPES[mode === 'major' ? 'major_pentatonic' : 'minor_pentatonic']), blue: null };
+  // Blues: on the tonic in minor; in major the relative minor's, whose b5 is the major's b3.
+  return mode === 'major' ? { pcs: at(tonic + 9, SHAPES.blues), blue: (tonic + 3) % 12 }
+    : { pcs: at(tonic, SHAPES.blues), blue: (tonic + 6) % 12 };
+}
+const rubs = (chord, pin, blue) => pin.filter((pc) => pc !== blue && !chord.includes(pc)
+  && chord.includes((pc + 11) % 12));
+{
+  const bad = [];
+  let n = 0;
+  const loops = {};
+  const safeSets = { major: new Set(), minor: new Set() };
+  for (const k of allKeys) {
+    const mode = k.mode === 'major' ? 'major' : 'minor';
+    const tonic = k.pcs[0];
+    for (const kind of ['penta', 'blues']) {
+      const { pcs: pin, blue } = pinOf(kind, mode, tonic);
+      const allowed = pinSafe(k.pcs, mode, pin, blue);
+      safeSets[mode].add(allowed.map((r) => r).join(' '));
+      for (const level of [1, 2, 3, 4]) {
+        const p = createProgression({ mode, scale: k.pcs, rng: seeded(tonic * 13 + level), level, allowed });
+        const ids = new Set();
+        const count = level === 3 ? 2000 : 600;
+        for (let i = 0; i < count; i++) {
+          const c = p.next();
+          n++;
+          ids.add(c.phrase.id);
+          if (i === 0 && c.roman !== PALETTE[mode][0]) bad.push(`${k.name} ${kind} L${level}: opens on ${c.roman}`);
+          const r = rubs(c.pcs, pin, blue);
+          if (r.length) bad.push(`${k.name} ${kind} L${level}: ${c.roman} rubs on ${r}`);
+          const want = k.chords[DEG[c.roman]];
+          if (JSON.stringify(c.pcs) !== JSON.stringify(want)) bad.push(`${k.name} ${c.roman}: ${c.pcs} is not the server's ${want}`);
+          if (level === 1 && i % 50 === 49) p.skipPhrase();
+        }
+        const key = `${mode} L${level}`;
+        loops[key] = Math.min(loops[key] ?? 99, ids.size);
+      }
+    }
+  }
+  ok('under a Pentatonic or Blues pin no chord rubs against the pin, in every key, both modes, every level',
+     !bad.length, bad.length ? bad.slice(0, 3).join('; ') : `${n} chords, ${allKeys.length} keys`);
+  ok('...and every chord is still the server\'s chord on its degree (the safe phrases included)', !bad.some((b) => b.includes('server')));
+  ok('major pentatonic allows exactly I ii IV vi; minor pentatonic i III iv VI (computed, every key)',
+     [...safeSets.major].join('|') === 'I ii IV vi' && [...safeSets.minor].join('|') === 'i III iv VI',
+     `${[...safeSets.major]} / ${[...safeSets.minor]}`);
+  const thin = Object.entries(loops).filter(([key, v]) => !key.endsWith('L4') && v < 3);
+  ok('levels 1-3 have at least three loops to play under a pin, in both modes', !thin.length,
+     JSON.stringify(loops));
+  const safeIds = ['major', 'minor'].flatMap((m) => SAFE_PHRASES[m].map((ph) => `${m}:${ph.id}:${ph.seq[0]}`));
+  ok('every pin-safe phrase starts at home', safeIds.every((s) => /:(I|i)$/.test(s)), safeIds.join(' '));
+}
+{
+  // An unplayable filter still gives a phrase: nothing in the songbook fits these chords.
+  let crashed = '';
+  try {
+    for (const level of [1, 2, 3]) {
+      const p = createProgression({ mode: 'major', scale: keys[0].pcs, rng: seeded(1), level, allowed: ['ii', 'iii'] });
+      for (let i = 0; i < 20; i++) if (!p.next()) throw new Error('no chord');
+    }
+  } catch (err) { crashed = String(err); }
+  ok('a pool with nothing that fits still yields a phrase, never a crash', !crashed, crashed);
+}
+
+/* 12. Blues by level. Chords by arithmetic: a dominant 7th is 0 4 7 10 on its root. */
+{
+  const bad = [];
+  const dom = (r) => at(r, [0, 4, 7, 10]), min7 = (r) => at(r, [0, 3, 7, 10]);
+  for (const k of keys) {
+    const minor = k.mode !== 'major';
+    const tonic = k.pcs[0];
+    const distinct = (level) => {
+      const g = createBlues({ tonic, minor, rng: seeded(tonic + level), level });
+      const seqs = new Set(), chords = new Set();
+      for (let i = 0; i < 96; i++) {
+        const c = g.next();
+        chords.add(c.pcs.join(','));
+        seqs.add(c.phrase.seq.join(' '));
+        const sc = bluesScale(tonic, c.roman, minor);
+        if (!c.pcs.every((pc) => sc.includes(pc))) bad.push(`${k.name} L${level} ${c.roman}: chord outside its scale`);
+      }
+      return { chords, seqs: [...seqs] };
+    };
+    const one = distinct(1);
+    const home = (minor ? min7 : dom)(tonic).join(','), four = (minor ? min7 : dom)(tonic + 5).join(',');
+    if (one.chords.size !== 2 || !one.chords.has(home) || !one.chords.has(four)) bad.push(`${k.name} L1: ${[...one.chords]}`);
+    if (one.seqs.length !== 1 || one.seqs[0].split(' ').length !== 8) bad.push(`${k.name} L1: not four bars each`);
+    const two = distinct(2);
+    const s2 = two.seqs[0]?.split(' ') || [];
+    if (two.seqs.length !== 1 || s2.length !== 12 || s2[1] !== s2[0] || two.chords.size !== 3) bad.push(`${k.name} L2: ${two.seqs}`);
+    const four4 = distinct(4);
+    const s4 = four4.seqs[0]?.split(' ') || [];
+    if (s4.length !== 12 || s4[1] === s4[0] || s4[11][0] !== 'V') bad.push(`${k.name} L4: ${four4.seqs}`);
+    // The turnaround moves: a chord the plain twelve bars never play.
+    if (![...four4.chords].some((c) => !two.chords.has(c))) bad.push(`${k.name} L4: nothing new in the turnaround`);
+    if (!minor && !four4.chords.has(dom(tonic + 9).join(','))) bad.push(`${k.name} L4: no VI7 (A7 in C)`);
+  }
+  ok('blues level 1 is two chords, 2 the plain 12-bar on three, 4 the quick change with a moving turnaround',
+     !bad.length, bad.slice(0, 3).join('; '));
+}
+
+/* 13. My chords: the loop cycles, and each chord gets a role, a numeral and a scale. */
+{
+  const C = [0, 2, 4, 5, 7, 9, 11];
+  const mine = [{ roman: 'I', pcs: [0, 4, 7], root: 0, role: 'home' }, { roman: 'II7', pcs: [2, 6, 9, 0], root: 2, role: 'pull' },
+    { roman: 'IV', pcs: [5, 9, 0], root: 5, role: 'away' }];
+  const g = createLoop(mine);
+  const got = Array.from({ length: 7 }, () => g.next().roman).join(' ');
+  ok('your loop plays your chords in order, round and round', got === 'I II7 IV I II7 IV I', got);
+  // The roles the progressions give the same chords (ROLE, BLUES_ROLE), written out here:
+  // C major then A minor, as [pcs, quality, role].
+  const Am = [9, 11, 0, 2, 4, 5, 7];
+  const roleCases = [
+    [C, [0, 4, 7], '', 'home'], [C, [7, 11, 2], '', 'pull'], [C, [7, 11, 2, 5], '7', 'pull'],
+    [C, [9, 0, 4], 'm', 'home'], [C, [4, 7, 11], 'm', 'home'], [C, [5, 9, 0], '', 'away'],
+    [C, [5, 9, 0, 3], '7', 'away'], [C, [2, 6, 9, 0], '7', 'away'], [C, [2, 5, 9], 'm', 'away'],
+    [C, [11, 2, 5], 'dim', 'pull'], [C, [10, 2, 5], '', 'away'],
+    [Am, [9, 0, 4], 'm', 'home'], [Am, [7, 11, 2], '', 'pull'], [Am, [4, 8, 11], '', 'pull'],
+    [Am, [4, 8, 11, 2], '7', 'pull'], [Am, [4, 7, 11], 'm', 'pull'], [Am, [0, 4, 7], '', 'away'],
+    [Am, [5, 9, 0], '', 'away'], [Am, [2, 5, 9], 'm', 'away'], [Am, [8, 11, 2], 'dim', 'pull'],
+  ];
+  const roleBad = roleCases.filter(([sc, pcs, q, want]) => loopRole(pcs, q, sc) !== want)
+    .map(([sc, pcs, q, want]) => `${pcs}${q} in ${sc[0]}: ${loopRole(pcs, q, sc)}, want ${want}`);
+  ok('roles match the progressions\': iii and vi home in major, minor\'s VII pulls, IV7 and D7 in C are away',
+     !roleBad.length, roleBad.join('; '));
+  const romans = [[0, ''], [2, 'm7'], [7, '7'], [10, ''], [6, 'dim'], [3, 'maj7'], [1, 'dim'], [8, ''], [1, '']]
+    .map(([r, q]) => loopRoman(r, q, C)).join(' ');
+  ok('numerals by degree: I ii7 V7 ♭VII ♯iv° ♭IIImaj7 ♯i° ♭VI ♭II in C', romans === 'I ii7 V7 ♭VII ♯iv° ♭IIImaj7 ♯i° ♭VI ♭II', romans);
+  const minorRomans = [[8, 'dim'], [8, ''], [6, 'm'], [10, ''], [4, '7'], [1, 'dim'], [7, '']]
+    .map(([r, q]) => loopRoman(r, q, Am)).join(' ');
+  ok('...and in A minor: ♯vii° ♯VII ♯vi ♭II V7 ♯iii° VII -- never ♭i°', minorRomans === '♯vii° ♯VII ♯vi ♭II V7 ♯iii° VII',
+     minorRomans);
+  const D7 = [2, 6, 9, 0], Dm = [2, 5, 9], Bb = [10, 2, 5];
+  const choice = [loopScale(Dm, 'm', C), loopScale(D7, '7', C), loopScale(Bb, '', C), loopScale([3, 7, 10, 2], 'maj7', C),
+    loopScale([6, 9, 0], 'dim', C), loopScale([4, 7, 11, 2], 'm7', [4, 6, 7, 9, 11, 0, 2]), loopScale([2, 7, 9], 'sus4', [1, 3, 5, 6, 8, 10, 0]),
+    loopScale(D7, '7', C, true)].join(' ');
+  ok('a chord in the key is judged by the key; out of it by its quality; under a pin by the pin',
+     choice === 'key mixolydian major major locrian key mixolydian pin', choice);
+  // Minor's V, V7 and leading-tone chord are its harmonic minor, as Minor music judges V.
+  // Its V/V (B7 in A minor) is not: that one is still the chord's own Mixolydian.
+  const harm = [loopScale([4, 8, 11], '', Am), loopScale([4, 8, 11, 2], '7', Am), loopScale([8, 11, 2], 'dim', Am),
+    loopScale([11, 3, 6, 9], '7', Am), loopScale([7, 11, 2], '', Am)].join(' ');
+  ok('in A minor, E and E7 and G♯° are judged by A harmonic minor; B7 by its own scale; G by the key',
+     harm === 'harmonic harmonic harmonic mixolydian key', harm);
+}
+
+/* 14. Naming My chords' roots in a key, and spelling the scales they are judged by. */
+const NAT = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+const pcName = (n) => (NAT[n[0]] + (n.match(/#/g) || []).length - (n.slice(1).match(/b/g) || []).length + 120) % 12;
+const rootNames = new Set();
+{
+  // Written out by hand: what a musician writes for these roots in these keys.
+  const byName = Object.fromEntries(allKeys.map((k) => [k.name, k]));
+  const name = (key, pc, q) => spellRoot(pc, q, byName[key].pcs, byName[key].roots);
+  const cases = [
+    ['E major', 6, '7', 'F#'], ['A natural_minor', 8, 'dim', 'G#'], ['A natural_minor', 6, 'm', 'F#'],
+    ['A natural_minor', 10, '', 'Bb'], ['A natural_minor', 1, '', 'C#'], ['C major', 1, 'dim', 'C#'], ['C major', 1, '', 'Db'],
+    ['C major', 8, '', 'Ab'], ['C major', 3, '', 'Eb'], ['C major', 10, '', 'Bb'], ['C major', 6, 'dim', 'F#'],
+    ['C major', 6, '', 'F#'], ['G major', 5, '', 'F'], ['G major', 3, '', 'Eb'], ['F# major', 7, '', 'G'],
+    ['Eb natural_minor', 2, 'dim', 'D'], ['Eb natural_minor', 0, 'm', 'C'], ['F major', 11, 'dim', 'B'],
+    ['D natural_minor', 1, 'dim', 'C#'], ['E major', 8, 'm', 'G#'], ['B major', 10, '7', 'A#'],
+  ];
+  const bad = cases.map(([key, pc, q, want]) => [key, pc, q, want, name(key, pc, q)]).filter((c) => c[3] !== c[4]);
+  ok('a root is named for the key: F♯7 in E, G♯° and F♯m in A minor, C♯° but D♭ in C, F in G',
+     !bad.length, bad.map((c) => `${c[0]} pc ${c[1]}${c[2]}: ${c[4]}, want ${c[3]}`).join('; '));
+  // Every root of every quality in every key: its own pitch, at most one accidental.
+  const wrong = [];
+  for (const k of allKeys) {
+    for (let pc = 0; pc < 12; pc++) {
+      for (const q of ['', 'm', '7', 'm7', 'maj7', 'sus4', 'dim']) {
+        const n = spellRoot(pc, q, k.pcs, k.roots);
+        rootNames.add(n);
+        if (!/^[A-G](#|b)?$/.test(n) || pcName(n) !== pc) wrong.push(`${k.name} pc ${pc}${q}: ${n}`);
+      }
+    }
+  }
+  ok('...and every root in every key is its own pitch with at most one accidental', !wrong.length,
+     wrong.slice(0, 4).join('; '));
+  // The scale a chord outside the key is judged by, asked for by a name the server knows
+  // (served, from Python) and spelled from the chord's own letter: D♯ dorian, G♯ mixolydian.
+  const spellBad = [];
+  let spelled = 0;
+  for (const k of allKeys) {
+    for (const root of k.roots) {
+      for (const [mode, byPc] of Object.entries(served)) {
+        const pcs = byPc[pcName(root)];
+        const names = spellUp(root, pcs);
+        spelled++;
+        const letters = names.map((n) => n[0]).join('');
+        const from = 'CDEFGABCDEFGAB'.indexOf(root[0]);
+        if (names[0] !== root || letters !== 'CDEFGABCDEFGAB'.slice(from, from + 7)
+            || names.some((n, i) => pcName(n) !== pcs[i])) spellBad.push(`${root} ${mode}: ${names.join(' ')}`);
+      }
+    }
+  }
+  ok('every key-row root\'s own scale is spelled from its letter, a letter a note, every pitch right',
+     !spellBad.length && spelled === allKeys.length * 7 * Object.keys(served).length, spellBad.length ? spellBad.slice(0, 3).join('; ') : `${spelled} scales`);
+}
+
+/* 15. A note of a pinned scale the chord's scale leaves out is a rub, never praise --
+       except the Blues pin's blue note, which is colour. Scales written out here. */
+{
+  const judge = (pc, chord, scale, pin, blue = null) => fitOf(pc, { pal: palette(chord, scale), scale, pin, blue });
+  const cases = [
+    // A minor, Key pin, over V (E G# B): its scale is the key with G#. G natural clashes.
+    ['G over E in A minor, Key pin', judge(7, [4, 8, 11], [9, 11, 0, 2, 4, 5, 8], [9, 11, 0, 2, 4, 5, 7]), 'rub'],
+    // C blues over IV7 (F A C Eb), its scale F mixolydian + C blues; Pentatonic pin C D E G A.
+    ['E over F7 in the blues, Pentatonic pin', judge(4, [5, 9, 0, 3], [0, 2, 3, 5, 6, 7, 9, 10], [0, 2, 4, 7, 9]), 'rub'],
+    // C blues over I7 (C E G Bb), Key pin: B against the chord's B flat.
+    ['B over C7, Key pin', judge(11, [0, 4, 7, 10], [0, 2, 3, 4, 5, 6, 7, 9, 10], [0, 2, 4, 5, 7, 9, 11]), 'rub'],
+    // C major, Blues pin (A blues: A C D Eb E G, blue Eb) over C: the blue note is colour.
+    ['E♭ over C, Blues pin', judge(3, [0, 4, 7], [0, 2, 4, 5, 7, 9, 11], [9, 0, 2, 3, 4, 7], 3), 'color'],
+    ['C♯ over C, no pin', judge(1, [0, 4, 7], [0, 2, 4, 5, 7, 9, 11], null), 'out'],
+    ['F over C, no pin', judge(5, [0, 4, 7], [0, 2, 4, 5, 7, 9, 11], null), 'rub'],
+    ['A over C, no pin', judge(9, [0, 4, 7], [0, 2, 4, 5, 7, 9, 11], null), 'color'],
+  ];
+  const bad = cases.filter(([, got, want]) => got !== want).map(([what, got, want]) => `${what}: ${got}, want ${want}`);
+  ok('a pinned note outside the chord\'s scale is a rub; the blue note is colour; nothing pinned is out',
+     !bad.length, bad.join('; '));
+}
+
+/* 16. Where a key change goes. The relative and the fifths, by arithmetic here. */
+{
+  const has = (pc, major) => keys.some((k) => k.pcs[0] === pc && (k.mode === 'major') === major);
+  const id = (x) => `${x.pc}${x.major ? 'M' : 'm'}`;
+  const bad = [];
+  let stuck = [];
+  for (const k of keys) {
+    const major = k.mode === 'major', t = k.pcs[0];
+    const rel = { pc: (t + (major ? 9 : 3)) % 12, major: !major };
+    const fifths = [{ pc: (t + 7) % 12, major }, { pc: (t + 5) % 12, major }].filter((x) => has(x.pc, x.major));
+    const four = keyMoves(t, major, 4, has).map(id).sort().join(' ');
+    const want4 = (fifths.length ? fifths : [rel].filter((x) => has(x.pc, x.major))).map(id).sort().join(' ');
+    if (four !== want4) bad.push(`${k.name} L4: ${four}, want ${want4}`);
+    if (!fifths.length) stuck.push(k.name);
+    const three = keyMoves(t, major, 3, has);
+    const w = (x) => three.find((m) => id(m) === id(x))?.w;
+    if (has(rel.pc, rel.major) && w(rel) !== 3) bad.push(`${k.name} L3: relative weighs ${w(rel)}`);
+    if (fifths.some((x) => w(x) !== 1) || three.length !== fifths.length + (has(rel.pc, rel.major) ? 1 : 0)) bad.push(`${k.name} L3: ${three.map(id)}`);
+  }
+  ok('level 4 changes key by a fifth wherever one is offered; Wander keeps the relative at 3 to 1',
+     !bad.length, bad.length ? bad.slice(0, 3).join('; ') : `relative only from ${stuck.join(', ') || 'nowhere'}`);
+}
+
+/* 17. jam.js's key-change clock over real level-4 progressions: compose() adds one at each
+       phrase start, newGen() starts it at -1, a change sets it to 0 because the new key's
+       first phrase is starting. Every key -- the first one too -- gets two phrases. */
+{
+  const bad = [];
+  for (const k of keys.slice(0, 6)) {
+    const mode = k.mode === 'major' ? 'major' : 'minor';
+    for (const seed of [3, 9, 21]) {
+      const rng = seeded(seed);
+      let p = createProgression({ mode, scale: k.pcs, rng, level: 4 });
+      let count = -1, phrases = 0;
+      const per = [];
+      for (let i = 0; i < 300; i++) {
+        const up = p.peek();
+        if (up.step === 0 && up.pass === 1) {
+          count++;
+          if (wanderDue(4, false, count)) {
+            per.push(phrases);
+            p = createProgression({ mode, scale: k.pcs, rng, level: 4 });
+            count = 0;
+            phrases = 0;
+          }
+          phrases++;
+        }
+        p.next();
+      }
+      if (per.length < 4 || per.some((n) => n !== 2)) bad.push(`${k.name} seed ${seed}: ${per}`);
+    }
+  }
+  ok('level 4: every key plays two phrases before it changes, the opening key included', !bad.length,
+     bad.slice(0, 3).join('; '));
+}
+
+console.log(JSON.stringify({ out, rootNames: [...rootNames] }));
 """
 
 
@@ -465,6 +836,7 @@ class FakeSeq:
     def __init__(self) -> None:
         self.tick = 1000
         self.notes: list[tuple] = []
+        self.timers: list[int] = []
         self.sequencer = None
 
     def get_tick(self):
@@ -477,16 +849,26 @@ class FakeSeq:
         self.notes.append((at, ch, key, vel, dur, source))
 
     def timer(self, at, data=None, source=-1, dest=-1):
-        pass
+        self.timers.append(at)
 
 
 def band_checks() -> None:
+    real_queue = band_mod._queue_program
     removed: list[tuple] = []
-    band_mod._remove_events = lambda *a: removed.append(a)   # no real sequencer here
+    # A sound change queued on the sequencer: (tick, channel, bank, program, source).
+    queued: list[tuple] = []
+
+    def remove(seqp, src, dest, kind):            # no real sequencer here
+        removed.append((seqp, src, dest, kind))
+        if kind == band_mod.PROGRAM_SELECT:
+            queued[:] = [q for q in queued if q[0] <= seq.tick]
+    band_mod._remove_events = remove
+    band_mod._queue_program = lambda seq, at, src, dest, ch, sfid, bank, prog: queued.append(
+        (at, ch, bank, prog, src))
 
     fs, seq = FakeFS(), FakeSeq()
     eng = SimpleNamespace(fs=fs, sequencer=seq, seq_dest=1, active_channels=(0, 1),
-                          load_soundfont=lambda name: 1)
+                          load_soundfont=lambda name: 1, zone_listeners=[])
     C = {"root": 0, "pcs": [0, 4, 7]}
     G = {"root": 7, "pcs": [7, 11, 2]}
     Am = {"root": 9, "pcs": [9, 0, 4]}
@@ -498,6 +880,7 @@ def band_checks() -> None:
         b._rng = random.Random(3)                             # the same velocities every run
         seq.notes.clear()
         fs.log.clear()
+        queued.clear()
         seq.tick = 1000
         b.start(chart or [C, G, Am, F] * 2, style=style, bpm=bpm, **parts)
         return b
@@ -671,6 +1054,209 @@ def band_checks() -> None:
     ok("...and its off-beats land on the last triplet", any(abs(r - 4 * 2 / 3 * six) < 3 for r in rides),
        str([round(r / six, 2) for r in rides[:3]]))
 
+    # Sounds. Pop's own are piano (GM 0) over an electric bass (GM 33) -- written here from
+    # the General MIDI table, not read from band.py.
+    # Put in at once, then queued on the sequencer, in the order they sound.
+    def progs(ch):
+        return ([e[3] for e in fs.log if e[0] == "prog" and e[1] == ch and e[2] == 0]
+                + [q[3] for q in sorted(queued, key=lambda q: q[0]) if q[1] == ch and q[2] == 0])
+
+    def channel_of(notes, lo, hi):
+        # The kit's keys share the bass's register: leave out the channel on the drum bank.
+        kit = {e[1] for e in fs.log if e[0] == "prog" and e[2] == 128}
+        chans = {n[1] for n in notes if lo <= n[2] <= hi and n[1] not in kit}
+        return chans.pop() if len(chans) == 1 else None
+
+    b = fresh(comp_program=48, bass_program=38)
+    b._fill()
+    comp_ch = channel_of(seq.notes, 52, 63)              # the comp's E3..D#4 window
+    bass_ch = channel_of(seq.notes, 24, 50)
+    ok("a band started with sounds picked plays them: strings on the chords' channel, synth bass on the bass's",
+       comp_ch is not None and bass_ch is not None and progs(comp_ch)[-1:] == [48] and progs(bass_ch)[-1:] == [38],
+       f"comp ch {comp_ch} {progs(comp_ch)}, bass ch {bass_ch} {progs(bass_ch)}")
+
+    b = fresh()
+    b._fill()
+    comp_ch = channel_of(seq.notes, 52, 63)
+    bass_ch = channel_of(seq.notes, 24, 50)
+    ok("left alone, the style's own sounds: Pop is piano over electric bass",
+       progs(comp_ch)[-1:] == [0] and progs(bass_ch)[-1:] == [33], f"{progs(comp_ch)} {progs(bass_ch)}")
+    seq.tick = int(b._anchor_tick + b.bar_ms() * 0.9)
+    b._fill()
+    at = b._next_bar
+    down = b._anchor_tick + at * b.bar_ms()            # the downbeat of the first unqueued bar
+    fs.log.clear()
+    queued.clear()
+    b.configure(comp_program=25)
+    ok("a new sound is not put in at once while queued bars are still to play",
+       not any(e[0] == "prog" and e[3] == 25 for e in fs.log), str(fs.log))
+    last_before = max(n[0] for n in seq.notes if n[0] < down)
+    q = [x for x in queued if x[3] == 25]
+    ok("...it is queued on the sequencer, as the band's, for just before the first unqueued bar's "
+       "downbeat and after the last note of the bar before",
+       len(q) == 1 and q[0][1] == comp_ch and last_before < q[0][0] < down and q[0][0] > down - 40 and q[0][4] == 7,
+       f"bar {at}, queued {q}, last onset {round(down - last_before)} ms before")
+    ok("...on the chords' channel only", not any(x[3] == 25 and x[1] != comp_ch for x in queued))
+    b.configure(bass_program=32)
+    b.configure(comp_program=None)
+    for i in range(1, 6):
+        seq.tick = int(b._anchor_tick + b.bar_ms() * (at + i) - 100)
+        b._fill()
+    ok("null puts the style's own sound back; a bass sound goes on the bass's channel",
+       progs(comp_ch)[-1:] == [0] and progs(bass_ch)[-1:] == [32] and b.status()["comp_program"] is None
+       and b.status()["bass_program"] == 32, f"{progs(comp_ch)} {progs(bass_ch)}")
+    fs.log.clear()
+    b.configure(style="rock")
+    seq.tick = int(b._anchor_tick + b.bar_ms() * (b._next_bar + 1))
+    b._fill()
+    ok("a new style keeps a sound you picked, and brings its own where you did not",
+       progs(bass_ch)[-1:] == [32] and progs(comp_ch)[-1:] == [29], f"{progs(comp_ch)} {progs(bass_ch)}")
+    # At 97 bpm a bar is 2474.2 ms: a tick that is not a whole number, which the old
+    # doorbell truncated and then never reached.
+    b97 = fresh(bpm=97)
+    b97._fill()
+    seq.tick = int(b97._anchor_tick + 240000 / 97 * 0.9)
+    b97._fill()
+    down97 = b97._anchor_tick + b97._next_bar * 240000 / 97
+    last97 = max(n[0] for n in seq.notes if n[0] < down97)
+    queued.clear()
+    b97.configure(comp_program=48)
+    q = [x for x in queued if x[3] == 48]
+    ok("...at 97 bpm too: queued between the last onset and the downbeat, whatever the fraction",
+       len(q) == 1 and isinstance(q[0][0], int) and last97 < q[0][0] < down97,
+       f"queued {q}, last onset {last97}, downbeat {down97:.2f}")
+    b97.stop()
+
+    # The queued sound change on a real sequencer: FluidSynth itself, rendering into a
+    # buffer with no audio device, so the program is read back off the synth. It must not
+    # be there a few ms before its tick and must be there a few ms after.
+    import fluidsynth
+    sf2 = ROOT / "soundfonts" / "GeneralUser-GS.sf2"
+    if not sf2.exists():
+        ok("a queued program select sounds at its tick, on FluidSynth's clock", False, f"no {sf2}")
+    else:
+        synth = fluidsynth.Synth(samplerate=48000.0)
+        rseq = fluidsynth.Sequencer(time_scale=1000, use_system_timer=False)
+        try:
+            sfid = synth.sfload(str(sf2))
+            dest = rseq.register_fluidsynth(synth)
+            src = rseq.register_client("check", lambda *a: None)
+            for c in (2, 3):
+                synth.program_select(c, sfid, 0, 0)
+            got = []
+            import ctypes
+            get = fluidsynth.cfunc("fluid_synth_get_program", ctypes.c_int, ("s", ctypes.c_void_p, 1),
+                                   ("c", ctypes.c_int, 1), ("f", ctypes.POINTER(ctypes.c_int), 1),
+                                   ("b", ctypes.POINTER(ctypes.c_int), 1), ("p", ctypes.POINTER(ctypes.c_int), 1))
+
+            def program(c):
+                f, bk, pr = ctypes.c_int(), ctypes.c_int(), ctypes.c_int()
+                get(synth.synth, c, f, bk, pr)
+                return (bk.value, pr.value)
+
+            at = rseq.get_tick() + 100
+            real_queue(rseq, at, src, dest, 2, sfid, 0, 25)
+            real_queue(rseq, at, src, dest, 3, sfid, 128, 0)
+            rseq.note(at + 40, 3, 60, 80, 50, source=src, dest=dest)
+            synth.get_samples(48 * 90)
+            got.append((rseq.get_tick(), program(2), program(3)))
+            synth.get_samples(48 * 20)
+            got.append((rseq.get_tick(), program(2), program(3)))
+            ok("a queued program select sounds at its tick, on FluidSynth's clock: not before, then guitar and a kit",
+               got[0][1:] == ((0, 0), (0, 0)) and got[0][0] < at and got[1][1:] == ((0, 25), (128, 0)), str(got))
+            # Taking back the band's pending sound changes takes back only those.
+            from backend.metronome import _remove_events as remove
+            voices = fluidsynth.cfunc("fluid_synth_get_active_voice_count", ctypes.c_int,
+                                      ("s", ctypes.c_void_p, 1))
+            at = rseq.get_tick() + 100
+            real_queue(rseq, at, src, dest, 2, sfid, 0, 48)
+            rseq.note(at, 2, 64, 80, 60, source=src, dest=dest)
+            remove(rseq.sequencer, src, -1, band_mod.PROGRAM_SELECT)
+            synth.get_samples(48 * 115)
+            ok("...and taking them back by type leaves the notes queued with them",
+               program(2) == (0, 25) and voices(synth.synth) > 0, f"{program(2)}, {voices(synth.synth)} voices")
+        finally:
+            rseq.delete()
+            synth.delete()
+
+    # The engine tells its listeners after every zone change, with the channels in place.
+    from backend.engine import Engine, Zone
+    real = Engine()
+    real.fs = FakeFS()
+    real.load_soundfont = lambda name: 1
+    heard: list[tuple] = []
+    real.zone_listeners.append(lambda: heard.append(real.active_channels))
+    real.set_zones([Zone(), Zone(id="b", channel=1)])
+    ok("set_zones tells its listeners, after the new channels are in place", heard == [(0, 1)], str(heard))
+
+    # A zone arriving on the band's channel while it plays: on a page, Layers or a profile
+    # beside Jam. Channel 1 (the drums, the lowest free one) is the one Layers hands out next.
+    eng.active_channels = (0,)
+    b = fresh()
+    b._fill()
+    was = dict(b._channels)
+    ok("the band registers to hear about zone changes", b.zones_changed in eng.zone_listeners)
+    seq.tick = int(b._anchor_tick + b.bar_ms() * 0.9)
+    b._fill()
+    from_bar = b._next_bar
+    eng.active_channels = (0, 1)
+    fs.log.clear()
+    removed.clear()
+    b.zones_changed()
+    now = dict(b._channels)
+    for i in range(1, 5):
+        seq.tick = int(b._anchor_tick + b.bar_ms() * (from_bar + i) - 100)
+        b._fill()
+    later = [n for n in seq.notes if n[0] >= b._anchor_tick + from_bar * b.bar_ms()]
+    ok("a zone on the drums' channel moves the drums to a free one, and only the drums",
+       was["drums"] == 1 and now["drums"] not in (0, 1) and now["drums"] not in (now["bass"], now["comp"], now["lead"])
+       and {p: now[p] for p in ("bass", "comp", "lead")} == {p: was[p] for p in ("bass", "comp", "lead")},
+       f"{was} -> {now}")
+    ok("...with the kit and its level put on the new channel at once",
+       ("prog", now["drums"], 128, 0) in fs.log and any(e[:3] == ("cc", now["drums"], 7) for e in fs.log), str(fs.log))
+    ok("...and from the first bar not yet queued, not one band note on the zone's channel",
+       later and not any(n[1] == 1 for n in later), f"{sum(n[1] == 1 for n in later)} of {len(later)}")
+    fs.log.clear()
+    b.stop()
+    ok("...so stopping the band does not cut the notes of the zone now on channel 1",
+       not any(e[0] == "cc" and e[1] in (0, 1) for e in fs.log), str(fs.log))
+    # A sound change still pending when its channel is taken goes to the new channel.
+    eng.active_channels = (0,)
+    b = fresh()
+    b._fill()
+    seq.tick = int(b._anchor_tick + b.bar_ms() * 0.9)
+    b._fill()
+    queued.clear()
+    b.configure(comp_program=25)
+    tick = queued[0][0] if queued else None
+    eng.active_channels = (0, b._channels["comp"])
+    removed.clear()
+    b.zones_changed()
+    q = [x for x in queued if x[3] == 25]
+    ok("a sound change still pending when a zone takes its channel is taken back and queued on the new one",
+       removed and removed[-1][3] == band_mod.PROGRAM_SELECT and [x[:2] for x in q] == [(tick, b._channels["comp"])]
+       and b._channels["comp"] not in eng.active_channels, f"{removed} {q} {b._channels}")
+    queued.clear()
+    b.configure(comp_program=48)
+    b.configure(comp_program=16)
+    q = [x for x in queued if x[1] == b._channels["comp"]]
+    ok("two sound changes before one bar: the second replaces the first, not races it at the same tick",
+       [x[3] for x in q] == [16], str(q))
+    b.stop()
+    eng.active_channels = (0, 1)
+
+    from backend import server
+    refused = []
+    for bad in (True, 1.5, "25", 128, -1, [0]):
+        try:
+            server._programs({"comp_program": bad})
+        except server.HTTPException as err:
+            refused.append(err.status_code)
+    ok("the server takes a program 0-127 or null, refuses anything else, and leaves out what was not sent",
+       server._programs({"comp_program": 0, "bass_program": None}) == {"comp_program": 0, "bass_program": None}
+       and server._programs({"bass_program": 127}) == {"bass_program": 127} and server._programs({}) == {}
+       and refused == [400] * 6, str(refused))
+
     eng.fs = None
     try:
         band_mod.Band(eng).start([C])
@@ -680,6 +1266,55 @@ def band_checks() -> None:
     eng.fs = fs
 
 
+def served_scales() -> dict[str, dict[int, list[int]]]:
+    """The scale My chords asks the server for, over a chord outside the key: one per
+    pitch class and own mode, by the name harmony.js's SCALE_KEYS gives it -- read from
+    the file, so a name the server refuses (G# mixolydian was a 400, and the band would
+    not start) fails here. Also each minor key's harmonic minor, asked for by its own name."""
+    src = (FRONTEND / "harmony.js").read_text(encoding="utf-8")
+    names = re.search(r"export const SCALE_KEYS = \[([^\]]*)\]", src)
+    own = re.search(r"export const OWN_MODE = \{([^}]*)\}", src)
+    scale_keys = re.findall(r"'([^']*)'", names.group(1)) if names else []
+    modes = sorted(set(re.findall(r":\s*'([a-z_]+)'", own.group(1)))) if own else []
+    served: dict[str, dict[int, list[int]]] = {}
+    refused = []
+    for mode in modes:
+        served[mode] = {}
+        for pc, name in enumerate(scale_keys):
+            try:
+                plan = theory.scale_plan(name, mode)
+            except (ValueError, KeyError) as err:
+                refused.append(f"{name} {mode}: {err}")
+                continue
+            if plan["pcs"][0] != pc:
+                refused.append(f"{name} {mode}: starts on {plan['pcs'][0]}, not {pc}")
+            served[mode][pc] = plan["pcs"]
+    for key, mode in KEYS:
+        if mode == "natural_minor":
+            try:
+                theory.scale_plan(key, "harmonic_minor")
+            except (ValueError, KeyError) as err:
+                refused.append(f"{key} harmonic_minor: {err}")
+    ok("the server gives every scale My chords asks for: every pitch class in every own mode, and harmonic minor",
+       len(scale_keys) == 12 and len(modes) >= 4 and not refused,
+       "; ".join(refused[:3]) or f"{len(modes)} modes x {len(scale_keys)} roots")
+    return served
+
+
+def chord_names_check(names: list[str]) -> None:
+    """Every root name harmony.js spellRoot can give, in every key: the server must spell
+    a chord of every kind on it, because that is the next request My chords makes."""
+    refused = []
+    for name in names:
+        for quality in ("", "m", "7", "m7", "maj7", "sus4", "dim"):
+            try:
+                theory.chord_plan(name, quality)
+            except (ValueError, KeyError) as err:
+                refused.append(f"{name}{quality}: {err}")
+    ok("the server spells a chord of every kind on every root name My chords can give",
+       len(names) >= 12 and not refused, "; ".join(refused[:3]) or f"{len(names)} names")
+
+
 def source_checks() -> None:
     src = (FRONTEND / "jam.js").read_text(encoding="utf-8")
     for key, mode in KEYS:
@@ -687,6 +1322,23 @@ def source_checks() -> None:
             ok("jam.js offers the keys this check covers", False, f"{key} {mode} missing")
             return
     ok("jam.js offers the keys this check covers", True, f"{len(KEYS)} keys")
+    # Level 4 and Wander move by a fifth. Every key must have one on offer -- a fifth up
+    # (+7) or down (+5) in the same mode -- or it falls back to its relative. The pitch
+    # classes are counted here from the letter and its accidentals.
+    letter = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
+    pc = lambda name: (letter[name[0]] + name.count("#") - name[1:].count("b")) % 12  # noqa: E731
+    offered = {(pc(key), mode) for key, mode in KEYS}
+    stuck = [f"{key} {mode}" for key, mode in KEYS
+             if ((pc(key) + 7) % 12, mode) not in offered and ((pc(key) + 5) % 12, mode) not in offered]
+    ok("every key Jam offers has a key a fifth away to move to", not stuck, ", ".join(stuck) or f"{len(KEYS)} keys")
+    # Pop is the major keys and Minor the minor ones; switching between them moves the key
+    # to its relative (the same notes, the other home): a major key's is 9 semitones up, a
+    # minor key's 3. Every key needs one on offer, or the switch keeps a key of the wrong mode.
+    alone = [f"{key} {mode}" for key, mode in KEYS
+             if ((pc(key) + (9 if mode == "major" else 3)) % 12, "natural_minor" if mode == "major" else "major")
+             not in offered]
+    ok("every key Jam offers has its relative on offer, for a switch between Pop and Minor", not alone,
+       ", ".join(alone) or f"{len(KEYS)} keys")
     styles = [line.split("'")[1] for line in src.splitlines() if line.strip().startswith("{ id: '") and "bpm:" in line]
     ok("jam.js offers exactly the band's styles", sorted(styles) == sorted(band_mod.STYLES), str(styles))
     # Lights Out's counter lives in jam.js (the driver above runs the same rule): it
@@ -706,6 +1358,41 @@ def source_checks() -> None:
        and 'bass=bool(body.get("bass", True)), comp=bool(body.get("comp", True))' in server
        and 'bass=None if body.get("bass") is None else bool(body["bass"])' in server
        and 'comp=None if body.get("comp") is None else bool(body["comp"])' in server)
+    # The pieces the driver above checks in harmony.js are the ones jam.js really uses.
+    ok("compose() asks wanderDue() at each phrase start, with the level and the Wander switch",
+       "wanderDue(opt.level, opt.wander, phrasesInKey)" in body("compose"))
+    ok("Pop and Minor charts pass the level, and Solo the pin's safe chords; Blues passes the level",
+       "level: opt.level,\n      allowed: m === 'songs' ? safeChords(plan) : null" in body("freshGen")
+       and "createBlues({ tonic: pcOf(plan.key), minor: mode === 'minor', level: opt.level })" in body("freshGen"))
+    ok("a note you play is judged by harmony.js fitOf, with the pin and its blue note (checked above)",
+       "fitOf(pc, { pal: now.pal, scale: now.scale, sig: now.sig || [], pin: pin?.pcs, blue: pin?.blue })" in body("frame"))
+    # The key-change clock the driver runs: -1 for a fresh stream, +1 at each phrase start,
+    # 0 after a change (set after newGen(), which would put it back to -1).
+    wander = body("wander")
+    ok("jam.js counts phrases for a key change the way the driver does",
+       "phrasesInKey = -1;" in body("newGen") and "phrasesInKey++;" in body("compose")
+       and 0 <= wander.find("newGen();") < wander.find("phrasesInKey = 0;")
+       and "neighbours(opt.key, opt.level)" in wander)
+    ok("a neighbouring key and its pin are loaded with every key, pin and restart (ready), not only at mount",
+       "await prefetchNeighbours()" in body("ready"))
+    ok("Stop goes back to the key heard, saved, and a fresh progression (settle)",
+       "settle();" in body("stop") and "e.wandered" in body("settle") and "save();" in body("settle")
+       and "newGen();" in body("settle") and "if (moved) e.wandered = true;" in body("compose"))
+    mine = body("loadMine")
+    ok("My chords asks for a chord's own scale by a name the server knows, and falls back to the key",
+       "scaleOf(SCALE_KEYS[ch.pcs[0]], own)" in mine and "spellUp(ch.root, sc.pcs)" in mine
+       and ".catch(() => null)" in mine and "'harmonic_minor'" in mine)
+    ok("My chords' roots are named for the key (spellRoot), in the picker and in the loop",
+       "rootIn(plan, pc, c.quality)" in body("paintMine") and "rootIn(p, pcOf(c.root), c.quality)" in src)
+    kb = (FRONTEND / "keyboard.js").read_text(encoding="utf-8")
+    spicy = kb.find(".key.is-held:not(.is-scale){fill:var(--key-spicy")
+    safe = kb.find(".key.is-held.is-pin{fill:var(--key-held")
+    ok("a held pinned key is not painted spicy: its rule follows the spicy one",
+       0 < spicy < safe and "kb.setMarks('pin'" in body("paintKeys"), f"spicy at {spicy}, pin at {safe}")
+    ok("the band hears the parts' switches and sounds: start sends them, the toggles AND with the seat",
+       "comp_program: opt.compSound, bass_program: opt.bassSound" in body("start")
+       and "bass: opt.bass && seat() !== 'bass', comp: opt.comp && seat() !== 'chords'" in src
+       and "**_programs(body))}" in server)
     ok("panic stops the band", "self.band.stop()" in server)
     ok("shutdown stops the band", "self.band.shutdown()" in server)
 
@@ -723,6 +1410,16 @@ def main() -> int:
                      "chords": [c["pcs"] for c in plan["chords"]]})
 
     names = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]
+    # The pin is checked on every tonic in both modes, not only the keys Jam offers:
+    # a wander or a new key list must not find one where the pin rubs.
+    all_keys = []
+    for name in names:
+        for mode in ("major", "natural_minor"):
+            plan = theory.scale_plan(name, mode)
+            all_keys.append({"name": f"{name} {mode}", "mode": mode, "pcs": plan["pcs"],
+                             "chords": [c["pcs"] for c in plan["chords"]],
+                             "roots": [c["root"] for c in plan["chords"]]})
+    served = served_scales()
     room_modes = {"dorian": (2, "dorian"), "phrygian": (4, "phrygian"), "lydian": (5, "lydian"),
                   "mixolydian": (7, "mixolydian"), "aeolian": (9, "natural_minor")}
     rooms = {rid: theory.scale_plan(names[t], m)["pcs"] for rid, (t, m) in room_modes.items()}
@@ -731,20 +1428,25 @@ def main() -> int:
     driver.write_text(DRIVER, encoding="utf-8")
     try:
         proc = subprocess.run([node, str(driver)], capture_output=True, text=True,
-                              env={**__import__("os").environ, "JAM_KEYS": json.dumps(keys),
-                                   "JAM_ROOMS": json.dumps(rooms)})
+                              env={**os.environ, "JAM_KEYS": json.dumps(keys),
+                                   "JAM_ROOMS": json.dumps(rooms),
+                                   "JAM_ALL_KEYS": json.dumps(all_keys),
+                                   "JAM_SERVED": json.dumps(served)})
     finally:
         driver.unlink(missing_ok=True)
     if proc.returncode != 0:
         print("the driver did not run:")
         print(proc.stderr.strip() or proc.stdout.strip())
         return 1
-    for r in json.loads(proc.stdout.strip().splitlines()[-1]):
+    got = json.loads(proc.stdout.strip().splitlines()[-1])
+    for r in got["out"]:
         ok(r["label"], r["passed"], r.get("detail", ""))
+    chord_names_check(got["rootNames"])
 
     band_checks()
     source_checks()
 
+    shutil.rmtree(SANDBOX, ignore_errors=True)
     passed = all(p for _, p, _ in results)
     for label, p, detail in results:
         print(f"  [{'PASS' if p else 'FAIL'}] {label}" + (f" -- {detail}" if detail else ""))

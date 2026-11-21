@@ -947,6 +947,21 @@ def _num(body: dict[str, Any], key: str) -> float | None:
         raise HTTPException(400, f"{key} must be a number") from None
 
 
+def _programs(body: dict[str, Any]) -> dict[str, int | None]:
+    """The parts' sounds the body names: a General MIDI program 0-127, or null for the
+    style's own. Left out means left as it is. Anything else -- a bool, a float, a
+    string, 128 -- is refused rather than coerced into some other instrument."""
+    out: dict[str, int | None] = {}
+    for key in ("comp_program", "bass_program"):
+        if key not in body:
+            continue
+        v = body[key]
+        if v is not None and (isinstance(v, bool) or not isinstance(v, int) or not 0 <= v <= 127):
+            raise HTTPException(400, f"{key} must be a program 0-127, or null for the style's own")
+        out[key] = v
+    return out
+
+
 @api.post("/api/band/start")
 def band_start(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
     """Start the band on this chart, bar 0 first. Restarts it if it is already playing."""
@@ -957,7 +972,7 @@ def band_start(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
     return {"ok": True, **app_state.band.start(
         _chart(body), style=style if style in BAND_STYLES else "pop", bpm=_num(body, "bpm"),
         volume=0.7 if volume is None else volume, drums=bool(body.get("drums", True)),
-        bass=bool(body.get("bass", True)), comp=bool(body.get("comp", True)))}
+        bass=bool(body.get("bass", True)), comp=bool(body.get("comp", True)), **_programs(body))}
 
 
 @api.post("/api/band/chart")
@@ -978,7 +993,7 @@ def band_config(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
         style=str(style) if style in BAND_STYLES else None,
         drums=None if body.get("drums") is None else bool(body["drums"]),
         bass=None if body.get("bass") is None else bool(body["bass"]),
-        comp=None if body.get("comp") is None else bool(body["comp"]))}
+        comp=None if body.get("comp") is None else bool(body["comp"]), **_programs(body))}
 
 
 @api.post("/api/band/stop")

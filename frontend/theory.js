@@ -26,6 +26,7 @@ export function createTheory() {
   let vocab = null;
   let plan = null;
   let dock = null;                  // the docked keyboard, so you see it where you play
+  let onKeys = true;                // whether the dock gets it too (paintDock)
   let kind = 'scale';
   const pick = { root: 'C', mode: 'major', quality: '', octaves: 1, hand: 'R', inversion: 0 };
 
@@ -49,6 +50,11 @@ export function createTheory() {
 
     h('div.th__foot', null,
       h('button.btn.btn--lg', { id: 'th-hear' }, 'Hear it'),
+      h('button.btn', {
+        id: 'th-dock', onclick: () => setOnKeys(!onKeys),
+        title: 'Light it on the keyboard below, in every octave. Off to begin with on a page, '
+          + 'where Jam lights the keys and this would cover them in a scale of its own.',
+      }, 'Show on keys'),
       h('span.th__from', { id: 'th-from' }),
       h('span.list__spacer'),
       h('span.th__title', { id: 'th-title' }))));
@@ -78,9 +84,7 @@ export function createTheory() {
       : plan.title;
 
     kb?.setHighlight(plan.midi);
-    // The same shape on the keyboard you actually play, so the jump from this
-    // panel to the piano is not a jump.
-    dock?.setHighlight(plan.midi);
+    paintDock();
 
     buildRoots();      // the lit chip follows what came back, not what was clicked
     drawRibbon();
@@ -89,6 +93,31 @@ export function createTheory() {
     drawOpts();
     if (plan.kind === 'scale') drawChords();
     chordsEl.style.display = plan.kind === 'scale' && plan.chords?.length ? '' : 'none';
+  }
+
+  /* The keyboard you actually play gets EVERY key of the scale or chord, in every
+     octave it has -- not the one run the small board draws. A tester improvising over
+     the dock wanted to see where B minor pentatonic is anywhere under the hands, and
+     one octave from middle C answered a different question. The small board stays the
+     diagram of the shape; this is the map. Its own highlight owner, so the touch keys
+     and Play's scale highlighter on the same dock neither wipe it nor are wiped. */
+  let painted = '';
+  function paintDock() {
+    if (!dock || !plan) return;
+    const pcs = new Set(plan.pcs);
+    const keys = [];
+    if (onKeys) for (let n = dock.low; n <= dock.high; n++) if (pcs.has(n % 12)) keys.push(n);
+    dock.setHighlight(keys, 'theory');
+    painted = `${dock.low}:${dock.high}`;
+  }
+
+  /* On the Tools tab the dock shows it from the start: that is what the panel is for.
+     On a page it waits to be asked. A page is where this sits beside Jam, and C major
+     (where it opens) painted over the whole dock buried Jam's own lights under it. */
+  function setOnKeys(on) {
+    onKeys = on;
+    $('#th-dock')?.classList.toggle('is-on', on);
+    paintDock();
   }
 
   /* The ribbon: note, gap, note, gap. The gap is the big number. */
@@ -266,6 +295,7 @@ export function createTheory() {
 
     async init(ctx) {
       dock = ctx?.kb || null;
+      setOnKeys(!ctx?.panels);
       kb = createKeyboard($('#th-board'), {
         low: LOW,
         high: HIGH,
@@ -282,8 +312,15 @@ export function createTheory() {
       await refresh();
     },
 
+    /* setRange() rebuilds the dock and drops every layer with it; the status beat
+       calls this so a range changed in another tab (or by a new keyboard) gets the
+       keys back within a second. A no-op while the range is the one painted. */
+    repaint() {
+      if (dock && plan && painted !== `${dock.low}:${dock.high}`) paintDock();
+    },
+
     destroy() {
-      dock?.setHighlight([]);       // this panel borrowed the dock; give it back
+      dock?.setHighlight([], 'theory');   // this panel borrowed the dock; give it back
       kb?.destroy?.();
       kb = null; dock = null; plan = null; vocab = null;
     },
