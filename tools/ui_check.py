@@ -1409,12 +1409,18 @@ SCROLLERS = """() => [...document.querySelectorAll('#stage, .page, .page__panes,
   .filter((e) => e.scrollHeight > e.clientHeight + 1 && ['auto', 'scroll'].includes(getComputedStyle(e).overflowY))
   .map((e) => e.classList.contains('page__col') ? `col ${e.dataset.col}` : (e.dataset.view || e.id || e.className))"""
 
-# The page on screen as columns: each column's panes, top to bottom, with their edges.
+# The page on screen as columns: each column's panes, top to bottom, with their edges and
+# the edges of the panels in them (first top, last bottom): pane boxes are not what the
+# eye reads as the gap, a packed grid ends 14px under its lowest panel.
 COLUMNS = """() => [...document.querySelectorAll('.page__col')].map((c) => ({
   col: c.dataset.col,
   panes: [...c.querySelectorAll(':scope > .page__pane')].map((p) => {
     const r = p.getBoundingClientRect();
-    return { view: p.dataset.view, top: Math.round(r.top), bottom: Math.round(r.bottom) };
+    const cards = [...p.querySelectorAll(':scope > .grid > *')].map((e) => e.getBoundingClientRect())
+      .filter((b) => b.height > 0);
+    return { view: p.dataset.view, top: Math.round(r.top), bottom: Math.round(r.bottom),
+             first: cards.length ? Math.round(Math.min(...cards.map((b) => b.top))) : null,
+             last: cards.length ? Math.round(Math.max(...cards.map((b) => b.bottom))) : null };
   }) }))"""
 
 # The builder's column preview: each column's pane names, top to bottom.
@@ -1890,12 +1896,16 @@ def pages_fix_checks(browser, port: int, errs: list[str]) -> list[str]:
           "Practice, Tools | Play, Layers",
           [[p["view"] for p in c["panes"]] for c in cols] == [["practice", "tools"], ["play", "layers"]],
           str(cols))
-    rows = [f"{c['panes'][k]['view']} starts {c['panes'][k]['top'] - c['panes'][k - 1]['bottom']}px under "
-            f"{c['panes'][k - 1]['view']}" for c in cols for k in range(1, len(c["panes"]))
-            if not 12 <= c["panes"][k]["top"] - c["panes"][k - 1]["bottom"] <= 16]
+    # Panel to panel, as the eye reads it: the last panel of one pane to the first of the
+    # next, the grid's own 14px (15 with the 2px row quantum), not that twice.
+    rows = [f"{c['panes'][k]['view']}'s panels start {c['panes'][k]['first'] - c['panes'][k - 1]['last']}px under "
+            f"{c['panes'][k - 1]['view']}'s" for c in cols for k in range(1, len(c["panes"]))
+            if c["panes"][k]["first"] is None or c["panes"][k - 1]["last"] is None
+            or not 12 <= c["panes"][k]["first"] - c["panes"][k - 1]["last"] <= 16]
     tops = {c["panes"][0]["top"] for c in cols}
-    check("...each column a stack: a pane 14px under the one above it in its own column, whatever "
-          "the other column holds, and both columns start level", not rows and len(tops) == 1,
+    check("...each column a stack: a pane's panels 14px under the panels of the one above it in its "
+          "own column (not 28), whatever the other column holds, and both columns start level",
+          not rows and len(tops) == 1,
           "; ".join(rows) + f" tops {tops}")
     sc = page.evaluate("""() => { const [a, b] = document.querySelectorAll('.page__col');
       a.scrollTop = a.scrollHeight; const st = document.getElementById('stage');
@@ -1924,16 +1934,35 @@ def pages_fix_checks(browser, port: int, errs: list[str]) -> list[str]:
     page.click("#pb-cols button:text-is('3')")
     three = page.evaluate(PREVIEW)
     page.click("#pb-cols button:text-is('2')")
-    check("...a new column count shares the panes out in reading order",
-          three == [["Tools", "Practice"], ["Layers", "Play"], []], str(three))
+    back = page.evaluate(PREVIEW)
+    # Worked by hand: 4 panes in reading order (Tools, Practice, Layers, Play) at three
+    # is 2 + 1 + 1, no column left empty; back at two is the arrangement made at two.
+    check("...a new column count shares the panes out in reading order as evenly as they go "
+          "(4 at three is 2+1+1, none empty), and going back restores the arrangement it had",
+          three == [["Tools", "Practice"], ["Layers"], ["Play"]]
+          and back == [["Tools"], ["Practice", "Layers", "Play"]], f"{three} then {back}")
     page.click("#pb-save")
     page.wait_for_timeout(2600)
     cols = page.evaluate(COLUMNS)
     stored = page.evaluate("""async () => (await (await fetch('/api/settings')).json()).ui.pages
       .find((p) => p.id === 'old-grid').panes.map((p) => [p.view, p.col])""")
     check("...and saved, the page is those columns",
-          [[p["view"] for p in c["panes"]] for c in cols] == [["tools", "practice"], ["layers", "play"]]
-          and stored == [["tools", 0], ["practice", 0], ["layers", 1], ["play", 1]], f"{cols} / {stored}")
+          [[p["view"] for p in c["panes"]] for c in cols] == [["tools"], ["practice", "layers", "play"]]
+          and stored == [["tools", 0], ["practice", 1], ["layers", 1], ["play", 1]], f"{cols} / {stored}")
+    # Solo practice gives Jam a column to itself; a stray click on 1 and back keeps that.
+    go("page/new", 900)
+    page.click("#pb-start [data-start='solo']")
+    solo0 = page.evaluate(PREVIEW)
+    page.click("#pb-cols button:text-is('1')")
+    page.click("#pb-cols button:text-is('2')")
+    solo2 = page.evaluate(PREVIEW)
+    page.click("#pb-cols button:text-is('3')")
+    solo3 = page.evaluate(PREVIEW)
+    check("...Solo practice to 1 column and back is Jam alone again, and at 3 every column has a pane",
+          solo0 == [["Practice"], ["Play", "Tools"]] and solo2 == solo0
+          and solo3 == [["Practice"], ["Play"], ["Tools"]], f"{solo0} -> {solo2}, at 3 {solo3}")
+    page.click("#pb-cancel")
+    page.wait_for_timeout(600)
     page.evaluate(POST_PAGES, now)
     page.reload(wait_until="networkidle")
     page.wait_for_timeout(1500)
@@ -2029,20 +2058,26 @@ def pages_fix_checks(browser, port: int, errs: list[str]) -> list[str]:
 # panel of the next column's (the panels' own edges, which is what the eye reads as the
 # gap), and the width of each column's scrollbar.
 PANE_GAPS = """() => {
-  const panes = [...document.querySelectorAll('.page__pane')];
-  const edge = (p, side) => {
-    const xs = [...p.querySelectorAll(':scope > .grid > [data-panel]')]
-      .filter((e) => e.getBoundingClientRect().height > 0)
-      .map((e) => e.getBoundingClientRect()[side]);
-    return side === 'right' ? Math.max(...xs) : Math.min(...xs);
-  };
+  const cols = [...document.querySelectorAll('.page__col')];
+  const cards = (el) => [...el.querySelectorAll(':scope > .page__pane > .grid > *')]
+    .map((e) => e.getBoundingClientRect()).filter((b) => b.height > 0);
+  // Across: each column's rightmost panel edge to the next column's leftmost, all panes.
   const gaps = [];
-  for (let i = 1; i < panes.length; i++) {
-    const a = panes[i - 1].getBoundingClientRect(), b = panes[i].getBoundingClientRect();
-    if (Math.abs(a.top - b.top) > 2) continue;       // the next row, not the next column
-    gaps.push(Math.round(edge(panes[i], 'left') - edge(panes[i - 1], 'right')));
+  for (let i = 1; i < cols.length; i++) {
+    const a = cards(cols[i - 1]), b = cards(cols[i]);
+    if (a.length && b.length) gaps.push(Math.round(Math.min(...b.map((r) => r.left)) - Math.max(...a.map((r) => r.right))));
   }
-  return { gaps, bars: [...document.querySelectorAll('.page__col')].map((c) => c.offsetWidth - c.clientWidth) };
+  // Down: in each column, one pane's lowest panel to the next pane's highest.
+  const down = [];
+  for (const c of cols) {
+    const panes = [...c.querySelectorAll(':scope > .page__pane')].map((p) =>
+      [...p.querySelectorAll(':scope > .grid > *')].map((e) => e.getBoundingClientRect()).filter((b) => b.height > 0))
+      .filter((l) => l.length);
+    for (let i = 1; i < panes.length; i++) {
+      down.push(Math.round(Math.min(...panes[i].map((r) => r.top)) - Math.max(...panes[i - 1].map((r) => r.bottom))));
+    }
+  }
+  return { gaps, down, bars: cols.map((c) => c.offsetWidth - c.clientWidth) };
 }"""
 
 # The nav as it is drawn now: its width, the labels showing, the stage's left edge, and
@@ -2144,15 +2179,32 @@ def nav_checks(browser, port: int, errs: list[str]) -> list[str]:
     kb = page.evaluate(NAV)
     page.evaluate("document.activeElement?.blur?.()")
     page.wait_for_timeout(400)
-    page.click("#nav .nav__item[data-view='play']")
+    page.mouse.move(26, 160)
     page.wait_for_timeout(300)
-    clicked = page.evaluate(NAV)["open"]
+    opened = page.evaluate(NAV)["open"]
+    page.click("#nav .nav__item[data-view='play']")
+    page.wait_for_timeout(100)
+    clicked = page.evaluate(NAV)
+    check("...a keyboard focus in it opens it; a click on a tab goes there and folds it at once, the "
+          "pointer still on it, so the page's left edge is not under it",
+          kb["open"] and kb["w"] >= 170 and opened and not clicked["open"] and clicked["over"] == "stage"
+          and page.evaluate("location.hash") == "#play", f"keyboard {kb}, after click {clicked}")
+    # The tab clicked keeps focus; a key pressed later (Esc, the panic key) makes it
+    # :focus-visible. That must not hold the nav open: in and out, it folds.
     page.mouse.move(900, 400)
-    page.wait_for_timeout(500)
-    gone = page.evaluate(NAV)
-    check("...a keyboard focus in it opens it; after a click on a tab it still folds once the pointer goes",
-          kb["open"] and kb["w"] >= 170 and clicked and not gone["open"] and page.evaluate("location.hash") == "#play",
-          f"keyboard {kb}, after click {clicked}, then {gone}")
+    page.wait_for_timeout(300)
+    page.keyboard.press("Escape")
+    page.keyboard.press("Space")
+    page.mouse.move(26, 160)
+    page.wait_for_timeout(400)
+    back_in = page.evaluate(NAV)["open"]
+    page.mouse.move(900, 400)
+    page.wait_for_timeout(400)
+    out = page.evaluate(NAV)
+    fv = page.evaluate("!!document.querySelector('#nav :focus-visible')")
+    check("...and after a click on a tab and a keypress, the nav still opens under the pointer and folds "
+          "when it leaves (focus left by a click is not a keyboard focus)",
+          back_in and not out["open"] and out["over"] == "stage", f"in {back_in}, then {out}, focus-visible {fv}")
 
     # 2. Pinned: open beside the stage, which moves over for it; saved; kept on reload.
     page.mouse.move(26, 160)
@@ -2238,16 +2290,24 @@ def nav_checks(browser, port: int, errs: list[str]) -> list[str]:
     check("...and after Stats refreshes itself, still only those, each the pane's full width",
           after["shown"] == ["all-time", "keys-you-have-played"] and not after["narrow"], str(after))
 
-    # 5. Columns as one workspace: panel to panel across a column edge is the grid's own
-    #    14px, and no column draws a scrollbar wider than a hairline.
-    two = [p for p in saved_pages if p.get("cols") == 2 and len(p.get("panes", [])) >= 2]
+    # 5. Columns as one workspace: panel to panel across a column edge and down a column
+    #    from one pane to the next is the grid's own 14px, and no column draws a scrollbar
+    #    wider than a hairline. On a page chosen for it: two columns, two panes stacked in
+    #    the first (so a pane below the top of a column is measured across as well).
+    two = [p for p in saved_pages if p.get("cols") == 2
+           and sum(1 for q in p.get("panes", []) if q.get("col") == 0) >= 2
+           and any(q.get("col") == 1 for q in p.get("panes", []))]
+    check("...a saved page with two panes in its first column to measure the columns on", bool(two),
+          str([p.get("name") for p in saved_pages]))
     target = two[0]["id"] if two else pid
     for vw, vh in ((1600, 1000), (1280, 800)):
         page.set_viewport_size({"width": vw, "height": vh})
         go(f"page/{target}", 2600)
         g = page.evaluate(PANE_GAPS)
-        check(f"columns @{vw}x{vh}: 14px from one column's panels to the next's, scrollbars a hairline at most",
-              g["gaps"] and all(12 <= x <= 16 for x in g["gaps"]) and all(b <= 4 for b in g["bars"]), str(g))
+        check(f"columns @{vw}x{vh}: 14px from one column's panels to the next's and from one pane's panels "
+              "to the next's down a column, scrollbars a hairline at most",
+              g["gaps"] and g["down"] and all(12 <= x <= 16 for x in g["gaps"] + g["down"])
+              and all(b <= 4 for b in g["bars"]), str(g))
     page.set_viewport_size({"width": 1600, "height": 1000})
 
     # 6. Right-click a page in the nav: Edit, Rename, Delete -- inline, the nav held open
@@ -2256,9 +2316,22 @@ def nav_checks(browser, port: int, errs: list[str]) -> list[str]:
         page.click(f"#nav-pages [data-page='{pid}']", button="right")
         page.wait_for_timeout(250)
 
+    page.mouse.move(900, 400)
+    page.wait_for_timeout(500)
     menu()
     acts = page.evaluate("[...document.querySelectorAll('#nav-menu [data-act]')].map((b) => b.dataset.act)")
     check("right-click on a page: a menu of Edit, Rename and Delete", acts == ["edit", "rename", "delete"], str(acts))
+    page.wait_for_timeout(250)          # the nav's own width transition
+    beside = page.evaluate("""(id) => { const m = document.getElementById('nav-menu').getBoundingClientRect();
+      const nav = document.getElementById('nav').getBoundingClientRect();
+      const item = document.querySelector(`#nav-pages [data-page="${id}"]`).getBoundingClientRect();
+      const lab = document.querySelector(`#nav-pages [data-page="${id}"] .nav__label`).getBoundingClientRect();
+      const hit = document.elementFromPoint(lab.left + 4, lab.top + lab.height / 2);
+      return { menuLeft: Math.round(m.left), navRight: Math.round(nav.right), dy: Math.round(m.top - item.top),
+               label: !!hit?.closest(`#nav-pages [data-page="${id}"]`) }; }""", pid)
+    check("...opened from the folded strip, it sits beside the open nav, level with the page, whose name "
+          "shows uncovered", beside["menuLeft"] >= beside["navRight"] and abs(beside["dy"]) <= 2 and beside["label"],
+          str(beside))
     box = page.evaluate("""() => { const r = document.getElementById('nav-menu').getBoundingClientRect();
       return [r.right - 8, r.top + 8]; }""")
     page.mouse.move(box[0], box[1])
@@ -2273,14 +2346,15 @@ def nav_checks(browser, port: int, errs: list[str]) -> list[str]:
     page.wait_for_timeout(800)
     check("...Edit opens the builder on that page", page.evaluate("location.hash") == f"#page/{pid}/edit"
           and page.evaluate("!!document.getElementById('pb-save')"))
-    # The pointer is still where Edit was, over the nav: it stays open until the pointer
-    # goes, and only then is the builder's Cancel, under its open width, there to press.
-    page.mouse.move(900, 400)
-    page.wait_for_timeout(450)
-    check("...and with the menu gone, the nav folds once the pointer leaves it",
+    check("...and the nav folds at once, so the builder's left edge is not under it",
           not page.evaluate("document.body.classList.contains('is-navopen')"))
+    # Straight from where Edit was: no move away first.
+    hit = page.evaluate("""() => { const b = document.getElementById('pb-cancel').getBoundingClientRect();
+      return document.elementFromPoint(b.left + 6, b.top + b.height / 2)?.id; }""")
     page.click("#pb-cancel")
     page.wait_for_timeout(1500)
+    check("...Cancel, pressed straight from there, is the builder's Cancel (not the nav over it)",
+          hit == "pb-cancel" and page.evaluate("location.hash") == f"#page/{pid}", f"hit {hit}")
     menu()
     page.click("#nav-menu [data-act='rename']")
     page.mouse.move(900, 400)
@@ -2301,6 +2375,22 @@ def nav_checks(browser, port: int, errs: list[str]) -> list[str]:
     page.wait_for_timeout(400)
     check("...and with the name in, the nav folds (the pointer is not on it)",
           not page.evaluate("document.body.classList.contains('is-navopen')"))
+    # Ended by a click away, with a save slower than the fold delay: the nav still folds
+    # once the field is gone.
+    page.evaluate("""() => { const f = window.fetch; window.__fetch = f;
+      window.fetch = (u, o) => (o && o.method === 'POST' && String(u).includes('/api/settings'))
+        ? new Promise((r) => setTimeout(r, 600)).then(() => f(u, o)) : f(u, o); }""")
+    menu()
+    page.click("#nav-menu [data-act='rename']")
+    page.fill("#nav-rename", "Renamed 8")
+    page.mouse.click(900, 400)
+    page.wait_for_timeout(1600)
+    slow = page.evaluate("""async (id) => ({ open: document.body.classList.contains('is-navopen'),
+      field: !!document.getElementById('nav-rename'),
+      saved: (await (await fetch('/api/settings')).json()).ui.pages.find((p) => p.id === id).name })""", pid)
+    page.evaluate("() => { window.fetch = window.__fetch; }")
+    check("...Rename ended by a click away, the save taking 600ms: saved, and the nav folds after",
+          not slow["open"] and not slow["field"] and slow["saved"] == "Renamed 8", str(slow))
     menu()
     page.click("#nav-menu [data-act='delete']")
     page.wait_for_timeout(200)
@@ -2313,6 +2403,31 @@ def nav_checks(browser, port: int, errs: list[str]) -> list[str]:
     check("...Delete asks in the menu first, then the page is gone, saved gone, and you are back on Play",
           asking and still and not gone["nav"] and not gone["saved"] and gone["hash"] == "#play", str(gone))
     page.close()
+
+    # 7. Touch, wider than 720px: no hover, so a first tap on the folded strip opens it
+    #    (the labels to read), the next tap goes there and folds it, and a tap off it folds it.
+    ctx = browser.new_context(viewport={"width": 1280, "height": 800}, has_touch=True)
+    tp = ctx.new_page()
+    tp.on("pageerror", lambda e: errs.append(str(e)))
+    tp.goto(f"http://127.0.0.1:{port}/#play", wait_until="networkidle")
+    tp.wait_for_timeout(1600)
+    tp.tap("#nav .nav__item[data-view='tools']")
+    tp.wait_for_timeout(300)
+    first = tp.evaluate("() => ({ open: document.body.classList.contains('is-navopen'), hash: location.hash })")
+    tp.tap("#nav .nav__item[data-view='tools']")
+    tp.wait_for_timeout(600)
+    second = tp.evaluate("() => ({ open: document.body.classList.contains('is-navopen'), hash: location.hash })")
+    tp.tap("#nav .nav__item[data-view='stats']")
+    tp.wait_for_timeout(300)
+    third = tp.evaluate("document.body.classList.contains('is-navopen')")
+    tp.tap("#stage", position={"x": 600, "y": 300})
+    tp.wait_for_timeout(300)
+    away = tp.evaluate("() => ({ open: document.body.classList.contains('is-navopen'), hash: location.hash })")
+    check("touch @1280: a first tap on the folded nav opens it and stays put, the next tap goes and folds it, "
+          "and a tap off the open nav folds it",
+          first == {"open": True, "hash": "#play"} and second == {"open": False, "hash": "#tools"}
+          and third and away == {"open": False, "hash": "#tools"}, f"{first} {second} {third} {away}")
+    ctx.close()
     return fails
 
 

@@ -566,6 +566,9 @@ const NAV_CLOSE_MS = 250;
 let navPinned = false;
 let navOpen = false;
 let navTimer = 0;
+// Focus that arrived in the nav by keyboard (Tab), and only that. The focus a click
+// leaves on a tab does not count, even after a later keypress makes it :focus-visible.
+let navKbd = false;
 
 function paintNavMode() {
   document.body.classList.toggle('is-navpinned', navPinned);
@@ -583,7 +586,7 @@ function paintNavMode() {
    right-click menu, or a page being renamed in it. */
 function navHeld() {
   return !!(navMenu || navEl?.querySelector('.nav__rename') || navEl?.matches(':hover')
-    || navEl?.querySelector(':focus-visible'));
+    || (navKbd && navEl?.contains(document.activeElement)));
 }
 
 function wantNav(open, delay) {
@@ -597,13 +600,48 @@ function wantNav(open, delay) {
 }
 // Fold it back if nothing holds it now: after the menu closes, or a rename ends.
 const settleNav = () => wantNav(false, NAV_CLOSE_MS);
+// Fold it now, whatever is under the pointer: it opens again only on the next pointerenter.
+function foldNav() {
+  clearTimeout(navTimer);
+  if (!navOpen) return;
+  navOpen = false;
+  paintNavMode();
+}
+// Folded to the strip above 720px; below that the nav is a bar across the top.
+const navFolds = () => !navPinned && matchMedia('(min-width: 721px)').matches;
 
 navEl?.addEventListener('pointerenter', (e) => { if (e.pointerType !== 'touch') wantNav(true, NAV_OPEN_MS); });
 navEl?.addEventListener('pointerleave', settleNav);
 // Keyboard focus, not the focus a click leaves on the tab it pressed: that one would
 // hold the nav open after the pointer had gone.
-navEl?.addEventListener('focusin', () => { if (navEl.querySelector(':focus-visible')) wantNav(true, 0); });
-navEl?.addEventListener('focusout', settleNav);
+navEl?.addEventListener('focusin', () => {
+  navKbd = !!navEl.querySelector(':focus-visible');
+  if (navKbd) wantNav(true, 0);
+});
+navEl?.addEventListener('focusout', (e) => {
+  if (!navEl.contains(e.relatedTarget)) navKbd = false;
+  settleNav();
+});
+document.addEventListener('pointerdown', (e) => {
+  navKbd = false;
+  // A tap off an open nav folds it: touch has no pointerleave to do that.
+  if (e.pointerType === 'touch' && navOpen && !navMenu && !navEl?.contains(e.target)) foldNav();
+}, true);
+// A click on an item goes there and folds the nav at once, so the left of the page it
+// opens is not under the open nav while the pointer is still on it. On touch, with the
+// nav folded, the first tap opens it (labels to read) and the next one goes. Enter on a
+// focused item (detail 0) leaves it open: the keyboard is still in it.
+navEl?.addEventListener('click', (e) => {
+  if (!e.target.closest('a.nav__item') || !navFolds() || e.detail === 0) return;
+  if (e.pointerType === 'touch' && !navOpen) {
+    e.preventDefault();
+    clearTimeout(navTimer);
+    navOpen = true;
+    paintNavMode();
+    return;
+  }
+  foldNav();
+});
 
 function setPinned(on, { persist = true } = {}) {
   navPinned = !!on;
@@ -658,7 +696,7 @@ function openNavMenu(page, item, e) {
          h('div.navmenu__row', null,
            h('button.btn.btn--sm', { type: 'button', id: 'nav-menu-yes', onclick: () => deletePage(page) }, 'Delete'),
            h('button.btn.btn--sm', { type: 'button', id: 'nav-menu-no', onclick: () => paintMenu(false) }, 'Keep'))]
-      : [entry('edit', 'Edit page', () => { closeNavMenu(); location.hash = `page/${page.id}/edit`; }),
+      : [entry('edit', 'Edit page', () => { closeNavMenu(); foldNav(); location.hash = `page/${page.id}/edit`; }),
          entry('rename', 'Rename', () => { closeNavMenu(); renamePage(page); }),
          h('div.navmenu__sep'),
          entry('delete', 'Delete', () => paintMenu(true), '.navmenu__item--bad')]));
@@ -667,11 +705,15 @@ function openNavMenu(page, item, e) {
   navMenu = menu;
   document.body.append(menu);
   paintMenu(false);
-  // At the pointer (or beside the item, from the keyboard's menu key), inside the window.
+  // Beside the open nav, level with the item, so the name it just uncovered shows; in
+  // the bar across the top of a narrow window, at the pointer. Inside the window either way.
   const r = menu.getBoundingClientRect();
   const at = item.getBoundingClientRect();
-  const x = Math.min(e.clientX || at.right, innerWidth - r.width - 6);
-  const y = Math.min(e.clientY || at.top, innerHeight - r.height - 6);
+  const side = matchMedia('(min-width: 721px)').matches;
+  const navW = parseFloat(getComputedStyle(navEl).getPropertyValue('--nav-w')) || 176;
+  const x = Math.min(side ? navEl.getBoundingClientRect().left + navW + 4 : (e.clientX || at.right),
+    innerWidth - r.width - 6);
+  const y = Math.min(side ? at.top : (e.clientY || at.top), innerHeight - r.height - 6);
   menu.style.left = `${Math.max(6, x)}px`;
   menu.style.top = `${Math.max(6, y)}px`;
   document.addEventListener('pointerdown', menuAway, true);
@@ -691,12 +733,14 @@ function renamePage(page) {
   const input = h('input.nav__rename', {
     id: 'nav-rename', type: 'text', maxlength: '40', value: page.name, 'aria-label': 'Page name',
   });
+  // The nav settles once the field is gone (paintNav() removes it), not when the name
+  // goes in: a save slower than the fold delay would otherwise find the field still
+  // holding it, and nothing would fold it after.
   const finish = async (keep) => {
     if (done) return;
     done = true;
-    settleNav();
     const name = input.value.trim().slice(0, 40);
-    if (!keep || !name || name === page.name) { paintNav(); return; }
+    if (!keep || !name || name === page.name) { paintNav(); settleNav(); return; }
     const now = await pagesOnDisk();
     if (now && await storePages(now.map((p) => (p.id === page.id ? { ...p, name } : p)))) {
       // The page's own header carries the name too; renamed in place, so a band
@@ -704,6 +748,7 @@ function renamePage(page) {
       const head = stage.querySelector(`.page[data-page="${page.id}"] .page__name`);
       if (head) head.textContent = name;
     } else paintNav();
+    settleNav();
   };
   input.addEventListener('keydown', (e) => {
     e.stopPropagation();       // a name being typed must not fire the hotkeys

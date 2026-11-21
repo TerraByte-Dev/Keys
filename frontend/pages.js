@@ -221,9 +221,11 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
     icon: page?.icon || DEFAULT_ICON,
     cols: page?.cols || 2,
     columns: [],                      // views, per column, top to bottom
+    byCols: {},                       // the last arrangement seen at each column count
     picked: Object.fromEntries(PAGE_VIEWS.map((v) => [v, new Set()])),
   };
   const load = (src) => {
+    draft.byCols = {};
     draft.cols = src.cols;
     draft.columns = Array.from({ length: src.cols }, (_, c) =>
       src.panes.filter((p) => p.col === c).map((p) => p.view));
@@ -311,14 +313,25 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
         }) : [h('div.pb__hole', null, 'Empty: left off the page')])].filter(Boolean))));
   }
 
-  /* A new column count keeps the panes in reading order -- down the first column, then
-     the next -- and shares them out in runs as even as they go: Play + Layers |
-     Practice + Tools + Stats is Play + Layers | Practice + Tools | Stats at three. */
+  /* A count seen before, with the same panes on the page, gets back the arrangement it
+     had: 2 -> 1 -> 2 is a round trip, not a reshuffle. A new count keeps the panes in
+     reading order -- down the first column, then the next -- and shares them out as
+     evenly as they go, the first columns taking one more: Play + Layers | Practice +
+     Tools + Stats is Play + Layers | Practice + Tools | Stats at three, and four panes
+     are 2 + 1 + 1, never a column left empty while there are panes to fill it. */
   function setCols(n) {
     const flat = inPage();
-    const per = Math.max(1, Math.ceil(flat.length / n));
+    draft.byCols[draft.cols] = draft.columns.map((l) => [...l]);
+    const seen = draft.byCols[n];
     draft.cols = n;
-    draft.columns = Array.from({ length: n }, (_, c) => flat.slice(c * per, (c + 1) * per));
+    const same = (a, b) => a.length === b.length && a.every((v) => b.includes(v));
+    if (seen && same(seen.flat(), flat)) { draft.columns = seen.map((l) => [...l]); return; }
+    const base = Math.floor(flat.length / n), extra = flat.length % n;
+    let at = 0;
+    draft.columns = Array.from({ length: n }, (_, c) => {
+      const run = base + (c < extra ? 1 : 0);
+      return flat.slice(at, (at += run));
+    });
   }
 
   /* A panel narrower than its own minimum cannot be laid out, only clipped (a pane does

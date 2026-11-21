@@ -3510,6 +3510,10 @@ body.is-focusing .exrun .stat__note { font-size: 14px; }
 .page__col:hover::-webkit-scrollbar-thumb { background: var(--panel-4); }
 .page__col::-webkit-scrollbar-track { background: transparent; }
 .page__pane { flex: none; min-width: 0; }
+/* A packed grid already ends 14px under its lowest panel (layout.js gives every panel
+   its height plus the gap in rows), so the pane after one takes those 14px back: card
+   to card is 14px down a column as it is inside a grid, not 28. */
+.page__pane:has(> .grid--packed:last-child) + .page__pane { margin-top: -14px; }
 .is-unpicked { display: none !important; }
 
 /* Focus on a page: the column and the pane are on the marked path like any other
