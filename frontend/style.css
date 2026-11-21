@@ -1027,7 +1027,7 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
 
 /* ── inside a managed panel ─────────────────────────────────────────────── */
 /* Each panel is a size container, so what is in it answers to the panel's width and
-   not the window's: the same panel is a third of a 1600px tab or the whole of a pane. */
+   not the window's: the same panel is a quarter of a 1600px tab or the whole of a pane. */
 .grid--packed > [data-panel] { container: panel / inline-size; }
 /* The density tiers (tokens above). On the .mod, not the panel: a container cannot
    query itself. */
@@ -1042,8 +1042,8 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
 /* A long label has a short one (data-short) for the narrow tiers. */
 .short-label { display: none; }
 @container panel (max-width: 560px) {
-  [data-short] > .long-label { display: none; }
-  [data-short] > .short-label { display: inline; }
+  [data-short]:not([data-short="mini"]) > .long-label { display: none; }
+  [data-short]:not([data-short="mini"]) > .short-label { display: inline; }
 }
 /* layout.js pack(): a card drawn down to meet the panel below it, so no hole is left
    above a panel that spans two columns of different heights. Added under the content,
@@ -1069,7 +1069,7 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
 .is-measuring .mod__aside { display: none !important; }
 .is-measuring .mod__grip { max-width: none !important; margin-left: 0 !important; }
 
-/* A third of a 1280px window, a pane: the panel's narrow layout. Long labels go,
+/* A quarter of a 1920px window, a narrow pane: the panel's narrow layout. Long labels go,
    button rows wrap, wide strips scroll inside themselves. 440px, not less: above it
    every panel a page can hold fits in its wide layout (Jam's is 428px, the Zone
    editor's 395px), so there is no width at which a pane is too narrow for the wide
@@ -1083,6 +1083,8 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
      takes its width out of the panel's minimum, which is what lets it be narrow. */
   .calx__fit { overflow-x: auto; contain: inline-size; }
   .calx__fit > * { min-width: 360px; }
+  /* The key to the colours stays in view wherever the year is scrolled to. */
+  .calx__fit > .cal__legend { min-width: 0; width: max-content; position: sticky; left: 0; }
   #shelf-inst > div:first-child { flex-wrap: wrap; }
   .zone__head { flex-wrap: wrap; }
   /* A song's title on its own line, its tags and Roll / Sheet under it. */
@@ -1090,12 +1092,30 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
   #lib-list > .list__row > span:first-child { flex-basis: 100%; }
 }
 /* Audio output's device / mode / period row: one row (the field rows under "folding"),
-   the device its double share. */
+   the device its double share. In a half, each select its share of the row and no more
+   (a device's name is as long as its driver makes it), and the why under the warning
+   goes; in a quarter, the device has the row to itself and the mode is its buttons. */
 .mod > div > .field:has(> #audio-device) { flex-grow: 2 !important; }
-/* Consecutive fields side by side, three to a row, at every tier a third of a window
-   reaches: a narrower panel keeps the row and shrinks the controls in it (the tiers)
-   instead of stacking three fields three times as tall. */
-@container panel (min-width: 330px) {
+@container panel (max-width: 560px) {
+  .grid--packed .audio__row > .field { flex: 1 1 0 !important; }
+  .grid--packed .audio__row > .field:has(> #audio-excl) { flex: 0 0 auto !important; }
+  .grid--packed .audio__row select { width: 100%; min-width: 0; }
+  .grid--packed .audio__why { display: none; }
+}
+@container panel (max-width: 440px) {
+  .grid--packed .audio__row > .field:has(> #audio-device) { flex-basis: 100% !important; }
+  /* The mode is the two buttons under the row (and the stat over it says which). */
+  .grid--packed .audio__row > .field:has(> #audio-excl) { display: none; }
+  .grid--packed #audio-apply { min-height: var(--ctl-h); font-size: var(--ctl-fs); padding-inline: var(--ctl-pad); }
+  .grid--packed .btnrow:has(> #audio-apply) > .btn { padding-inline: 7px; }
+  .grid--packed #audio-stats .stat__note { display: none; }
+  .grid--packed #audio-stats { margin-bottom: var(--gap) !important; }
+}
+/* Consecutive fields side by side, three to a row, at every tier down to a quarter of a
+   1280px window: a narrower panel keeps the row and shrinks the controls in it (the
+   tiers, and a short label under 380px) instead of stacking three fields three times as
+   tall. */
+@container panel (min-width: 220px) {
   .mod > .field:has(+ .field), .mod > .field + .field {
     display: inline-flex; vertical-align: top; width: calc((100% - 2 * var(--gap) - 1px) / 3);
   }
@@ -1120,16 +1140,22 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
 :where(.grid--packed > [data-panel] > .mod) > div:has(> .field + .field) > .field:has(.knob) { flex-basis: calc(var(--ctl-h) * 2.2); }
 /* A slider squeezed beside a select is a stub with its name wrapped over its value:
    it takes enough to read, and the row wraps before it gets that thin. */
-@container panel (max-width: 380px) {
-  :where(.grid--packed > [data-panel] > .mod) > div:not(.fxgrid):has(> .field + .field) > .field:has(> input[type=range]) { flex-basis: calc(var(--ctl-h) * 4.2); }
-}
 @container panel (max-width: 560px) {
   :where(.grid--packed > [data-panel] > .mod) > div:has(> .field + .field) > * { flex-basis: calc(var(--ctl-h) * 2.8); }
+  /* Pedal's mode and three sliders: still one row at a half, the sliders a little
+     narrower (their names short). */
+  :where(.grid--packed > [data-panel] > .mod) > div:has(> .field > select):has(> .field > input[type=range]) > .field:has(> input[type=range]) { flex-basis: calc(var(--ctl-h) * 2.4); }
+}
+/* A quarter (the narrow layout): the select takes the row, the sliders the next one
+   together. */
+@container panel (max-width: 440px) {
+  :where(.grid--packed > [data-panel] > .mod) > div:has(> .field > select):has(> .field > input[type=range]) > .field:has(> select) { flex-basis: 100%; }
+  :where(.grid--packed > [data-panel] > .mod) > div:has(> .field > select):has(> .field > input[type=range]) > .field > select { width: 100%; min-width: 0; }
 }
 /* Its value goes under its name when the two do not fit side by side. */
 .grid--packed .field__label { flex-wrap: wrap; column-gap: 6px; row-gap: 0; }
 .grid--packed .field__label > span:first-child { min-width: 0; overflow-wrap: anywhere; }
-/* Stat cards: four to a row still in a third of a window; the note under each one
+/* Stat cards: four to a row still in a half of a 1280px window; the note under each one
    stays on one line. */
 .grid--packed .stats { grid-template-columns: repeat(auto-fit, minmax(calc(var(--ctl-h) * 2.9), 1fr)); }
 /* Effects' dials: all five on one row, the dial a tier smaller as the panel narrows. */
@@ -1169,6 +1195,28 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
 #ex-host .build__title { flex: 1 1 auto; }
 #ex-host .build > .btn:last-child { width: auto; margin: 0; flex: none; }
 #ex-host .build__title { min-width: 0; }
+/* The name is a button (practice.js card()): in a wide panel it reads as the title. */
+#ex-host .build__open { min-width: 0; text-align: left; justify-content: flex-start; }
+@container panel (min-width: 561px) {
+  #ex-host .build__open {
+    min-height: 0; padding: 0; background: none; border-color: transparent;
+    font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #ex-host .build__open:hover { color: var(--amber); background: none; border-color: transparent; }
+}
+/* A half or a quarter: the shelf is a row of chips, each the name that opens it. */
+@container panel (max-width: 560px) {
+  #ex-host .builds { display: flex; flex-wrap: wrap; gap: calc(var(--gap) * .7) var(--gap); }
+  #ex-host .build { padding: 0; border: 0; background: none; flex: 0 1 auto; gap: 5px; }
+  #ex-host .build__title { gap: 5px; }
+  #ex-host .build > .btn:last-child { display: none; }
+}
+/* An open run takes the whole row (practice.js), but a whole page pane can be 600px: there
+   Setup goes over This run, each the full width, so its fields keep to rows instead of
+   one 270px column beside a short card. */
+@container panel (max-width: 760px) {
+  #ex-host .exrun > .exrun__setup, #ex-host .exrun > .exrun__run { grid-column: span 12; }
+}
 @container panel (max-width: 380px) {
   .grid--packed .th__roots { flex-basis: 100%; }
 }
@@ -1182,6 +1230,101 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
   .kbpick__k { display: none; }
   .th__chord .th__csym { font-size: 11px; }
   .th__chord .th__croman { font-size: 12px; }
+}
+
+/* -- a quarter: every panel's quarter form ------------------------------------------
+   A quarter of the grid (3 of 12 columns) is 250-440px wide at the windows Keys is used
+   in (1280 to 1920): the mini tier's controls, or the compact tier's at 1920, in the
+   narrow layout (440px, above). A half is 520-700px. The folding rule holds across that
+   step too, so what a panel does at a quarter is the same as at every other step --
+   the same controls a tier smaller, rows kept as rows -- plus, at this one step, its
+   secondary text goes: the empty-state sentences, a long label's tail, an (i). */
+@container panel (max-width: 440px) {
+  /* A label's short form (data-short="mini"), only here. */
+  [data-short="mini"] > .long-label { display: none; }
+  [data-short="mini"] > .short-label { display: inline; }
+  .grid--packed .empty { padding: calc(var(--gap) * .5) 0; font-size: var(--label-fs); }
+  /* Effects: five dials on one row, each a size smaller. */
+  .fxgrid { grid-template-columns: repeat(auto-fit, minmax(calc(var(--ctl-h) * 1.6), 1fr)); gap: 0 calc(var(--gap) * .6); }
+  .fxgrid .knob, .fxgrid .knob__dial { height: calc(var(--ctl-h) * 1.5); }
+  .fxgrid .knob__dial { width: calc(var(--ctl-h) * 1.5); }
+  .grid--packed [data-panel] .mod > div.fxgrid > .field { flex-basis: calc(var(--ctl-h) * 1.6); }
+  /* Loop station: with no layers, the track says it; the sentence under it goes. */
+  .grid--packed #loop-layers > .empty { display: none; }
+  /* Exercises: the chips without their (i); the blurb is in the run. */
+  #ex-host .build .tip { display: none; }
+  #ex-host .builds { gap: 5px; }
+  #ex-host .build__open { padding-inline: 6px; }
+  /* Build one: one card at a time, picked on a row above them. */
+  .grid--packed .builds__pick { display: flex; margin-bottom: var(--gap); }
+  .grid--packed .builds__pick > .seg__btn { flex: 1 1 0; padding-inline: 4px; }
+  .grid--packed .builds[data-pick="split"] > [data-build]:not([data-build="split"]),
+  .grid--packed .builds[data-pick="layer"] > [data-build]:not([data-build="layer"]),
+  .grid--packed .builds[data-pick="one"] > [data-build]:not([data-build="one"]) { display: none; }
+  /* Zone editor: three controls to a row, the head on one line (the instrument's name
+     is in its own select below). */
+  .grid--packed .zone__grid { grid-template-columns: repeat(auto-fit, minmax(calc(var(--ctl-h) * 2.5), 1fr)); gap: var(--gap) calc(var(--gap) * .8); }
+  .grid--packed .zone__head > .zone__name { display: none; }
+  .grid--packed .zone__grid > .zone__inst { grid-column: span 2; }
+  .grid--packed .zone__head > input[type=text] { flex: 1 1 0; width: 0 !important; min-width: 0; }
+  .grid--packed .zone .knob, .grid--packed .zone .knob__dial { height: calc(var(--ctl-h) * 1.5); }
+  .grid--packed .zone .knob__dial { width: calc(var(--ctl-h) * 1.5); }
+  /* Chords & scales: the diagram over the ribbon, and the ribbon's notes and steps share
+     the panel's width, so an octave's eight notes and seven steps all show (beside the
+     diagram it had 100-170px and showed one and a half, the rest behind a sideways
+     scroll). Two octaves still scroll. The hand's caption, the step words and the step
+     pattern under them go (the ribbon's numbers say them). To stay within the folding
+     rule the diagram is three quarters of the width, and Scale/Chord shares a row with
+     the shape, the roots under them. */
+  .grid--packed .th__top > .th__roots { order: 1; }
+  .grid--packed .th__top > .th__opts { order: 2; }
+  .grid--packed .th__main { flex-wrap: wrap; row-gap: 0; }
+  .grid--packed .th__board, .grid--packed .th__right { flex: 1 1 100%; }
+  .grid--packed .th__board { max-width: 75%; margin: 0 auto 2px; }
+  .grid--packed .th__right::after { width: 12px; }
+  .grid--packed .th__ribbon { padding: 4px 12px 5px 0; }
+  .grid--packed .th__note { flex: 1 1 0; min-width: 16px; padding: 1px 0; }
+  .grid--packed .th__gap { flex: 1 1 0; min-width: 11px; padding-top: 16px; }
+  .grid--packed .th__gap::before { left: -2px; right: -2px; top: 25px; }
+  .grid--packed .th__gnum { font-size: 12px; line-height: 18px; padding: 0 2px; }
+  .grid--packed .th__gword { display: none; }
+  .grid--packed .th__nname { font-size: 12px; }
+  .grid--packed .th__finger { width: 14px; height: 14px; font-size: 9px; }
+  .grid--packed .th__flabel, .grid--packed .th__from { display: none; }
+  .grid--packed .th__top > .th__roots { flex-wrap: nowrap; gap: 1px; }
+  .grid--packed .th__root { min-width: 0; padding: 4px 0; font-size: 10px; letter-spacing: -.02em; }
+  .grid--packed .th__top > .th__shape { flex: 1 1 0; min-width: 0; }
+  .grid--packed .th__opts { margin-left: 0; gap: 5px; }
+  .grid--packed .th__foot { flex-wrap: nowrap; gap: calc(var(--gap) * .8); margin-top: 6px; }
+  .grid--packed .th__foot > .btn--lg { min-height: var(--ctl-h); padding-inline: var(--ctl-pad); font-size: var(--ctl-fs); }
+  .grid--packed .th__title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  /* Pedal: what each mode does is in the (i) and the option's own name; the paragraph
+     repeating it goes. */
+  .grid--packed #pedal-note { display: none; }
+  /* Backing tracks: the link and its button on one line. */
+  .grid--packed .btnrow:has(> #yt-url) { flex-wrap: nowrap; }
+  .grid--packed .btnrow > #yt-url { flex: 1 1 0; width: 0 !important; min-width: 0 !important; }
+  /* Your keyboard: the count and range are on the picks and the sliders above, so the
+     line repeating them goes and the two buttons share a row. */
+  .grid--packed .kbpick__read { display: none; }
+  .kbpick__k { display: none; }
+  .grid--packed .kbpick__foot > .btnrow { flex: 1 1 auto; gap: 5px; }
+  .grid--packed .kbpick__foot .btn { flex: 1 1 auto; padding-inline: 7px; }
+  .grid--packed .kbpick__foot .btn--lg { min-height: var(--ctl-h); font-size: var(--ctl-fs); }
+  .grid--packed #kbpick-note { margin-top: calc(var(--gap) * .8) !important; }
+  /* All time: two by two, the line under each number gone, the two rows close (at 1280
+     the half is one row and 147px; the quarter must stay within 15% of it). */
+  .grid--packed > [data-panel="all-time"] .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 3px; }
+  .grid--packed > [data-panel="all-time"] .stat__note { display: none; }
+  /* Songs: a song a line -- its name, Roll, Sheet, remove. The tags and the length go. */
+  #lib-list > .list__row { flex-wrap: nowrap; gap: 4px; padding-inline: 4px; }
+  #lib-list > .list__row > span:first-child { flex-basis: auto; contain: inline-size; }
+  #lib-list > .list__row > :is(.tag, .mono) { display: none; }
+  #lib-list > .list__row > .btn { padding-inline: calc(var(--ctl-pad) * .7); }
+  /* Loop station: the state beside the buttons; name and Save, then a saved loop and Clear. */
+  .grid--packed .loop__state { min-width: 0; flex: 1 1 auto; }
+  .grid--packed .loop__setup { margin-left: 0; }
+  .grid--packed .loop + #loop-layers + .btnrow > :is(#loop-name, #loop-saved) { flex: 1 1 60%; width: 0 !important; }
 }
 
 /* A panel: a dark card on a lighter stage, its name in plain white at the top. */
@@ -1505,7 +1648,10 @@ select option { background: var(--panel-2); color: var(--ink); }
   background: transparent;
 }
 .list__row:hover { background: var(--panel-2); color: var(--ink); }
-.list__row .mono { font-family: var(--font-mono); font-size: 12px; }
+.list__row .mono { font-family: var(--font-mono); font-size: 12px; white-space: nowrap; }
+/* A SoundFont's file name gives way (with its full name on hover) before its size does. */
+.sf__file { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; contain: inline-size; }
+.sf__file + .list__spacer { display: none; }
 .list__spacer { flex: 1; }
 
 .bar { height: 6px; border-radius: 3px; background: var(--panel-4); overflow: hidden; }
@@ -1761,6 +1907,13 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
 .chart__tick {
   flex: 1; min-width: 0; text-align: center; overflow: hidden; white-space: nowrap;
   font-size: 9px; letter-spacing: .06em; color: var(--ink-faint);
+}
+/* A tick for a group of --n bars (stats.js barChart): its label centred over the first
+   bar, or starting at it where the bar is narrower than the label. */
+.chart__tick:has(> span) { text-align: left; }
+.chart__tick > span {
+  display: inline-block; text-align: center;
+  min-width: calc((100% - (var(--n) - 1) * 3px) / var(--n));
 }
 
 /* ── the 88-key map ─────────────────────────────────────────────────────────
@@ -2219,6 +2372,8 @@ svg.staff .clef, svg.staff .accidental { fill: var(--ink); }
 .octstep { display: flex; gap: 4px; }
 .octstep .btn { flex: 1; }
 .split__octs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+/* Build one's card picker: a quarter-width panel's (the mini tier, above). */
+.builds__pick { display: none; }
 
 /* ── the keyboard picker ────────────────────────────────────────────────────
    Same card grammar as the theme swatches, because it is the same gesture: a row of

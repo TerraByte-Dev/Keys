@@ -2154,7 +2154,8 @@ def nav_checks(browser, port: int, errs: list[str]) -> list[str]:
 # may open a gap beside the panel (room for the next one), so at every width reached the
 # grid must
 #   - stick nothing out: no element wider than its box (scrollWidth > clientWidth + 1)
-#     and no box past its panel's sides, except inside a declared sideways scroller;
+#     and no box past its panel's sides, except inside a declared sideways scroller or a
+#     name cut with an ellipsis;
 #   - stretch no card: none more than RS_STRETCH_PX taller than what it holds, which is
 #     how a hole was hidden from the gap rule (a card drawn down 594px to the panel
 #     under it measures as an even 14px gap);
@@ -2162,11 +2163,15 @@ def nav_checks(browser, port: int, errs: list[str]) -> list[str]:
 #     stopped 169px short of the number it sets);
 #   - leave no hole too narrow to use: empty space down a column, more than RS_HOLE_PX
 #     between two cards, must be at least RS_HOLE_COLS columns wide at that height --
-#     the narrowest a panel goes -- or no panel can ever go into it.
+#     a quarter, the narrowest brick -- or no panel can ever go into it.
+# Each click is one brick (12 -> 6 -> 3 and back), never two; after every click every
+# panel shown is on a brick (a sized neighbour's leftover columns once stretched an unsized
+# half to three quarters); and a click narrower leaves the panel at most FOLD_MAX as tall.
 RESIZE_SIZES = ((1600, 1000), (1280, 800))
 RS_STRETCH_PX = 100    # the 64-82px draw-downs that close a hole above a wide panel, and no more
 RS_HOLE_PX = 24        # card to card down a column; the even gap is 14
-RS_HOLE_COLS = 4       # a third of the grid, the narrowest step the design offers
+RS_HOLE_COLS = 3       # a quarter of the grid, the narrowest brick (layout.js SPANS)
+RS_SPANS = (3, 6, 12)  # the bricks, in columns
 
 # Each visible managed panel under `sel`, by id, so a click that rebuilds the view (Stats
 # does) can find it again.
@@ -2180,10 +2185,22 @@ RS_STATE = """([sel, id]) => {
   const g = el.parentElement.getBoundingClientRect();
   const cg = parseFloat(getComputedStyle(el.parentElement).columnGap);
   const colW = (g.width - 11 * cg) / 12;
+  // Its content's own height: pack()'s draw-down (--fill) is not the panel growing.
+  const fill = el.style.getPropertyValue('--fill');
+  el.style.removeProperty('--fill');
+  const nat = el.firstElementChild.getBoundingClientRect().height;
+  if (fill) el.style.setProperty('--fill', fill);
   return { saved: +(([...el.classList].find((c) => /^col-\\d+$/.test(c)) || 'col-0').slice(4)),
            cols: Math.round((el.getBoundingClientRect().width + cg) / (colW + cg)),
-           less: !!less && !less.disabled, more: !!more && !more.disabled };
+           nat, less: !!less && !less.disabled, more: !!more && !more.disabled };
 }"""
+
+# Every shown panel under `sel` and how many columns it shows.
+RS_COLS = """(sel) => [...document.querySelectorAll(sel + ' > [data-panel]')]
+  .filter((e) => e.getClientRects().length).map((e) => {
+    const g = e.parentElement.getBoundingClientRect(), cg = parseFloat(getComputedStyle(e.parentElement).columnGap);
+    return [e.dataset.panel, Math.round((e.getBoundingClientRect().width + cg) / ((g.width - 11 * cg) / 12 + cg))];
+  })"""
 
 # The pointer arriving on the panel, as it does before anyone can see its arrows.
 RS_HOVER = """async ([sel, id]) => {
@@ -2228,7 +2245,9 @@ RS_AUDIT = """([sel, strict, STRETCH, HOLE, HOLE_COLS]) => {
       let inner = false;
       for (let p = n.parentElement; p && p !== e; p = p.parentElement) if (scrolls(p)) { inner = true; break; }
       if (inner) continue;
-      if (!scrolls(n) && n.clientWidth && n.scrollWidth > n.clientWidth + 1) {
+      // A name cut with an ellipsis is cut on purpose (its whole text is its title).
+      const cut = getComputedStyle(n).textOverflow === 'ellipsis';
+      if (!scrolls(n) && !cut && n.clientWidth && n.scrollWidth > n.clientWidth + 1) {
         bad.push(`${e.dataset.panel}: ${name(n)} holds ${n.scrollWidth}px in ${n.clientWidth}px`);
       } else if (r.right > mr.right + 1.5 || r.left < mr.left - 1.5) {
         bad.push(`${e.dataset.panel}: ${name(n)} ${Math.round(Math.max(r.right - mr.right, mr.left - r.left))}px past its panel`);
@@ -2317,7 +2336,13 @@ def resize_sweep(page, sel: str, where: str) -> tuple[int, int, list[str]]:
     def state(pid: str) -> dict:
         return page.evaluate(RS_STATE, [sel, pid])
 
+    def bricks(label: str) -> None:
+        off = [f"{i} {c}" for i, c in page.evaluate(RS_COLS, sel) if c not in RS_SPANS]
+        if off:
+            bad.append(f"{where} {label}: shown at a width that is not a brick: {', '.join(off)}")
+
     audit("as shipped", strict=True)
+    bricks("as shipped")
     for pid in page.evaluate(RS_TAG, sel):
         start = state(pid)
         if not start:
@@ -2338,6 +2363,16 @@ def resize_sweep(page, sel: str, where: str) -> tuple[int, int, list[str]]:
                 if (after["cols"] - st["cols"]) * sign <= 0:
                     bad.append(f"{where} {pid}: '{word}' at {st['cols']} columns left it at {after['cols']}")
                     break
+                # One brick: the saved span is the next one past what it showed.
+                step = [x for x in RS_SPANS if (x - st["cols"]) * sign > 0]
+                want = (max(step) if sign < 0 else min(step)) if step else None
+                if after["saved"] != want:
+                    bad.append(f"{where} {pid}: '{word}' at {st['cols']} columns asked for "
+                               f"{after['saved']}, not one brick ({want})")
+                bricks(f"{pid} '{word}' to {after['cols']}")
+                if sign < 0 and st["nat"] and after["nat"] > st["nat"] * FOLD_MAX:
+                    bad.append(f"{where} {pid}: '{word}' {st['cols']}->{after['cols']} columns made it "
+                               f"{round(st['nat'])}->{round(after['nat'])}px (x{after['nat'] / st['nat']:.2f})")
                 clicks += 1
                 if sign > 0:
                     audit(f"{pid} at {after['saved']} (shows {after['cols']})")
@@ -2353,12 +2388,19 @@ def resize_sweep(page, sel: str, where: str) -> tuple[int, int, list[str]]:
     return states, clicks, bad
 
 
-# A layout saved by an older Keys, set before the app loads: Read's authored 5 and 7 as
-# a layout saves them (every panel, every span), and Stats' panels reversed with the spans
-# a pre-0.14 grid had (6, 3, 12). Read keeps its 5 + 7; Stats keeps the saved order and
-# takes the widths its view authors today.
+# A layout saved by an older Keys, set before the app loads. Read's 5 and 7 as a layout
+# saved them in 0.15 (every panel, every span): not bricks, so Read takes the widths its
+# view authors today. Tools as 0.14-0.15 left it after a user sized it -- Touch response a
+# third, Pedal two thirds, both sized, the order reversed: each width moves to the brick
+# under it (4 -> 3, 8 -> 6), the order and the sized marks kept. Then Tools and Stats as
+# 0.15 saved them for someone who only dragged a panel: 0.15's authored widths (4+8,
+# 4+4+4), none sized -- they take today's authored widths and draw as bricks (Tools 6+6,
+# never the 3+9 that migrating them gave).
 RS_ROWS = """(sel) => [...document.querySelectorAll(sel + ' > [data-panel]')]
-  .map((e) => [e.dataset.panel, [...e.classList].find((c) => /^col-\\d+$/.test(c))])"""
+  .map((e) => [e.dataset.panel, [...e.classList].find((c) => /^col-\\d+$/.test(c)), !!e.dataset.sized])"""
+RS_DRAWN = """(sel) => [...document.querySelectorAll(sel + ' > [data-panel]')]
+  .map((e) => [e.dataset.panel, e.style.gridColumn])"""
+OLD_015 = {"touch-response": 4, "pedal": 8, "session-length": 4, "sounds-you-reach-for": 4, "sight-reading": 4}
 
 
 def migrate_checks(page, check) -> None:
@@ -2368,13 +2410,14 @@ def migrate_checks(page, check) -> None:
 
     go("read")
     read = page.evaluate(RS_ROWS, "#stage > .grid")
-    go("stats")
-    stats = page.evaluate(RS_ROWS, "#stage > .grid")
-    spans = lambda cls: int(cls[4:])  # noqa: E731
-    old_spans = (6, 3, 12)
+    go("tools")
+    tools = page.evaluate(RS_ROWS, "#stage > .grid")
+    old_read = {"this-run": 5, "exercise-setup": 7}
+    old_tools = {"touch-response": 4, "pedal": 8}
     seeded = {
-        "read": [{"id": i, "span": spans(c)} for i, c in read],
-        "stats": [{"id": i, "span": old_spans[k % 3]} for k, (i, _) in enumerate(reversed(stats))],
+        "read": [{"id": i, "span": old_read.get(i, int(c[4:]))} for i, c, _ in read],
+        "tools": [{"id": i, "span": old_tools.get(i, 12), **({"sized": True} if i in old_tools else {})}
+                  for i, _, _ in reversed(tools)],
     }
     page.evaluate("""(layout) => fetch('/api/settings', { method: 'POST',
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ui: { layout } }) })""", seeded)
@@ -2382,16 +2425,37 @@ def migrate_checks(page, check) -> None:
     page.wait_for_timeout(1600)
     go("read")
     got = page.evaluate(RS_ROWS, "#stage > .grid")
-    check("a saved Read layout keeps the widths its view authors (5 + 7), not the nearest step",
+    check("a saved Read layout with 0.15's 5 and 7 takes the widths its view authors now",
           len(read) >= 3 and got == read, f"authored {read}, after a save {got}")
-    go("stats")
+    go("tools")
     got = page.evaluate(RS_ROWS, "#stage > .grid")
-    want = [[i, dict(stats)[i]] for i, _ in reversed(stats)]
-    check("a pre-0.14 Stats layout (with a 3) keeps its order and takes today's authored widths",
-          len(stats) >= 3 and got == want, f"want {want}, got {got}")
+    brick = {4: 3, 8: 6}
+    want = [[i, f"col-{brick.get(old_tools.get(i), 12)}", i in old_tools] for i, _, _ in reversed(tools)]
+    check("a 0.15 Tools layout (a third, two thirds, sized) keeps its order: 4 -> 3, 8 -> 6, still sized",
+          len(tools) >= 3 and got == want, f"want {want}, got {got}")
+
+    go("stats")
+    stats = page.evaluate(RS_ROWS, "#stage > .grid")
+    fresh = {"tools": tools, "stats": stats}
+    seeded = {v: [{"id": i, "span": OLD_015.get(i, int(c[4:]))} for i, c, _ in rows] for v, rows in fresh.items()}
+    page.evaluate("""(layout) => fetch('/api/settings', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ui: { layout } }) })""", seeded)
+    page.reload(wait_until="networkidle")
+    page.wait_for_timeout(1600)
+    for v, rows in fresh.items():
+        go(v)
+        got = page.evaluate(RS_ROWS, "#stage > .grid")
+        drawn = page.evaluate(RS_DRAWN, "#stage > .grid")
+        odd = [f"{i} {g}" for i, g in drawn if g and int(g.split()[-1]) not in RS_SPANS]
+        check(f"a 0.15 {v} layout nobody sized (0.15's authored widths) takes today's widths, all bricks",
+              len(rows) >= 2 and got == rows and not odd, f"authored {rows}, got {got}, drawn {drawn}")
+    go("tools")
+    drawn = dict(page.evaluate(RS_DRAWN, "#stage > .grid"))
+    check("that Tools draws Touch response and Pedal as span 6 + span 6, never 3 + 9",
+          drawn.get("touch-response") == "span 6" and drawn.get("pedal") == "span 6", str(drawn))
     page.evaluate("""() => fetch('/api/settings', { method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ui: { layout: { read: [], stats: [] } } }) })""")
+      body: JSON.stringify({ ui: { layout: { read: [], tools: [], stats: [] } } }) })""")
     page.reload(wait_until="networkidle")
     page.wait_for_timeout(1600)
 
@@ -2501,9 +2565,11 @@ def resize_checks(browser, port: int, errs: list[str]) -> list[str]:
 
 
 # -- folding: a narrower panel is a smaller panel, not a taller one ----------------------
-# Every managed panel of every tab, at 1600x1000 and 1280x800, laid out at each span its
-# arrows can reach (its measured minimum up to the whole row), widest first: a step
-# narrower may make it at most FOLD_MAX taller. The density tiers (style.css tokens) are
+# Every managed panel of every tab, at 1600x1000 and 1280x800, laid out at a full, a half
+# and a quarter of the tab -- fixed widths, not the minimum the code under test reports,
+# and its content's own height (pack()'s --fill off) -- widest first: a step narrower may
+# make it at most FOLD_MAX taller. And each one measures that it fits at a quarter
+# (layout.js minSpan 3): every panel on a tab can be narrowed to a quarter, Songs too. The density tiers (style.css tokens) are
 # what make that hold -- the same controls a tier smaller, rows kept as rows. Jam is held
 # to the same rule in its own section. Then: nothing on a tab that looks like a panel is
 # left out of the layout (the Exercises shelf was, and could not be dragged), and the
@@ -2513,13 +2579,11 @@ FOLD_SKIP = {"jam"}       # the Jam section measures it
 # Panels a step narrower cannot keep within FOLD_MAX yet, and why. Each one is listed
 # rather than passed quietly; the rule still runs on them and prints what it finds.
 FOLD_KNOWN = {
-    "zone-editor": "twelve controls a zone: one row only at the full width, two rows below it",
-    "build-one": "three build cards stay side by side down to a third of 1600; at a third of 1280 they go two and one",
-    "exercises": "the shelf's three cards go two and one at a third of a 1280px window",
-    "pedal": "the mode's longest choice takes the row's width at a third; the sliders go under it",
-    "audio-output": "device names are as long as the driver makes them; the row wraps under half width",
-    "chords-scales": "the twelve roots take a row of their own at a third of a 1280px window",
+    "zone-editor": "eleven controls a zone: one row only at the full width of a wide window, two in a half",
 }
+# Panels that cannot fit at a quarter of a tab, and why. Empty: every panel has a quarter
+# form. A panel listed here is still measured and printed.
+QUARTER_KNOWN: dict[str, str] = {}
 
 FOLD_MEASURE = """() => {
   const out = [];
@@ -2529,19 +2593,25 @@ FOLD_MEASURE = """() => {
     for (const el of grid.children) {
       if (!el.dataset.panel || !el.getClientRects().length) continue;
       const mod = el.firstElementChild, keep = el.style.width, hs = [];
-      for (const s of [12, 8, 6, 4]) {
-        if (s < (el._minSpan || 12) && s !== 12) continue;
+      const fill = el.style.getPropertyValue('--fill');
+      el.style.removeProperty('--fill');
+      for (const s of [12, 6, 3]) {
         el.style.width = px(s) + 'px';
         hs.push([s, Math.round(mod.getBoundingClientRect().height)]);
       }
       el.style.width = keep;
-      out.push({ id: el.dataset.panel, hs });
+      if (fill) el.style.setProperty('--fill', fill);
+      out.push({ id: el.dataset.panel, hs, min: el._minSpan });
     }
   }
   return out;
 }"""
 
 # Grid children holding a panel card that the layout does not manage.
+# An open run's Setup on the whole row is 200-260px tall; squeezed into a half or a
+# quarter it was a 446-625px column.
+EX_SETUP_PX = 320
+
 FOLD_LOOSE = """() => [...document.querySelectorAll('#stage > .grid > *')]
   .filter((e) => e.getClientRects().length && e.querySelector('.mod') && !e.dataset.panel)
   .map((e) => e.id || e.className)"""
@@ -2574,7 +2644,7 @@ def folding_checks(browser, port: int, errs: list[str]) -> list[str]:
         page.set_viewport_size({"width": w, "height": h})
         for view in VIEWS:
             go(view)
-            grew, known, n = [], [], 0
+            grew, known, wide, n = [], [], [], 0
             for r in page.evaluate(FOLD_MEASURE):
                 if r["id"] in FOLD_SKIP:
                     continue
@@ -2583,10 +2653,17 @@ def folding_checks(browser, port: int, errs: list[str]) -> list[str]:
                     if ha and hb > ha * FOLD_MAX:
                         msg = f"{r['id']} {a}->{b} columns: {ha}->{hb}px (x{hb / ha:.2f})"
                         (known if r["id"] in FOLD_KNOWN else grew).append(msg)
+                if r["min"] != 3:
+                    msg = f"{r['id']} fits no narrower than {r['min']} columns"
+                    if r["id"] in QUARTER_KNOWN:
+                        known.append(f"{msg} ({QUARTER_KNOWN[r['id']]})")
+                    else:
+                        wide.append(msg)
             for k in known:
                 print(f"         known: {k}")
             check(f"{view} @{w}x{h}: {n} panels fold (a step narrower is at most {FOLD_MAX:.2f}x as tall)",
                   n > 0 and not grew, "; ".join(grew))
+            check(f"{view} @{w}x{h}: every panel fits at a quarter of the tab", not wide, "; ".join(wide))
             loose = page.evaluate(FOLD_LOOSE)
             check(f"{view} @{w}x{h}: every panel on the tab can be dragged and sized", not loose,
                   ", ".join(loose))
@@ -2623,6 +2700,76 @@ def folding_checks(browser, port: int, errs: list[str]) -> list[str]:
     page.wait_for_timeout(600)
     check("back on the shelf: one handle, not two",
           page.locator(grip).count() == 1 and page.evaluate("!!document.querySelector('#ex-host .build')"))
+
+    # Exercises sized down (one click a half, two a quarter), then a run opened from it:
+    # the run takes the whole row, its Setup no long column, and Back gives the size back.
+    for w, h in RESIZE_SIZES:
+        page.set_viewport_size({"width": w, "height": h})
+        go("practice", 2400)
+        for want in (6, 3):                   # 12 -> 6, then 6 -> 3: one click each
+            page.evaluate(RS_HOVER, ["#stage > .grid", "exercises"])
+            page.evaluate(RS_CLICK, ["#stage > .grid", "exercises", 1])
+            page.wait_for_timeout(400)
+            sized = page.evaluate(RS_STATE, ["#stage > .grid", "exercises"])["cols"]
+            page.evaluate("document.querySelector('#ex-host .build__open')?.click()")
+            page.wait_for_timeout(900)
+            run = page.evaluate("""() => {
+              const host = document.getElementById('ex-host'), s = host.querySelector('.exrun__setup');
+              const r = host.querySelector('.exrun__run');
+              return s && r && { setup: [s.offsetWidth, s.offsetHeight], run: [r.offsetWidth, r.offsetHeight] };
+            }""")
+            shown = page.evaluate(RS_STATE, ["#stage > .grid", "exercises"])["cols"]
+            bad = page.evaluate(RS_AUDIT, ["#stage > .grid", False, RS_STRETCH_PX, RS_HOLE_PX, RS_HOLE_COLS])
+            check(f"@{w}: Exercises sized to {sized} columns opens a run on the whole row, "
+                  "its Setup no long column, nothing sticking out",
+                  sized == want and bool(run) and shown == 12 and run["setup"][0] >= 400
+                  and run["setup"][1] <= EX_SETUP_PX and not bad,
+                  f"shows {shown} columns, {run}, {'; '.join(bad[:4])}")
+            page.evaluate("[...document.querySelectorAll('.exrun button')].find(b => b.textContent === 'Back to the shelf')?.click()")
+            page.wait_for_timeout(700)
+            back = page.evaluate(RS_STATE, ["#stage > .grid", "exercises"])["cols"]
+            check(f"@{w}: back on the shelf, Exercises is {sized} columns again", back == sized, f"shows {back}")
+        page.evaluate(RS_RESTORE, ["#stage > .grid", "exercises", 12])
+        page.wait_for_timeout(300)
+    page.set_viewport_size({"width": 1600, "height": 1000})
+
+    # Page panes at 1920 (the resize section sweeps them at 1600 and 1280): every narrower
+    # click a pane's arrows offer folds -- a quarter of a pane is 160-230px, where most
+    # panels would stack -- and leaves every panel on a brick.
+    starters = page.evaluate("async () => (await import('/pages.js')).STARTERS")
+    made = [{"id": f"fd-{k}", "name": f"Fold {k}", "cols": s["cols"], "panes": s["panes"]}
+            for k, s in starters.items() if s["panes"]]
+    page.evaluate("""(list) => fetch('/api/settings', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ui: { pages: list, tour_seen: true } }) })""", made)
+    page.reload(wait_until="networkidle")
+    page.wait_for_timeout(1600)
+    page.set_viewport_size({"width": 1920, "height": 1080})
+    for pg in made:
+        go(f"page/{pg['id']}", 2600)
+        for pane in pg["panes"]:
+            sel = f".page__pane[data-view='{pane['view']}'] > .grid"
+            grew = []
+            for pid in page.evaluate(RS_TAG, sel):
+                start = page.evaluate(RS_STATE, [sel, pid])
+                for _ in range(3):
+                    page.evaluate(RS_HOVER, [sel, pid])
+                    st = page.evaluate(RS_STATE, [sel, pid])
+                    if not st or not st["less"]:
+                        break
+                    page.evaluate(RS_CLICK, [sel, pid, 1])
+                    page.wait_for_timeout(300)
+                    after = page.evaluate(RS_STATE, [sel, pid])
+                    if st["nat"] and after["nat"] > st["nat"] * FOLD_MAX:
+                        grew.append(f"{pid} {st['cols']}->{after['cols']}: {round(st['nat'])}->{round(after['nat'])}px")
+                    grew += [f"{i} shown at {c} columns" for i, c in page.evaluate(RS_COLS, sel) if c not in RS_SPANS]
+                page.evaluate(RS_RESTORE, [sel, pid, start["saved"]])
+                page.wait_for_timeout(300)
+            check(f"{pg['name']} @1920, {pane['view']} pane: every narrower click folds, every panel a brick",
+                  not grew, "; ".join(dict.fromkeys(grew)))
+    page.set_viewport_size({"width": 1600, "height": 1000})
+    page.evaluate("""() => fetch('/api/settings', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ui: { pages: [] } }) })""")
     page.evaluate("""() => fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ui: { layout: { practice: [] } } }) })""")
     page.close()

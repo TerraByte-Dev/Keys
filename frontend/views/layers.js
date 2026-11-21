@@ -19,7 +19,7 @@
  * warns when that happens and this editor auto-assigns to avoid it. */
 
 import { ctx as appCtx, instrument } from '../app.js';
-import { $, $$, api, h, info, knob, mod, noteName, paint as paintSlider, slider, tip, toast } from '../ui.js';
+import { $, $$, api, h, info, knob, mod, noteName, paint as paintSlider, shortLabel, slider, tip, toast } from '../ui.js';
 
 /* The keys the player has, read fresh every time rather than captured at import. This
    module is evaluated before /api/state has been fetched, so a `const LOW = ...` here
@@ -119,9 +119,9 @@ export default {
         h('div.zonebar', { id: 'zonebar' }),
         h('div.btnrow', null,
           h('button.btn', { onclick: () => { edit(); zones.push(blank(zones.length)); render(ctx); } },
-            '+ Add zone'),
+            shortLabel('+ Add zone', '+ Zone', 'mini')),
           h('button.btn', { onclick: () => apply(ctx) }, 'Apply'),
-          h('button.btn', { onclick: () => saveAs(ctx) }, 'Save as preset...'),
+          h('button.btn', { onclick: () => saveAs(ctx) }, shortLabel('Save as preset...', 'Save...', 'mini')),
           h('button.btn', { onclick: () => { edit(); zones = [blank(0)]; render(ctx); } }, 'Reset')))),
 
       h('div.col-12', null, mod('Build one', 'a click each',
@@ -135,8 +135,21 @@ export default {
           'pointed at a sound, and overlapping two zones ', h('em', null, 'is'), ' the layer. ',
           'Build one below in a click, or open the editor at the bottom to move the split ',
           'point and balance the two sounds.'),
-        h('div.builds', null,
-          h('div.build', null,
+        // A quarter-width panel shows one card at a time, picked here (style.css); wider,
+        // this row is hidden and the three stand side by side.
+        h('div.seg.builds__pick', null,
+          [['split', 'Split'], ['layer', 'Layer'], ['one', 'One sound']].map(([k, label]) =>
+            h('button.seg__btn', {
+              class: k === 'split' ? 'is-on' : '',
+              'data-pick': k,
+              onclick: (e) => {
+                const row = e.currentTarget.parentElement;
+                for (const btn of row.children) btn.classList.toggle('is-on', btn === e.currentTarget);
+                row.nextElementSibling.dataset.pick = k;
+              },
+            }, label))),
+        h('div.builds', { 'data-pick': 'split' },
+          h('div.build', { 'data-build': 'split' },
             h('div.build__title', null, h('span', null, 'Split the keyboard'), tip(
               'Left hand plays one sound, right hand another. Walking bass under a piano ',
               'melody, without a second keyboard.')),
@@ -167,7 +180,7 @@ export default {
             h('button.btn.btn--wide', { id: 'do-split', onclick: () => buildSplit(ctx) },
               'Make a split')),
 
-          h('div.build', null,
+          h('div.build', { 'data-build': 'layer' },
             h('div.build__title', null, h('span', null, 'Layer two sounds'), tip(
               'Both sounds on every key at once. The classic is piano with strings ',
               'underneath, quiet enough that you feel it more than hear it.')),
@@ -187,7 +200,7 @@ export default {
             h('button.btn.btn--wide', { id: 'do-layer', onclick: () => buildLayer(ctx) },
               'Make a layer')),
 
-          h('div.build', null,
+          h('div.build', { 'data-build': 'one' },
             h('div.build__title', null, h('span', null, 'One sound'), tip(
               'The whole keyboard, one instrument, nothing clever. Where to come back to ',
               'when a split or a layer has stopped being useful.')),
@@ -451,7 +464,7 @@ function zoneCard(z, i, ctx) {
             value: c, selected: c === z.channel,
           }, c === 9 ? '9 (drums)' : c === 15 ? '15 (metronome)' : String(c))))),
 
-      h('label.field', null,
+      h('label.field.zone__inst', null,
         h('span.field__label', null, h('span', null, 'Instrument')),
         h('select', {
           onchange: (e) => {
