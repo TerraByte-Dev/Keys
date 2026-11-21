@@ -1672,10 +1672,20 @@ let binds = { ...DEFAULT_BINDS };
    "m" are one binding and "Escape" or "F2" keep their names. */
 export const normalKey = (k) => (k && k.length === 1 ? k.toLowerCase() : k);
 
+/* What the map names it keeps, '' being unset. An action it does not name gets its
+   default unless the map gave that key to something else: saved wins. A 0.13 map has
+   no page ids, and a metronome moved to 7 there must stay the metronome, not be
+   shadowed by page 1 (the first match runs) -- page 1 starts unset instead. The same
+   rule is what makes Settings' "that one is now unset" true for a key taken from an
+   action whose default it was. */
 export function setBinds(map) {
-  binds = { ...DEFAULT_BINDS };
+  binds = {};
   for (const [id, key] of Object.entries(map || {})) {
-    if (id in DEFAULT_BINDS && key) binds[id] = normalKey(key);
+    if (id in DEFAULT_BINDS) binds[id] = key ? normalKey(key) : '';
+  }
+  const taken = new Set(Object.values(binds).filter(Boolean));
+  for (const [id, key] of Object.entries(DEFAULT_BINDS)) {
+    if (!(id in binds)) binds[id] = taken.has(key) ? '' : key;
   }
   paintNav();          // the page items print their key
   return { ...binds };

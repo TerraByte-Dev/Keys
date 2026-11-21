@@ -185,7 +185,7 @@ function capture(id, btn, ctx) {
     // A key can only mean one thing, so taking it from another action leaves that
     // one unbound rather than silently shadowed.
     if (clash) {
-      delete next[clash.id];
+      next[clash.id] = '';             // named and empty: left out, it would get its default back
       toast(`${keyLabel(key)} was ${clash.label} — that one is now unset`, 'warn', 5000);
     }
     save(next, ctx);
