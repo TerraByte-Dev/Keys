@@ -85,6 +85,10 @@ try:
     call = call[:call.index("\n        )\n")]
     ok("frameless" not in call, "not pywebview's frameless (it drops resize and Snap)")
     ok(keys.title_bar_in_app() is True, "the app title bar is the default")
+    ok("before_show += lambda: fit_to_screen(window)" in src,
+       "the window is fitted to the screen's work area before it shows (Close on screen)")
+    ok("threading.Timer(" in inspect.getsource(keys.WindowControls.close),
+       "close posts WM_CLOSE after pywebview has answered the call (no traceback on close)")
 
     print("4. the page side")
     tb = (ROOT / "frontend" / "titlebar.js").read_text("utf-8")
