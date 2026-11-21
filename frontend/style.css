@@ -3346,23 +3346,84 @@ body.is-focusing .exrun .stat__note { font-size: 14px; }
 .nav__pages { display: flex; flex-direction: column; gap: 2px; }
 .nav__item--page { height: 34px; font-size: 13px; }
 .nav__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nav__dot { width: 6px; height: 6px; margin: 0 6px; border-radius: 50%; flex: none; background: var(--ink-faint); }
-.nav__item--page.is-active .nav__dot { background: var(--amber); }
 .nav__item--new { height: 32px; font-size: 12px; color: var(--ink-faint); }
+.nav__item--new .nav__icon { opacity: .6; }
+
+/* Fold: the nav as a strip of icons, each named by its native tooltip (app.js). The
+   button sits at the foot of the nav; the grid column is set here rather than through
+   --nav-w, which the rail's brand is sized by. Not at phone width, where the nav is a
+   bottom bar already, nor in focus or immersive, which zero the column themselves. */
+.nav__fold {
+  margin-top: auto;
+  display: flex; align-items: center; gap: 11px;
+  height: 32px; padding: 0 10px;
+  background: none; border: 0; border-radius: var(--radius);
+  color: var(--ink-faint); font: inherit; font-size: 12px; cursor: pointer;
+  transition: color .16s var(--ease), background .16s var(--ease);
+}
+.nav__fold:hover { color: var(--ink); background: var(--panel-2); }
+.nav__fold:focus-visible { outline: 2px solid var(--amber); outline-offset: -2px; }
+.nav__fold .nav__icon { transition: transform .18s var(--ease); }
+@media (min-width: 721px) {
+  body.is-navfold:not(.is-immersive):not(.is-focusing) { grid-template-columns: 52px 1fr; }
+  body.is-navfold .nav { padding: 10px 6px; overflow: hidden; }
+  body.is-navfold :is(.nav__item, .nav__fold) { justify-content: center; padding: 0; gap: 0; }
+  body.is-navfold :is(.nav__label, .nav__key) { display: none; }
+  body.is-navfold .nav__item.is-active::before { left: -6px; }
+  body.is-navfold .nav__item--page { height: 38px; }
+  body.is-navfold .nav__rule { margin: 6px 4px; }
+  body.is-navfold .nav__fold .nav__icon { transform: scaleX(-1); }
+}
+
+/* Right-click on a page in the nav: Edit, Rename, Delete. Fixed, so the nav's own
+   overflow does not clip it; one at a time, gone on any click elsewhere or Esc. */
+.navmenu {
+  position: fixed; z-index: 400; min-width: 168px;
+  display: flex; flex-direction: column; padding: 4px;
+  background: var(--panel-1); border: 1px solid var(--hairline);
+  border-radius: var(--radius); box-shadow: 0 12px 32px var(--shadow-deep);
+}
+.navmenu__item {
+  display: flex; align-items: center; gap: 9px; height: 30px; padding: 0 10px;
+  background: none; border: 0; border-radius: 6px; text-align: left;
+  color: var(--ink-dim); font: inherit; font-size: 13px; cursor: pointer;
+}
+.navmenu__item:hover, .navmenu__item:focus-visible { color: var(--ink); background: var(--panel-3); outline: none; }
+.navmenu__item .nav__icon { width: 15px; height: 15px; }
+.navmenu__item--bad:hover, .navmenu__item--bad:focus-visible { color: var(--red); }
+.navmenu__ask { padding: 6px 10px 4px; font-size: 12.5px; color: var(--ink); max-width: 220px; }
+.navmenu__row { display: flex; gap: 6px; padding: 4px 6px 4px; }
+.navmenu__row .btn { flex: 1; }
+.navmenu__sep { height: 1px; margin: 4px 2px; background: var(--hairline); }
+/* Rename, in place: the label becomes a field the width of the item. */
+.nav__item:has(.nav__rename) .nav__key { display: none; }
+.nav__rename {
+  flex: 1; min-width: 0; height: 24px; padding: 0 6px;
+  background: var(--panel-0); color: var(--ink); font: inherit; font-size: 13px;
+  border: 1px solid var(--amber-deep); border-radius: 5px; outline: none;
+}
 
 /* A page fills the stage and the panes scroll, each on its own; the stage does not. */
-.stage:has(> .page) { overflow: hidden; padding: 14px 16px; }
+/* One workspace, not boxes in boxes: the stage's padding, then panes 14px apart like
+   the panels in them. Each pane keeps a 4px gutter at its right that is part of those
+   14px (10px gap + 4px), so a pane that scrolls and one that does not line up the
+   same; its scrollbar is a hairline in that gutter, drawn only while the pointer is
+   over the pane. pages.js paneWidth() does this arithmetic. */
+.stage:has(> .page) { overflow: hidden; padding: 12px 14px 14px; }
 .page { height: 100%; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
-.page__head { display: flex; align-items: center; gap: 12px; flex: none; min-height: 32px; }
-.page__name { font-size: 15px; font-weight: 600; color: var(--ink); white-space: nowrap; }
+.page__head { display: flex; align-items: center; gap: 8px; flex: none; min-height: 26px; }
+.page__icon { width: 16px; height: 16px; color: var(--amber); flex: none; }
+.page__name { font-size: 14px; font-weight: 600; color: var(--ink); white-space: nowrap; }
 .page__sub { font-size: 12px; color: var(--ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.page__panes { flex: 1; min-height: 0; display: grid; gap: 14px; }
+.page__edit.btn { height: 26px; min-height: 26px; padding: 0 10px; font-size: 12px; }
+.page__panes { flex: 1; min-height: 0; display: grid; column-gap: 10px; row-gap: 14px; }
 .page__pane {
   min-width: 0; min-height: 0; overflow-y: auto; overflow-x: hidden;
-  padding-right: 4px;
+  scrollbar-gutter: stable;
 }
-.page__pane::-webkit-scrollbar { width: 8px; }
-.page__pane::-webkit-scrollbar-thumb { background: var(--panel-4); border-radius: 4px; }
+.page__pane::-webkit-scrollbar { width: 4px; }
+.page__pane::-webkit-scrollbar-thumb { background: transparent; border-radius: 2px; }
+.page__pane:hover::-webkit-scrollbar-thumb { background: var(--panel-4); }
 .page__pane::-webkit-scrollbar-track { background: transparent; }
 .is-unpicked { display: none !important; }
 
@@ -3379,39 +3440,82 @@ body:not(.is-focusing) .page__pane .jam__stage { order: -1; }
 body:not(.is-focusing) .page__pane :is(.jam__opts, .jam__more, .jam__stats) { order: 1; }
 body:not(.is-focusing) .page__pane .jam__opts { flex: none; }
 
-/* The builder. */
-.page__builder { max-width: 1040px; }
-.page__namein { width: 100%; max-width: 360px; }
-.pb__line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 16px 0; }
+/* The builder: one card the height of the stage. Its header and footer stay put and
+   only the middle scrolls, so Save / Cancel sit on the card's bottom edge at every
+   window size instead of riding up and down a sticky band over the content. */
+.stage:has(> .page__builder) { overflow: hidden; padding: 12px 14px 14px; }
+.page__builder { max-width: 1240px; height: 100%; min-height: 0; display: flex; flex-direction: column; }
+.page__builder > .mod {
+  flex: 1 1 auto; min-height: 0; max-height: 100%; display: flex; flex-direction: column;
+  padding-bottom: 0; overflow: hidden;
+}
+.page__builder .mod__head { margin-bottom: 10px; flex: none; }
+.pb__body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; margin: 0 -18px; padding: 0 18px 14px; }
+.pb__body::-webkit-scrollbar { width: 4px; }
+.pb__body::-webkit-scrollbar-thumb { background: transparent; border-radius: 2px; }
+.pb__body:hover::-webkit-scrollbar-thumb { background: var(--panel-4); }
+.pb__top { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 22px; }
+.pb__top .field { margin: 0; flex: 1 1 220px; max-width: 320px; }
+.page__namein { width: 100%; }
+.pb__line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+.pb__top .pb__line { margin: 0; }
 .pb__lbl {
   font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
-  color: var(--ink-dim); margin: 16px 0 8px;
+  color: var(--ink-dim); margin: 14px 0 6px;
 }
-.pb__line .pb__lbl { margin: 0; min-width: 96px; }
-.pb__groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.pb__line .pb__lbl { margin: 0; }
+/* The panel picker is one surface split by hairlines, not a box per tab: each group's
+   1px ring fills the 1px gap beside it and the outer edge clips the rest, so a short
+   last row leaves plain surface, not a grey block. */
+.pb__groups {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); gap: 1px;
+  background: var(--panel-2); border: 1px solid var(--hairline); border-radius: var(--radius);
+  overflow: hidden;
+}
 .pb__group {
-  display: flex; flex-direction: column; gap: 8px; padding: 12px;
-  background: var(--panel-2); border: 1px solid var(--hairline); border-radius: var(--radius);
+  display: flex; flex-direction: column; gap: 4px; padding: 8px 10px 10px;
+  box-shadow: 0 0 0 1px var(--hairline);
 }
-.pb__gtitle { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
-.pb__check { font-size: 12.5px; }
-.pb__order { display: flex; flex-direction: column; gap: 6px; }
+.pb__group--wide { grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; align-content: start; }
+.pb__group--wide .pb__gtitle { grid-column: 1 / -1; }
+.pb__gtitle { font-size: 12px; font-weight: 600; color: var(--ink); margin-bottom: 1px; }
+.pb__check { font-size: 12.5px; gap: 8px; line-height: 1.25; }
+/* A smaller switch here: thirty of them in one grid, not one setting on its own. */
+.pb__check .toggle__track { width: 28px; height: 16px; border-radius: 8px; }
+.pb__check .toggle__track::after { top: 2px; left: 2px; width: 12px; height: 12px; }
+.pb__check input:checked + .toggle__track::after { transform: translateX(12px); }
+/* The panes in order, laid out as the page will be: --cols across (pages.js). */
+.pb__order { display: grid; grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr)); gap: 4px; }
+.pb__row .btn--sm { min-height: 22px; padding: 0 7px; }
 .pb__row {
-  display: flex; align-items: center; gap: 10px; padding: 6px 10px;
+  display: flex; align-items: center; gap: 8px; padding: 2px 3px 2px 10px; min-width: 0;
   background: var(--panel-2); border: 1px solid var(--hairline); border-radius: var(--radius);
 }
+/* The icon picker: a row of square buttons, the picked one in amber. */
+.pb__icons { display: flex; flex-wrap: wrap; gap: 4px; }
+.pb__icon {
+  width: 34px; height: 34px; display: grid; place-items: center; padding: 0;
+  background: var(--panel-2); border: 1px solid var(--hairline); border-radius: var(--radius);
+  color: var(--ink-dim); cursor: pointer;
+  transition: color .14s var(--ease), background .14s var(--ease), border-color .14s var(--ease);
+}
+.pb__icon:hover { color: var(--ink); background: var(--panel-3); }
+.pb__icon.is-on { color: var(--amber); border-color: var(--amber-deep); background: var(--panel-3); }
+.pb__icon:focus-visible { outline: 2px solid var(--amber); outline-offset: 1px; }
+.pb__iconsvg { width: 18px; height: 18px; }
 .pb__pos { font-family: var(--font-mono); font-size: 11px; color: var(--ink-faint); min-width: 1.5ch; }
 .pb__rname { font-weight: 600; color: var(--ink); }
 .pb__rsub { font-size: 12px; color: var(--ink-faint); }
-.pb__note { margin-top: 12px; }
-.pb__warn { margin: 0 0 12px; }
+.pb__note { margin-top: 10px; }
+.pb__warn { margin: 0 0 10px; }
 .pb__ask { display: flex; align-items: center; gap: 8px; color: var(--ink); }
 
 /* More than one row of panes: each row has a floor (pages.js ROW_MIN) and the panes
    area scrolls past it, rather than sharing a short window out as slivers. */
 .page__panes { overflow-y: auto; overflow-x: hidden; }
-.page__panes::-webkit-scrollbar { width: 8px; }
-.page__panes::-webkit-scrollbar-thumb { background: var(--panel-4); border-radius: 4px; }
+.page__panes::-webkit-scrollbar { width: 4px; }
+.page__panes::-webkit-scrollbar-thumb { background: transparent; border-radius: 2px; }
+.page__panes:hover::-webkit-scrollbar-thumb { background: var(--panel-4); }
 .page__panes::-webkit-scrollbar-track { background: transparent; }
 /* One column: a stack, each pane as tall as its panels, the page the only scroller. */
 .page--stack .page__panes { grid-auto-rows: max-content; align-content: start; }
@@ -3429,10 +3533,19 @@ body:not(.is-focusing) .page__pane .jam__opts { flex: none; }
    panel's minimum width. */
 .th__ribbon { contain: inline-size; }
 
-/* The builder is taller than a window; Save stays where you can reach it. */
+/* The builder's footer: the card's bottom edge, solid, never over the content. */
 .pb__foot {
-  position: sticky; bottom: 0; z-index: 2;
-  margin: 18px -18px -18px; padding: 12px 18px; align-items: center;
+  flex: none; margin: 0 -18px; padding: 8px 18px; align-items: center;
   background: var(--panel-0); border-top: 1px solid var(--hairline);
-  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+/* Stats in a pane can be narrower than its tab ever makes it. The year then scrolls
+   sideways inside Activity, as the narrow-panel rule above means it to -- restated
+   here because the calendar's own `.calx__fit { overflow: hidden }`, later in the file,
+   had won over it and the months ran out past the panel. */
+@container panel (max-width: 440px) {
+  .calx__fit { overflow-x: auto; overflow-y: hidden; }
+  .calx__fit > * { min-width: 400px; }
+  .calx__fit::-webkit-scrollbar { height: 4px; }
+  .calx__fit::-webkit-scrollbar-thumb { background: var(--panel-4); border-radius: 2px; }
 }
