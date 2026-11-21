@@ -244,8 +244,11 @@ export function createJam(ctx, { onStart } = {}) {
     return row;
   };
 
-  const keySelect = h('select.jam__select', { onchange: (e) => setKey(e.target.value) },
+  // Named here, not only by the label around it: a quarter hides that label (style.css).
+  const keySelect = h('select.jam__select', { 'aria-label': 'Key', onchange: (e) => setKey(e.target.value) },
     KEYS.map((k) => h('option', { value: k.id, selected: k.id === opt.key }, keyLabel(k))));
+  // Where the key's long name cannot fit, its short one is drawn over the select (fitKey).
+  const keyBox = h('span.jam__keybox', null, keySelect);
   const bpmValue = h('span.field__value', null, `${opt.bpm}`);
   const bpm = slider({
     min: 50, max: 160, value: opt.bpm,
@@ -267,7 +270,7 @@ export function createJam(ctx, { onStart } = {}) {
     if (playing) configure({ style: id, bpm: opt.bpm });
   };
   const styleSeg = seg(STYLES, opt.style, pickStyle);
-  const roomSelect = h('select.jam__select', { onchange: (e) => setRoom(e.target.value) },
+  const roomSelect = h('select.jam__select', { 'aria-label': 'Room', onchange: (e) => setRoom(e.target.value) },
     ROOMS.map((r) => h('option', { value: r.id, selected: r.id === opt.room }, `${r.name} — ${r.sigName}`)));
   // The options only some music uses, so applyMode() can show the right ones.
   const only = {};
@@ -282,7 +285,7 @@ export function createJam(ctx, { onStart } = {}) {
   const sound = (items, current, onpick) => h('select.jam__select.jam__select--sound', {
     onchange: (e) => onpick(e.target.value === '' ? null : Number(e.target.value)) },
   items.map((it) => h('option', { value: it.id ?? '', selected: it.id === current }, it.label)));
-  const wanderBox = toggle('Wander', opt.wander, (on) => { opt.wander = on; save(); });
+  const wanderBox = toggle('Wander', opt.wander, (on) => { opt.wander = on; save(); paintWander(); });
   // My chords: a row of slots, and the picker for the one being changed (paintMine).
   const mineEl = { slots: h('div.jam__slots'), picker: h('div.jam__picker') };
   // In a narrow panel the Band group folds to one line that says what the band is set to
@@ -379,7 +382,7 @@ export function createJam(ctx, { onStart } = {}) {
           group('Music', 'music',
             option('Music', musicSeg),
             tag('level', option('Level', levelSeg)),
-            tag('key', option('Key', keySelect, 'label')),
+            tag('key', option('Key', keyBox, 'label')),
             tag('room', option('Room', roomSelect, 'label')),
             tag('pin', option('Scale', seg(PINS, opt.pin, (id) => setPin(id))))),
           group('You', 'you',
@@ -451,7 +454,7 @@ export function createJam(ctx, { onStart } = {}) {
       o.hidden = off;
       o.disabled = off;
     }
-    keySelect.value = shownKey;
+    showKey(shownKey);
     const names = LEVEL_NAMES[opt.music === 'blues' ? 'blues' : 'songs'];
     // Key changes are Solo's (compose): in Echo, 4 is the songbook that 3 is.
     [...levelSeg.children].forEach((b, i) => {
@@ -466,11 +469,42 @@ export function createJam(ctx, { onStart } = {}) {
     wanderBox.classList.toggle('is-locked', locked);
     wanderBox.title = opt.level === 1 ? 'Level 1 is one loop: it stays in its key'
       : opt.level === 4 ? 'Level 4 changes key every second phrase' : '';
+    paintWander();
+  }
+  /* Whether the key can change, so a quarter keeps a line for the change coming
+     (style.css) only where one can come, and never jumps when it does. */
+  function paintWander() {
+    jamEl.toggleAttribute('data-wander', play() === 'songs' && (opt.level === 4 || (opt.level !== 1 && opt.wander)));
+  }
+  /* The key select shows the key's long name ("F♯ major — all five black keys + 2 white
+     ...") where it fits, and its short one ("F♯ major") drawn over it where it does not
+     (style.css .jam__keybox.is-short); the list and the tooltip keep the long one. A
+     select never reports text it cuts off, so the fit is measured: the long name and
+     the select's own padding against the select's width. */
+  const measure = document.createElement('canvas').getContext('2d');
+  function fitKey() {
+    const k = keyOf(keySelect.value), w = keySelect.getBoundingClientRect().width;
+    if (!k || !w) return;
+    const cs = getComputedStyle(keySelect), px = (v) => parseFloat(v) || 0;
+    measure.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    const need = measure.measureText(keyLabel(k)).width + px(cs.paddingLeft) + px(cs.paddingRight)
+      + px(cs.borderLeftWidth) + px(cs.borderRightWidth);
+    keyBox.classList.toggle('is-short', need > w + 1.5);
+  }
+  const keyFit = new ResizeObserver(fitKey);
+  keyFit.observe(keySelect);
+  function showKey(id) {
+    keySelect.value = id;
+    const k = keyOf(id);
+    keyBox.dataset.short = k ? keyName(k) : '';
+    keySelect.title = k ? keyLabel(k) : '';
+    fitKey();
   }
   applyMode();
 
+  function keyName(k) { return `${pretty(k.key)} ${k.mode === 'major' ? 'major' : 'minor'}`; }
   function keyLabel(k) {
-    const name = `${pretty(k.key)} ${k.mode === 'major' ? 'major' : 'minor'}`;
+    const name = keyName(k);
     const black = scalePcsGuess(k).filter((pc) => BLACK.has(pc)).length;
     const keys = black === 0 ? 'all white keys' : black === 5 ? 'all five black keys + 2 white'
       : `${black} black key${black === 1 ? '' : 's'}`;
@@ -840,7 +874,7 @@ export function createJam(ctx, { onStart } = {}) {
 
   async function setKey(id) {
     opt.key = id;
-    keySelect.value = id;
+    showKey(id);
     save();
     if (!(await ready()) || destroyed || opt.key !== id) return;
     times = -1;
@@ -1461,6 +1495,11 @@ export function createJam(ctx, { onStart } = {}) {
           h('b', null, now.chips?.[i] ?? spell(roman, now.plan).symbol), h('small', null, who));
       }),
       h('span.jam__pblurb', null, ph.blurb));
+    // A quarter keeps the chips on one line that scrolls (style.css): the live one in view.
+    const live = el.phrase.querySelector('.jam__chip.is-on');
+    if (live && el.phrase.scrollWidth > el.phrase.clientWidth) {
+      el.phrase.scrollLeft = live.offsetLeft - (el.phrase.clientWidth - live.offsetWidth) / 2;
+    }
   }
 
   /* Under the Now card: the pinned scale's name -- or, a few bars before the key changes
@@ -1475,7 +1514,10 @@ export function createJam(ctx, { onStart } = {}) {
       }
     }
     const pin = opt.guide === 'dark' ? null : pinOf(to || p);
-    el.note.textContent = to ? `Next: ${to.title}${pin ? ` · ${pin.title}` : ''}` : pin ? pin.title : '';
+    // The scale's part is its own span: a quarter has room for the key alone.
+    el.note.replaceChildren(...(to ? [`Next: ${to.title}`, pin ? h('span.jam__note-pin', null, ` · ${pin.title}`) : '']
+      : [pin ? pin.title : '']));
+    el.note.title = el.note.textContent;
     el.note.classList.toggle('is-next', !!to);
   }
 
@@ -1847,6 +1889,7 @@ export function createJam(ctx, { onStart } = {}) {
       if (destroyed) return;
       stop();
       destroyed = true;
+      keyFit.disconnect();
       cancelAnimationFrame(raf);
       raf = 0;
       offPanic();
