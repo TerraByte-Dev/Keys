@@ -2657,10 +2657,17 @@ body:not(.is-focusing) .jam__go {
    stage -- what a player watches -- comes after, nearest the keys. */
 body:not(.is-focusing) .jam > .jam__top { order: -2; }
 body:not(.is-focusing) .jam > .jam__more { order: -1; }
-/* In a pane nothing stands beside Music and You, so Band joins them: one console. */
+/* In a pane, and under Start in a compact panel, nothing stands beside Music and You,
+   so Band joins them: one console. */
 body:not(.is-focusing) .page__pane .jam__opts { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 body:not(.is-focusing) .page__pane .jam__more {
   margin-top: calc(-1 * var(--jam-gap) - 1px); border-top-left-radius: 0; border-top-right-radius: 0;
+}
+@container panel (max-width: 560px) {
+  body:not(.is-focusing) .jam__opts { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+  body:not(.is-focusing) .jam > .jam__more {
+    margin-top: calc(-1 * var(--jam-gap) - 1px); border-top-left-radius: 0; border-top-right-radius: 0;
+  }
 }
 body:not(.is-focusing) .jam__opts { flex: 1 1 0; }
 body:not(.is-focusing) .jam__opts, .jam__more {
@@ -2708,8 +2715,10 @@ body:not(.is-focusing) .jam__group + .jam__group { border-top: 1px solid var(--h
 body:not(.is-focusing) .jam__gname {
   align-self: stretch; display: flex; align-items: center; padding-left: 10px;
   font-family: var(--font-panel); font-size: 9px; letter-spacing: .16em; text-transform: uppercase;
-  color: var(--ink-faint);
+  color: var(--ink-faint); line-height: 1.2;
 }
+/* "My chords" is the one two-word name: two tight lines, clear of the row's edges. */
+body:not(.is-focusing) .jam__group--mine .jam__gname { letter-spacing: .08em; }
 body:not(.is-focusing) .jam__gbody { display: flex; flex-wrap: wrap; gap: 5px 14px; align-items: center; min-width: 0; }
 .jam__more { gap: 0; }
 .jam__parts, .jam__switches { display: contents; }
