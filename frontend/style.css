@@ -1019,26 +1019,79 @@ body::after {
   .calx__fit > * { min-width: 360px; }
   #shelf-inst > div:first-child { flex-wrap: wrap; }
   .zone__head { flex-wrap: wrap; }
-  .zone__grid { grid-template-columns: minmax(0, 1fr); }
   /* A song's title on its own line, its tags and Roll / Sheet under it. */
   #lib-list > .list__row { flex-wrap: wrap; }
   #lib-list > .list__row > span:first-child { flex-basis: 100%; }
 }
-/* Audio output's device / mode / period row is 2fr 1fr 1fr inline: under 760px the
-   mode's "Exclusive (lowest latency)" was cut off, so the device takes its own line. */
-@container panel (max-width: 760px) {
-  .mod > div:has(> .field > #audio-excl) { grid-template-columns: 1fr 1fr !important; }
-  .mod > div > .field:has(> #audio-device) { grid-column: 1 / -1; }
-}
-@container panel (max-width: 440px) {
-  .mod > div:has(> .field > #audio-excl) { grid-template-columns: minmax(0, 1fr) !important; }
-}
-/* A wide panel: consecutive fields side by side rather than three 1300px sliders. */
-@container panel (min-width: 760px) {
+/* Audio output's device / mode / period row: one row (the field rows under "folding"),
+   the device its double share. */
+.mod > div > .field:has(> #audio-device) { flex-grow: 2 !important; }
+/* Consecutive fields side by side, three to a row, at every tier a third of a window
+   reaches: a narrower panel keeps the row and shrinks the controls in it (the tiers)
+   instead of stacking three fields three times as tall. */
+@container panel (min-width: 330px) {
   .mod > .field:has(+ .field), .mod > .field + .field {
-    display: inline-flex; vertical-align: top; width: calc((100% - 29px) / 3);
+    display: inline-flex; vertical-align: top; width: calc((100% - 2 * var(--gap) - 1px) / 3);
   }
-  .mod > .field + .field { margin-left: 14px; }
+  .mod > .field + .field { margin-left: var(--gap); }
+}
+
+/* -- folding: what each panel does instead of growing --------------------------
+   The rule (ui_check "folding"): a step narrower never makes a panel more than 15%
+   taller. A row of things keeps being a row -- each item narrower, the controls in
+   it a tier smaller -- and only text that is not a control wraps or goes. */
+/* A row of fields a view laid out itself (Pedal's four, Audio output's three): one row,
+   each field an equal share, at every width a panel reaches. Beats the inline grid. */
+:where(.grid--packed > [data-panel] > .mod) > div:has(> .field + .field) {
+  display: flex !important; gap: var(--gap) !important; align-items: flex-end;
+}
+:where(.grid--packed > [data-panel] > .mod) > div:has(> .field + .field) > * {
+  flex: 1 1 0; min-width: 0; margin-bottom: 0;
+}
+.grid--packed .field__label > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+/* Stat cards: four to a row still in a third of a window; the note under each one
+   stays on one line. */
+.grid--packed .stats { grid-template-columns: repeat(auto-fit, minmax(calc(var(--ctl-h) * 2.9), 1fr)); }
+/* Effects' dials: all five on one row, the dial a tier smaller as the panel narrows. */
+.fxgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(var(--ctl-h) * 2.6), 1fr)); gap: 0 var(--gap); }
+/* Chords in this key: the seven on one row at any width; Your keyboard's sizes too. */
+.th__chords { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-columns: none !important; gap: calc(var(--gap) * .6); }
+.th__chord { padding: calc(var(--gap) * .6) 2px; min-width: 0; }
+.kbpick__sizes { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-columns: none; gap: calc(var(--gap) * .6); }
+.kbpick__size { padding: calc(var(--gap) * .6) 2px; min-width: 0; }
+.kbpick__n { font-size: calc(var(--ctl-h) * .56); }
+.kbpick__k { font-size: var(--label-fs); }
+/* Chords & scales: the diagram and the ribbon side by side at every width, sharing it. */
+.grid--packed .th__main { flex-wrap: nowrap; gap: var(--gap); }
+.grid--packed .th__board { flex: 1 1 55%; max-width: 430px; min-width: 0; }
+.grid--packed .th__right { flex: 1 1 45%; }
+.grid--packed .th__top { gap: calc(var(--gap) * .7); margin-bottom: var(--gap); }
+.grid--packed .th__roots { flex: 1 1 auto; }
+.grid--packed .th__root { flex: 1 1 0; min-width: 20px; padding: 4px 0; }
+.grid--packed .th__shape { min-width: 0; flex: 1 1 120px; min-height: var(--ctl-h); }
+/* The loop station's transport: a well of its own, so its padding is the tier's. */
+.grid--packed .loop__transport { padding: calc(var(--gap) * .8); gap: var(--gap); margin-bottom: calc(var(--gap) * .8); }
+.grid--packed .loop__state { min-width: 0; }
+.grid--packed .loop__setup { gap: var(--gap); }
+.grid--packed .loop__setup .field { min-width: calc(var(--ctl-h) * 2.6); }
+/* The zone editor and the split builder: fields two or more to a row, never one. */
+.grid--packed .zone { padding: calc(var(--gap) * .8); margin-bottom: calc(var(--gap) * .8); }
+.grid--packed .zone__head { margin-bottom: calc(var(--gap) * .8); }
+.grid--packed .zone__grid { grid-template-columns: repeat(auto-fit, minmax(calc(var(--ctl-h) * 2.9), 1fr)); gap: var(--gap); }
+.grid--packed .build .field { gap: 3px; }
+/* Cards in a row (Build one's three, the exercise shelf): narrower cards before fewer. */
+.grid--packed .builds { grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--ctl-h) * 5.1)), 1fr)); }
+/* An exercise card is a name and Open: one line, not a box with a button under it. */
+#ex-host .build { flex-direction: row; align-items: center; justify-content: space-between; }
+#ex-host .build > .btn:last-child { width: auto; margin: 0; flex: none; }
+#ex-host .build__title { min-width: 0; }
+@container panel (max-width: 380px) {
+  .grid--packed .th__roots { flex-basis: 100%; }
+}
+@container panel (max-width: 380px) {
+  .th__chord .th__csym { font-size: 11px; }
+  .th__chord .th__croman { font-size: 12px; }
+  .zone__grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
 }
 
 /* A panel: a dark card on a lighter stage, its name in plain white at the top. */
@@ -1280,7 +1333,7 @@ input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px va
    it keeps the keyboard behaviour, and three places in the app reach through a .field
    to it by hand. Explicit height rather than intrinsic SVG sizing, because layout.js
    measures the panel on the frame it is built. */
-.knob { position: relative; display: flex; justify-content: center; height: 52px; }
+.knob { position: relative; display: flex; justify-content: center; height: calc(var(--ctl-h) * 1.74); }   /* 52 at full */
 /* .knob .knob__input, not .knob__input: the bare class is (0,1,0) and loses to
    `input[type=range]` (0,1,1) above, whose height:22px then won. With inset:0 also set,
    the over-constrained box resolved against `bottom` -- so the invisible range sat
@@ -1291,7 +1344,7 @@ input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px va
   position: absolute; inset: 0; width: 100%; height: 100%;
   opacity: 0; margin: 0; cursor: ns-resize;
 }
-.knob__dial { width: 52px; height: 52px; }
+.knob__dial { width: calc(var(--ctl-h) * 1.74); height: calc(var(--ctl-h) * 1.74); }
 .knob__track { fill: var(--panel-2); stroke: var(--panel-4); stroke-width: 5; }
 /* 270 degrees of sweep, opened at the bottom: dasharray is .75 * 2*pi*r (r=18). */
 .knob__arc {

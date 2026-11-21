@@ -2220,6 +2220,129 @@ def resize_checks(browser, port: int, errs: list[str]) -> list[str]:
     return fails
 
 
+# -- folding: a narrower panel is a smaller panel, not a taller one ----------------------
+# Every managed panel of every tab, at 1600x1000 and 1280x800, laid out at each span its
+# arrows can reach (its measured minimum up to the whole row), widest first: a step
+# narrower may make it at most FOLD_MAX taller. The density tiers (style.css tokens) are
+# what make that hold -- the same controls a tier smaller, rows kept as rows. Jam is held
+# to the same rule in its own section. Then: nothing on a tab that looks like a panel is
+# left out of the layout (the Exercises shelf was, and could not be dragged), and the
+# Exercises panel drags and keeps its handle through a run.
+FOLD_MAX = 1.15
+FOLD_SKIP = {"jam"}       # the Jam section measures it
+# Panels a step narrower cannot keep within FOLD_MAX yet, and why. Each one is listed
+# rather than passed quietly; the rule still runs on them and prints what it finds.
+FOLD_KNOWN = {
+}
+
+FOLD_MEASURE = """() => {
+  const out = [];
+  for (const grid of document.querySelectorAll('#stage > .grid--packed')) {
+    const cg = parseFloat(getComputedStyle(grid).columnGap), W = grid.clientWidth;
+    const colW = (W - 11 * cg) / 12, px = (n) => n * colW + (n - 1) * cg;
+    for (const el of grid.children) {
+      if (!el.dataset.panel || !el.getClientRects().length) continue;
+      const mod = el.firstElementChild, keep = el.style.width, hs = [];
+      for (const s of [12, 8, 6, 4]) {
+        if (s < (el._minSpan || 12) && s !== 12) continue;
+        el.style.width = px(s) + 'px';
+        hs.push([s, Math.round(mod.getBoundingClientRect().height)]);
+      }
+      el.style.width = keep;
+      out.push({ id: el.dataset.panel, hs });
+    }
+  }
+  return out;
+}"""
+
+# Grid children holding a panel card that the layout does not manage.
+FOLD_LOOSE = """() => [...document.querySelectorAll('#stage > .grid > *')]
+  .filter((e) => e.getClientRects().length && e.querySelector('.mod') && !e.dataset.panel)
+  .map((e) => e.id || e.className)"""
+
+FOLD_ORDER = "() => [...document.querySelectorAll('#stage > .grid > [data-panel]')].map((e) => e.dataset.panel)"
+
+
+def folding_checks(browser, port: int, errs: list[str]) -> list[str]:
+    fails: list[str] = []
+    page = browser.new_page(viewport={"width": 1600, "height": 1000})
+    page.on("pageerror", lambda e: errs.append(str(e)))
+
+    def check(label: str, passed: bool, detail: str = "") -> None:
+        print(f"  [{'PASS' if passed else 'FAIL'}] {label}" + (f" -- {detail}" if detail else ""))
+        if not passed:
+            fails.append(f"folding: {label} {detail}".strip())
+
+    def go(hash_: str, wait: int = 2000) -> None:
+        page.evaluate(f"location.hash = '{hash_}'")
+        page.wait_for_timeout(wait)
+
+    print("\nfolding: every panel, a step narrower, at most 15% taller")
+    page.goto(f"http://127.0.0.1:{port}/", wait_until="networkidle")
+    page.wait_for_timeout(1500)
+    page.evaluate("""() => fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ui: { layout: { practice: [] }, tour_seen: true } }) })""")
+    page.reload(wait_until="networkidle")
+    page.wait_for_timeout(1500)
+    for w, h in RESIZE_SIZES:
+        page.set_viewport_size({"width": w, "height": h})
+        for view in VIEWS:
+            go(view)
+            grew, known, n = [], [], 0
+            for r in page.evaluate(FOLD_MEASURE):
+                if r["id"] in FOLD_SKIP:
+                    continue
+                n += 1
+                for (a, ha), (b, hb) in zip(r["hs"], r["hs"][1:]):
+                    if ha and hb > ha * FOLD_MAX:
+                        msg = f"{r['id']} {a}->{b} columns: {ha}->{hb}px (x{hb / ha:.2f})"
+                        (known if r["id"] in FOLD_KNOWN else grew).append(msg)
+            for k in known:
+                print(f"         known: {k}")
+            check(f"{view} @{w}x{h}: {n} panels fold (a step narrower is at most {FOLD_MAX:.2f}x as tall)",
+                  n > 0 and not grew, "; ".join(grew))
+            loose = page.evaluate(FOLD_LOOSE)
+            check(f"{view} @{w}x{h}: every panel on the tab can be dragged and sized", not loose,
+                  ", ".join(loose))
+    page.set_viewport_size({"width": 1600, "height": 1000})
+
+    # Exercises: a panel with a handle, dragged above Songs by its header, and still one
+    # (with its handle) through a run and back.
+    go("practice", 2400)
+    order = page.evaluate(FOLD_ORDER)
+    grip = "#ex-host .mod__head > .mod__grip"
+    check("Exercises is a managed panel with arrows", "exercises" in order
+          and page.locator(grip).count() == 1, str(order))
+    page.evaluate("document.getElementById('ex-host').scrollIntoView({ block: 'center' })")
+    page.wait_for_timeout(300)
+    head = page.locator("#ex-host .mod__head").first.bounding_box()
+    songs = page.locator("[data-panel='songs'] .mod__head").first.bounding_box()
+    if head and songs:
+        page.mouse.move(head["x"] + 60, head["y"] + head["height"] / 2)
+        page.mouse.down()
+        page.mouse.move(head["x"] + 80, head["y"] + 20, steps=4)
+        page.mouse.move(songs["x"] + 40, songs["y"] + songs["height"] / 2, steps=12)
+        page.mouse.up()
+        page.wait_for_timeout(600)
+    after = page.evaluate(FOLD_ORDER)
+    check("Exercises drags by its header (to above Songs)",
+          "exercises" in after and "songs" in after and after.index("exercises") < after.index("songs"),
+          f"{order} -> {after}")
+    page.evaluate("document.querySelector('#ex-host .build .btn')?.click()")
+    page.wait_for_timeout(800)
+    check("an open run keeps the panel's place and a handle",
+          page.evaluate("!!document.querySelector('#ex-host[data-panel=exercises] .exrun')")
+          and page.locator(grip).count() == 1)
+    page.evaluate("[...document.querySelectorAll('.exrun button')].find(b => b.textContent === 'Back to the shelf').click()")
+    page.wait_for_timeout(600)
+    check("back on the shelf: one handle, not two",
+          page.locator(grip).count() == 1 and page.evaluate("!!document.querySelector('#ex-host .build')"))
+    page.evaluate("""() => fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ui: { layout: { practice: [] } } }) })""")
+    page.close()
+    return fails
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=0,
@@ -2294,6 +2417,7 @@ def main() -> int:
             fails.extend(pages_checks(browser, port, errs))
             fails.extend(pages_fix_checks(browser, port, errs))
             fails.extend(resize_checks(browser, port, errs))
+            fails.extend(folding_checks(browser, port, errs))
             browser.close()
     finally:
         if proc is not None:

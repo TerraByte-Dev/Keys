@@ -49,10 +49,11 @@ export default {
       // in Play under the instrument browser, which is the tab you are in when you
       // want a TONE, not when you want something to play along to.
       h('div.col-12', null, library.el),
-      // data-slot names it for a custom page: it is a nested grid, not a layout panel,
-      // so it has no data-panel of its own to be picked by.
-      h('div.grid.col-12', { id: 'ex-host', 'data-slot': 'exercises' },
-        h('div.col-12', null, h('div.empty', null, 'loading exercises...'))),
+      // A panel like the others (drag it, size it): the shelf, or the open run in its
+      // place. data-slot keeps its name 'exercises' whatever the run's title says, for
+      // the saved layout and for a custom page.
+      h('div.col-12', { id: 'ex-host', 'data-slot': 'exercises' },
+        mod('Exercises', null, h('div.empty', null, 'loading exercises...'))),
       h('div.col-6', null, mod('Now', null,
         h('div.stats', { id: 'practice-hud' },
           h('div.empty', null, 'waiting for the first note')),
@@ -171,8 +172,8 @@ async function load(ctx) {
   try {
     shelf = await api.get('/api/exercises');
   } catch (err) {
-    host()?.replaceChildren(h('div.col-12', null,
-      mod('Exercises', null, h('div.empty', null, 'could not load exercises: ' + err.message))));
+    host()?.replaceChildren(
+      mod('Exercises', null, h('div.empty', null, 'could not load exercises: ' + err.message)));
     return;
   }
   paintShelf(ctx);
@@ -195,11 +196,11 @@ function byId(id) {
 function paintShelf(ctx) {
   const list = shelf.exercises || [];
 
-  fill(host(),
-    h('div.col-12', null, mod('Exercises', `${list.length} to work on`,
-      list.length
-        ? h('div.builds', null, list.map((ex) => card(ex, ctx)))
-        : h('div.empty', null, 'no exercise types registered'))));
+  fill(host(), mod('Exercises', `${list.length} to work on`,
+    list.length
+      ? h('div.builds', null, list.map((ex) => card(ex, ctx)))
+      : h('div.empty', null, 'no exercise types registered')));
+  host()?.dispatchEvent(new Event('layout:content'));
 }
 
 function card(ex, ctx) {
@@ -216,6 +217,8 @@ function openRun(ex, ctx, initial = null) {
   current?.destroy?.();
   current = createRunner(ex, ctx, () => back(ctx), initial);
   host()?.replaceChildren(current.el);
+  // The header it is dragged by went with the shelf; layout.js gives the run's its grip.
+  host()?.dispatchEvent(new Event('layout:content'));
 }
 
 function back(ctx) {

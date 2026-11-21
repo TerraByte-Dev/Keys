@@ -124,11 +124,11 @@ export default {
       // col-6, and authored second on purpose. Instruments is the tallest panel in the
       // app (a 287-row scroller plus the profile shelf) and Effects was col-12, so it
       // could not fit beside it -- half of a 1456px row sat empty under the one panel
-      // you always look at first. At col-6 the FX_GRID auto-fit reflows to four columns
+      // you always look at first. At col-6 the .fxgrid auto-fit reflows to four columns
       // and the two pack side by side, which took the tab from 2198px to 1593px.
       h('div.col-6', null, mod('Effects', null,
         h('div.chips__head', null, 'Reverb', h('small.chips__sub', null, 'the room')),
-        h('div', { style: FX_GRID },
+        h('div.fxgrid', null,
           fxKnobs('reverb', s, ctx),
           fxField('fx-send-reverb', 'Reverb send', 0, 1, 0.01, zone?.reverb ?? 0.3,
                   pushSend('reverb', ctx))),
@@ -136,7 +136,7 @@ export default {
         // touch. layout.js watches the panel's height, so opening it repacks the grid.
         h('details.fold', null,
           h('summary', null, 'Chorus', h('small', null, 'movement and thickness')),
-          h('div', { style: FX_GRID },
+          h('div.fxgrid', null,
           fxKnobs('chorus', s, ctx),
           h('label.field', null,
             h('span.field__label', null, h('span', null, 'Shape')),
@@ -366,9 +366,6 @@ const FX_KNOBS = [
   ['chorus', 'depth',   'Depth',      0,   21,  0.1,  6],
 ];
 
-const FX_GRID = {
-  display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0 12px',
-};
 
 function fxKnobs(group, s, ctx) {
   return FX_KNOBS.filter(([g]) => g === group).map(([g, key, label, min, max, step, dflt]) =>
