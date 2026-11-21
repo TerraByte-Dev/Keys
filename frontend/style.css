@@ -949,8 +949,10 @@ body::after {
    not the window's: the same panel is a third of a 1600px tab or the whole of a pane. */
 .grid--packed > [data-panel] { container: panel / inline-size; }
 /* layout.js pack(): a card drawn down to meet the panel below it, so no hole is left
-   above a panel that spans two columns of different heights. */
-.grid--packed > [data-panel] > .mod { min-height: var(--fill, auto); }
+   above a panel that spans two columns of different heights. Added under the content,
+   not set as a min-height: a min-height swallowed the content growing or shrinking
+   inside it, so nothing observing the card saw the change. */
+.grid--packed > [data-panel] > .mod::after { content: ''; display: block; height: var(--fill, 0px); }
 /* Caps, so a control in a full-width panel stays the size of a control. :where() keeps
    them at zero specificity: any panel's own width for a control still wins. */
 :where(.grid--packed > [data-panel]) input[type=range] { max-width: 480px; margin-inline: 0; }   /* the UA 2px each side put every 100%-wide slider 2px past its field */
