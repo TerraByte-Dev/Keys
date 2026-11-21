@@ -1101,6 +1101,12 @@ body::after {
 @container panel (max-width: 380px) {
   .grid--packed .th__roots { flex-basis: 100%; }
 }
+/* Narrower: Build one's three cards stay one row, its two octave steppers one under
+   the other. */
+@container panel (max-width: 560px) {
+  .grid--packed .builds { grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--ctl-h) * 4.4)), 1fr)); }
+  .grid--packed .split__octs { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}
 @container panel (max-width: 380px) {
   .th__chord .th__csym { font-size: 11px; }
   .th__chord .th__croman { font-size: 12px; }
