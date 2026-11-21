@@ -75,7 +75,11 @@ export default {
   },
 
   // What focus (G, or a panel's Focus button) puts full screen: the open run, else Jam.
-  focusTarget() { return current?.el || jam?.el || null; },
+  // A run is only a target where it can be seen.
+  focusTarget() {
+    const run = current?.el;
+    return (run && !run.closest('.is-unpicked') ? run : jam?.el) || null;
+  },
 
   // Focus came or went and the dock changed size with it.
   refocus() { jam?.repaint(); },
@@ -173,7 +177,10 @@ async function load(ctx) {
   }
   paintShelf(ctx);
 
-  // A run survives a tab change, so pick one back up rather than stranding it.
+  // A run survives a tab change, so pick one back up rather than stranding it. Not
+  // into a page that did not pick the shelf: it would run there unseen, with no Stop.
+  // It waits on the server, as it does on any other tab, for a Practice that shows it.
+  if (ctx.panels && !ctx.panels.includes('exercises')) return;
   try {
     const st = await api.get('/api/exercises/state');
     const ex = st?.running && byId(st.exercise);

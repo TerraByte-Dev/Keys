@@ -111,15 +111,24 @@ export async function savePages(list) {
 
 /* ── the page itself ──────────────────────────────────────────────────────── */
 /* A header strip and the panes. Columns as asked, as many rows as the panes need --
-   which makes four panes at two columns the 2x2. Each pane scrolls on its own. */
+   which makes four panes at two columns the 2x2. Each pane scrolls on its own.
+
+   One row fills the stage. More than one cannot all fit: shared out of a 720px window
+   they were 120-190px slivers, each with its own scrollbar. So every row gets at least
+   ROW_MIN and the page scrolls past that. One column is not a grid at all but a stack:
+   each pane as tall as what it holds, and the page the only scroller. */
+const ROW_MIN = 420;
+
 export function pageShell(page, { onEdit }) {
   const n = page.panes.length;
   const cols = Math.max(1, Math.min(page.cols, n));
+  const rows = Math.ceil(n / cols);
+  const stack = cols === 1 && n > 1;
   const panes = page.panes.map((p) => ({
     ...p,
     el: h('div.page__pane', { 'data-view': p.view }),
   }));
-  const el = h('div.page', { 'data-page': page.id },
+  const el = h('div.page' + (stack ? '.page--stack' : ''), { 'data-page': page.id },
     h('div.page__head', null,
       h('span.page__name', null, page.name),
       h('span.page__sub', null, page.panes.map((p) => VIEW_TITLES[p.view]).join(' · ')),
@@ -129,7 +138,8 @@ export function pageShell(page, { onEdit }) {
     h('div.page__panes', {
       style: {
         gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-        gridTemplateRows: `repeat(${Math.ceil(n / cols)}, minmax(0, 1fr))`,
+        gridTemplateRows: stack ? 'none'
+          : rows === 1 ? 'minmax(0, 1fr)' : `repeat(${rows}, minmax(${ROW_MIN}px, 1fr))`,
       },
     }, panes.map((p) => p.el)));
   return { el, panes };
@@ -168,6 +178,7 @@ export function pickPanels(pane, panels) {
 /* In the stage, no browser dialogs. `page` is null for a new one. */
 export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
   const draft = {
+    start: page ? null : 'solo',      // the starter the draft still matches, if any
     name: page?.name || '',
     cols: page?.cols || 2,
     order: [],                        // views, in pane order
@@ -195,7 +206,9 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
 
   function paint() {
     starters.replaceChildren(...Object.entries(STARTERS).map(([key, s]) =>
-      h('button.seg__btn', { 'data-start': key, onclick: () => { load(s); paint(); } }, s.label)));
+      h('button.seg__btn' + (key === draft.start ? '.is-on' : ''), {
+        'data-start': key, onclick: () => { load(s); draft.start = key; paint(); },
+      }, s.label)));
     checks.replaceChildren(...PAGE_VIEWS.map((view) =>
       h('div.pb__group', null,
         h('div.pb__gtitle', null, VIEW_TITLES[view]),
@@ -209,7 +222,7 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
             h('span.toggle__track'), p.title)))));
     colsSeg.replaceChildren(...[1, 2, 3].map((n) =>
       h('button.seg__btn' + (n === draft.cols ? '.is-on' : ''), {
-        onclick: () => { draft.cols = n; paint(); },
+        onclick: () => { if (n !== draft.cols) draft.start = null; draft.cols = n; paint(); },
       }, String(n))));
     orderList.replaceChildren(...(draft.order.length
       ? draft.order.map((view, i) => h('div.pb__row', { 'data-view': view },
@@ -229,6 +242,7 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
     if (on) set.add(slug); else set.delete(slug);
     if (set.size && !draft.order.includes(view)) draft.order.push(view);
     if (!set.size) draft.order = draft.order.filter((v) => v !== view);
+    draft.start = null;               // your own now, not the starter's
     note.hidden = true;
     paint();
   }
@@ -237,6 +251,7 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
     const j = i + by;
     if (j < 0 || j >= draft.order.length) return;
     [draft.order[i], draft.order[j]] = [draft.order[j], draft.order[i]];
+    draft.start = null;
     paint();
   }
 

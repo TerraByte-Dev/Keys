@@ -201,7 +201,7 @@ class Keyboard {
     this._marks = new Map();           // name -> { cur, spare }, see setMarks()
     this._modes = new Set();           // board-wide kb--<name> classes, see setMode()
     this._sustained = new Set();
-    this._forced = new Set();
+    this._forced = new Map();          // midi -> Map(owner -> text), see setKeyLabel()
     this._pointers = new Map();        // pointerId -> midi currently sounding
 
     this._sustain = false;
@@ -487,21 +487,46 @@ class Keyboard {
     cl.add('kb--labels-' + this._labels);
   }
 
-  setKeyLabel(midi, text) {
+  /* Labels have OWNERS too, for the same reason highlights do. Jam relabels the key it
+     wants you to land on every bar and clears its labels first, and with one shared set
+     that wiped the touch-setting keys' FIXED/SOFT/MEDIUM/HARD a second after you asked
+     for them, on a page with both. A writer clears only its own owner; the last label
+     set on a key is the one shown, and clearing it shows the one beneath.
+     clearAllLabels() is the router's "everything off". */
+  setKeyLabel(midi, text, owner = 'main') {
     const el = this._label[midi];
     if (this._destroyed || !el) return;
-    el.textContent = String(text);
-    el.classList.add('is-forced');
-    this._forced.add(midi);
+    let own = this._forced.get(midi);
+    if (!own) this._forced.set(midi, (own = new Map()));
+    own.delete(owner);                 // to the end: the newest label is the one shown
+    own.set(owner, String(text));
+    this._showLabel(midi);
   }
 
-  clearLabels() {
+  clearLabels(owner = 'main') {
     if (this._destroyed) return;
-    for (const n of this._forced) {
-      this._label[n].textContent = this._defaultLabel[n];
-      this._label[n].classList.remove('is-forced');
+    for (const [n, own] of this._forced) {
+      if (!own.delete(owner)) continue;
+      if (!own.size) this._forced.delete(n);
+      this._showLabel(n);
     }
+  }
+
+  clearAllLabels() {
+    if (this._destroyed) return;
+    const keys = [...this._forced.keys()];
     this._forced.clear();
+    for (const n of keys) this._showLabel(n);
+  }
+
+  _showLabel(n) {
+    const el = this._label[n];
+    if (!el) return;
+    const own = this._forced.get(n);
+    let text = null;
+    if (own) for (const t of own.values()) text = t;
+    el.textContent = text ?? this._defaultLabel[n];
+    el.classList.toggle('is-forced', text !== null);
   }
 
   /**

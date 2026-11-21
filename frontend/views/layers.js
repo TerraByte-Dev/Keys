@@ -78,6 +78,16 @@ function octLabel(semitones) {
 
 let zones = [];
 let instruments = [];
+/* `zones` is this editor's working copy. On its own tab nothing else changed the engine
+   while it was up; on a page Play sits beside it, and an instrument picked there left
+   this copy stale -- the next toggle here posted it and quietly undid the pick. So the
+   copy remembers which engine zones it was taken from (`base`) and whether anything has
+   been edited here since (`dirty`), and takes the engine's again whenever they moved
+   and nothing is mid-edit. An edit made here and applied here still wins: Apply means
+   "make it this", and the cards show what "this" is. */
+let base = '';
+let dirty = false;
+const sigOf = (list) => JSON.stringify(list || []);
 /* The split builder's two octave steppers, in semitones. Held here rather than read
    back off the DOM because a stepper has no input to read -- and rebuilt on mount, so
    opening the tab twice does not inherit the last visit's shift. */
@@ -98,8 +108,7 @@ function splitOctField(hand, label) {
 
 export default {
   async mount(root, ctx) {
-    zones = (ctx.state.engine?.zones || []).map((z) => ({ ...z }));
-    if (!zones.length) zones = [blank(0)];
+    adopt(ctx.state.engine?.zones);
     splitOct = { left: 0, right: 0 };
 
     root.append(h('div.grid', null,
@@ -109,11 +118,11 @@ export default {
         `${noteName(LO())} to ${noteName(HI())} — ${HI() - LO() + 1} keys`,
         h('div.zonebar', { id: 'zonebar' }),
         h('div.btnrow', null,
-          h('button.btn', { onclick: () => { zones.push(blank(zones.length)); render(ctx); } },
+          h('button.btn', { onclick: () => { edit(); zones.push(blank(zones.length)); render(ctx); } },
             '+ Add zone'),
           h('button.btn', { onclick: () => apply(ctx) }, 'Apply'),
           h('button.btn', { onclick: () => saveAs(ctx) }, 'Save as preset...'),
-          h('button.btn', { onclick: () => { zones = [blank(0)]; render(ctx); } }, 'Reset')))),
+          h('button.btn', { onclick: () => { edit(); zones = [blank(0)]; render(ctx); } }, 'Reset')))),
 
       h('div.col-12', null, mod('Build one', 'a click each',
         info(
@@ -197,8 +206,31 @@ export default {
     render(ctx);
   },
 
+  // The heartbeat: Play's pick, a profile load, anything that set ctx.state.engine.
+  status(s, ctx) { catchUp(ctx); },
+
   unmount() {},
 };
+
+function adopt(live) {
+  zones = (live || []).map((z) => ({ ...z }));
+  if (!zones.length) zones = [blank(0)];
+  base = sigOf(live);
+  dirty = false;
+}
+
+const edit = () => { dirty = true; };
+
+/* The engine's zones moved under this copy and nothing here is mid-edit: take them.
+   ctx.state.engine rather than the status frame's, because every writer sets it the
+   moment its POST answers, and a status frame in flight can be older than that. */
+function catchUp(ctx) {
+  const live = ctx.state.engine?.zones;
+  if (!live || dirty || sigOf(live) === base) return false;
+  adopt(live);
+  render(ctx);
+  return true;
+}
 
 /* Paint a key range on the docked keyboard while a slider sets it, then let go. */
 let ghostTimer = null;
@@ -364,24 +396,35 @@ function drawBar() {
 
 function zoneCard(z, i, ctx) {
   const colour = zoneColour(i);
-  const set = (k, v) => { z[k] = v; drawBar(); };
+  const set = (k, v) => { z[k] = v; edit(); drawBar(); };
 
   return h('div.zone', null,
     h('div.zone__head', null,
       h('span.zone__swatch', { style: { background: colour } }),
       h('input', {
         type: 'text', value: z.id, style: { width: '110px' },
-        onchange: (e) => { z.id = e.target.value.trim() || 'zone' + (i + 1); },
+        onchange: (e) => { z.id = e.target.value.trim() || 'zone' + (i + 1); edit(); },
       }),
       h('span.zone__name', { id: `zname-${i}` }, z.name || instrumentName(z)),
       h('label.toggle', null,
         h('input', {
           type: 'checkbox', checked: z.enabled,
-          onchange: (e) => { set('enabled', e.target.checked); apply(ctx); },
+          // Applies at once, so it applies to the engine as it is NOW: if Play changed
+          // it since this card was drawn, the toggle lands on the fresh zone instead.
+          onchange: (e) => {
+            const on = e.target.checked;
+            const fresh = catchUp(ctx) ? zones.find((x) => x.id === z.id) : z;
+            if (!fresh) return;
+            fresh.enabled = on;
+            if (fresh !== z) render(ctx); else drawBar();
+            apply(ctx);
+          },
         }),
         h('span.toggle__track'), 'On'),
       h('button.btn', {
-        onclick: () => { zones.splice(i, 1); if (!zones.length) zones = [blank(0)]; render(ctx); },
+        onclick: () => {
+          edit(); zones.splice(i, 1); if (!zones.length) zones = [blank(0)]; render(ctx);
+        },
       }, 'Remove')),
 
     h('div.zone__grid', null,
@@ -415,6 +458,7 @@ function zoneCard(z, i, ctx) {
             const inst = instruments[Number(e.target.value)];
             if (!inst) return;
             z.bank = inst.bank; z.program = inst.program; z.name = inst.name;
+            edit();
             $(`#zname-${i}`).textContent = inst.name;
             if (inst.drums && z.channel !== 9) toast('Drum kits usually want channel 9', '', 2600);
             drawBar();
@@ -489,6 +533,8 @@ async function apply(ctx, label) {
   try {
     const res = await api.post('/api/zones', { zones, name: label || '' });
     ctx.state.engine = res.engine;
+    base = sigOf(res.engine?.zones);
+    dirty = false;
     for (const w of res.warnings || []) toast(w, 'bad', 8000);
     if (!res.warnings?.length) toast(label || 'Applied', 'good', 2200);
     // No chord. This used to demonstrate the split by sounding each zone in its own

@@ -2869,5 +2869,28 @@ body.is-focusing .page__pane { container-type: normal; overflow: hidden; padding
 .pb__rname { font-weight: 600; color: var(--ink); }
 .pb__rsub { font-size: 12px; color: var(--ink-faint); }
 .pb__note { margin-top: 12px; }
-.pb__foot { margin-top: 18px; align-items: center; }
 .pb__ask { display: flex; align-items: center; gap: 8px; color: var(--ink); }
+
+/* More than one row of panes: each row has a floor (pages.js ROW_MIN) and the panes
+   area scrolls past it, rather than sharing a short window out as slivers. */
+.page__panes { overflow-y: auto; overflow-x: hidden; }
+.page__panes::-webkit-scrollbar { width: 8px; }
+.page__panes::-webkit-scrollbar-thumb { background: var(--panel-4); border-radius: 4px; }
+.page__panes::-webkit-scrollbar-track { background: transparent; }
+/* One column: a stack, each pane as tall as its panels, the page the only scroller. */
+.page--stack .page__panes { grid-auto-rows: max-content; align-content: start; }
+.page--stack .page__pane { overflow-x: clip; overflow-y: visible; }
+
+/* Chords & scales in a pane a third of a window wide: twelve root buttons and a 430px
+   diagram do not fit in 350px, and the pane does not scroll sideways -- Bb and B were
+   past its edge, unreachable. The roots wrap and the diagram shrinks to the pane. */
+.page__pane .th__roots { flex-wrap: wrap; }
+.page__pane .th__board { flex: 0 1 430px; min-width: 0; }
+
+/* The builder is taller than a window; Save stays where you can reach it. */
+.pb__foot {
+  position: sticky; bottom: 0; z-index: 2;
+  margin: 18px -18px -18px; padding: 12px 18px; align-items: center;
+  background: var(--panel-0); border-top: 1px solid var(--hairline);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}

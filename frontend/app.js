@@ -16,7 +16,7 @@ import { createKeyboard } from './keyboard.js';
 import { createRoll } from './roll.js';
 import { createGhost } from './ghost.js';
 import { createSongs } from './songs.js';
-import { attachLayout, primeLayout } from './layout.js';
+import { attachLayout, detachLayout, primeLayout } from './layout.js';
 import { MAX_PAGES, fullWidth, pageBuilder, pageShell, pickPanels, savePages,
   validPages } from './pages.js';
 import { $, api, h, hms, noteName, paint as paintSlider, toast } from './ui.js';
@@ -436,7 +436,7 @@ async function route() {
   unmountAll();
   ctx.kb.clearHighlights();
   ctx.kb.setGhost([]);
-  ctx.kb.clearLabels();
+  ctx.kb.clearAllLabels();
   stage.replaceChildren();
   const seq = ++routeSeq;
   currentId = id;
@@ -453,7 +453,7 @@ async function route() {
 /* `layoutKey` is what layout.js saves the arrangement under: the view id on its own
    tab, `page:<id>:<view>` in a page pane, so a page never rearranges the real tab. */
 async function mountView(id, view, root, layoutKey, seq, panels = null) {
-  const m = { id, view, root, layoutKey, panels, ctx: viewCtx(id) };
+  const m = { id, view, root, layoutKey, panels, ctx: viewCtx(id, panels) };
   mounted.push(m);
   await view.mount?.(root, m.ctx);
   // Routed away (or remounted) while mount() was awaiting: the pane is not ours now.
@@ -481,18 +481,34 @@ async function mountPage(page, seq) {
 function unmountAll() {
   const was = mounted;
   mounted = [];
-  for (const m of was) m.view.unmount?.(m.ctx);
+  for (const m of was) unmountOne(m);
 }
 
-function viewCtx(id) {
-  return Object.create(ctx, { refresh: { value: () => refresh(id) } });
+/* The view's own teardown, then layout.js's: its observers and window listener would
+   otherwise keep the thrown-away grids (and the views around them) alive. */
+function unmountOne(m) {
+  m.view.unmount?.(m.ctx);
+  for (const grid of m.root.querySelectorAll('.grid')) detachLayout(grid);
+}
+
+/* `panels` is what the page picked from this view (null on its own tab), so a view can
+   leave alone what is not on screen -- Practice does not resume a run into a hidden shelf. */
+function viewCtx(id, panels = null) {
+  return Object.create(ctx, {
+    refresh: { value: () => refresh(id) },
+    panels: { value: panels },
+  });
 }
 
 /* Re-pull /api/state and rebuild. From a view on a page, only that view's pane. */
 async function refresh(viewId = null) {
   ctx.state = await api.get('/api/state');
-  const m = viewId && currentId?.startsWith('page/')
-    ? mounted.find((x) => x.id === viewId) : null;
+  // The pages came with it. Held only in memory between saves, they could otherwise
+  // drift from the file (a settings reset) and a later save would put back what went.
+  pages = validPages(ctx.state.settings?.ui?.pages);
+  paintNav();
+  const onPage = pages.some((p) => currentId === `page/${p.id}`);
+  const m = viewId && onPage ? mounted.find((x) => x.id === viewId) : null;
   if (!m) {
     currentId = null;          // force a rebuild against the new state
     await route();
@@ -500,7 +516,7 @@ async function refresh(viewId = null) {
   }
   if (focusing && m.root.querySelector('[data-focus="on"]')) toggleFocus(false);
   mounted = mounted.filter((x) => x !== m);
-  m.view.unmount?.(m.ctx);
+  unmountOne(m);
   m.root.replaceChildren();
   await mountView(m.id, m.view, m.root, m.layoutKey, routeSeq, m.panels);
 }
@@ -527,14 +543,28 @@ function openBuilder(page) {
   stage.append(pageBuilder(page, {
     count: pages.length,
     onCancel: () => { location.hash = page ? `page/${page.id}` : lastRoute; },
+    // Each edits the list as it is on disk now, not as it was when the builder opened.
     onSave: async (next) => {
-      const list = page ? pages.map((p) => (p.id === page.id ? next : p)) : [...pages, next];
+      const now = await pagesOnDisk();
+      if (!now) return;
+      const list = now.some((p) => p.id === next.id)
+        ? now.map((p) => (p.id === next.id ? next : p)) : [...now, next];
       if (await storePages(list)) location.hash = `page/${next.id}`;
     },
     onDelete: async () => {
-      if (await storePages(pages.filter((p) => p.id !== page.id))) location.hash = 'play';
+      const now = await pagesOnDisk();
+      if (now && await storePages(now.filter((p) => p.id !== page.id))) location.hash = 'play';
     },
   }));
+}
+
+async function pagesOnDisk() {
+  try {
+    return validPages((await api.get('/api/settings'))?.ui?.pages);
+  } catch (err) {
+    toast(err.message, 'bad');
+    return null;
+  }
 }
 
 async function storePages(list) {
@@ -639,8 +669,7 @@ function fullWindow(on, { keepFullscreen = false } = {}) {
    nothing to react to and leaving is removing a class. Leaving does not stop the band:
    unlike the roll, Jam has a smaller view to fall back into. */
 let focusing = false;
-let focusScroll = 0;
-let focusScroller = null;
+let focusScrolls = [];  // [element, scrollTop] for each scroller focus collapses
 let focusLeftAt = -1e9;
 
 export function toggleFocus(on, { target = null, keepFullscreen = false } = {}) {
@@ -650,9 +679,10 @@ export function toggleFocus(on, { target = null, keepFullscreen = false } = {}) 
     if (immersive) return false;
     const el = target || focusTarget();
     if (!el || !stage.contains(el)) return false;
-    // On a page the pane scrolls, not the stage; that is the position to come back to.
-    focusScroller = el.closest('.page__pane') || stage;
-    focusScroll = focusScroller.scrollTop;
+    // On a page the pane scrolls, and with more than one row so does the panes area;
+    // those are the positions to come back to.
+    focusScrolls = [el.closest('.page__pane'), el.closest('.page__panes'), stage]
+      .filter(Boolean).map((n) => [n, n.scrollTop]);
     el.dataset.focus = 'on';
     for (let n = el.parentElement; n && n !== stage; n = n.parentElement) n.dataset.focus = 'path';
     focusing = true;
@@ -677,7 +707,7 @@ export function toggleFocus(on, { target = null, keepFullscreen = false } = {}) 
     // them, but kick it once so the restore does not hang on observer timing.
     if (!focusing) {
       for (const g of stage.querySelectorAll('.grid')) g.repack?.();
-      if (focusScroller) focusScroller.scrollTop = focusScroll;
+      for (const [n, top] of focusScrolls) n.scrollTop = top;
     }
     // The dock just changed size: put the marks back now, not on the next status frame.
     for (const m of mounted) m.view.refocus?.();
