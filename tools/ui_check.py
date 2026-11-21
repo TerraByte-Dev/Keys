@@ -696,6 +696,82 @@ def jam_checks(browser, port: int, errs: list[str]) -> list[str]:
     return fails
 
 
+# -- Jam on one screen, and folding rather than growing -----------------------------
+# Jam's panel against the room it has, the band playing: wholly inside the stage's
+# visible box on Practice (dock showing, nothing scrolled), and inside a half-width page
+# pane. Then the folding rule: each step narrower -- Practice's own arrows, then page
+# panes of one, two and three columns -- may leave it at most JAM_FOLD times as tall as
+# the step before. Measured with the band stopped, whose coach line is fixed, so the
+# heights compare like with like.
+JAM_FIT_SIZES = ((1600, 1000), (1280, 800))
+JAM_FOLD = 1.15
+JAM_BOX = """(pane) => {
+  const root = pane ? document.querySelector('.page__pane[data-view="practice"]') : document;
+  const mod = root.querySelector('.mod:has(> .jam)'), m = mod.getBoundingClientRect();
+  const box = (pane ? root : document.getElementById('stage')).getBoundingClientRect();
+  const st = pane ? root : document.getElementById('stage');
+  return { top: Math.round(m.top), bottom: Math.round(m.bottom), w: Math.round(m.width), h: Math.round(m.height),
+           boxTop: Math.round(box.top), boxBottom: Math.round(box.bottom), scrolled: Math.round(st.scrollTop) };
+}"""
+# Jam's panel held at a span for a moment, inline and unsaved (the arrows save a layout,
+# and refuse a span that would leave a hole beside it -- the width is what is measured).
+JAM_SPAN = """async (n) => { const col = document.querySelector('[data-panel]:has(> .mod > .jam)');
+  col.style.gridColumn = n ? `span ${n}` : ''; await new Promise((r) => setTimeout(r, 400));
+  const m = col.querySelector('.mod').getBoundingClientRect(); return [Math.round(m.width), Math.round(m.height)]; }"""
+
+
+def jam_fit_checks(browser, port: int, errs: list[str]) -> list[str]:
+    fails: list[str] = []
+    page = browser.new_page(viewport={"width": 1600, "height": 1000})
+    page.on("pageerror", lambda e: errs.append(str(e)))
+
+    def check(label: str, passed: bool, detail: str = "") -> None:
+        print(f"  [{'PASS' if passed else 'FAIL'}] {label}" + (f" -- {detail}" if detail else ""))
+        if not passed:
+            fails.append(f"jam fit: {label} {detail}".strip())
+
+    print("\njam fits, and folds")
+    base = f"http://127.0.0.1:{port}"
+    panes = [{"view": "practice", "panels": ["jam"]}, {"view": "tools", "panels": ["chords-scales"]},
+             {"view": "play", "panels": ["tempo"]}]
+    page.request.post(f"{base}/api/settings", data={"ui": {
+        "jam": {"music": "pop", "game": "solo", "level": 2, "key": "C-major", "pin": "off", "bars": 1},
+        "pages": [{"id": f"jamfit{n}", "name": f"Jam fit {n}", "cols": n, "panes": panes[:n]} for n in (1, 2, 3)]}})
+    for w, h in JAM_FIT_SIZES:
+        page.set_viewport_size({"width": w, "height": h})
+        page.goto(f"{base}/#practice", wait_until="networkidle")
+        page.wait_for_timeout(2200)
+        page.click(".mod:has(> .jam) .jam__go")
+        page.wait_for_timeout(2600)
+        b = page.evaluate(JAM_BOX, False)
+        check(f"Practice at {w}x{h}: the whole of Jam is on screen, the band playing",
+              b["scrolled"] == 0 and b["top"] >= b["boxTop"] and b["bottom"] <= b["boxBottom"], str(b))
+        page.click(".mod:has(> .jam) .jam__go")
+        page.wait_for_timeout(500)
+        heights = [tuple(page.evaluate(JAM_SPAN, n)) for n in (12, 8, 6, 4)]
+        page.evaluate(JAM_SPAN, 0)
+        for n in (1, 2, 3):
+            page.evaluate(f"location.hash = 'page/jamfit{n}'")
+            page.wait_for_timeout(2400)
+            if n == 2 and w == 1600:
+                page.click(".page__pane[data-view='practice'] .jam__go")
+                page.wait_for_timeout(2600)
+                b = page.evaluate(JAM_BOX, True)
+                check("a half-width page pane at 1600x1000: the whole of Jam in it, the band playing",
+                      b["scrolled"] == 0 and b["top"] >= b["boxTop"] and b["bottom"] <= b["boxBottom"], str(b))
+                page.click(".page__pane[data-view='practice'] .jam__go")
+                page.wait_for_timeout(500)
+            b = page.evaluate(JAM_BOX, True)
+            heights.append((b["w"], b["h"]))
+        heights.sort(key=lambda x: -x[0])
+        grew = [f"{a[0]}px {a[1]} -> {c[0]}px {c[1]}" for a, c in zip(heights, heights[1:])
+                if c[0] < a[0] - 8 and c[1] > a[1] * JAM_FOLD]
+        check(f"...narrower folds Jam, it never grows it past {JAM_FOLD:.2f}x ({w}x{h})", not grew,
+              "; ".join(grew) or " ".join(f"{x}:{y}" for x, y in heights))
+    page.request.post(f"{base}/api/settings", data={"ui": {"pages": []}})
+    page.close()
+    return fails
+
 # -- the transport: bar steps, Go to bar, loop by bars, the scrub, the sheet ---------
 # A song written here rather than shipped: one note per beat, numbered 1..TR_BARS, long
 # enough that the engraving runs to more than one page. Every expected value below is
@@ -1388,7 +1464,7 @@ def pages_checks(browser, port: int, errs: list[str]) -> list[str]:
     # 1. The builder's panel list is the panels the views really render.
     registry = page.evaluate("async () => (await import('/pages.js')).PANELS")
     every = {}
-    for view in ("play", "practice", "layers", "tools"):
+    for view in ("play", "practice", "layers", "tools", "stats"):
         go(view)
         dom = page.evaluate(DOM_PANELS)
         every[view] = dom
@@ -1859,6 +1935,210 @@ def pages_fix_checks(browser, port: int, errs: list[str]) -> list[str]:
     return fails
 
 
+# ── the nav: folded to icons, a page's icon, its right-click menu; the builder's foot ──
+# Per pane of the page on screen: the gap from the last panel of one pane to the first
+# panel of the next (the panels' own edges, which is what the eye reads as the gap),
+# and the width of each pane's scrollbar.
+PANE_GAPS = """() => {
+  const panes = [...document.querySelectorAll('.page__pane')];
+  const edge = (p, side) => {
+    const xs = [...p.querySelectorAll(':scope > .grid > [data-panel]')]
+      .filter((e) => e.getBoundingClientRect().height > 0)
+      .map((e) => e.getBoundingClientRect()[side]);
+    return side === 'right' ? Math.max(...xs) : Math.min(...xs);
+  };
+  const gaps = [];
+  for (let i = 1; i < panes.length; i++) {
+    const a = panes[i - 1].getBoundingClientRect(), b = panes[i].getBoundingClientRect();
+    if (Math.abs(a.top - b.top) > 2) continue;       // the next row, not the next column
+    gaps.push(Math.round(edge(panes[i], 'left') - edge(panes[i - 1], 'right')));
+  }
+  return { gaps, bars: panes.map((p) => p.offsetWidth - p.clientWidth) };
+}"""
+
+# The builder card, its scrolling middle and its footer, measured.
+FOOT = """() => {
+  const card = document.querySelector('.page__builder > .mod').getBoundingClientRect();
+  const body = document.querySelector('.pb__body');
+  const foot = document.getElementById('pb-foot').getBoundingClientRect();
+  const stage = document.getElementById('stage');
+  return { cardBottom: Math.round(card.bottom), footBottom: Math.round(foot.bottom),
+           footTop: Math.round(foot.top), stageBottom: Math.round(stage.getBoundingClientRect().bottom),
+           stageScrolls: stage.scrollHeight > stage.clientHeight + 1,
+           bodyScrolls: body.scrollHeight > body.clientHeight + 1 };
+}"""
+
+
+def nav_checks(browser, port: int, errs: list[str]) -> list[str]:
+    """The nav folded to icons and back, saved; a page's icon from the builder's picker;
+    right-click Edit / Rename / Delete, inline; the builder's footer on its bottom edge;
+    Stats on a page; and panes that read as one workspace."""
+    fails: list[str] = []
+    page = browser.new_page(viewport={"width": 1600, "height": 1000})
+    page.on("pageerror", lambda e: errs.append(str(e)))
+
+    def check(label: str, passed: bool, detail: str = "") -> None:
+        print(f"  [{'PASS' if passed else 'FAIL'}] {label}" + (f" -- {detail}" if detail else ""))
+        if not passed:
+            fails.append(f"nav: {label} {detail}".strip())
+
+    def go(hash_: str, wait: int = 2200) -> None:
+        page.evaluate(f"location.hash = '{hash_}'")
+        page.wait_for_timeout(wait)
+
+    print("\nthe nav: folding, page icons, the right-click menu; the builder's foot; Stats on a page")
+    page.goto(f"http://127.0.0.1:{port}/#play", wait_until="networkidle")
+    # The tour put away again: the Settings reset in the section before brought it back.
+    page.evaluate("""() => fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ui: { tour_seen: true } }) })""")
+    page.reload(wait_until="networkidle")
+    page.wait_for_timeout(1600)
+    saved_pages =page.evaluate("async () => (await (await fetch('/api/settings')).json()).ui.pages || []")
+
+    # 1. Fold: icons only, each named by its tooltip, the number keys as before, kept.
+    page.click("#nav-fold")
+    page.wait_for_timeout(500)
+    folded = page.evaluate("""() => ({
+      w: document.getElementById('nav').getBoundingClientRect().width,
+      labels: [...document.querySelectorAll('#nav .nav__label, #nav .nav__key')]
+        .filter((e) => e.getBoundingClientRect().width > 0).length,
+      untitled: [...document.querySelectorAll('#nav .nav__item')].filter((a) => !a.title).length,
+      stage: document.getElementById('stage').getBoundingClientRect().left })""")
+    check("Fold: the nav is a ~52px strip of icons, no label or key chip showing, every item titled",
+          folded["w"] <= 56 and folded["labels"] == 0 and folded["untitled"] == 0, str(folded))
+    page.evaluate("document.activeElement?.blur?.()")
+    page.keyboard.press("2")
+    page.wait_for_timeout(1500)
+    check("...the number keys still change tab", page.evaluate("location.hash") == "#practice")
+    page.reload(wait_until="networkidle")
+    page.wait_for_timeout(1600)
+    kept = page.evaluate("""async () => ({ body: document.body.classList.contains('is-navfold'),
+      saved: (await (await fetch('/api/settings')).json()).ui.nav_collapsed })""")
+    check("...and it stays folded after a reload (ui.nav_collapsed)", kept["body"] and kept["saved"] is True, str(kept))
+    page.click("#nav-fold")
+    page.wait_for_timeout(500)
+    w = page.evaluate("document.getElementById('nav').getBoundingClientRect().width")
+    saved = page.evaluate("async () => (await (await fetch('/api/settings')).json()).ui.nav_collapsed")
+    check("...and unfolds to its full width, saved", w >= 170 and saved is False, f"{w}px, saved {saved}")
+
+    # 2. The builder: an icon picker, and the footer on the card's bottom edge.
+    for vw, vh in ((1280, 720), (1600, 1000)):
+        page.set_viewport_size({"width": vw, "height": vh})
+        go("page/new", 900)
+        f = page.evaluate(FOOT)
+        page.evaluate("document.querySelector('.pb__body').scrollTop = 99999")
+        page.wait_for_timeout(200)
+        g = page.evaluate(FOOT)
+        check(f"builder @{vw}x{vh}: the footer is the card's bottom edge, inside the stage, the stage "
+              "itself not scrolling, and it does not move when the middle scrolls",
+              abs(f["cardBottom"] - f["footBottom"]) <= 2 and f["footBottom"] <= f["stageBottom"]
+              and not f["stageScrolls"] and f["footTop"] == g["footTop"], f"{f} / {g}")
+    page.set_viewport_size({"width": 1600, "height": 1000})
+    go("page/new", 900)
+    # One surface, no group setting the height of the lot: at 1600x1000 the whole builder
+    # (name, icon, every panel, the panes in order) shows without scrolling its middle.
+    fit = page.evaluate("""() => { const b = document.querySelector('.pb__body');
+      const gs = [...document.querySelectorAll('.pb__group')].map((g) => g.scrollHeight);
+      return { scroll: b.scrollHeight - b.clientHeight, tallest: Math.max(...gs) }; }""")
+    check("builder @1600x1000: everything shows without scrolling, no panel group over 260px tall",
+          fit["scroll"] <= 1 and fit["tallest"] <= 260, str(fit))
+    icons = page.evaluate("[...document.querySelectorAll('#pb-icon [data-icon]')].map((b) => b.dataset.icon)")
+    real = page.evaluate("async () => (await import('/icons.js')).ICON_NAMES")
+    check("the builder offers every preset icon", len(icons) >= 24 and icons == real, f"{len(icons)} of {len(real)}")
+    page.click("#pb-start [data-start='blank']")
+    page.click("label:has(> input[data-view='stats'][data-slug='all-time'])")
+    page.click("label:has(> input[data-view='stats'][data-slug='keys-you-have-played'])")
+    page.click("label:has(> input[data-view='practice'][data-slug='now'])")
+    page.click("#pb-icon [data-icon='drum']")
+    page.fill("#pb-name", "Nav check")
+    page.click("#pb-save")
+    page.wait_for_function("/^#page\\/p[a-z0-9]+$/.test(location.hash)", timeout=5000)
+    page.wait_for_timeout(2600)
+    pid = page.evaluate("location.hash.slice(6)")
+    stored = page.evaluate("""async (id) => (await (await fetch('/api/settings')).json()).ui.pages
+      .find((p) => p.id === id)""", pid)
+    drawn = page.evaluate("(id) => document.querySelector(`#nav-pages [data-page='${id}'] svg`)?.innerHTML", pid)
+    want = page.evaluate("async () => (await import('/icons.js')).icon('drum').innerHTML")
+    check("...the picked icon is saved with the page and drawn on its nav item",
+          (stored or {}).get("icon") == "drum" and drawn == want, str(stored)[:200])
+    bad = page.evaluate("""async () => (await import('/pages.js')).validPages([{ id: 'x', icon: 'bogus',
+      panes: [{ view: 'stats', panels: ['all-time'] }] }])[0].icon""")
+    check("...and an icon this build does not draw loads as the default", bad == "note", repr(bad))
+
+    # 3. Stats on a page: exactly what was picked, the pane's width, and still so after it
+    #    refreshes itself (which replaces every panel it has).
+    shown = {p["view"]: sorted(p["shown"]) for p in page.evaluate(SHOWN)}
+    check("Stats is on the page with only the panels picked",
+          shown.get("stats") == ["all-time", "keys-you-have-played"], str(shown))
+    page.wait_for_timeout(5200)          # stats.js REFRESH_MS
+    page.evaluate("""async () => { const v = (await import('/views/stats.js')).default;
+      v.status({ practice: { today_notes: 1 } }); v.status({ practice: { today_notes: 2 } }); }""")
+    page.wait_for_timeout(2000)
+    after = page.evaluate("""() => { const pane = document.querySelector('.page__pane[data-view="stats"]');
+      const grid = pane.querySelector(':scope > .grid'), gw = grid.getBoundingClientRect().width;
+      const vis = [...grid.children].filter((e) => e.getBoundingClientRect().height > 0);
+      return { shown: vis.map((e) => e.dataset.panel).sort(), narrow: vis.filter((e) =>
+        e.getBoundingClientRect().width < gw - 2).map((e) => e.dataset.panel) }; }""")
+    check("...and after Stats refreshes itself, still only those, each the pane's full width",
+          after["shown"] == ["all-time", "keys-you-have-played"] and not after["narrow"], str(after))
+
+    # 4. Panes as one workspace: panel to panel across a pane edge is the grid's own 14px,
+    #    and no pane draws a scrollbar wider than a hairline.
+    two = [p for p in saved_pages if p.get("cols") == 2 and len(p.get("panes", [])) >= 2]
+    target = two[0]["id"] if two else pid
+    for vw, vh in ((1600, 1000), (1280, 800)):
+        page.set_viewport_size({"width": vw, "height": vh})
+        go(f"page/{target}", 2600)
+        g = page.evaluate(PANE_GAPS)
+        check(f"panes @{vw}x{vh}: 14px from one pane's panels to the next's, scrollbars a hairline at most",
+              g["gaps"] and all(12 <= x <= 16 for x in g["gaps"]) and all(b <= 4 for b in g["bars"]), str(g))
+    page.set_viewport_size({"width": 1600, "height": 1000})
+
+    # 5. Right-click a page in the nav: Edit, Rename, Delete -- inline.
+    def menu() -> None:
+        page.click(f"#nav-pages [data-page='{pid}']", button="right")
+        page.wait_for_timeout(250)
+
+    menu()
+    acts = page.evaluate("[...document.querySelectorAll('#nav-menu [data-act]')].map((b) => b.dataset.act)")
+    check("right-click on a page: a menu of Edit, Rename and Delete", acts == ["edit", "rename", "delete"], str(acts))
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(250)
+    check("...Esc closes it", not page.evaluate("!!document.getElementById('nav-menu')"))
+    menu()
+    page.click("#nav-menu [data-act='edit']")
+    page.wait_for_timeout(800)
+    check("...Edit opens the builder on that page", page.evaluate("location.hash") == f"#page/{pid}/edit"
+          and page.evaluate("!!document.getElementById('pb-save')"))
+    page.click("#pb-cancel")
+    page.wait_for_timeout(1500)
+    menu()
+    page.click("#nav-menu [data-act='rename']")
+    page.wait_for_timeout(200)
+    page.fill("#nav-rename", "Renamed 7")
+    page.press("#nav-rename", "Enter")
+    page.wait_for_timeout(900)
+    names = page.evaluate("""async (id) => ({ nav: document.querySelector(`#nav-pages [data-page="${id}"]`).textContent,
+      head: document.querySelector('.page__name')?.textContent, hash: location.hash,
+      saved: (await (await fetch('/api/settings')).json()).ui.pages.find((p) => p.id === id).name })""", pid)
+    check("...Rename edits the name in place (typing 7 does not jump to page 1), saved and shown",
+          names["nav"].endswith("Renamed 7") and names["saved"] == "Renamed 7" and names["head"] == "Renamed 7"
+          and names["hash"] == f"#page/{pid}", str(names))
+    menu()
+    page.click("#nav-menu [data-act='delete']")
+    page.wait_for_timeout(200)
+    asking = page.evaluate("!!document.getElementById('nav-menu-yes')")
+    still = page.evaluate("(id) => !!document.querySelector(`#nav-pages [data-page='${id}']`)", pid)
+    page.click("#nav-menu-yes")
+    page.wait_for_timeout(1200)
+    gone = page.evaluate("""async (id) => ({ nav: !!document.querySelector(`#nav-pages [data-page="${id}"]`),
+      saved: (await (await fetch('/api/settings')).json()).ui.pages.some((p) => p.id === id), hash: location.hash })""", pid)
+    check("...Delete asks in the menu first, then the page is gone, saved gone, and you are back on Play",
+          asking and still and not gone["nav"] and not gone["saved"] and gone["hash"] == "#play", str(gone))
+    page.close()
+    return fails
+
+
 # ── resize: every panel at every width its arrows reach ──────────────────────────────
 # The 0.14 audit walked 42 panels through the old 3/6/12 spans at two windows and found
 # panels sticking out of their own box, rows that stopped short of the edge, and vertical
@@ -2186,7 +2466,7 @@ def resize_checks(browser, port: int, errs: list[str]) -> list[str]:
     registry = {p["slug"]: p.get("min") for p in panels}
     titles = {p["slug"]: p["title"] for p in panels}
     off = []
-    for view in ("play", "practice", "layers", "tools"):
+    for view in ("play", "practice", "layers", "tools", "stats"):
         go(view)
         for slug, w in page.evaluate(RS_MIN):
             want = registry.get(slug)
@@ -2216,6 +2496,135 @@ def resize_checks(browser, port: int, errs: list[str]) -> list[str]:
     check("at 1024px, three columns: the builder warns for exactly the panels too wide for their pane",
           len(real) == 3 and not wrong, "; ".join(wrong) or f"panes {real}, warning {warn!r}")
     page.set_viewport_size({"width": 1600, "height": 1000})
+    page.close()
+    return fails
+
+
+# -- folding: a narrower panel is a smaller panel, not a taller one ----------------------
+# Every managed panel of every tab, at 1600x1000 and 1280x800, laid out at each span its
+# arrows can reach (its measured minimum up to the whole row), widest first: a step
+# narrower may make it at most FOLD_MAX taller. The density tiers (style.css tokens) are
+# what make that hold -- the same controls a tier smaller, rows kept as rows. Jam is held
+# to the same rule in its own section. Then: nothing on a tab that looks like a panel is
+# left out of the layout (the Exercises shelf was, and could not be dragged), and the
+# Exercises panel drags and keeps its handle through a run.
+FOLD_MAX = 1.15
+FOLD_SKIP = {"jam"}       # the Jam section measures it
+# Panels a step narrower cannot keep within FOLD_MAX yet, and why. Each one is listed
+# rather than passed quietly; the rule still runs on them and prints what it finds.
+FOLD_KNOWN = {
+    "zone-editor": "twelve controls a zone: one row only at the full width, two rows below it",
+    "build-one": "three build cards stay side by side down to a third of 1600; at a third of 1280 they go two and one",
+    "exercises": "the shelf's three cards go two and one at a third of a 1280px window",
+    "pedal": "the mode's longest choice takes the row's width at a third; the sliders go under it",
+    "audio-output": "device names are as long as the driver makes them; the row wraps under half width",
+    "chords-scales": "the twelve roots take a row of their own at a third of a 1280px window",
+}
+
+FOLD_MEASURE = """() => {
+  const out = [];
+  for (const grid of document.querySelectorAll('#stage > .grid--packed')) {
+    const cg = parseFloat(getComputedStyle(grid).columnGap), W = grid.clientWidth;
+    const colW = (W - 11 * cg) / 12, px = (n) => n * colW + (n - 1) * cg;
+    for (const el of grid.children) {
+      if (!el.dataset.panel || !el.getClientRects().length) continue;
+      const mod = el.firstElementChild, keep = el.style.width, hs = [];
+      for (const s of [12, 8, 6, 4]) {
+        if (s < (el._minSpan || 12) && s !== 12) continue;
+        el.style.width = px(s) + 'px';
+        hs.push([s, Math.round(mod.getBoundingClientRect().height)]);
+      }
+      el.style.width = keep;
+      out.push({ id: el.dataset.panel, hs });
+    }
+  }
+  return out;
+}"""
+
+# Grid children holding a panel card that the layout does not manage.
+FOLD_LOOSE = """() => [...document.querySelectorAll('#stage > .grid > *')]
+  .filter((e) => e.getClientRects().length && e.querySelector('.mod') && !e.dataset.panel)
+  .map((e) => e.id || e.className)"""
+
+FOLD_ORDER = "() => [...document.querySelectorAll('#stage > .grid > [data-panel]')].map((e) => e.dataset.panel)"
+
+
+def folding_checks(browser, port: int, errs: list[str]) -> list[str]:
+    fails: list[str] = []
+    page = browser.new_page(viewport={"width": 1600, "height": 1000})
+    page.on("pageerror", lambda e: errs.append(str(e)))
+
+    def check(label: str, passed: bool, detail: str = "") -> None:
+        print(f"  [{'PASS' if passed else 'FAIL'}] {label}" + (f" -- {detail}" if detail else ""))
+        if not passed:
+            fails.append(f"folding: {label} {detail}".strip())
+
+    def go(hash_: str, wait: int = 2000) -> None:
+        page.evaluate(f"location.hash = '{hash_}'")
+        page.wait_for_timeout(wait)
+
+    print("\nfolding: every panel, a step narrower, at most 15% taller")
+    page.goto(f"http://127.0.0.1:{port}/", wait_until="networkidle")
+    page.wait_for_timeout(1500)
+    page.evaluate("""() => fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ui: { layout: { practice: [] }, tour_seen: true } }) })""")
+    page.reload(wait_until="networkidle")
+    page.wait_for_timeout(1500)
+    for w, h in RESIZE_SIZES:
+        page.set_viewport_size({"width": w, "height": h})
+        for view in VIEWS:
+            go(view)
+            grew, known, n = [], [], 0
+            for r in page.evaluate(FOLD_MEASURE):
+                if r["id"] in FOLD_SKIP:
+                    continue
+                n += 1
+                for (a, ha), (b, hb) in zip(r["hs"], r["hs"][1:]):
+                    if ha and hb > ha * FOLD_MAX:
+                        msg = f"{r['id']} {a}->{b} columns: {ha}->{hb}px (x{hb / ha:.2f})"
+                        (known if r["id"] in FOLD_KNOWN else grew).append(msg)
+            for k in known:
+                print(f"         known: {k}")
+            check(f"{view} @{w}x{h}: {n} panels fold (a step narrower is at most {FOLD_MAX:.2f}x as tall)",
+                  n > 0 and not grew, "; ".join(grew))
+            loose = page.evaluate(FOLD_LOOSE)
+            check(f"{view} @{w}x{h}: every panel on the tab can be dragged and sized", not loose,
+                  ", ".join(loose))
+    page.set_viewport_size({"width": 1600, "height": 1000})
+
+    # Exercises: a panel with a handle, dragged above Songs by its header, and still one
+    # (with its handle) through a run and back.
+    go("practice", 2400)
+    order = page.evaluate(FOLD_ORDER)
+    grip = "#ex-host .mod__head > .mod__grip"
+    check("Exercises is a managed panel with arrows", "exercises" in order
+          and page.locator(grip).count() == 1, str(order))
+    page.evaluate("document.getElementById('ex-host').scrollIntoView({ block: 'center' })")
+    page.wait_for_timeout(300)
+    head = page.locator("#ex-host .mod__head").first.bounding_box()
+    songs = page.locator("[data-panel='songs'] .mod__head").first.bounding_box()
+    if head and songs:
+        page.mouse.move(head["x"] + 60, head["y"] + head["height"] / 2)
+        page.mouse.down()
+        page.mouse.move(head["x"] + 80, head["y"] + 20, steps=4)
+        page.mouse.move(songs["x"] + 40, songs["y"] + songs["height"] / 2, steps=12)
+        page.mouse.up()
+        page.wait_for_timeout(600)
+    after = page.evaluate(FOLD_ORDER)
+    check("Exercises drags by its header (to above Songs)",
+          "exercises" in after and "songs" in after and after.index("exercises") < after.index("songs"),
+          f"{order} -> {after}")
+    page.evaluate("document.querySelector('#ex-host .build .btn')?.click()")
+    page.wait_for_timeout(800)
+    check("an open run keeps the panel's place and a handle",
+          page.evaluate("!!document.querySelector('#ex-host[data-panel=exercises] .exrun')")
+          and page.locator(grip).count() == 1)
+    page.evaluate("[...document.querySelectorAll('.exrun button')].find(b => b.textContent === 'Back to the shelf').click()")
+    page.wait_for_timeout(600)
+    check("back on the shelf: one handle, not two",
+          page.locator(grip).count() == 1 and page.evaluate("!!document.querySelector('#ex-host .build')"))
+    page.evaluate("""() => fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ui: { layout: { practice: [] } } }) })""")
     page.close()
     return fails
 
@@ -2290,10 +2699,13 @@ def main() -> int:
                               f"no gaps, nothing stringified")
                 page.close()
             fails.extend(jam_checks(browser, port, errs))
+            fails.extend(jam_fit_checks(browser, port, errs))
             fails.extend(transport_checks(browser, port, errs))
             fails.extend(pages_checks(browser, port, errs))
             fails.extend(pages_fix_checks(browser, port, errs))
+            fails.extend(nav_checks(browser, port, errs))
             fails.extend(resize_checks(browser, port, errs))
+            fails.extend(folding_checks(browser, port, errs))
             browser.close()
     finally:
         if proc is not None:

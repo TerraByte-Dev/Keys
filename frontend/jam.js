@@ -222,6 +222,7 @@ export function createJam(ctx, { onStart } = {}) {
   let gen = 0;                 // bumped by restart(): asks from before it are not judged
   const echo = { size: 3, streak: 0, misses: 0, from: 72 };
   let leadShown = '';
+  let countAt = -1;            // the beat the Next chip's countdown was last painted on
   const pins = new Map();      // `${key id}:${pin}` -> { pcs, names, title, blue }
   const fetched = new Map();   // url -> its request: chords and scales for My chords
   let mine = null;             // My chords, loaded: { sig, chords: [...] } (loadMine)
@@ -284,11 +285,23 @@ export function createJam(ctx, { onStart } = {}) {
   const wanderBox = toggle('Wander', opt.wander, (on) => { opt.wander = on; save(); });
   // My chords: a row of slots, and the picker for the one being changed (paintMine).
   const mineEl = { slots: h('div.jam__slots'), picker: h('div.jam__picker') };
+  // In a narrow panel the Band group folds to one line that says what the band is set to
+  // (style.css); this opens it. Wide, the line is hidden and the group always shows.
+  const bandFold = h('button.jam__fold', { type: 'button', 'aria-expanded': 'false',
+    onclick: (e) => {
+      const open = jamEl.classList.toggle('is-band-open');
+      e.currentTarget.setAttribute('aria-expanded', String(open));
+    } });
+  const paintFold = () => {
+    bandFold.textContent = `${STYLES.find((st) => st.id === opt.style)?.label ?? ''} · ${opt.bpm} bpm · `
+      + `${Math.round(opt.volume * 100)}%`;
+  };
 
   const el = {
     go: h('button.btn.btn--lg.btn--primary.jam__go', { onclick: () => (playing ? stop() : start()) }, 'Start the band'),
     nowSym: h('div.jam__sym'), nowRole: h('div.jam__role'), note: h('div.jam__note'),
     nextSym: h('div.jam__sym.jam__sym--next'), nextRole: h('div.jam__role'),
+    count: h('span.jam__count', { title: 'Beats until the chord changes' }),
     beats: h('div.jam__beats', null, Array.from({ length: BEATS }, () => h('span.jam__beat'))),
     oct: h('div.strip'),
     coach: h('div.jam__coach'),
@@ -374,14 +387,16 @@ export function createJam(ctx, { onStart } = {}) {
             tag('guide', option('Guide', seg(GUIDES, opt.guide, setGuide)))))),
 
       h('div.jam__stage', null,
-        h('div.jam__card', null, h('div.jam__lbl', null, 'Now'), el.nowSym, el.nowRole, el.note),
+        h('div.jam__card.jam__card--now', null, h('div.jam__lbl', null, 'Now'),
+          h('div.jam__line', null, el.nowSym, el.nowRole), el.note),
         h('div.jam__mid', null, el.beats, el.oct, el.coach, el.heard),
-        h('div.jam__card.jam__card--next', null, h('div.jam__lbl', null, 'Next'), el.nextSym, el.nextRole)),
+        h('div.jam__card.jam__card--next', null, h('div.jam__lbl', null, 'Next'), el.nextSym, el.nextRole, el.count)),
 
       el.phrase,
 
       h('div.jam__more', null,
         group('Band', 'band',
+          bandFold,
           option('Style', styleSeg),
           tag('bars', option('Each chord', seg(LENGTHS, opt.bars, (id) => setBars(id)))),
           h('label.field.jam__field', null, h('span.field__label', null, h('span', null, 'Tempo'), bpmValue), bpm),
@@ -404,6 +419,7 @@ export function createJam(ctx, { onStart } = {}) {
   root.querySelector('.mod__head').append(focusBtn(() => ctx.toggleFocus?.(undefined, root),
     'Just Jam and the keys, full screen (G). Esc comes back; the band keeps playing.'));
   const jamEl = root.querySelector('.jam');
+  paintFold();
 
   /* Which options this music uses. The rest are hidden, not disabled: an option that does
      nothing here is noise. */
@@ -1125,6 +1141,7 @@ export function createJam(ctx, { onStart } = {}) {
     if (pos < 0) { paintBeats(-1); return; }
     const bar = Math.floor(pos);
     paintBeats(Math.floor((pos - bar) * BEATS));
+    paintCount(pos, bar);
     topUp(bar);
     track(pos, bar);
     if (bar !== shownBar) turned(bar);
@@ -1249,6 +1266,16 @@ export function createJam(ctx, { onStart } = {}) {
       b.classList.toggle('is-on', i === beat);
       b.classList.toggle('is-down', i === 0 && beat === 0);
     });
+  }
+
+  /* Next's countdown: the beats left until the chord changes, painted once a beat. */
+  function paintCount(pos, bar) {
+    const beat = Math.floor(pos * BEATS);
+    if (beat === countAt) return;
+    countAt = beat;
+    let k = bar + 1;
+    while (chart[k] && same(chart[k], chart[bar])) k++;
+    el.count.textContent = chart[k] && chart[bar] ? `in ${k * BEATS - beat}` : '';
   }
 
   /* ── what you play ─────────────────────────────────────────────────────── */
@@ -1674,6 +1701,8 @@ export function createJam(ctx, { onStart } = {}) {
     for (const k of octKeys) k.classList.remove('is-lead');
     el.nextSym.textContent = '';
     el.nextRole.replaceChildren();
+    el.count.textContent = '';
+    countAt = -1;
     el.coach.replaceChildren(h('span.jam__muted', null, {
       songs: 'Start the band, then play any lit key, in any octave.',
       modal: `${room().mood} Start the band and find the ringed key.`,
@@ -1766,6 +1795,7 @@ export function createJam(ctx, { onStart } = {}) {
   /* ── persistence ───────────────────────────────────────────────────────── */
   let saveTimer = 0;
   function save() {
+    paintFold();
     // Into the cached state too, or coming back to this tab rebuilds the panel from
     // the settings as they were when the app opened.
     const s = ctx.state?.settings;

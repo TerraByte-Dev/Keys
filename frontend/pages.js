@@ -19,10 +19,11 @@
  * file loses the bad entries, never the app. */
 
 import { api, h, mod } from './ui.js';
+import { DEFAULT_ICON, ICONS, ICON_NAMES, icon } from './icons.js';
 
 export const MAX_PAGES = 6;
-export const PAGE_VIEWS = ['play', 'practice', 'layers', 'tools'];
-const VIEW_TITLES = { play: 'Play', practice: 'Practice', layers: 'Layers', tools: 'Tools' };
+export const PAGE_VIEWS = ['play', 'practice', 'layers', 'tools', 'stats'];
+const VIEW_TITLES = { play: 'Play', practice: 'Practice', layers: 'Layers', tools: 'Tools', stats: 'Stats' };
 
 /* slug = what layout.js derives from the panel's title (its data-panel), or the
    data-slot of a nested grid that is not a layout panel (Practice's exercise shelf).
@@ -31,9 +32,9 @@ const VIEW_TITLES = { play: 'Play', practice: 'Practice', layers: 'Layers', tool
    ui_check measures every one in the real DOM, so a panel that grows cannot leave its
    number behind. The shelf has none -- it is a grid of cards that reflows to any width. */
 export const PANELS = [
-  { view: 'play', slug: 'instruments', title: 'Instruments', min: 230 },
-  { view: 'play', slug: 'effects', title: 'Effects', min: 210 },
-  { view: 'play', slug: 'scale-highlighter', title: 'Scale highlighter', min: 250 },
+  { view: 'play', slug: 'instruments', title: 'Instruments', min: 210 },
+  { view: 'play', slug: 'effects', title: 'Effects', min: 170 },
+  { view: 'play', slug: 'scale-highlighter', title: 'Scale highlighter', min: 230 },
   { view: 'play', slug: 'tempo', title: 'Tempo (metronome)', min: 160 },
   { view: 'play', slug: 'meter', title: 'Meter', min: 150 },
   { view: 'play', slug: 'tempo-ramp', title: 'Tempo ramp', min: 220 },
@@ -41,17 +42,32 @@ export const PANELS = [
   { view: 'play', slug: 'loop-station', title: 'Loop station', min: 220 },
   { view: 'practice', slug: 'jam', title: 'Jam', min: 240 },
   { view: 'practice', slug: 'songs', title: 'Songs', min: 180 },
-  { view: 'practice', slug: 'exercises', title: 'Exercises' },
-  { view: 'practice', slug: 'now', title: 'Now', min: 150 },
+  { view: 'practice', slug: 'exercises', title: 'Exercises', min: 160 },
+  { view: 'practice', slug: 'now', title: 'Now', min: 130 },
   { view: 'practice', slug: 'timing', title: 'Timing', min: 180 },
   { view: 'layers', slug: 'layout', title: 'Layout', min: 160 },
-  { view: 'layers', slug: 'build-one', title: 'Build one', min: 280 },
+  { view: 'layers', slug: 'build-one', title: 'Build one', min: 220 },
   { view: 'layers', slug: 'zone-editor', title: 'Zone editor', min: 190 },
-  { view: 'tools', slug: 'touch-response', title: 'Touch response', min: 220 },
-  { view: 'tools', slug: 'pedal', title: 'Pedal', min: 240 },
-  { view: 'tools', slug: 'chords-scales', title: 'Chords & scales', min: 220 },
-  { view: 'tools', slug: 'chords-in-this-key', title: 'Chords in this key', min: 230 },
+  { view: 'tools', slug: 'touch-response', title: 'Touch response', min: 200 },
+  { view: 'tools', slug: 'pedal', title: 'Pedal', min: 280 },
+  { view: 'tools', slug: 'chords-scales', title: 'Chords & scales', min: 200 },
+  { view: 'tools', slug: 'chords-in-this-key', title: 'Chords in this key', min: 210 },
   { view: 'tools', slug: 'backing-tracks', title: 'Backing tracks', min: 260 },
+  { view: 'stats', slug: 'all-time', title: 'All time', min: 160 },
+  { view: 'stats', slug: 'activity', title: 'Activity', min: 160 },
+  { view: 'stats', slug: 'keys-you-have-played', title: 'Keys you have played', min: 220 },
+  { view: 'stats', slug: 'what-key-you-play-in', title: 'What key you play in', min: 220 },
+  { view: 'stats', slug: 'note-circle', title: 'Note circle', min: 160 },
+  { view: 'stats', slug: 'chords', title: 'Chords', min: 160 },
+  { view: 'stats', slug: 'chord-qualities', title: 'Chord qualities', min: 190 },
+  { view: 'stats', slug: 'intervals', title: 'Intervals', min: 170 },
+  { view: 'stats', slug: 'when-you-practise', title: 'When you practise', min: 210 },
+  { view: 'stats', slug: 'which-day', title: 'Which day', min: 180 },
+  { view: 'stats', slug: 'velocity', title: 'Velocity', min: 190 },
+  { view: 'stats', slug: 'notes-per-minute', title: 'Notes per minute', min: 230 },
+  { view: 'stats', slug: 'session-length', title: 'Session length', min: 180 },
+  { view: 'stats', slug: 'sounds-you-reach-for', title: 'Sounds you reach for', min: 220 },
+  { view: 'stats', slug: 'sight-reading', title: 'Sight reading', min: 200 },
 ];
 
 const panelsOf = (view) => PANELS.filter((p) => p.view === view).map((p) => p.slug);
@@ -103,6 +119,8 @@ export function validPages(raw) {
     out.push({
       id,
       name: name || `Page ${out.length + 1}`,
+      // A page from before icons, or one naming an icon this build does not draw.
+      icon: ICON_NAMES.includes(p.icon) ? p.icon : DEFAULT_ICON,
       cols: [1, 2, 3].includes(p.cols) ? p.cols : 2,
       panes,
     });
@@ -135,6 +153,7 @@ export function pageShell(page, { onEdit }) {
   }));
   const el = h('div.page' + (stack ? '.page--stack' : ''), { 'data-page': page.id },
     h('div.page__head', null,
+      icon(page.icon, 'page__icon'),
       h('span.page__name', null, page.name),
       h('span.page__sub', null, page.panes.map((p) => VIEW_TITLES[p.view]).join(' · ')),
       h('span.list__spacer'),
@@ -153,10 +172,11 @@ export function pageShell(page, { onEdit }) {
 const COL = /^col-\d+$/;
 
 /* How wide a pane's panel grid comes out with this many columns in a stage this wide:
-   the page's side padding (style.css .stage:has(> .page), 16px each side), the 14px
-   between panes, then the pane's own 4px right padding and its 8px scrollbar. */
+   the page's side padding (style.css .stage:has(> .page), 14px each side), the 10px
+   between panes, then the pane's own 4px scrollbar gutter -- which with the 10px is
+   the 14px between one pane's panels and the next's. */
 export function paneWidth(stageWidth, cols) {
-  return (stageWidth - 32 - (cols - 1) * 14) / cols - 4 - 8;
+  return (stageWidth - 28 - (cols - 1) * 10) / cols - 4;
 }
 
 /* Before layout.js sees the pane: panels default to the pane's full width. A pane is a
@@ -193,6 +213,7 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
   const draft = {
     start: page ? null : 'solo',      // the starter the draft still matches, if any
     name: page?.name || '',
+    icon: page?.icon || DEFAULT_ICON,
     cols: page?.cols || 2,
     order: [],                        // views, in pane order
     picked: Object.fromEntries(PAGE_VIEWS.map((v) => [v, new Set()])),
@@ -211,6 +232,7 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
     oninput: (e) => { draft.name = e.target.value; },
   });
   const starters = h('div.seg', { id: 'pb-start' });
+  const icons = h('div.pb__icons', { id: 'pb-icon', role: 'radiogroup', 'aria-label': 'Icon' });
   const checks = h('div.pb__groups', { id: 'pb-panels' });
   const colsSeg = h('div.seg', { id: 'pb-cols' });
   const orderList = h('div.pb__order', { id: 'pb-order' });
@@ -219,14 +241,23 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
   const foot = h('div.btnrow.pb__foot', { id: 'pb-foot' });
 
   function paint() {
+    icons.replaceChildren(...ICON_NAMES.map((name) =>
+      h('button.pb__icon' + (name === draft.icon ? '.is-on' : ''), {
+        type: 'button', role: 'radio', 'data-icon': name, title: ICONS[name].label,
+        'aria-checked': name === draft.icon ? 'true' : 'false',
+        onclick: () => { draft.icon = name; paint(); },
+      }, icon(name, 'pb__iconsvg'))));
     starters.replaceChildren(...Object.entries(STARTERS).map(([key, s]) =>
       h('button.seg__btn' + (key === draft.start ? '.is-on' : ''), {
         'data-start': key, onclick: () => { load(s); draft.start = key; paint(); },
       }, s.label)));
-    checks.replaceChildren(...PAGE_VIEWS.map((view) =>
-      h('div.pb__group', null,
+    // A long list (Stats has 15) takes two columns of the grid and splits into two,
+    // so no one group sets the height of the lot.
+    checks.replaceChildren(...PAGE_VIEWS.map((view) => [view, PANELS.filter((p) => p.view === view)])
+      .map(([view, list]) =>
+      h('div.pb__group' + (list.length > 9 ? '.pb__group--wide' : ''), null,
         h('div.pb__gtitle', null, VIEW_TITLES[view]),
-        PANELS.filter((p) => p.view === view).map((p) =>
+        list.map((p) =>
           h('label.toggle.pb__check', null,
             h('input', {
               type: 'checkbox', 'data-view': view, 'data-slug': p.slug,
@@ -238,16 +269,20 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
       h('button.seg__btn' + (n === draft.cols ? '.is-on' : ''), {
         onclick: () => { if (n !== draft.cols) draft.start = null; draft.cols = n; paint(); },
       }, String(n))));
+    // Across, as the page lays them out; arrows that point the way a pane moves.
+    const across = Math.max(1, Math.min(draft.cols, draft.order.length));
+    orderList.style.setProperty('--cols', String(across));
+    const [back, fwd] = across > 1 ? ['←', '→'] : ['↑', '↓'];
     orderList.replaceChildren(...(draft.order.length
       ? draft.order.map((view, i) => h('div.pb__row', { 'data-view': view },
         h('span.pb__pos', null, String(i + 1)),
         h('span.pb__rname', null, VIEW_TITLES[view]),
         h('span.pb__rsub', null, `${draft.picked[view].size} panel${draft.picked[view].size > 1 ? 's' : ''}`),
         h('span.list__spacer'),
-        h('button.btn.btn--sm', { title: 'earlier', disabled: i === 0, onclick: () => move(i, -1) }, '↑'),
+        h('button.btn.btn--sm', { title: 'earlier', disabled: i === 0, onclick: () => move(i, -1) }, back),
         h('button.btn.btn--sm', {
           title: 'later', disabled: i === draft.order.length - 1, onclick: () => move(i, 1),
-        }, '↓')))
+        }, fwd)))
       : [h('div.empty', null, 'Tick a panel above and its tab becomes a pane here.')]));
     paintWarn();
   }
@@ -300,6 +335,7 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
     onSave({
       id: page?.id || `p${Date.now().toString(36)}`,
       name: draft.name.trim().slice(0, 40) || (page ? page.name : `Page ${count + 1}`),
+      icon: draft.icon,
       cols: draft.cols,
       panes,
     });
@@ -308,7 +344,7 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
   // Filtered: the DOM's own replaceChildren prints a null child as the text "null".
   function paintFoot(asking = false) {
     foot.replaceChildren(...[
-      h('button.btn.btn--lg', { id: 'pb-save', onclick: save }, page ? 'Save' : 'Make the page'),
+      h('button.btn.btn--primary', { id: 'pb-save', onclick: save }, page ? 'Save' : 'Make the page'),
       h('button.btn', { id: 'pb-cancel', onclick: onCancel }, 'Cancel'),
       h('span.list__spacer'),
       page && !asking
@@ -323,16 +359,21 @@ export function pageBuilder(page, { count, onSave, onCancel, onDelete }) {
 
   paint();
   paintFoot();
+  // Header and footer fixed, the middle scrolling (style.css .pb__body).
   return h('div.page__builder', null,
     mod(page ? `Edit ${page.name}` : 'New page', 'panels from any tab, side by side',
-      h('label.field', null, h('span.field__label', null, h('span', null, 'Name')), nameIn),
-      h('div.pb__line', null, h('span.pb__lbl', null, 'Start from'), starters),
-      h('div.pb__lbl', null, 'Panels'),
-      checks,
-      h('div.pb__line', null, h('span.pb__lbl', null, 'Columns'), colsSeg),
-      warn,
-      h('div.pb__lbl', null, 'Panes, in order'),
-      orderList,
-      note,
+      h('div.pb__body', null,
+        h('div.pb__top', null,
+          h('label.field', null, h('span.field__label', null, h('span', null, 'Name')), nameIn),
+          h('div.pb__line', null, h('span.pb__lbl', null, 'Start from'), starters),
+          h('div.pb__line', null, h('span.pb__lbl', null, 'Columns'), colsSeg)),
+        h('div.pb__lbl', null, 'Icon'),
+        icons,
+        h('div.pb__lbl', null, 'Panels'),
+        checks,
+        h('div.pb__lbl', null, 'Panes, in order'),
+        warn,
+        orderList,
+        note),
       foot));
 }

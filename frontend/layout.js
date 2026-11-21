@@ -57,7 +57,7 @@ const slug = (s) => String(s || '').toLowerCase().trim()
 
 function panelId(col, seen) {
   const title = col.querySelector('.mod__title')?.textContent || '';
-  let id = slug(title);
+  let id = col.dataset.slot || slug(title);
   // Two panels with the same title in one view would otherwise share a slot.
   while (seen.has(id)) id += '-2';
   seen.add(id);
@@ -65,13 +65,16 @@ function panelId(col, seen) {
 }
 
 /* A panel is a grid child whose own first child is a .mod -- the screwed-down section
-   with a header to drag it by. Practice's exercise host is `div.grid.col-12`, which
-   matches "has a col- class" but is a nested GRID of panels, not a panel: treating it
-   as one gave it a drag handle it cannot use, an id stolen from the first panel
-   inside it, and grid--packed's 8px rows applied to a grid that was never ours. */
+   with a header to drag it by. A nested GRID of panels is not one: treating it as one
+   gave it a drag handle it cannot use, an id stolen from the first panel inside it,
+   and grid--packed's rows applied to a grid that was never ours.
+   Or a named slot (data-slot) holding one: Practice's exercises, which is the shelf
+   (a .mod) or an open run (a small grid of them) in the same place. Its name is the
+   slot's, so the run's title does not move it, and its handle is the first header in
+   it. The view says when it swapped what is inside (the 'layout:content' event). */
 function isPanel(el) {
   if (el.classList.contains('grid')) return false;
-  if (!el.firstElementChild?.classList.contains('mod')) return false;
+  if (!(el.dataset.slot ? el.querySelector('.mod__head') : el.firstElementChild?.classList.contains('mod'))) return false;
   return [...el.classList].some((c) => /^col-\d+$/.test(c));
 }
 
@@ -336,7 +339,7 @@ function stepFrom(col, delta) {
 }
 
 function paintGrip(col) {
-  const [less, more] = col.querySelectorAll(':scope > .mod > .mod__head > .mod__grip > .mod__btn');
+  const [less, more] = col.querySelector('.mod__head > .mod__grip')?.querySelectorAll(':scope > .mod__btn') || [];
   if (!less || !more) return;
   const shown = col._shown || spanOf(col);
   const canLess = !!stepFrom(col, -1);
@@ -382,9 +385,9 @@ function pack(grid) {
 
     /* EVERY child, not just the managed panels.
      *
-     * A view is allowed to drop a plain container in the grid -- Practice puts the
-     * exercise shelf in one, a `div.grid.col-12` that isPanel() rightly refuses to
-     * make draggable. But "not a panel" was being read as "needs no row span", and
+     * A view is allowed to drop a plain container in the grid -- Practice's exercise
+     * shelf was one (a `div.grid.col-12`, before it became a slot panel) that isPanel()
+     * rightly refused to make draggable. But "not a panel" was being read as "needs no row span", and
      * under grid-auto-rows:8px an element with no span is EIGHT PIXELS TALL, not
      * auto. The shelf was 183px of content occupying one 8px track and spilling
      * 161px straight over Sheet music, which is the stacking that had to be dragged
@@ -459,6 +462,7 @@ function watch(grid) {
     let real = grid.clientWidth !== grid._fitW;
     for (const { target, borderBoxSize } of entries) {
       const el = target.parentElement === grid ? target : target.parentElement;
+      if (!el) continue;                      // a card swapped out of its slot (practice.js)
       const box = borderBoxSize?.[0];
       const d = el._drawn;
       if (d && box && Math.abs(box.inlineSize - d.w) < 0.5 && Math.abs(box.blockSize - d.h) < 0.5) continue;
@@ -509,6 +513,11 @@ export function attachLayout(grid, viewId) {
       col.dataset.panel = panelId(col, seen);
       col.dataset.defaultSpan = String(spanOf(col));
       addControls(grid, col, viewId);
+      if (col.dataset.slot && !col._onContent) {
+        // Its handle again, and the new card watched in place of the one that left.
+        col._onContent = () => { addControls(grid, col, viewId); col._m = null; grid.repack = watch(grid); grid.repack(); };
+        col.addEventListener('layout:content', col._onContent);
+      }
     }
     applySaved(grid, viewId);
     // Opt in by class, not globally: nested grids (the exercise host in Practice) are
@@ -616,7 +625,7 @@ function persist(grid, viewId) {
 /* ── per-panel controls ───────────────────────────────────────────────────── */
 function addControls(grid, col, viewId) {
   const head = col.querySelector('.mod__head');
-  if (!head) return;
+  if (!head || head.querySelector(':scope > .mod__grip')) return;
 
   // From what the panel shows, never below its measured minimum, and only to a width
   // that shows (stepFrom). The panel is sized from then on: fit() leaves it at it.
