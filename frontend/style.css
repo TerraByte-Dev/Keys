@@ -905,9 +905,13 @@ html.is-titlebar .vol__slider::-webkit-slider-thumb {
 html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
 
 /* Minimise / maximise / close. Full rail height and flush to the corner, the way
-   Windows' own are, so throwing the mouse at the top-right still hits Close -- but
-   drawn in the panel's ink, with Close going red the way the panic button does. */
+   Windows' own are, so throwing the mouse at the top-right still hits Close -- drawn
+   in the panel's ink. Close goes Windows' own close red with a white cross in EVERY
+   theme: it is the one control people find by its colour, and the themed --red is
+   maroon on midnight, pale pink on paper and cyan on ice. */
 .winctl {
+  --winctl-close: #c42b1c;
+  --winctl-close-down: #a8251a;
   align-self: stretch; display: flex; margin-left: 2px;
   border-left: 1px solid var(--hairline);
 }
@@ -919,8 +923,8 @@ html.is-titlebar .railbtn { width: 30px; height: 28px; margin-left: 0; }
 }
 .winctl__btn:hover { color: var(--ink); background: var(--panel-3); }
 .winctl__btn:active { background: var(--panel-4); }
-.winctl__btn--close:hover { color: var(--gloss-hard); background: var(--red-deep); }
-.winctl__btn--close:active { background: var(--red); }
+.winctl__btn--close:hover { color: var(--gloss-hard); background: var(--winctl-close); }
+.winctl__btn--close:active { color: var(--gloss-hard); background: var(--winctl-close-down); }
 .winctl__btn:focus-visible { outline: 2px solid var(--amber); outline-offset: -2px; }
 
 /* ── left nav ───────────────────────────────────────────────────────────── */

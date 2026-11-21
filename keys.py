@@ -167,8 +167,9 @@ def window_icon() -> Path | None:
 # corners, Snap (Win+arrows, drag to an edge, drag down from maximised), double-click
 # to maximise and the system menu on right-click, all done by Windows itself.
 #
-# What is lost: resizing from the TOP edge and the two top corners (the page covers
-# them), and the Snap Layouts flyout that hovering Windows' own maximise button shows.
+# The top edge and top corners still resize: WebView2 answers the hit-test for its own
+# top few pixels with HTTOP, as Windows' caption would. What is lost is the Snap Layouts
+# flyout that hovering Windows' own maximise button shows.
 
 WM_CLOSE = 0x0010
 WM_NCCALCSIZE = 0x0083
@@ -231,8 +232,12 @@ class WindowControls:
 
     def close(self) -> None:
         # Exactly what Windows' own X sends, so closing runs the same path it always did.
+        # Sent a moment later, not now: pywebview answers this call by running script in
+        # the page, and if WM_CLOSE wins that race the answer lands on a disposed
+        # WebView2 and every close prints a traceback.
         if self._hwnd:
-            _user32().PostMessageW(self._hwnd, WM_CLOSE, 0, 0)
+            threading.Timer(0.15, _user32().PostMessageW,
+                            (self._hwnd, WM_CLOSE, 0, 0)).start()
 
 
 _caption = {"dropped": True}
@@ -285,6 +290,29 @@ def title_bar_in_app() -> bool:
         return config.settings.get("ui", "titlebar", default="app") != "windows"
     except Exception:  # noqa: BLE001
         return True
+
+
+def fit_to_screen(window) -> None:
+    """before_show handler: a window asked for bigger than the screen opens inside it.
+
+    1500x1000 is in logical pixels. At 125% scaling on a 1080p screen that is 1875x1250
+    on a 1920x1020 work area: the keyboard opened under the taskbar and the close button
+    past the right edge. Shrink to the work area of the screen WinForms would centre on
+    (the one under the cursor), and centre it there.
+    """
+    try:
+        from System.Drawing import Rectangle
+        from System.Windows.Forms import Cursor, FormStartPosition, Screen
+        form = window.native
+        area = Screen.FromPoint(Cursor.Position).WorkingArea
+        width, height = min(form.Width, area.Width), min(form.Height, area.Height)
+        if (width, height) == (form.Width, form.Height):
+            return
+        form.StartPosition = FormStartPosition.Manual
+        form.Bounds = Rectangle(area.X + (area.Width - width) // 2,
+                                area.Y + (area.Height - height) // 2, width, height)
+    except Exception as exc:  # noqa: BLE001 -- a big window beats no window
+        print(f"  Window size: left as asked ({exc}).")
 
 
 def frame_window(window, controls: WindowControls) -> None:
@@ -344,6 +372,7 @@ def run_window(url: str, dev: bool) -> bool:
             # text_select stays default. Turning it off suits an instrument panel right
             # up until you try to rename a layer or edit a track's notes.
         )
+        window.events.before_show += lambda: fit_to_screen(window)
         if controls is not None:
             window.events.before_show += lambda: frame_window(window, controls)
         # debug=True gives WebView2's devtools on F12, which is the browser half of
