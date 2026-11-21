@@ -718,6 +718,32 @@ JAM_BOX = """(pane) => {
 JAM_SPAN = """async (n) => { const col = document.querySelector('[data-panel]:has(> .mod > .jam)');
   col.style.gridColumn = n ? `span ${n}` : ''; await new Promise((r) => setTimeout(r, 400));
   const m = col.querySelector('.mod').getBoundingClientRect(); return [Math.round(m.width), Math.round(m.height)]; }"""
+# Jam's panel as it stands: what sticks out of its box (the resize audit's rule: wider
+# than its box, or past the panel's sides), what of the quarter's keep-list shows, what
+# the fold hides, and where the stage's three parts sit.
+JAM_LOOK = """() => {
+  const col = document.querySelector('#stage [data-panel]:has(> .mod > .jam)'), mod = col.firstElementChild;
+  const mr = mod.getBoundingClientRect();
+  const scrolls = (n) => ['auto', 'scroll'].includes(getComputedStyle(n).overflowX);
+  const name = (n) => n.tagName.toLowerCase() + [...n.classList].slice(0, 2).map((c) => '.' + c).join('');
+  const over = [];
+  for (const n of [mod, ...mod.querySelectorAll('*')]) {
+    if (n.closest('[popover]') || n instanceof SVGElement) continue;
+    const r = n.getBoundingClientRect();
+    if (!r.width || !r.height || getComputedStyle(n).visibility === 'hidden') continue;
+    if (!scrolls(n) && n.clientWidth && n.scrollWidth > n.clientWidth + 1) over.push(`${name(n)} holds ${n.scrollWidth}px in ${n.clientWidth}px`);
+    else if (r.right > mr.right + 1.5 || r.left < mr.left - 1.5) over.push(`${name(n)} ${Math.round(Math.max(r.right - mr.right, mr.left - r.left))}px past`);
+  }
+  const shows = (s) => { const e = mod.querySelector(s); return !!e && e.getClientRects().length > 0; };
+  const box = (s) => { const r = mod.querySelector(s).getBoundingClientRect(); return [r.left, r.right]; };
+  return { w: Math.round(mr.width), over: [...new Set(over)],
+    keep: ['.jam__go', '.jam__card--now .jam__sym', '.strip', '.jam__group--music .jam__opt:first-child .seg',
+           '.jam__opt--key select', '.jam__opt--pin .seg'].filter((s) => !shows(s)),
+    folded: ['.jam__group--you', '.jam__opt--level', '.jam__group--band .jam__gbody > .jam__opt'].filter(shows),
+    fold: shows('.jam__fold'),
+    stage: box('.jam__stage'), now: box('.jam__card--now .jam__sym'), strip: box('.jam__stage .strip'),
+    next: box('.jam__card--next') };
+}"""
 
 
 def jam_fit_checks(browser, port: int, errs: list[str]) -> list[str]:
@@ -746,9 +772,35 @@ def jam_fit_checks(browser, port: int, errs: list[str]) -> list[str]:
         b = page.evaluate(JAM_BOX, False)
         check(f"Practice at {w}x{h}: the whole of Jam is on screen, the band playing",
               b["scrolled"] == 0 and b["top"] >= b["boxTop"] and b["bottom"] <= b["boxBottom"], str(b))
+        # Whole width: the stage in three -- Now against the left, the strip centred, Next
+        # against the right -- not the chord at one edge and the strip at the other.
+        page.evaluate(JAM_SPAN, 12)
+        page.wait_for_function("document.querySelector('.jam__sym--next').textContent !== ''", timeout=8000)
+        a = page.evaluate(JAM_LOOK)
+        (sl, sr), mid = a["stage"], (a["strip"][0] + a["strip"][1]) / 2
+        check(f"...whole width ({a['w']}px): Now on the left, the strip centred, Next on the right",
+              abs(mid - (sl + sr) / 2) <= 0.02 * (sr - sl) and a["now"][0] - sl <= 40 and sr - a["next"][1] <= 40
+              and a["now"][1] < a["strip"][0] and a["next"][0] > a["strip"][1] and a["strip"][1] - a["strip"][0] >= 360,
+              f"stage {sl:.0f}-{sr:.0f}, now {a['now'][0]:.0f}-{a['now'][1]:.0f}, "
+              f"strip {a['strip'][0]:.0f}-{a['strip'][1]:.0f}, next {a['next'][0]:.0f}-{a['next'][1]:.0f}")
+        # A quarter: it works, and folds. Start, the chord, the strip and Music, Key and
+        # Scale show; Level, the You row and the band are behind the one line, which opens
+        # them; nothing sticks out either way (the key select among them).
+        page.evaluate(JAM_SPAN, 3)
+        a = page.evaluate(JAM_LOOK)
+        check(f"...a quarter ({a['w']}px): Start, Now, the strip, Music, Key and Scale, nothing sticking out",
+              not a["keep"] and not a["over"], f"missing {a['keep']}; {'; '.join(a['over'])}")
+        check("...the level, You and the band folded behind one line", not a["folded"] and a["fold"],
+              f"showing {a['folded']}, fold line {a['fold']}")
+        page.click(".mod:has(> .jam) .jam__fold")
+        page.wait_for_timeout(300)
+        a = page.evaluate(JAM_LOOK)
+        page.click(".mod:has(> .jam) .jam__fold")
+        check("...and the line opens them, still inside the panel", len(a["folded"]) == 3 and not a["over"],
+              f"showing {a['folded']}; {'; '.join(a['over'])}")
         page.click(".mod:has(> .jam) .jam__go")
         page.wait_for_timeout(500)
-        heights = [tuple(page.evaluate(JAM_SPAN, n)) for n in (12, 8, 6, 4)]
+        heights = [tuple(page.evaluate(JAM_SPAN, n)) for n in (12, 6, 3)]
         page.evaluate(JAM_SPAN, 0)
         for n in (1, 2, 3):
             page.evaluate(f"location.hash = 'page/jamfit{n}'")
