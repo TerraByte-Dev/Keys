@@ -1577,6 +1577,8 @@ def pages_fix_checks(browser, port: int, errs: list[str]) -> list[str]:
 #   - stretch no card: none more than RS_STRETCH_PX taller than what it holds, which is
 #     how a hole was hidden from the gap rule (a card drawn down 594px to the panel
 #     under it measures as an even 14px gap);
+#   - end every slider at its own value readout (a slider capped inside its field
+#     stopped 169px short of the number it sets);
 #   - leave no hole too narrow to use: empty space down a column, more than RS_HOLE_PX
 #     between two cards, must be at least RS_HOLE_COLS columns wide at that height --
 #     the narrowest a panel goes -- or no panel can ever go into it.
@@ -1661,6 +1663,13 @@ RS_AUDIT = """([sel, strict, STRETCH, HOLE, HOLE_COLS]) => {
     }
     const spare = mr.bottom - px(cs.borderBottomWidth) - px(cs.paddingBottom) - end;
     if (spare > STRETCH) bad.push(`${e.dataset.panel}: card ${Math.round(spare)}px taller than what it holds`);
+    // A slider ends where its own value readout does, not short of it.
+    for (const f of mod.querySelectorAll('.field')) {
+      const range = f.querySelector(':scope > input[type=range]'), val = f.querySelector('.field__value');
+      if (!range || !val || !range.getClientRects().length || !val.getClientRects().length) continue;
+      const short = val.getBoundingClientRect().right - range.getBoundingClientRect().right;
+      if (short > 4) bad.push(`${e.dataset.panel}: a slider ends ${Math.round(short)}px short of its value`);
+    }
   }
   // Holes: down each column's centre, card to card, then how many columns are empty
   // beside it at that height (and have a card further down, or it is just the bottom).

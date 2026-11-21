@@ -953,12 +953,20 @@ body::after {
    not set as a min-height: a min-height swallowed the content growing or shrinking
    inside it, so nothing observing the card saw the change. */
 .grid--packed > [data-panel] > .mod::after { content: ''; display: block; height: var(--fill, 0px); }
-/* Caps, so a control in a full-width panel stays the size of a control. :where() keeps
-   them at zero specificity: any panel's own width for a control still wins. */
-:where(.grid--packed > [data-panel]) input[type=range] { max-width: 480px; margin-inline: 0; }   /* the UA 2px each side put every 100%-wide slider 2px past its field */
-:where(.grid--packed > [data-panel]) select { min-width: 9ch; max-width: 360px; }
+/* Caps, so a control in a full-width panel stays the size of a control. A slider or a
+   select in a .field is capped WITH its field -- label and value readout over it --
+   never alone: a slider capped inside a wider field ended 169px short of its own
+   readout (Tempo ramp). And only the panel's own fields and controls, not those in a
+   card inside it, which that card's grid already sizes: capped there, Build one's
+   selects and buttons stopped short of the octave row and slider beside them.
+   :where() keeps them at zero specificity: any panel's own width for a control wins. */
+:where(.grid--packed > [data-panel] > .mod) > .field:has(> input[type=range]),
+:where(.grid--packed > [data-panel] > .mod) > input[type=range] { max-width: 480px; }
+:where(.grid--packed > [data-panel] > .mod) > .field:has(> select) { max-width: 360px; }
+:where(.grid--packed > [data-panel] > .mod) > .btn--wide { max-width: 320px; }
+:where(.grid--packed > [data-panel]) input[type=range] { margin-inline: 0; }   /* the UA 2px each side put every 100%-wide slider 2px past its field */
+:where(.grid--packed > [data-panel]) select { min-width: 9ch; }
 :where(.grid--packed > [data-panel]) input[type=text] { max-width: 560px; }
-:where(.grid--packed > [data-panel]) .btn--wide { max-width: 320px; }
 /* layout.js fit() measures each panel at min-content: the aside, which truncates and
    goes first, is out; the arrows, which a hover brings in, are in. */
 .is-measuring .mod__aside { display: none !important; }
@@ -2852,6 +2860,14 @@ body.has-update #gear::after { top: 2px; right: 1px; }
   .jam__stage { grid-template-columns: 1fr; }
   .jam__mid { order: 0; }
   .jam__prow > .jam__lbl { min-width: 0; flex-basis: 100%; }
+  /* A line per button row, its name beside it, not a line for the name and one for the
+     control; and the cards as tall as what they hold. Stacked, Jam in Solo practice's
+     344px pane at 1280 was 1916px, five pane-heights. */
+  .jam__gbody > div.jam__opt { flex-direction: row; align-items: center; gap: 10px; }
+  .jam__gbody > div.jam__opt > .jam__lbl { flex: 0 0 46px; }
+  .jam__gbody > div.jam__opt > :not(.jam__lbl) { flex: 1 1 0; min-width: 0; }
+  .jam__card { min-height: 0; }
+  .jam__card--next { flex-direction: row; flex-wrap: wrap; align-items: baseline; column-gap: 12px; }
 }
 
 
