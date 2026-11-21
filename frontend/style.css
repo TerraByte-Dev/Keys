@@ -3307,24 +3307,30 @@ body.is-focusing .jam__go { min-width: 170px; }
   body:not(.is-focusing) :is(.jam__opts, .jam__more) .seg__btn { flex: 1 1 auto; }
   body:not(.is-focusing) .jam__opt--pin { flex-wrap: wrap; row-gap: 2px; }
   body:not(.is-focusing) .jam__opt--pin > .jam__lbl { flex-basis: 100%; }
-  body:not(.is-focusing) .jam__opt--pin > .seg { flex-wrap: nowrap; }
+  body:not(.is-focusing) .jam { --jam-pad: 5px; }
 }
 @container panel (max-width: 460px) {
   body:not(.is-focusing) .jam__card--next > .jam__lbl { display: none; }
 }
+@container panel (max-width: 420px) {
+  body:not(.is-focusing) .jam__card--next .jam__role { display: none; }
+}
 
-/* The strip by its own width, wherever it is: under about 32px a key, its names and the
-   "both" badge step down, and under about 25px the badge is a dot (the outline and the
+/* The strip by its own width, wherever it is: under about 35px a key the "both" badge
+   steps down, under about 32px its names do too, and under about 27px the badge is a dot (the outline and the
    pulsing key still say where to go; the dot says the note is shared). */
 .jam .strip { container: strip / inline-size; }
+@container strip (max-width: 270px) {
+  .strip__both { padding: 0 3px; font-size: 8.5px; }
+}
 @container strip (max-width: 240px) {
   .strip { gap: 3px; }
   .strip__name { font-size: 11px; }
   .strip__key--black .strip__name { font-size: 9px; }
   .strip__role { font-size: 8.5px; }
-  .strip__both { padding: 0 4px; font-size: 8.5px; bottom: 34px; }
+  .strip__both { bottom: 34px; }
 }
-@container strip (max-width: 190px) {
+@container strip (max-width: 214px) {
   .strip__both { width: 8px; height: 8px; padding: 0; font-size: 0; bottom: 34px; }
 }
 
